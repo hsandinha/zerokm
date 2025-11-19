@@ -1,8 +1,8 @@
-import NextAuth from 'next-auth'
+import NextAuth, { AuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
 import { adminAuth } from '../../../lib/firebase-admin'
 
-export const authOptions = {
+export const authOptions: AuthOptions = {
     providers: [
         GoogleProvider({
             clientId: process.env.GOOGLE_CLIENT_ID ?? "",
@@ -33,7 +33,7 @@ export const authOptions = {
         signIn: '/'
     },
     session: {
-        strategy: 'jwt'
+        strategy: 'jwt' as const
     }
 }
 

@@ -32,6 +32,10 @@ export function LoginForm({ onLogin, isLoading }: LoginFormProps) {
 
     const handleGoogleLogin = async () => {
         try {
+            // Temporariamente usar login simples enquanto resolve problemas do NextAuth
+            onLogin(profile + '@example.com', 'demo123', profile);
+
+            /* 
             const result = await signIn('google', {
                 callbackUrl: getRedirectUrl(profile),
                 redirect: false
@@ -41,6 +45,7 @@ export function LoginForm({ onLogin, isLoading }: LoginFormProps) {
                 // Redireciona baseado no perfil selecionado
                 window.location.href = getRedirectUrl(profile);
             }
+            */
         } catch (error) {
             console.error('Erro no login com Google:', error);
         }
