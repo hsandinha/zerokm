@@ -244,7 +244,7 @@ export function useTablesDatabase() {
         } catch (error) {
             setError('Erro ao importar veículos do CSV');
             console.error(error);
-            return { success: 0, errors: ['Erro interno na importação'] };
+            return { success: 0, errors: [{ line: 0, reason: 'Erro interno na importação' }] } as any;
         } finally {
             setLoading(false);
         }

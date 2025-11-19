@@ -79,6 +79,8 @@ HONDA,CIVIC,EXL 2.0,Sensor de Estacionamento,Preto,Honda Elite,120000,2023,2024,
 - ✅ Linhas vazias são ignoradas
 - ⚠️ Linhas com menos de 20 colunas geram erro
 - ⚠️ Linhas com campos obrigatórios em branco geram erro
+ - ⚠️ A **marca** deve existir na tabela de marcas (Cadastro > Marcas)
+ - ⚠️ O **modelo** deve existir para a **mesma marca** na tabela de modelos (Cadastro > Modelos)
 
 ### Campos Detalhados:
 

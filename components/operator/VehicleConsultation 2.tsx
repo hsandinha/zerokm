@@ -25,7 +25,10 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
     const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
     const [showImportModal, setShowImportModal] = useState(false);
     const [csvFile, setCsvFile] = useState<File | null>(null);
-    const [importResults, setImportResults] = useState<{ success: number; errors: string[] } | null>(null);
+    const [importResults, setImportResults] = useState<{
+        success: number;
+        errors: Array<{ line: number; reason: string; raw?: string }>;
+    } | null>(null);
     const [importProgress, setImportProgress] = useState<{ current: number; total: number; isImporting: boolean }>({
         current: 0,
         total: 0,
@@ -528,6 +531,7 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                                     <li><strong>Status válidos:</strong> Disponível, Vendido, Reservado, Manutenção</li>
                                     <li><strong>Combustível válido:</strong> Flex, Gasolina, Etanol, Diesel, Elétrico, Híbrido</li>
                                     <li><strong>Transmissão válida:</strong> Manual, Automática, CVT</li>
+                                    <li><strong>Validação:</strong> Marca deve existir e Modelo deve estar cadastrado para a mesma Marca</li>
                                     <li>Exemplo (role horizontalmente):</li>
                                 </ul>
                                 <pre className={modalStyles.csvExample} style={{overflowX: 'auto', whiteSpace: 'nowrap'}}>
@@ -576,13 +580,28 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                                     {importResults.errors.length > 0 && (
                                         <>
                                             <p><strong>Erros:</strong> {importResults.errors.length}</p>
-                                            <details>
-                                                <summary>Ver erros</summary>
-                                                <ul className={modalStyles.errorList}>
-                                                    {importResults.errors.map((error, index) => (
-                                                        <li key={index}>{error}</li>
-                                                    ))}
-                                                </ul>
+                                            <details open>
+                                                <summary>Ver erros detalhados</summary>
+                                                <div style={{ overflowX: 'auto' }}>
+                                                    <table className={modalStyles.table}>
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Linha</th>
+                                                                <th>Motivo</th>
+                                                                <th>Conteúdo original</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {importResults.errors.map((err, idx) => (
+                                                                <tr key={idx}>
+                                                                    <td>{err.line}</td>
+                                                                    <td>{err.reason}</td>
+                                                                    <td><code style={{ whiteSpace: 'nowrap' }}>{err.raw}</code></td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
                                             </details>
                                         </>
                                     )}

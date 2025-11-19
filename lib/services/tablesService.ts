@@ -267,7 +267,7 @@ class TablesService {
     ): Promise<{ success: number; errors: string[] }> {
         const lines = csvData.split('\n').filter(line => line.trim());
         const totalLines = lines.length - 1; // Exclui cabeçalho
-        const results = { success: 0, errors: [] as string[] };
+        const results: { success: number; errors: Array<{ line: number; reason: string; raw?: string }> } = { success: 0, errors: [] };
 
         try {
             console.log('Iniciando importação de modelos...');
@@ -320,6 +320,16 @@ class TablesService {
         try {
             console.log('Iniciando importação de veículos...');
 
+            // Pré-carregar marcas e modelos existentes para validação
+            const [marcasExistentes, modelosExistentes] = await Promise.all([
+                this.getAllMarcas(),
+                this.getAllModelos()
+            ]);
+            const marcasSet = new Set(marcasExistentes.map(m => (m.nome || '').toUpperCase().trim()));
+            const modelosSet = new Set(
+                modelosExistentes.map(m => `${(m.marca || '').toUpperCase().trim()}|${(m.nome || '').toUpperCase().trim()}`)
+            );
+
             for (let i = 1; i < lines.length; i++) { // Pula cabeçalho
                 const line = lines[i].trim();
                 if (!line) continue;
@@ -334,7 +344,7 @@ class TablesService {
                 const columns = line.split(',').map(item => item.trim().replace(/"/g, ''));
 
                 if (columns.length < 20) {
-                    results.errors.push(`Linha ${i + 1}: Dados insuficientes - esperado 20 colunas, encontradas ${columns.length}`);
+                    results.errors.push({ line: i + 1, reason: `Dados insuficientes - esperado 20 colunas, encontradas ${columns.length}` , raw: line});
                     continue;
                 }
 
@@ -346,7 +356,24 @@ class TablesService {
 
                 // Validar campos obrigatórios (marca, modelo, concessionaria, cidade, estado, vendedor, telefone)
                 if (!marca || !modelo || !concessionaria || !cidade || !estado || !vendedor || !telefone) {
-                    results.errors.push(`Linha ${i + 1}: Campos obrigatórios em branco`);
+                    results.errors.push({ line: i + 1, reason: 'Campos obrigatórios em branco (marca, modelo, concessionaria, cidade, estado, vendedor, telefone)', raw: line });
+                    continue;
+                }
+
+                // Normalização para validação
+                const marcaKey = marca.toUpperCase().trim();
+                const modeloKey = modelo.toUpperCase().trim();
+                const modeloComboKey = `${marcaKey}|${modeloKey}`;
+
+                // Validar marca existente
+                if (!marcasSet.has(marcaKey)) {
+                    results.errors.push({ line: i + 1, reason: `Marca não cadastrada: "${marca}"`, raw: line });
+                    continue;
+                }
+
+                // Validar modelo existente para a marca
+                if (!modelosSet.has(modeloComboKey)) {
+                    results.errors.push({ line: i + 1, reason: `Modelo "${modelo}" não cadastrado para a marca "${marca}"`, raw: line });
                     continue;
                 }
 
@@ -397,13 +424,13 @@ class TablesService {
                     results.success++;
                     console.log(`Veículo adicionado: ${marca} ${modelo} - ${concessionaria}`);
                 } catch (error) {
-                    results.errors.push(`Linha ${i + 1}: Erro ao adicionar ${marca} ${modelo}: ${error}`);
+                    results.errors.push({ line: i + 1, reason: `Erro ao adicionar ${marca} ${modelo}: ${error}`, raw: line });
                     console.error(`Erro na linha ${i + 1}:`, error);
                 }
             }
 
             console.log(`Importação concluída: ${results.success} sucessos, ${results.errors.length} erros`);
-            return results;
+            return results as unknown as { success: number; errors: string[] };
         } catch (error) {
             console.error('Erro na importação:', error);
             throw error;
