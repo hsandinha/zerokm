@@ -1,0 +1,179 @@
+.container {
+    min-height: 100vh;
+    display: flex;
+    position: relative;
+}
+
+.leftSection {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.4));
+}
+
+.videoContainer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    overflow: hidden;
+}
+
+.videoBackground {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100vw;
+    height: 56.25vw;
+    /* Proporção 16:9 */
+    min-height: 100vh;
+    min-width: 177.78vh;
+    /* Proporção 16:9 */
+    transform: translate(-50%, -50%);
+    border: none;
+    z-index: -1;
+}
+
+.welcomeContent {
+    text-align: center;
+    color: white;
+    z-index: 2;
+    padding: 2rem;
+}
+
+.welcomeTitle {
+    font-size: 3.5rem;
+    font-weight: 300;
+    margin-bottom: 1rem;
+    line-height: 1.1;
+}
+
+.welcomeSubtitle {
+    font-size: 1.125rem;
+    opacity: 0.9;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.rightSection {
+    flex: 0 0 480px;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+.content {
+    width: 100%;
+    max-width: 400px;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.signInTitle {
+    font-size: 1.875rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 0.5rem;
+}
+
+.subtitle {
+    color: #6b7280;
+    font-size: 0.875rem;
+    margin-bottom: 2rem;
+}
+
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: #6b7280;
+}
+
+.spinner {
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid #e5e7eb;
+    border-top: 2px solid #3b82f6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (max-width: 1024px) {
+    .container {
+        flex-direction: column;
+    }
+
+    .leftSection {
+        min-height: 40vh;
+    }
+
+    .rightSection {
+        flex: 1;
+        padding: 2rem 1rem;
+    }
+
+    .welcomeTitle {
+        font-size: 2.5rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .content {
+        padding: 1.5rem;
+    }
+
+    .welcomeTitle {
+        font-size: 2rem;
+    }
+
+    .signInTitle {
+        font-size: 1.5rem;
+    }
+}
+
+/* Loading Screen */
+.loadingScreen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    gap: 2rem;
+}
+
+.loadingSpinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-top: 4px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}

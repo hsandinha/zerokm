@@ -1,0 +1,35 @@
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, rgba(31, 61, 96, 0.8), rgba(17, 29, 44, 0.8));
+  margin-bottom: 2.5rem;
+}
+
+.mark {
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--color-accent);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.primary {
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.secondary {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+

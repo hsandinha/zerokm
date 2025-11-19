@@ -1,0 +1,62 @@
+.wrapper {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.header h1 {
+  margin-bottom: 0.25rem;
+}
+
+.header p {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.header label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+.header input {
+  background: rgba(12, 20, 31, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  color: var(--color-text);
+}
+
+.table {
+  min-width: 980px;
+}
+
+.contacts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.contacts li {
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+

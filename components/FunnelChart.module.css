@@ -1,0 +1,42 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--color-text-muted);
+}
+
+.label {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.85rem;
+}
+
+.value {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.barWrapper {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.bar {
+  height: 0.75rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(90deg, var(--color-accent), #fe7f2d);
+}
+

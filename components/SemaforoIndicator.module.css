@@ -1,0 +1,55 @@
+.wrapper {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  background: rgba(21, 37, 56, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.lights {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.5rem 0.8rem;
+  background: linear-gradient(180deg, #1b2d43, #101a2a);
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.light {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 999px;
+  opacity: 0.2;
+}
+
+.verde {
+  background-color: var(--color-positive);
+}
+
+.amarelo {
+  background-color: var(--color-warning);
+}
+
+.vermelho {
+  background-color: var(--color-negative);
+}
+
+.on {
+  opacity: 1;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.35);
+}
+
+.label {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.detail {
+  margin: 0.25rem 0 0;
+  color: var(--color-text-muted);
+  max-width: 24rem;
+}
+

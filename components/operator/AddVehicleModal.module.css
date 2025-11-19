@@ -1,0 +1,205 @@
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1100;
+    padding: 2rem;
+    backdrop-filter: blur(2px);
+}
+
+.modal {
+    background: white;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 900px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    position: relative;
+    margin: auto;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid #e5e5e5;
+    background: #f8f9fa;
+    border-radius: 12px 12px 0 0;
+}
+
+.header h2 {
+    margin: 0;
+    color: #333;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.closeButton {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #666;
+    padding: 0.5rem;
+    border-radius: 50%;
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.closeButton:hover {
+    background: #e9ecef;
+    color: #333;
+}
+
+.form {
+    padding: 2rem;
+}
+
+.formGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.formGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.formGroupFull {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.formGroupDual {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.dualInputContainer {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.dualInput {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.dualInput label {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.9rem;
+}
+
+.dualInput input {
+    padding: 0.75rem;
+    border: 2px solid #000000;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    transition: border-color 0.2s ease;
+}
+
+.dualInput input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.formGroup label,
+.formGroupFull label {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.9rem;
+}
+
+.formGroup input,
+.formGroup select,
+.formGroupFull textarea {
+    padding: 0.75rem;
+    border: 2px solid #000000;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    transition: border-color 0.2s ease;
+}
+
+.formGroup input:focus,
+.formGroup select:focus,
+.formGroupFull textarea:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.formGroup input:invalid,
+.formGroup select:invalid,
+.formGroupFull textarea:invalid,
+.dualInput input:invalid {
+    border-color: #e5e5e5;
+    box-shadow: none;
+}
+
+.formActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    padding-top: 2rem;
+    border-top: 1px solid #e5e5e5;
+}
+
+.cancelButton,
+.submitButton {
+    padding: 0.75rem 2rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+}
+
+.cancelButton {
+    background: #f8f9fa;
+    color: #666;
+    border-color: #e5e5e5;
+}
+
+.cancelButton:hover {
+    background: #e9ecef;
+    color: #333;
+}
+
+.submitButton {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.submitButton:hover:not(:disabled) {
+    background: #0056b3;
+    border-color: #0056b3;
+}
+
+.submitButton:disabled {
+    background: #ccc;
+    border-color: #ccc;
+    cursor: not-allowed;
+}

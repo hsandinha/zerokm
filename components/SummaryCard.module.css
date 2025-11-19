@@ -1,0 +1,76 @@
+.card {
+  background: linear-gradient(145deg, rgba(31, 61, 96, 0.65), rgba(17, 29, 44, 0.9));
+  border-radius: 1rem;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.header {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.icon {
+  font-size: 1.2rem;
+}
+
+.change {
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  background: rgba(255, 255, 255, 0.1);
+  width: fit-content;
+}
+
+.up {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.down {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.neutral {
+  color: var(--color-text-muted);
+}
+
+.value {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.subtitle {
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.default {
+  box-shadow: 0 12px 35px rgba(4, 12, 20, 0.4);
+}
+
+.warning {
+  border-color: rgba(241, 196, 15, 0.55);
+  box-shadow: 0 18px 45px rgba(241, 196, 15, 0.18);
+}
+
+.danger {
+  border-color: rgba(231, 76, 60, 0.55);
+  box-shadow: 0 18px 45px rgba(231, 76, 60, 0.18);
+}
+
+.success {
+  border-color: rgba(46, 204, 113, 0.55);
+  box-shadow: 0 18px 45px rgba(46, 204, 113, 0.18);
+}

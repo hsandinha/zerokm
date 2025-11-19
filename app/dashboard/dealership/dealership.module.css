@@ -1,0 +1,507 @@
+/* Container Principal */
+.container {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header */
+.header {
+    background: white;
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.headerLeft h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.subtitle {
+    color: #6b7280;
+    font-size: 0.875rem;
+    margin-left: 0.5rem;
+}
+
+.headerRight {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.welcome {
+    color: #374151;
+    font-size: 0.875rem;
+}
+
+.exitButton {
+    background: #ef4444;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.exitButton:hover {
+    background: #dc2626;
+}
+
+/* Sistema de Abas */
+.tabsContainer {
+    background: white;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 0 2rem;
+}
+
+.tabsList {
+    display: flex;
+    gap: 0.25rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.tabsList::-webkit-scrollbar {
+    display: none;
+}
+
+.tab {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 1.5rem;
+    background: none;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.tab:hover {
+    color: #374151;
+    background: rgba(59, 130, 246, 0.05);
+}
+
+.tabActive {
+    color: #3b82f6;
+    border-bottom-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.05);
+}
+
+.tabIcon {
+    font-size: 1rem;
+}
+
+.tabLabel {
+    font-weight: 600;
+}
+
+/* Conteúdo das Abas */
+.tabContent {
+    flex: 1;
+    background: white;
+    overflow: auto;
+}
+
+.tabContentContainer {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Visão Geral */
+.visaoGeralHeader {
+    margin-bottom: 2rem;
+}
+
+.visaoGeralHeader h2 {
+    margin: 0 0 0.5rem 0;
+    color: #000000;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.visaoGeralHeader p {
+    color: #6b7280;
+    font-size: 0.95rem;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.statsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.statCard {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.statCard:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.statIcon {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.statContent h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.875rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.statNumber {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 0.25rem;
+}
+
+.statChange {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #059669;
+}
+
+/* Seção de Detalhes */
+.detailsSection {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.proposalsDetail,
+.salesDetail {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.proposalsDetail h3,
+.salesDetail h3 {
+    margin: 0 0 1rem 0;
+    color: #1f2937;
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+.proposalStats {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.proposalStat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+}
+
+.proposalLabel {
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+
+.proposalValue {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.salesList {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.saleItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: #f8fafc;
+    border-radius: 0.5rem;
+    border: 1px solid #f0f0f0;
+}
+
+.saleClient {
+    font-weight: 600;
+    color: #1f2937;
+    font-size: 0.875rem;
+}
+
+.saleVehicle {
+    color: #6b7280;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+}
+
+.saleValue {
+    font-weight: 600;
+    color: #16a34a;
+    font-size: 0.875rem;
+    text-align: right;
+}
+
+.saleDate {
+    color: #6b7280;
+    font-size: 0.75rem;
+    text-align: right;
+    margin-top: 0.25rem;
+}
+
+/* Resumo */
+.summarySection {
+    margin-bottom: 2rem;
+}
+
+.summaryCard {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.summaryCard h3 {
+    margin: 0 0 1rem 0;
+    color: #1f2937;
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+.summaryGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.summaryItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: #f8fafc;
+    border-radius: 0.5rem;
+}
+
+.summaryItem span:first-child {
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+
+.summaryItem strong {
+    color: #1f2937;
+    font-size: 0.875rem;
+}
+
+/* Perfil */
+.perfilHeader {
+    margin-bottom: 2rem;
+}
+
+.perfilHeader h2 {
+    margin: 0 0 0.5rem 0;
+    color: #000000;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.perfilHeader p {
+    color: #6b7280;
+    font-size: 0.95rem;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.perfilContent {
+    max-width: 600px;
+}
+
+.perfilCard {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 1rem;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+}
+
+.perfilCardHeader {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 2rem;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+}
+
+.perfilAvatar {
+    width: 4rem;
+    height: 4rem;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+}
+
+.perfilInfo h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.perfilInfo p {
+    margin: 0;
+    opacity: 0.9;
+    font-size: 0.875rem;
+}
+
+.perfilDetails {
+    padding: 2rem;
+}
+
+.perfilRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.perfilRow:last-child {
+    border-bottom: none;
+}
+
+.perfilRow span:first-child {
+    color: #6b7280;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.perfilRow span:last-child {
+    color: #1f2937;
+    font-size: 0.875rem;
+}
+
+.perfilActions {
+    display: flex;
+    gap: 1rem;
+}
+
+.editButton,
+.configButton {
+    padding: 0.75rem 1.5rem;
+    border: 1px solid #e1e5e9;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.editButton {
+    background: #2563eb;
+    color: white;
+    border-color: #2563eb;
+}
+
+.editButton:hover {
+    background: #1d4ed8;
+}
+
+.configButton {
+    background: white;
+    color: #6b7280;
+}
+
+.configButton:hover {
+    background: #f8fafc;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .header {
+        padding: 1rem;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .tabsContainer {
+        padding: 0 1rem;
+    }
+
+    .tab {
+        padding: 0.75rem 1rem;
+        font-size: 0.8rem;
+    }
+
+    .tabContentContainer {
+        padding: 1rem;
+    }
+
+    .statsGrid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .detailsSection {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .summaryGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .saleItem {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .perfilActions {
+        flex-direction: column;
+    }
+}

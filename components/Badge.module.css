@@ -1,0 +1,56 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background-color: rgba(255, 255, 255, 0.12);
+  color: var(--color-text);
+}
+
+.default {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.warning {
+  background-color: rgba(241, 196, 15, 0.2);
+  color: var(--color-warning);
+}
+
+.danger {
+  background-color: rgba(231, 76, 60, 0.2);
+  color: var(--color-negative);
+}
+
+.success {
+  background-color: rgba(46, 204, 113, 0.2);
+  color: var(--color-positive);
+}
+
+.info {
+  background-color: rgba(52, 152, 219, 0.25);
+  color: #4aa3ff;
+}
+
+.admin {
+  background-color: rgba(138, 43, 226, 0.2);
+  color: #8a2be2;
+}
+
+.operator {
+  background-color: rgba(0, 102, 255, 0.2);
+  color: #0066ff;
+}
+
+.dealership {
+  background-color: rgba(0, 212, 255, 0.2);
+  color: #00d4ff;
+}
+
+.client {
+  background-color: rgba(46, 204, 113, 0.2);
+  color: #2ecc71;
+}
