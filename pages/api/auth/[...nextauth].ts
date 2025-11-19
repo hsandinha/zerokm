@@ -1,5 +1,6 @@
 import NextAuth, { AuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
+import type { SessionStrategy } from 'next-auth'
 import { adminAuth } from '../../../lib/firebase-admin'
 
 export const authOptions: AuthOptions = {
@@ -33,7 +34,7 @@ export const authOptions: AuthOptions = {
         signIn: '/'
     },
     session: {
-        strategy: 'jwt' as const
+        strategy: 'jwt' as SessionStrategy
     }
 }
 
