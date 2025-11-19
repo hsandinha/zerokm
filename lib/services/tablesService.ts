@@ -329,19 +329,24 @@ class TablesService {
                     onProgress(i, totalLines);
                 }
 
-                // Formato: marca,modelo,versao,cor,preco,concessionaria,cidade,estado,vendedor,telefone
+                // Formato completo com 20 campos:
+                // marca,modelo,versao,opcionais,cor,concessionaria,preco,ano,anoModelo,status,cidade,estado,chassi,motor,combustivel,transmissao,observacoes,dataEntrada,vendedor,telefone
                 const columns = line.split(',').map(item => item.trim().replace(/"/g, ''));
 
-                if (columns.length < 10) {
-                    results.errors.push(`Linha ${i + 1}: Dados insuficientes - esperado 10 colunas, encontradas ${columns.length}`);
+                if (columns.length < 20) {
+                    results.errors.push(`Linha ${i + 1}: Dados insuficientes - esperado 20 colunas, encontradas ${columns.length}`);
                     continue;
                 }
 
-                const [marca, modelo, versao, cor, precoStr, concessionaria, cidade, estado, vendedor, telefone] = columns;
+                const [
+                    marca, modelo, versao, opcionais, cor, concessionaria, precoStr, ano, anoModelo, 
+                    status, cidade, estado, chassi, motor, combustivel, transmissao, 
+                    observacoes, dataEntrada, vendedor, telefone
+                ] = columns;
 
-                // Validar campos obrigatórios
+                // Validar campos obrigatórios (marca, modelo, concessionaria, cidade, estado, vendedor, telefone)
                 if (!marca || !modelo || !concessionaria || !cidade || !estado || !vendedor || !telefone) {
-                    results.errors.push(`Linha ${i + 1}: Campos obrigatórios em branco - Marca: "${marca}", Modelo: "${modelo}", Concessionária: "${concessionaria}"`);
+                    results.errors.push(`Linha ${i + 1}: Campos obrigatórios em branco`);
                     continue;
                 }
 
@@ -349,26 +354,38 @@ class TablesService {
                     // Converter preço para número (remover formatação se houver)
                     const preco = precoStr ? parseFloat(precoStr.replace(/[^\d.-]/g, '')) : 0;
 
+                    // Validar status
+                    const validStatus = ['Disponível', 'Vendido', 'Reservado', 'Manutenção'];
+                    const statusFinal = validStatus.includes(status) ? status : 'Disponível';
+
+                    // Validar combustível
+                    const validCombustivel = ['Flex', 'Gasolina', 'Etanol', 'Diesel', 'Elétrico', 'Híbrido'];
+                    const combustivelFinal = validCombustivel.includes(combustivel) ? combustivel : 'Flex';
+
+                    // Validar transmissão
+                    const validTransmissao = ['Manual', 'Automática', 'CVT'];
+                    const transmissaoFinal = validTransmissao.includes(transmissao) ? transmissao : 'Manual';
+
                     // Criar objeto do veículo com todos os campos
                     const vehicleData = {
                         marca: marca.toUpperCase(),
                         modelo: modelo.toUpperCase(),
                         versao: versao || '',
-                        opcionais: '',
+                        opcionais: opcionais || '',
                         cor: cor || '',
                         concessionaria: concessionaria,
                         preco: preco,
-                        ano: '',
-                        anoModelo: '',
-                        status: 'Disponível',
+                        ano: ano || '',
+                        anoModelo: anoModelo || '',
+                        status: statusFinal as 'Disponível' | 'Vendido' | 'Reservado' | 'Manutenção',
                         cidade: cidade,
                         estado: estado,
-                        chassi: '',
-                        motor: '',
-                        combustivel: 'Flex',
-                        transmissao: 'Manual',
-                        observacoes: `Importado via CSV em ${new Date().toLocaleDateString('pt-BR')}`,
-                        dataEntrada: new Date().toLocaleDateString('pt-BR'),
+                        chassi: chassi || '',
+                        motor: motor || '',
+                        combustivel: combustivelFinal as 'Flex' | 'Gasolina' | 'Etanol' | 'Diesel' | 'Elétrico' | 'Híbrido',
+                        transmissao: transmissaoFinal as 'Manual' | 'Automática' | 'CVT',
+                        observacoes: observacoes || `Importado via CSV em ${new Date().toLocaleDateString('pt-BR')}`,
+                        dataEntrada: dataEntrada || new Date().toLocaleDateString('pt-BR'),
                         vendedor: vendedor,
                         telefone: telefone
                     };
@@ -376,7 +393,7 @@ class TablesService {
                     // Adicionar veículo ao Firebase usando o serviço de veículos
                     const { vehicleService } = await import('./vehicleService');
                     await vehicleService.addVehicle(vehicleData);
-
+                    
                     results.success++;
                     console.log(`Veículo adicionado: ${marca} ${modelo} - ${concessionaria}`);
                 } catch (error) {
@@ -391,9 +408,7 @@ class TablesService {
             console.error('Erro na importação:', error);
             throw error;
         }
-    }
-
-    // Função para popular marcas iniciais
+    }    // Função para popular marcas iniciais
     async populateInitialMarcas(): Promise<void> {
         const marcasIniciais = [
             'Acura', 'Agrale', 'Alfa Romeo', 'AM Gen', 'Asia Motors', 'ASTON MARTIN',

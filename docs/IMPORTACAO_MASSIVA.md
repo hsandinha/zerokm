@@ -38,52 +38,70 @@ VOLKSWAGEN,GOL
 
 ## 🚗 Importação de Veículos
 
-### Colunas Necessárias (na ordem exata):
+### Colunas Necessárias (20 colunas na ordem exata):
 
 1. **marca** - Marca do veículo (obrigatório)
 2. **modelo** - Modelo do veículo (obrigatório)
 3. **versao** - Versão/acabamento (opcional)
-4. **cor** - Cor do veículo (opcional)
-5. **preco** - Preço base em reais (opcional, usar números sem pontos/vírgulas)
+4. **opcionais** - Itens opcionais/acessórios (opcional)
+5. **cor** - Cor do veículo (opcional)
 6. **concessionaria** - Nome da concessionária (obrigatório)
-7. **cidade** - Cidade onde está o veículo (obrigatório)
-8. **estado** - Estado (UF) onde está o veículo (obrigatório)
-9. **vendedor** - Nome do vendedor responsável (obrigatório)
-10. **telefone** - Telefone de contato (obrigatório)
+7. **preco** - Preço base em reais (opcional, usar números sem pontos/vírgulas)
+8. **ano** - Ano de fabricação (opcional)
+9. **anoModelo** - Ano modelo (opcional)
+10. **status** - Status do veículo (opcional: Disponível, Vendido, Reservado, Manutenção)
+11. **cidade** - Cidade onde está o veículo (obrigatório)
+12. **estado** - Estado (UF) onde está o veículo (obrigatório)
+13. **chassi** - Número do chassi (opcional)
+14. **motor** - Especificação do motor (opcional)
+15. **combustivel** - Tipo de combustível (opcional: Flex, Gasolina, Etanol, Diesel, Elétrico, Híbrido)
+16. **transmissao** - Tipo de transmissão (opcional: Manual, Automática, CVT)
+17. **observacoes** - Observações adicionais (opcional)
+18. **dataEntrada** - Data de entrada no estoque (opcional, formato DD/MM/AAAA)
+19. **vendedor** - Nome do vendedor responsável (obrigatório)
+20. **telefone** - Telefone de contato (obrigatório)
 
 ### Formato do Arquivo CSV:
 
 ```csv
-marca,modelo,versao,cor,preco,concessionaria,cidade,estado,vendedor,telefone
-TOYOTA,COROLLA,XEI 2.0,Prata,95000,Concessionária Toyota SP,São Paulo,SP,João Silva,(11) 98765-4321
-FORD,FOCUS,SE 1.6,Branco,75000,Ford Premium,Campinas,SP,Maria Santos,(19) 99876-5432
-HONDA,CIVIC,EXL 2.0,Preto,120000,Honda Elite,Rio de Janeiro,RJ,Pedro Costa,(21) 97654-3210
-CHEVROLET,ONIX,LTZ 1.4,Vermelho,65000,Chevrolet Master,Belo Horizonte,MG,Ana Paula,(31) 96543-2109
-VOLKSWAGEN,GOL,1.0 FLEX,Azul,45000,VW Center,Curitiba,PR,Carlos Mendes,(41) 95432-1098
+marca,modelo,versao,opcionais,cor,concessionaria,preco,ano,anoModelo,status,cidade,estado,chassi,motor,combustivel,transmissao,observacoes,dataEntrada,vendedor,telefone
+TOYOTA,COROLLA,XEI 2.0,Ar Cond + Dir Hidráulica,Prata,Concessionária Toyota SP,95000,2023,2024,Disponível,São Paulo,SP,9BR1234567890,2.0 16V,Flex,Automática,Veículo em ótimo estado,19/11/2025,João Silva,(11) 98765-4321
+FORD,FOCUS,SE 1.6,Central Multimídia,Branco,Ford Premium,75000,2022,2023,Disponível,Campinas,SP,9BR2345678901,1.6 8V,Flex,Manual,Único dono,15/10/2025,Maria Santos,(19) 99876-5432
+HONDA,CIVIC,EXL 2.0,Sensor de Estacionamento,Preto,Honda Elite,120000,2023,2024,Reservado,Rio de Janeiro,RJ,9BR3456789012,2.0 16V,Flex,CVT,Revisões em dia,10/11/2025,Pedro Costa,(21) 97654-3210
 ```
 
 ### Regras de Validação:
 
-- ✅ Primeira linha deve conter os cabeçalhos exatos
+- ✅ Primeira linha deve conter os cabeçalhos exatos (20 colunas)
 - ✅ **Campos obrigatórios:** marca, modelo, concessionaria, cidade, estado, vendedor, telefone
-- ✅ **Campos opcionais:** versao, cor, preco
-- ✅ Total de **10 colunas** devem estar presentes
+- ✅ **Campos opcionais:** versao, opcionais, cor, preco, ano, anoModelo, status, chassi, motor, combustivel, transmissao, observacoes, dataEntrada
+- ✅ Total de **20 colunas** devem estar presentes
 - ✅ Linhas vazias são ignoradas
-- ⚠️ Linhas com menos de 10 colunas geram erro
+- ⚠️ Linhas com menos de 20 colunas geram erro
 - ⚠️ Linhas com campos obrigatórios em branco geram erro
 
 ### Campos Detalhados:
 
-| Campo | Tipo | Obrigatório | Exemplo | Observações |
-|-------|------|-------------|---------|-------------|
+| Campo | Tipo | Obrigatório | Exemplo | Valores Válidos/Observações |
+|-------|------|-------------|---------|------------------------------|
 | marca | Texto | ✅ Sim | TOYOTA | Convertido para maiúsculas |
 | modelo | Texto | ✅ Sim | COROLLA | Convertido para maiúsculas |
 | versao | Texto | ❌ Não | XEI 2.0 | Pode ficar vazio |
+| opcionais | Texto | ❌ Não | Ar Cond + Dir Hidráulica | Pode ficar vazio |
 | cor | Texto | ❌ Não | Prata | Pode ficar vazio |
-| preco | Número | ❌ Não | 95000 | Sem pontos ou vírgulas |
 | concessionaria | Texto | ✅ Sim | Concessionária Toyota SP | Nome completo |
+| preco | Número | ❌ Não | 95000 | Sem pontos ou vírgulas |
+| ano | Texto | ❌ Não | 2023 | Ano de fabricação |
+| anoModelo | Texto | ❌ Não | 2024 | Ano modelo |
+| status | Texto | ❌ Não | Disponível | Disponível, Vendido, Reservado, Manutenção |
 | cidade | Texto | ✅ Sim | São Paulo | Nome da cidade |
 | estado | Texto | ✅ Sim | SP | Sigla do estado (UF) |
+| chassi | Texto | ❌ Não | 9BR1234567890 | Número do chassi |
+| motor | Texto | ❌ Não | 2.0 16V | Especificação técnica |
+| combustivel | Texto | ❌ Não | Flex | Flex, Gasolina, Etanol, Diesel, Elétrico, Híbrido |
+| transmissao | Texto | ❌ Não | Automática | Manual, Automática, CVT |
+| observacoes | Texto | ❌ Não | Veículo em ótimo estado | Informações adicionais |
+| dataEntrada | Texto | ❌ Não | 19/11/2025 | Formato DD/MM/AAAA |
 | vendedor | Texto | ✅ Sim | João Silva | Nome completo |
 | telefone | Texto | ✅ Sim | (11) 98765-4321 | Com ou sem formatação |
 

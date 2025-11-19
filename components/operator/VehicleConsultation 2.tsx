@@ -519,16 +519,19 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
 
                         <div className={modalStyles.form}>
                             <div className={modalStyles.importInstructions}>
-                                <h4>📋 Formato do arquivo CSV:</h4>
+                                <h4>📋 Formato do arquivo CSV (20 colunas):</h4>
                                 <ul>
-                                    <li>Primeira linha deve conter os cabeçalhos: <strong>marca,modelo,versao,cor,preco,concessionaria,cidade,estado,vendedor,telefone</strong></li>
+                                    <li>Primeira linha deve conter os cabeçalhos: <strong>marca,modelo,versao,opcionais,cor,concessionaria,preco,ano,anoModelo,status,cidade,estado,chassi,motor,combustivel,transmissao,observacoes,dataEntrada,vendedor,telefone</strong></li>
                                     <li>As linhas seguintes devem conter os dados separados por vírgula</li>
                                     <li><strong>Campos obrigatórios:</strong> marca, modelo, concessionaria, cidade, estado, vendedor, telefone</li>
-                                    <li><strong>Campos opcionais:</strong> versao, cor, preco</li>
-                                    <li>Exemplo:</li>
+                                    <li><strong>Campos opcionais:</strong> versao, opcionais, cor, preco, ano, anoModelo, status, chassi, motor, combustivel, transmissao, observacoes, dataEntrada</li>
+                                    <li><strong>Status válidos:</strong> Disponível, Vendido, Reservado, Manutenção</li>
+                                    <li><strong>Combustível válido:</strong> Flex, Gasolina, Etanol, Diesel, Elétrico, Híbrido</li>
+                                    <li><strong>Transmissão válida:</strong> Manual, Automática, CVT</li>
+                                    <li>Exemplo (role horizontalmente):</li>
                                 </ul>
-                                <pre className={modalStyles.csvExample}>
-                                    marca,modelo,versao,cor,preco,concessionaria,cidade,estado,vendedor,telefone{"\n"}TOYOTA,COROLLA,XEI 2.0,Prata,95000,Concessionária Toyota SP,São Paulo,SP,João Silva,(11) 98765-4321{"\n"}FORD,FOCUS,SE 1.6,Branco,75000,Ford Premium,Campinas,SP,Maria Santos,(19) 99876-5432
+                                <pre className={modalStyles.csvExample} style={{overflowX: 'auto', whiteSpace: 'nowrap'}}>
+                                    marca,modelo,versao,opcionais,cor,concessionaria,preco,ano,anoModelo,status,cidade,estado,chassi,motor,combustivel,transmissao,observacoes,dataEntrada,vendedor,telefone{"\n"}TOYOTA,COROLLA,XEI 2.0,Ar Cond + Dir Hidráulica,Prata,Concessionária Toyota SP,95000,2023,2024,Disponível,São Paulo,SP,9BR1234567890,2.0 16V,Flex,Automática,Veículo em ótimo estado,19/11/2025,João Silva,(11) 98765-4321
                                 </pre>
                             </div>
 
