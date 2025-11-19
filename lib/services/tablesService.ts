@@ -401,31 +401,24 @@ class TablesService {
         const { page = 1, itemsPerPage = 50, lastDoc } = options;
 
         try {
-            console.log('Iniciando busca paginada de marcas...');
+            console.log('Iniciando busca paginada otimizada de marcas...');
 
-            // Buscar todos os dados primeiro (para contar total)
-            const allDocsQuery = query(this.marcasCollection, orderBy('nome'));
-            const allSnapshot = await getDocs(allDocsQuery);
-            let total = allSnapshot.docs.length;
+            // Verificar se há marcas (busca otimizada apenas para verificar existência)
+            if (page === 1 && !lastDoc) {
+                const checkQuery = query(this.marcasCollection, limit(1));
+                const checkSnapshot = await getDocs(checkQuery);
 
-            console.log('Total de marcas encontradas:', total);
-
-            // Se não houver marcas, popular automaticamente
-            if (total === 0) {
-                console.log('Nenhuma marca encontrada, populando marcas iniciais...');
-                await this.populateInitialMarcas();
-
-                // Buscar novamente após popular
-                const newSnapshot = await getDocs(allDocsQuery);
-                total = newSnapshot.docs.length;
-                console.log('Total de marcas após população:', total);
+                if (checkSnapshot.empty) {
+                    console.log('Nenhuma marca encontrada, populando marcas iniciais...');
+                    await this.populateInitialMarcas();
+                }
             }
 
-            // Query para buscar dados da página específica
+            // Query otimizada - busca apenas os itens da página
             let dataQuery = query(
                 this.marcasCollection,
                 orderBy('nome'),
-                limit(itemsPerPage)
+                limit(itemsPerPage + 1) // +1 para verificar se há próxima página
             );
 
             if (lastDoc) {
@@ -433,41 +426,50 @@ class TablesService {
                     this.marcasCollection,
                     orderBy('nome'),
                     startAfter(lastDoc),
-                    limit(itemsPerPage)
+                    limit(itemsPerPage + 1)
                 );
             } else if (page > 1) {
+                // Para páginas intermediárias, usar skip simulado
                 const skip = (page - 1) * itemsPerPage;
-                // Para paginação por página, precisamos buscar até o documento inicial
-                const initialQuery = query(
+                const skipQuery = query(
                     this.marcasCollection,
                     orderBy('nome'),
                     limit(skip)
                 );
-                const initialSnapshot = await getDocs(initialQuery);
-                const lastVisible = initialSnapshot.docs[initialSnapshot.docs.length - 1];
+                const skipSnapshot = await getDocs(skipQuery);
+                const lastVisible = skipSnapshot.docs[skipSnapshot.docs.length - 1];
 
                 if (lastVisible) {
                     dataQuery = query(
                         this.marcasCollection,
                         orderBy('nome'),
                         startAfter(lastVisible),
-                        limit(itemsPerPage)
+                        limit(itemsPerPage + 1)
                     );
                 }
             }
 
             const querySnapshot = await getDocs(dataQuery);
-            const data: Marca[] = querySnapshot.docs.map(doc => ({
+            const docs = querySnapshot.docs;
+
+            // Verificar se há próxima página
+            const hasNextPage = docs.length > itemsPerPage;
+
+            // Pegar apenas os itens da página atual
+            const pageData = hasNextPage ? docs.slice(0, itemsPerPage) : docs;
+
+            const data: Marca[] = pageData.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
                 criadoEm: doc.data().criadoEm?.toDate()
             } as Marca));
 
-            const hasNextPage = querySnapshot.docs.length === itemsPerPage &&
-                ((page * itemsPerPage) < total);
-            const newLastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
+            const newLastDoc = pageData[pageData.length - 1];
 
-            console.log('Dados da página carregados:', data.length, 'hasNextPage:', hasNextPage);
+            // Total estimado (não preciso para paginação cursor-based)
+            const total = page * itemsPerPage + (hasNextPage ? 1 : 0);
+
+            console.log(`Marcas página ${page} carregadas:`, data.length, 'hasNextPage:', hasNextPage);
 
             return {
                 data,
@@ -485,20 +487,14 @@ class TablesService {
         const { page = 1, itemsPerPage = 50, lastDoc } = options;
 
         try {
-            console.log('Iniciando busca paginada de modelos...');
+            console.log('Iniciando busca paginada otimizada de modelos...');
 
-            // Buscar todos os dados primeiro (para contar total)
-            const allDocsQuery = query(this.modelosCollection, orderBy('marca'), orderBy('nome'));
-            const allSnapshot = await getDocs(allDocsQuery);
-            const total = allSnapshot.docs.length;
-
-            console.log('Total de modelos encontrados:', total);
-
+            // Query otimizada - busca apenas os itens da página
             let dataQuery = query(
                 this.modelosCollection,
                 orderBy('marca'),
                 orderBy('nome'),
-                limit(itemsPerPage)
+                limit(itemsPerPage + 1) // +1 para verificar se há próxima página
             );
 
             if (lastDoc) {
@@ -507,18 +503,19 @@ class TablesService {
                     orderBy('marca'),
                     orderBy('nome'),
                     startAfter(lastDoc),
-                    limit(itemsPerPage)
+                    limit(itemsPerPage + 1)
                 );
             } else if (page > 1) {
+                // Para páginas intermediárias, usar skip simulado
                 const skip = (page - 1) * itemsPerPage;
-                const initialQuery = query(
+                const skipQuery = query(
                     this.modelosCollection,
                     orderBy('marca'),
                     orderBy('nome'),
                     limit(skip)
                 );
-                const initialSnapshot = await getDocs(initialQuery);
-                const lastVisible = initialSnapshot.docs[initialSnapshot.docs.length - 1];
+                const skipSnapshot = await getDocs(skipQuery);
+                const lastVisible = skipSnapshot.docs[skipSnapshot.docs.length - 1];
 
                 if (lastVisible) {
                     dataQuery = query(
@@ -526,23 +523,32 @@ class TablesService {
                         orderBy('marca'),
                         orderBy('nome'),
                         startAfter(lastVisible),
-                        limit(itemsPerPage)
+                        limit(itemsPerPage + 1)
                     );
                 }
             }
 
             const querySnapshot = await getDocs(dataQuery);
-            const data: Modelo[] = querySnapshot.docs.map(doc => ({
+            const docs = querySnapshot.docs;
+
+            // Verificar se há próxima página
+            const hasNextPage = docs.length > itemsPerPage;
+
+            // Pegar apenas os itens da página atual
+            const pageData = hasNextPage ? docs.slice(0, itemsPerPage) : docs;
+
+            const data: Modelo[] = pageData.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
                 criadoEm: doc.data().criadoEm?.toDate()
             } as Modelo));
 
-            const hasNextPage = querySnapshot.docs.length === itemsPerPage &&
-                ((page * itemsPerPage) < total);
-            const newLastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
+            const newLastDoc = pageData[pageData.length - 1];
 
-            console.log('Dados da página de modelos carregados:', data.length, 'hasNextPage:', hasNextPage);
+            // Total estimado (não preciso para paginação cursor-based)
+            const total = page * itemsPerPage + (hasNextPage ? 1 : 0);
+
+            console.log(`Modelos página ${page} carregados:`, data.length, 'hasNextPage:', hasNextPage);
 
             return {
                 data,
@@ -560,19 +566,13 @@ class TablesService {
         const { page = 1, itemsPerPage = 50, lastDoc } = options;
 
         try {
-            console.log('Iniciando busca paginada de cores...');
+            console.log('Iniciando busca paginada otimizada de cores...');
 
-            // Buscar todos os dados primeiro (para contar total)
-            const allDocsQuery = query(this.coresCollection, orderBy('nome'));
-            const allSnapshot = await getDocs(allDocsQuery);
-            let total = allSnapshot.docs.length;
-
-            console.log('Total de cores encontradas:', total);
-
+            // Query otimizada - busca apenas os itens da página
             let dataQuery = query(
                 this.coresCollection,
                 orderBy('nome'),
-                limit(itemsPerPage)
+                limit(itemsPerPage + 1) // +1 para verificar se há próxima página
             );
 
             if (lastDoc) {
@@ -580,40 +580,50 @@ class TablesService {
                     this.coresCollection,
                     orderBy('nome'),
                     startAfter(lastDoc),
-                    limit(itemsPerPage)
+                    limit(itemsPerPage + 1)
                 );
             } else if (page > 1) {
+                // Para páginas intermediárias, usar skip simulado
                 const skip = (page - 1) * itemsPerPage;
-                const initialQuery = query(
+                const skipQuery = query(
                     this.coresCollection,
                     orderBy('nome'),
                     limit(skip)
                 );
-                const initialSnapshot = await getDocs(initialQuery);
-                const lastVisible = initialSnapshot.docs[initialSnapshot.docs.length - 1];
+                const skipSnapshot = await getDocs(skipQuery);
+                const lastVisible = skipSnapshot.docs[skipSnapshot.docs.length - 1];
 
                 if (lastVisible) {
                     dataQuery = query(
                         this.coresCollection,
                         orderBy('nome'),
                         startAfter(lastVisible),
-                        limit(itemsPerPage)
+                        limit(itemsPerPage + 1)
                     );
                 }
             }
 
             const querySnapshot = await getDocs(dataQuery);
-            const data: Cor[] = querySnapshot.docs.map(doc => ({
+            const docs = querySnapshot.docs;
+
+            // Verificar se há próxima página
+            const hasNextPage = docs.length > itemsPerPage;
+
+            // Pegar apenas os itens da página atual
+            const pageData = hasNextPage ? docs.slice(0, itemsPerPage) : docs;
+
+            const data: Cor[] = pageData.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
                 criadoEm: doc.data().criadoEm?.toDate()
             } as Cor));
 
-            const hasNextPage = querySnapshot.docs.length === itemsPerPage &&
-                ((page * itemsPerPage) < total);
-            const newLastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
+            const newLastDoc = pageData[pageData.length - 1];
 
-            console.log('Dados da página de cores carregados:', data.length, 'hasNextPage:', hasNextPage);
+            // Total estimado (não preciso para paginação cursor-based)
+            const total = page * itemsPerPage + (hasNextPage ? 1 : 0);
+
+            console.log(`Cores página ${page} carregadas:`, data.length, 'hasNextPage:', hasNextPage);
 
             return {
                 data,
