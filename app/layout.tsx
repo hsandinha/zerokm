@@ -3,7 +3,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Login - Zero KM",
-  description: "Acesse sua conta no sistema nacional de vendas de carros zero km"
+  description: "Acesse sua conta no sistema nacional de vendas de carros zero km",
+  viewport: "width=device-width, initial-scale=1, maximum-scale=1"
 };
 
 export default function LoginLayout({
@@ -13,7 +14,15 @@ export default function LoginLayout({
 }) {
   return (
     <html lang="pt-BR">
-      <body>
+      <head>
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            body { margin: 0; padding: 0; overflow-x: hidden; }
+            * { box-sizing: border-box; }
+          `
+        }} />
+      </head>
+      <body suppressHydrationWarning={true}>
         {children}
       </body>
     </html>

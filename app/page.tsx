@@ -13,8 +13,18 @@ import { UserProfile } from '@/lib/types/auth';
 
 function LoginContent() {
     const [isLoading, setIsLoading] = useState(false);
+    const [initialLoading, setInitialLoading] = useState(true);
     const router = useRouter();
     const { data: session, status } = useSession();
+
+    // Controlar loading inicial
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setInitialLoading(false);
+        }, 500); // Pequeno delay para evitar flash
+        
+        return () => clearTimeout(timer);
+    }, []);
 
     // Se já está autenticado, redireciona (apenas uma vez)
     useEffect(() => {
@@ -56,14 +66,16 @@ function LoginContent() {
         }
     };
 
-    // Mostra loading enquanto verifica a sessão
-    if (status === 'loading') {
+    // Mostra loading enquanto verifica a sessão ou durante carregamento inicial
+    if (status === 'loading' || initialLoading) {
         return (
-            <div className={styles.container}>
-                <div className={styles.loadingScreen}>
+            <div className={styles.loadingContainer}>
+                <div className={styles.loadingContent}>
                     <Logo />
                     <div className={styles.loadingSpinner}></div>
-                    <p>Verificando autenticação...</p>
+                    <p className={styles.loadingText}>
+                        {status === 'loading' ? 'Verificando autenticação...' : 'Carregando...'}
+                    </p>
                 </div>
             </div>
         );
