@@ -22,7 +22,7 @@ function LoginContent() {
         const timer = setTimeout(() => {
             setInitialLoading(false);
         }, 500); // Pequeno delay para evitar flash
-        
+
         return () => clearTimeout(timer);
     }, []);
 

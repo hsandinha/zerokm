@@ -1,4 +1,9 @@
 {
+  "/_not-found/page": "app/_not-found/page.js",
+  "/dashboard/admin/page": "app/dashboard/admin/page.js",
+  "/dashboard/cliente/page": "app/dashboard/cliente/page.js",
+  "/dashboard/dealership/page": "app/dashboard/dealership/page.js",
+  "/dashboard/operator/page": "app/dashboard/operator/page.js",
   "/page": "app/page.js",
-  "/dashboard/operator/page": "app/dashboard/operator/page.js"
+  "/test/page": "app/test/page.js"
 }

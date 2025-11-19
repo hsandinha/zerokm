@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { signOut } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { Badge } from '../../../components/Badge';
 import { SummaryCard } from '../../../components/SummaryCard';
 import { VehicleConsultation } from '../../../components/operator/VehicleConsultation';
@@ -12,6 +14,21 @@ type TabType = 'visao-geral' | 'veiculos' | 'perfil';
 export default function DealershipDashboard() {
     const [activeTab, setActiveTab] = useState<TabType>('visao-geral');
     const [margem, setMargem] = useState<number>(0);
+    const router = useRouter();
+
+    const handleLogout = async () => {
+        try {
+            await signOut({
+                callbackUrl: '/',
+                redirect: false
+            });
+            router.push('/');
+        } catch (error) {
+            console.error('Erro ao fazer logout:', error);
+            // Fallback: redirecionar diretamente
+            router.push('/');
+        }
+    };
 
     // Carregar margem do localStorage
     useEffect(() => {
@@ -50,7 +67,13 @@ export default function DealershipDashboard() {
                     </div>
                     <div className={styles.headerRight}>
                         <span className={styles.welcome}>Bem vindo, Concessionária</span>
-                        <button className={styles.exitButton}>Sair</button>
+                        <button
+                            className={styles.exitButton}
+                            onClick={handleLogout}
+                            title="Fazer logout"
+                        >
+                            Sair
+                        </button>
                     </div>
                 </div>
 
