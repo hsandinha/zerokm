@@ -16,13 +16,13 @@ function LoginContent() {
     const router = useRouter();
     const { data: session, status } = useSession();
 
-    // Se já está autenticado, redireciona
+    // Se já está autenticado, redireciona (apenas uma vez)
     useEffect(() => {
-        if (status === 'authenticated' && session) {
-            // Redireciona para o dashboard padrão (pode ser customizado baseado no usuário)
-            router.push('/dashboard/operator');
+        if (status === 'authenticated' && session && !isLoading) {
+            // Redireciona para o dashboard padrão
+            router.replace('/dashboard/operator');
         }
-    }, [status, session, router]);
+    }, [status, session, router, isLoading]);
 
     const handleLogin = async (email: string, password: string, profile: UserProfile) => {
         setIsLoading(true);
