@@ -32,20 +32,12 @@ export function LoginForm({ onLogin, isLoading }: LoginFormProps) {
 
     const handleGoogleLogin = async () => {
         try {
-            // Temporariamente usar login simples enquanto resolve problemas do NextAuth
-            onLogin(profile + '@example.com', 'demo123', profile);
-
-            /* 
-            const result = await signIn('google', {
+            // Inicia o fluxo de autenticação com Google via NextAuth
+            // Usamos callbackUrl para enviar o usuário diretamente ao dashboard correto
+            await signIn('google', {
                 callbackUrl: getRedirectUrl(profile),
-                redirect: false
+                redirect: true
             });
-
-            if (result?.ok) {
-                // Redireciona baseado no perfil selecionado
-                window.location.href = getRedirectUrl(profile);
-            }
-            */
         } catch (error) {
             console.error('Erro no login com Google:', error);
         }
@@ -54,15 +46,15 @@ export function LoginForm({ onLogin, isLoading }: LoginFormProps) {
     const getRedirectUrl = (userProfile: UserProfile) => {
         switch (userProfile) {
             case 'concessionaria':
-                return '/dealership';
+                return '/dashboard/dealership';
             case 'operador':
-                return '/operator';
+                return '/dashboard/operator';
             case 'administrador':
-                return '/admin';
+                return '/dashboard/admin';
             case 'cliente':
-                return '/cliente';
+                return '/dashboard/cliente';
             default:
-                return '/operator';
+                return '/dashboard/operator';
         }
     };
 
