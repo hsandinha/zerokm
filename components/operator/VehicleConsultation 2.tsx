@@ -49,6 +49,27 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
     const { vehicles, loading, error, refreshVehicles, updateVehicle, deleteVehicle } = useVehicleDatabase();
     const { importVeiculosFromCSV } = useTablesDatabase();
 
+    // Helper: baixar relatório de erros em CSV
+    const downloadErrorsCsv = () => {
+        if (!importResults || !importResults.errors || importResults.errors.length === 0) return;
+        const header = 'linha,motivo,conteudo';
+        const rows = importResults.errors.map((e) => {
+            const reason = (e.reason || '').replace(/"/g, '""');
+            const raw = (e.raw || '').replace(/"/g, '""');
+            return `${e.line},"${reason}","${raw}"`;
+        });
+        const csv = [header, ...rows].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'relatorio-erros-importacao.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
     // Função para calcular preço com margem
     const calculatePriceWithMargin = (basePrice: number) => {
         return basePrice * (1 + margem / 100);
@@ -617,6 +638,15 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                             >
                                 Fechar
                             </button>
+                            {importResults && importResults.errors?.length > 0 && !importProgress.isImporting && (
+                                <button
+                                    type="button"
+                                    className={modalStyles.addButton || modalStyles.cancelButton}
+                                    onClick={downloadErrorsCsv}
+                                >
+                                    ⬇️ Baixar relatório (CSV)
+                                </button>
+                            )}
                             <button
                                 type="button"
                                 className={modalStyles.submitButton}
