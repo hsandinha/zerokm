@@ -267,7 +267,9 @@ class TablesService {
     ): Promise<{ success: number; errors: string[] }> {
         const lines = csvData.split('\n').filter(line => line.trim());
         const totalLines = lines.length - 1; // Exclui cabeçalho
-        const results: { success: number; errors: Array<{ line: number; reason: string; raw?: string }> } = { success: 0, errors: [] };
+        const headerLine = lines[0] || '';
+        const headers = headerLine.split(',').map(h => h.trim().replace(/"/g, ''));
+        const results: { success: number; headers?: string[]; errors: Array<{ line: number; reason: string; raw?: string; columns?: string[] }> } = { success: 0, headers, errors: [] };
 
         try {
             console.log('Iniciando importação de modelos...');
@@ -344,7 +346,7 @@ class TablesService {
                 const columns = line.split(',').map(item => item.trim().replace(/"/g, ''));
 
                 if (columns.length < 20) {
-                    results.errors.push({ line: i + 1, reason: `Dados insuficientes - esperado 20 colunas, encontradas ${columns.length}` , raw: line});
+                    results.errors.push({ line: i + 1, reason: `Dados insuficientes - esperado 20 colunas, encontradas ${columns.length}` , raw: line, columns });
                     continue;
                 }
 
@@ -356,7 +358,7 @@ class TablesService {
 
                 // Validar campos obrigatórios (marca, modelo, concessionaria, cidade, estado, vendedor, telefone)
                 if (!marca || !modelo || !concessionaria || !cidade || !estado || !vendedor || !telefone) {
-                    results.errors.push({ line: i + 1, reason: 'Campos obrigatórios em branco (marca, modelo, concessionaria, cidade, estado, vendedor, telefone)', raw: line });
+                    results.errors.push({ line: i + 1, reason: 'Campos obrigatórios em branco (marca, modelo, concessionaria, cidade, estado, vendedor, telefone)', raw: line, columns });
                     continue;
                 }
 
@@ -367,13 +369,13 @@ class TablesService {
 
                 // Validar marca existente
                 if (!marcasSet.has(marcaKey)) {
-                    results.errors.push({ line: i + 1, reason: `Marca não cadastrada: "${marca}"`, raw: line });
+                    results.errors.push({ line: i + 1, reason: `Marca não cadastrada: "${marca}"`, raw: line, columns });
                     continue;
                 }
 
                 // Validar modelo existente para a marca
                 if (!modelosSet.has(modeloComboKey)) {
-                    results.errors.push({ line: i + 1, reason: `Modelo "${modelo}" não cadastrado para a marca "${marca}"`, raw: line });
+                    results.errors.push({ line: i + 1, reason: `Modelo "${modelo}" não cadastrado para a marca "${marca}"`, raw: line, columns });
                     continue;
                 }
 
@@ -424,7 +426,7 @@ class TablesService {
                     results.success++;
                     console.log(`Veículo adicionado: ${marca} ${modelo} - ${concessionaria}`);
                 } catch (error) {
-                    results.errors.push({ line: i + 1, reason: `Erro ao adicionar ${marca} ${modelo}: ${error}`, raw: line });
+                    results.errors.push({ line: i + 1, reason: `Erro ao adicionar ${marca} ${modelo}: ${error}`, raw: line, columns });
                     console.error(`Erro na linha ${i + 1}:`, error);
                 }
             }

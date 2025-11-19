@@ -27,7 +27,8 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
     const [csvFile, setCsvFile] = useState<File | null>(null);
     const [importResults, setImportResults] = useState<{
         success: number;
-        errors: Array<{ line: number; reason: string; raw?: string }>;
+        headers?: string[];
+        errors: Array<{ line: number; reason: string; raw?: string; columns?: string[] }>;
     } | null>(null);
     const [importProgress, setImportProgress] = useState<{ current: number; total: number; isImporting: boolean }>({
         current: 0,
@@ -64,6 +65,37 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
         const a = document.createElement('a');
         a.href = url;
         a.download = 'relatorio-erros-importacao.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    // Helper: baixar erros com as colunas originais + coluna "erro"
+    const downloadErrorsCsvWithOriginalColumns = () => {
+        if (!importResults || !importResults.errors?.length) return;
+        const originalHeaders = (importResults.headers && importResults.headers.length === 20)
+            ? importResults.headers
+            : [
+                'marca','modelo','versao','opcionais','cor','concessionaria','preco','ano','anoModelo','status',
+                'cidade','estado','chassi','motor','combustivel','transmissao','observacoes','dataEntrada','vendedor','telefone'
+            ];
+        const header = [...originalHeaders, 'erro'].join(',');
+        const rows = importResults.errors.map((e) => {
+            const cols = e.columns ? [...e.columns] : new Array(originalHeaders.length).fill('');
+            // garantir tamanho
+            while (cols.length < originalHeaders.length) cols.push('');
+            while (cols.length > originalHeaders.length) cols.length = originalHeaders.length;
+            const escaped = cols.map(v => `"${(v ?? '').replace(/"/g, '""')}"`);
+            const reason = `"${(e.reason || '').replace(/"/g, '""')}"`;
+            return [...escaped, reason].join(',');
+        });
+        const csv = [header, ...rows].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'erros-com-colunas-originais.csv';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -645,6 +677,15 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                                     onClick={downloadErrorsCsv}
                                 >
                                     ⬇️ Baixar relatório (CSV)
+                                </button>
+                            )}
+                            {importResults && importResults.errors?.length > 0 && !importProgress.isImporting && (
+                                <button
+                                    type="button"
+                                    className={modalStyles.addButton || modalStyles.cancelButton}
+                                    onClick={downloadErrorsCsvWithOriginalColumns}
+                                >
+                                    ⬇️ Baixar CSV (colunas + erro)
                                 </button>
                             )}
                             <button
