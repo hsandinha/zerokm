@@ -337,22 +337,51 @@ class TablesService {
                     continue;
                 }
 
-                const [marca, modelo, versao, cor, preco, concessionaria, cidade, estado, vendedor, telefone] = columns;
+                const [marca, modelo, versao, cor, precoStr, concessionaria, cidade, estado, vendedor, telefone] = columns;
 
+                // Validar campos obrigatórios
                 if (!marca || !modelo || !concessionaria || !cidade || !estado || !vendedor || !telefone) {
-                    results.errors.push(`Linha ${i + 1}: Campos obrigatórios em branco`);
+                    results.errors.push(`Linha ${i + 1}: Campos obrigatórios em branco - Marca: "${marca}", Modelo: "${modelo}", Concessionária: "${concessionaria}"`);
                     continue;
                 }
 
                 try {
-                    // Simular adição de veículo (será integrado com o serviço real)
-                    console.log(`Veículo processado: ${marca} ${modelo} - ${concessionaria}`);
-                    results.success++;
+                    // Converter preço para número (remover formatação se houver)
+                    const preco = precoStr ? parseFloat(precoStr.replace(/[^\d.-]/g, '')) : 0;
 
-                    // Pequeno delay para simular processamento
-                    await new Promise(resolve => setTimeout(resolve, 100));
+                    // Criar objeto do veículo com todos os campos
+                    const vehicleData = {
+                        marca: marca.toUpperCase(),
+                        modelo: modelo.toUpperCase(),
+                        versao: versao || '',
+                        opcionais: '',
+                        cor: cor || '',
+                        concessionaria: concessionaria,
+                        preco: preco,
+                        ano: '',
+                        anoModelo: '',
+                        status: 'Disponível',
+                        cidade: cidade,
+                        estado: estado,
+                        chassi: '',
+                        motor: '',
+                        combustivel: 'Flex',
+                        transmissao: 'Manual',
+                        observacoes: `Importado via CSV em ${new Date().toLocaleDateString('pt-BR')}`,
+                        dataEntrada: new Date().toLocaleDateString('pt-BR'),
+                        vendedor: vendedor,
+                        telefone: telefone
+                    };
+
+                    // Adicionar veículo ao Firebase usando o serviço de veículos
+                    const { vehicleService } = await import('./vehicleService');
+                    await vehicleService.addVehicle(vehicleData);
+
+                    results.success++;
+                    console.log(`Veículo adicionado: ${marca} ${modelo} - ${concessionaria}`);
                 } catch (error) {
                     results.errors.push(`Linha ${i + 1}: Erro ao adicionar ${marca} ${modelo}: ${error}`);
+                    console.error(`Erro na linha ${i + 1}:`, error);
                 }
             }
 

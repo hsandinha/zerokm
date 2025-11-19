@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import { useConfig } from '../../lib/contexts/ConfigContext';
 import { useVehicleDatabase } from '../../lib/hooks/useVehicleDatabase';
+import { useTablesDatabase } from '../../lib/hooks/useTablesDatabase';
 import { Vehicle } from '../../lib/services/vehicleService';
 import { AddVehicleModal } from './AddVehicleModal';
 import styles from './VehicleConsultation.module.css';
+import modalStyles from './TablesManagement.module.css';
 
 
 
@@ -21,6 +23,14 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [csvFile, setCsvFile] = useState<File | null>(null);
+    const [importResults, setImportResults] = useState<{ success: number; errors: string[] } | null>(null);
+    const [importProgress, setImportProgress] = useState<{ current: number; total: number; isImporting: boolean }>({
+        current: 0,
+        total: 0,
+        isImporting: false
+    });
     const [filters, setFilters] = useState({
         marca: '',
         modelo: '',
@@ -34,6 +44,7 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
 
     // Usar o hook do banco Firebase
     const { vehicles, loading, error, refreshVehicles, updateVehicle, deleteVehicle } = useVehicleDatabase();
+    const { importVeiculosFromCSV } = useTablesDatabase();
 
     // Função para calcular preço com margem
     const calculatePriceWithMargin = (basePrice: number) => {
@@ -63,7 +74,50 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
         }
     };
 
+    // Funções para importação de veículos
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file && file.type === 'text/csv') {
+            setCsvFile(file);
+        } else {
+            alert('Por favor, selecione um arquivo CSV válido.');
+        }
+    };
 
+    const handleImportCSV = async () => {
+        if (!csvFile) {
+            alert('Selecione um arquivo CSV primeiro.');
+            return;
+        }
+
+        try {
+            const text = await csvFile.text();
+            const lines = text.split('\n').filter(line => line.trim()).length - 1;
+
+            setImportProgress({ current: 0, total: lines, isImporting: true });
+
+            const results = await importVeiculosFromCSV(text, (current, total) => {
+                setImportProgress({ current, total, isImporting: true });
+            });
+
+            setImportResults(results);
+            setImportProgress({ current: 0, total: 0, isImporting: false });
+
+            if (results.success > 0) {
+                alert(`Importação concluída! ${results.success} veículos processados com sucesso.`);
+                if (results.errors.length > 0) {
+                    console.warn('Erros durante a importação:', results.errors);
+                }
+                await refreshVehicles(); // Atualizar lista de veículos
+            } else {
+                alert('Nenhum veículo foi importado. Verifique o formato do arquivo.');
+            }
+        } catch (error) {
+            console.error('Erro na importação:', error);
+            alert('Erro ao processar o arquivo CSV.');
+            setImportProgress({ current: 0, total: 0, isImporting: false });
+        }
+    };
 
     // Filtrar veículos baseado na busca e filtros avançados
     const filteredVehicles = vehicles.filter(vehicle => {
@@ -156,6 +210,13 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
             <div className={styles.header}>
                 <h2>Consulta de Veículos</h2>
                 <div className={styles.headerActions}>
+                    <button
+                        className={styles.importButton}
+                        onClick={() => setShowImportModal(true)}
+                        title="Importar Veículos do CSV"
+                    >
+                        📂 Importar CSV
+                    </button>
                     <button
                         className={styles.addButton}
                         onClick={() => setShowAddModal(true)}
@@ -304,7 +365,7 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                         onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
                         title="Filtros avançados"
                     >
-                        Filtros Avançados {showAdvancedFilters ? '▲' : '▼'}
+                        + Filtros
                     </button>
                     <button onClick={clearFilters} className={styles.clearButton}>
                         Limpar Busca
@@ -313,7 +374,15 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
             </div>
 
             <div className={styles.resultsSection}>
-                <h3>Resultados ({filteredVehicles.length})</h3>
+                <div className={styles.resultsHeader}>
+                    <h3>Resultados ({filteredVehicles.length})</h3>
+                    {margem > 0 && (
+                        <div className={styles.marginInfo}>
+                            <span className={styles.marginLabel}>Margem Aplicada:</span>
+                            <strong className={styles.marginValue}>{margem}%</strong>
+                        </div>
+                    )}
+                </div>
 
                 {viewMode === 'table' ? (
                     <div className={styles.tableContainer}>
@@ -326,7 +395,8 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                                     <th className={styles.tableHeader}>OPCIONAIS</th>
                                     <th className={styles.tableHeader}>COR</th>
                                     <th className={styles.tableHeader}>CONCESSIONÁRIA</th>
-                                    <th className={styles.tableHeader}>PREÇO (R$)</th>
+                                    <th className={styles.tableHeader}>PREÇO ORIGINAL (R$)</th>
+                                    <th className={styles.tableHeader}>PREÇO C/ MARGEM (R$)</th>
                                     <th className={styles.tableHeader}>ANO</th>
                                     <th className={styles.tableHeader}>ANO MODELO</th>
                                     <th className={styles.tableHeader}>STATUS</th>
@@ -353,7 +423,10 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                                         <td className={styles.tableCell}>{vehicle.cor}</td>
                                         <td className={styles.tableCell}>{vehicle.concessionaria}</td>
                                         <td className={styles.tableCell}>
-                                            R$ {calculatePriceWithMargin(vehicle.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                            R$ {(vehicle.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                        </td>
+                                        <td className={styles.tableCell}>
+                                            <strong>R$ {calculatePriceWithMargin(vehicle.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>
                                         </td>
                                         <td className={styles.tableCell}>{vehicle.ano}</td>
                                         <td className={styles.tableCell}>{vehicle.anoModelo}</td>
@@ -434,6 +507,106 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                 editingVehicle={selectedVehicle}
                 isEditing={true}
             />
+
+            {/* Modal de Importação CSV */}
+            {showImportModal && (
+                <div className={modalStyles.overlay}>
+                    <div className={modalStyles.modal}>
+                        <div className={modalStyles.modalHeader}>
+                            <h3>Importar Veículos do CSV</h3>
+                            <button className={modalStyles.closeButton} onClick={() => setShowImportModal(false)}>✕</button>
+                        </div>
+
+                        <div className={modalStyles.form}>
+                            <div className={modalStyles.importInstructions}>
+                                <h4>📋 Formato do arquivo CSV:</h4>
+                                <ul>
+                                    <li>Primeira linha deve conter os cabeçalhos: <strong>marca,modelo,versao,cor,preco,concessionaria,cidade,estado,vendedor,telefone</strong></li>
+                                    <li>As linhas seguintes devem conter os dados separados por vírgula</li>
+                                    <li><strong>Campos obrigatórios:</strong> marca, modelo, concessionaria, cidade, estado, vendedor, telefone</li>
+                                    <li><strong>Campos opcionais:</strong> versao, cor, preco</li>
+                                    <li>Exemplo:</li>
+                                </ul>
+                                <pre className={modalStyles.csvExample}>
+                                    marca,modelo,versao,cor,preco,concessionaria,cidade,estado,vendedor,telefone{"\n"}TOYOTA,COROLLA,XEI 2.0,Prata,95000,Concessionária Toyota SP,São Paulo,SP,João Silva,(11) 98765-4321{"\n"}FORD,FOCUS,SE 1.6,Branco,75000,Ford Premium,Campinas,SP,Maria Santos,(19) 99876-5432
+                                </pre>
+                            </div>
+
+                            <div className={modalStyles.formGroup}>
+                                <label htmlFor="csvFile">Selecionar arquivo CSV:</label>
+                                <input
+                                    type="file"
+                                    id="csvFile"
+                                    accept=".csv"
+                                    onChange={handleFileChange}
+                                    className={modalStyles.fileInput}
+                                />
+                            </div>
+
+                            {csvFile && (
+                                <div className={modalStyles.fileInfo}>
+                                    <strong>Arquivo selecionado:</strong> {csvFile.name}
+                                </div>
+                            )}
+
+                            {importProgress.isImporting && (
+                                <div className={modalStyles.progressContainer}>
+                                    <h4>Importando veículos...</h4>
+                                    <div className={modalStyles.progressBar}>
+                                        <div
+                                            className={modalStyles.progressFill}
+                                            style={{
+                                                width: `${importProgress.total > 0 ? (importProgress.current / importProgress.total) * 100 : 0}%`
+                                            }}
+                                        ></div>
+                                    </div>
+                                    <p className={modalStyles.progressText}>
+                                        {importProgress.current} de {importProgress.total} ({Math.round((importProgress.current / importProgress.total) * 100) || 0}%)
+                                    </p>
+                                </div>
+                            )}
+
+                            {importResults && !importProgress.isImporting && (
+                                <div className={modalStyles.importResults}>
+                                    <h4>Resultados da Importação:</h4>
+                                    <p><strong>Sucessos:</strong> {importResults.success}</p>
+                                    {importResults.errors.length > 0 && (
+                                        <>
+                                            <p><strong>Erros:</strong> {importResults.errors.length}</p>
+                                            <details>
+                                                <summary>Ver erros</summary>
+                                                <ul className={modalStyles.errorList}>
+                                                    {importResults.errors.map((error, index) => (
+                                                        <li key={index}>{error}</li>
+                                                    ))}
+                                                </ul>
+                                            </details>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className={modalStyles.modalActions}>
+                            <button
+                                type="button"
+                                className={modalStyles.cancelButton}
+                                onClick={() => setShowImportModal(false)}
+                            >
+                                Fechar
+                            </button>
+                            <button
+                                type="button"
+                                className={modalStyles.submitButton}
+                                onClick={handleImportCSV}
+                                disabled={!csvFile || loading}
+                            >
+                                {loading ? 'Importando...' : 'Importar Dados'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }// Função para determinar cor do status
@@ -527,9 +700,15 @@ function VehicleCard({ vehicle, margem, onEdit, onDelete }: VehicleCardProps) {
 
             <div className={styles.cardFooter}>
                 <div className={styles.priceSection}>
-                    <span className={styles.priceLabel}>Preço:</span>
+                    <span className={styles.priceLabel}>Preço Original:</span>
                     <span className={styles.priceValue}>
-                        R$ {calculatePriceWithMargin(vehicle.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        R$ {(vehicle.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                </div>
+                <div className={styles.priceSection}>
+                    <span className={styles.priceLabel}>Preço c/ Margem ({margem}%):</span>
+                    <span className={styles.priceValue}>
+                        <strong>R$ {calculatePriceWithMargin(vehicle.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>
                     </span>
                 </div>
                 <div className={styles.cardActions}>

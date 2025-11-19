@@ -1,0 +1,21 @@
+marca,modelo,versao,cor,preco,concessionaria,cidade,estado,vendedor,telefone
+TOYOTA,COROLLA,XEI 2.0,Prata,95000,Concessionária Toyota SP,São Paulo,SP,João Silva,(11) 98765-4321
+TOYOTA,HILUX,SRX 4X4,Branco,180000,Concessionária Toyota SP,São Paulo,SP,João Silva,(11) 98765-4321
+FORD,FOCUS,SE 1.6,Branco,75000,Ford Premium,Campinas,SP,Maria Santos,(19) 99876-5432
+FORD,RANGER,XLT 3.2,Preto,150000,Ford Premium,Campinas,SP,Maria Santos,(19) 99876-5432
+HONDA,CIVIC,EXL 2.0,Preto,120000,Honda Elite,Rio de Janeiro,RJ,Pedro Costa,(21) 97654-3210
+HONDA,CR-V,EX 2.0,Azul,140000,Honda Elite,Rio de Janeiro,RJ,Pedro Costa,(21) 97654-3210
+CHEVROLET,ONIX,LTZ 1.4,Vermelho,65000,Chevrolet Master,Belo Horizonte,MG,Ana Paula,(31) 96543-2109
+CHEVROLET,CRUZE,LTZ 1.4 TURBO,Cinza,85000,Chevrolet Master,Belo Horizonte,MG,Ana Paula,(31) 96543-2109
+VOLKSWAGEN,GOL,1.0 FLEX,Azul,45000,VW Center,Curitiba,PR,Carlos Mendes,(41) 95432-1098
+VOLKSWAGEN,POLO,HIGHLINE 1.0 TSI,Prata,70000,VW Center,Curitiba,PR,Carlos Mendes,(41) 95432-1098
+FIAT,UNO,ATTRACTIVE 1.0,Vermelho,38000,Fiat Bahia,Salvador,BA,Juliana Rocha,(71) 94321-0987
+FIAT,ARGO,DRIVE 1.3,Branco,58000,Fiat Bahia,Salvador,BA,Juliana Rocha,(71) 94321-0987
+NISSAN,KICKS,SL 1.6,Laranja,80000,Nissan Ceará,Fortaleza,CE,Roberto Lima,(85) 93210-9876
+NISSAN,VERSA,EXCLUSIVE 1.6,Preto,72000,Nissan Ceará,Fortaleza,CE,Roberto Lima,(85) 93210-9876
+HYUNDAI,HB20,COMFORT PLUS 1.0,Branco,60000,Hyundai Sul,Porto Alegre,RS,Fernanda Souza,(51) 92109-8765
+HYUNDAI,CRETA,PRESTIGE 2.0,Vermelho,95000,Hyundai Sul,Porto Alegre,RS,Fernanda Souza,(51) 92109-8765
+RENAULT,KWID,INTENSE 1.0,Azul,42000,Renault Norte,Manaus,AM,Lucas Martins,(92) 91098-7654
+RENAULT,DUSTER,ICONIC 1.6,Cinza,88000,Renault Norte,Manaus,AM,Lucas Martins,(92) 91098-7654
+JEEP,COMPASS,LONGITUDE 2.0,Preto,135000,Jeep DF,Brasília,DF,Patricia Alves,(61) 90987-6543
+JEEP,RENEGADE,SPORT 1.8,Amarelo,98000,Jeep DF,Brasília,DF,Patricia Alves,(61) 90987-6543
