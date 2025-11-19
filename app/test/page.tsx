@@ -15,6 +15,7 @@ export default function TestPage() {
                 cor: 'Prata',
                 concessionaria: 'Toyota Center',
                 preco: 85000,
+                ano: '2024',
                 anoModelo: '2024',
                 status: 'Disponível' as const,
                 cidade: 'São Paulo',
@@ -34,7 +35,7 @@ export default function TestPage() {
             alert(`Sucesso! Veículo cadastrado com ID: ${vehicleId}`);
         } catch (error) {
             console.error('Erro no teste direto:', error);
-            alert(`Erro no teste: ${error.message}`);
+            alert(`Erro no teste: ${error instanceof Error ? error.message : String(error)}`);
         }
     };
 
@@ -46,7 +47,7 @@ export default function TestPage() {
             alert(`Encontrados ${vehicles.length} veículos no banco`);
         } catch (error) {
             console.error('Erro ao listar veículos:', error);
-            alert(`Erro ao listar: ${error.message}`);
+            alert(`Erro ao listar: ${error instanceof Error ? error.message : String(error)}`);
         }
     };
 
