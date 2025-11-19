@@ -74,23 +74,15 @@ function LoginContent() {
             {/* Seção esquerda com vídeo e welcome text */}
             <div className={styles.leftSection}>
                 <div className={styles.videoContainer}>
-                    <iframe
+                    <video
                         className={styles.videoBackground}
-                        src="https://player.vimeo.com/video/354473209?autoplay=1&loop=1&muted=1&background=1&quality=720p"
-                        frameBorder="0"
-                        allow="autoplay; fullscreen"
+                        src="/video.mp4"
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
                         title="Automobile Video Background"
-                    ></iframe>
-                </div>
-
-                <div className={styles.welcomeContent}>
-                    <h1 className={styles.welcomeTitle}>
-                        Welcome<br />
-                        Back
-                    </h1>
-                    <p className={styles.welcomeSubtitle}>
-                        Acesse a plataforma mais completa para vendas de veículos zero quilômetro no Brasil
-                    </p>
+                    />
                 </div>
             </div>
 
