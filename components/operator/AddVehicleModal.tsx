@@ -6,6 +6,7 @@ import { useVehicleDatabase } from '../../lib/hooks/useVehicleDatabase';
 import { tablesService } from '../../lib/services/tablesService';
 import { AutocompleteInput } from './AutocompleteInput';
 import { MaskedInput } from './MaskedInput';
+import { CurrencyInput } from './CurrencyInput';
 import { getEstados, getAllCidades, filterCidades } from '../../lib/data/estadosCidades';
 import styles from './AddVehicleModal.module.css';
 
@@ -203,10 +204,8 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
         setFormData(prev => ({ ...prev, telefone: value }));
     };
 
-    const handlePrecoChange = (value: string) => {
-        // Converte de centavos para reais (divide por 100)
-        const preco = parseFloat(value) / 100 || 0;
-        setFormData(prev => ({ ...prev, preco }));
+    const handlePrecoChange = (value?: number) => {
+        setFormData(prev => ({ ...prev, preco: value ?? 0 }));
     };
 
     // Função para filtrar cidades baseado no estado selecionado e termo de busca
@@ -359,12 +358,11 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                         </div>
 
                         <div className={styles.formGroup}>
-                            <MaskedInput
+                            <CurrencyInput
                                 name="preco"
                                 label="Preço"
-                                value={(formData.preco * 100).toString()} // Converte reais para centavos
-                                onChange={handlePrecoChange}
-                                mask="currency"
+                                value={formData.preco}
+                                onValueChange={handlePrecoChange}
                                 placeholder="R$ 154.920,00"
                                 required
                             />
