@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Vehicle } from '../../lib/services/vehicleService';
 import { useVehicleDatabase } from '../../lib/hooks/useVehicleDatabase';
 import { tablesService } from '../../lib/services/tablesService';
@@ -193,8 +193,15 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
 
     const handleEstadoChange = (value: string) => {
         setFormData(prev => ({ ...prev, estado: value, cidade: '' })); // Limpar cidade ao mudar estado
-        setCidades([]); // Limpar lista de cidades
     };
+
+    // Função memoizada para filtrar cidades
+    const getCidadesSuggestions = useMemo(() => {
+        return (searchTerm: string): string[] => {
+            if (!formData.estado) return [];
+            return filterCidades(searchTerm, formData.estado);
+        };
+    }, [formData.estado]);
 
     const handleCidadeChange = (value: string) => {
         setFormData(prev => ({ ...prev, cidade: value }));
@@ -208,10 +215,7 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
         setFormData(prev => ({ ...prev, preco: value ?? 0 }));
     };
 
-    // Função para filtrar cidades baseado no estado selecionado e termo de busca
-    const getCidadesSuggestions = (searchTerm: string): string[] => {
-        return filterCidades(searchTerm, formData.estado);
-    };
+
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -226,27 +230,54 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
         setIsSubmitting(true);
 
         try {
+            console.log('=== INICIO DO SUBMIT ===');
             console.log('Dados do formulário antes de enviar:', formData);
 
             // Validar campos obrigatórios
-            if (!formData.marca || !formData.modelo || !formData.concessionaria || !formData.cidade || !formData.estado || !formData.vendedor || !formData.telefone) {
-                alert('Por favor, preencha todos os campos obrigatórios marcados com *');
+            const camposObrigatorios = {
+                marca: formData.marca,
+                modelo: formData.modelo,
+                concessionaria: formData.concessionaria,
+                cidade: formData.cidade,
+                estado: formData.estado,
+                vendedor: formData.vendedor,
+                telefone: formData.telefone
+            };
+
+            console.log('Validando campos obrigatórios:', camposObrigatorios);
+
+            const camposFaltando = Object.entries(camposObrigatorios)
+                .filter(([_, value]) => !value)
+                .map(([key, _]) => key);
+
+            if (camposFaltando.length > 0) {
+                alert(`Por favor, preencha os campos obrigatórios: ${camposFaltando.join(', ')}`);
+                console.log('Campos faltando:', camposFaltando);
                 setIsSubmitting(false);
                 return;
             }
 
+            console.log('Validação passou! Enviando...');
             let success;
             if (isEditing && editingVehicle?.id) {
+                console.log('Atualizando veículo ID:', editingVehicle.id);
                 success = await updateVehicle(editingVehicle.id, formData);
-                console.log('Veículo atualizado com sucesso!');
+                console.log('Resultado da atualização:', success);
             } else {
+                console.log('Adicionando novo veículo...');
                 success = await addVehicle(formData);
-                console.log('Veículo adicionado com sucesso!');
+                console.log('Resultado da adição:', success);
             }
 
+            console.log('Success flag:', success);
             if (success) {
+                console.log('Veículo salvo com sucesso! Chamando callbacks...');
+                alert('Veículo salvo com sucesso!');
                 onVehicleAdded();
                 onClose();
+            } else {
+                console.error('Success retornou false');
+                alert('Erro ao salvar veículo. Tente novamente.');
             }
         } catch (error) {
             console.error('Erro ao adicionar veículo:', error);
@@ -258,294 +289,291 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
 
     if (!isOpen) return null;
 
-    const handleOverlayClick = (e: React.MouseEvent) => {
-        if (e.target === e.currentTarget) {
-            onClose();
-        }
-    };
-
     return (
-        <div className={styles.overlay} onClick={handleOverlayClick}>
-            <div className={styles.modal}>
-                <div className={styles.header}>
+        <section className={styles.panel}>
+            <div className={styles.header}>
+                <div>
                     <h2>{isEditing ? 'Editar Veículo' : 'Cadastrar Novo Veículo'}</h2>
-                    <button className={styles.closeButton} onClick={onClose}>✕</button>
+                    <p>{isEditing ? 'Atualize as informações e mantenha o estoque sincronizado.' : 'Preencha os campos para cadastrar um novo veículo.'}</p>
                 </div>
+                <button type="button" className={styles.closeButton} onClick={onClose}>
+                    {isEditing ? 'Cancelar edição' : 'Fechar formulário'}
+                </button>
+            </div>
 
-                <form onSubmit={handleSubmit} className={styles.form}>
-                    <div className={styles.formGrid}>
-                        <div className={styles.formGroup}>
-                            <AutocompleteInput
-                                name="marca"
-                                label="Marca"
-                                value={formData.marca}
-                                onChange={handleMarcaChange}
-                                options={marcas}
-                                placeholder="Ex: TOYOTA"
-                                required
-                                onFocus={loadMarcas}
-                                loading={loadingMarcas}
-                            />
-                        </div>
+            <form onSubmit={handleSubmit} className={styles.form}>
+                <div className={styles.formGrid}>
+                    <div className={styles.formGroup}>
+                        <AutocompleteInput
+                            name="marca"
+                            label="Marca"
+                            value={formData.marca}
+                            onChange={handleMarcaChange}
+                            options={marcas}
+                            placeholder="Ex: TOYOTA"
+                            required
+                            onFocus={loadMarcas}
+                            loading={loadingMarcas}
+                        />
+                    </div>
 
-                        <div className={styles.formGroup}>
-                            <AutocompleteInput
-                                name="modelo"
-                                label="Modelo"
-                                value={formData.modelo}
-                                onChange={handleModeloChange}
-                                options={modelos}
-                                placeholder={formData.marca ? "Ex: COROLLA ALTIS 2.0" : "Selecione uma marca primeiro"}
-                                required
-                                loading={loadingModelos}
-                                disabled={!formData.marca}
-                            />
-                        </div>
+                    <div className={styles.formGroup}>
+                        <AutocompleteInput
+                            name="modelo"
+                            label="Modelo"
+                            value={formData.modelo}
+                            onChange={handleModeloChange}
+                            options={modelos}
+                            placeholder={formData.marca ? "Ex: COROLLA ALTIS 2.0" : "Selecione uma marca primeiro"}
+                            required
+                            loading={loadingModelos}
+                            disabled={!formData.marca}
+                        />
+                    </div>
 
-                        <div className={styles.formGroup}>
-                            <label htmlFor="versao">Versão</label>
-                            <input
-                                type="text"
-                                id="versao"
-                                name="versao"
-                                value={formData.versao}
-                                onChange={handleInputChange}
-                                placeholder="Ex: ALTIS PREMIUM"
-                            />
-                        </div>
+                    <div className={styles.formGroup}>
+                        <label htmlFor="versao">Versão</label>
+                        <input
+                            type="text"
+                            id="versao"
+                            name="versao"
+                            value={formData.versao}
+                            onChange={handleInputChange}
+                            placeholder="Ex: ALTIS PREMIUM"
+                        />
+                    </div>
 
-                        <div className={styles.formGroupDual}>
-                            <div className={styles.dualInputContainer}>
-                                <div className={styles.dualInput}>
-                                    <label htmlFor="ano">Ano*</label>
-                                    <input
-                                        type="text"
-                                        id="ano"
-                                        name="ano"
-                                        value={formData.ano}
-                                        onChange={handleInputChange}
-                                        required
-                                        placeholder="Ex: 2024"
-                                    />
-                                </div>
-                                <div className={styles.dualInput}>
-                                    <label htmlFor="anoModelo">Ano Modelo*</label>
-                                    <input
-                                        type="text"
-                                        id="anoModelo"
-                                        name="anoModelo"
-                                        value={formData.anoModelo}
-                                        onChange={handleInputChange}
-                                        required
-                                        placeholder="Ex: 2024"
-                                    />
-                                </div>
+                    <div className={styles.formGroupDual}>
+                        <div className={styles.dualInputContainer}>
+                            <div className={styles.dualInput}>
+                                <label htmlFor="ano">Ano*</label>
+                                <input
+                                    type="text"
+                                    id="ano"
+                                    name="ano"
+                                    value={formData.ano}
+                                    onChange={handleInputChange}
+                                    required
+                                    placeholder="Ex: 2024"
+                                />
+                            </div>
+                            <div className={styles.dualInput}>
+                                <label htmlFor="anoModelo">Ano Modelo*</label>
+                                <input
+                                    type="text"
+                                    id="anoModelo"
+                                    name="anoModelo"
+                                    value={formData.anoModelo}
+                                    onChange={handleInputChange}
+                                    required
+                                    placeholder="Ex: 2024"
+                                />
                             </div>
                         </div>
-
-                        <div className={styles.formGroup}>
-                            <AutocompleteInput
-                                name="cor"
-                                label="Cor"
-                                value={formData.cor}
-                                onChange={handleCorChange}
-                                options={cores}
-                                placeholder="Ex: BRANCO POLAR"
-                                required
-                                onFocus={loadCores}
-                                loading={loadingCores}
-                            />
-                        </div>
-
-                        <div className={styles.formGroup}>
-                            <CurrencyInput
-                                name="preco"
-                                label="Preço"
-                                value={formData.preco}
-                                onValueChange={handlePrecoChange}
-                                placeholder="R$ 154.920,00"
-                                required
-                            />
-                        </div>
-
-                        <div className={styles.formGroup}>
-                            <label htmlFor="status">Status*</label>
-                            <select
-                                id="status"
-                                name="status"
-                                value={formData.status}
-                                onChange={handleInputChange}
-                                required
-                            >
-                                <option value="Disponível">Disponível</option>
-                                <option value="Vendido">Vendido</option>
-                                <option value="Reservado">Reservado</option>
-                                <option value="Manutenção">Manutenção</option>
-                            </select>
-                        </div>
-
-                        <div className={styles.formGroup}>
-                            <label htmlFor="combustivel">Combustível*</label>
-                            <select
-                                id="combustivel"
-                                name="combustivel"
-                                value={formData.combustivel}
-                                onChange={handleInputChange}
-                                required
-                            >
-                                <option value="Flex">Flex</option>
-                                <option value="Gasolina">Gasolina</option>
-                                <option value="Etanol">Etanol</option>
-                                <option value="Diesel">Diesel</option>
-                                <option value="Elétrico">Elétrico</option>
-                                <option value="Híbrido">Híbrido</option>
-                            </select>
-                        </div>
-
-                        <div className={styles.formGroup}>
-                            <label htmlFor="transmissao">Transmissão*</label>
-                            <select
-                                id="transmissao"
-                                name="transmissao"
-                                value={formData.transmissao}
-                                onChange={handleInputChange}
-                                required
-                            >
-                                <option value="Manual">Manual</option>
-                                <option value="Automática">Automática</option>
-                                <option value="CVT">CVT</option>
-                            </select>
-                        </div>
-
-                        <div className={styles.formGroup}>
-                            <label htmlFor="motor">Motor</label>
-                            <input
-                                type="text"
-                                id="motor"
-                                name="motor"
-                                value={formData.motor}
-                                onChange={handleInputChange}
-                                placeholder="Ex: 2.0 16V FLEX"
-                            />
-                        </div>
-
-                        <div className={styles.formGroup}>
-                            <label htmlFor="chassi">Chassi</label>
-                            <input
-                                type="text"
-                                id="chassi"
-                                name="chassi"
-                                value={formData.chassi}
-                                onChange={handleInputChange}
-                                placeholder="Ex: 9BR53ZEC*P*020190"
-                            />
-                        </div>
-
-                        <div className={styles.formGroup}>
-                            <AutocompleteInput
-                                name="concessionaria"
-                                label="Concessionária"
-                                value={formData.concessionaria}
-                                onChange={handleConcessionariaChange}
-                                options={concessionarias}
-                                placeholder="Ex: Toyota Prime São Paulo"
-                                required
-                                onFocus={loadConcessionarias}
-                                loading={loadingConcessionarias}
-                            />
-                        </div>
-
-                        <div className={styles.formGroup}>
-                            <AutocompleteInput
-                                name="estado"
-                                label="Estado"
-                                value={formData.estado}
-                                onChange={handleEstadoChange}
-                                options={estados}
-                                placeholder="Ex: São Paulo - SP"
-                                required
-                            />
-                        </div>
-
-                        <div className={styles.formGroup}>
-                            <AutocompleteInput
-                                name="cidade"
-                                label="Cidade"
-                                value={formData.cidade}
-                                onChange={handleCidadeChange}
-                                getSuggestions={getCidadesSuggestions}
-                                placeholder={formData.estado ? "Ex: São Paulo" : "Selecione um estado primeiro"}
-                                required
-                                disabled={!formData.estado}
-                            />
-                        </div>
-
-
-
-                        <div className={styles.formGroup}>
-                            <label htmlFor="vendedor">Vendedor*</label>
-                            <input
-                                type="text"
-                                id="vendedor"
-                                name="vendedor"
-                                value={formData.vendedor}
-                                onChange={handleInputChange}
-                                required
-                                placeholder="Ex: CARLOS SILVA"
-                            />
-                        </div>
-
-                        <div className={styles.formGroup}>
-                            <MaskedInput
-                                name="telefone"
-                                label="Telefone"
-                                value={formData.telefone}
-                                onChange={handleTelefoneChange}
-                                mask="phone"
-                                placeholder="(11)99999-1001"
-                                required
-                                maxLength={15}
-                            />
-                        </div>
                     </div>
 
-                    <div className={styles.formGroupFull}>
-                        <label htmlFor="opcionais">Opcionais</label>
-                        <textarea
-                            id="opcionais"
-                            name="opcionais"
-                            value={formData.opcionais}
-                            onChange={handleInputChange}
-                            placeholder="Ex: AR CONDICIONADO, DIREÇÃO ELÉTRICA, VIDROS ELÉTRICOS, CENTRAL MULTIMÍDIA"
-                            rows={3}
+                    <div className={styles.formGroup}>
+                        <AutocompleteInput
+                            name="cor"
+                            label="Cor"
+                            value={formData.cor}
+                            onChange={handleCorChange}
+                            options={cores}
+                            placeholder="Ex: BRANCO POLAR"
+                            required
+                            onFocus={loadCores}
+                            loading={loadingCores}
                         />
                     </div>
 
-                    <div className={styles.formGroupFull}>
-                        <label htmlFor="observacoes">Observações</label>
-                        <textarea
-                            id="observacoes"
-                            name="observacoes"
-                            value={formData.observacoes}
-                            onChange={handleInputChange}
-                            placeholder="Observações adicionais sobre o veículo"
-                            rows={3}
+                    <div className={styles.formGroup}>
+                        <CurrencyInput
+                            name="preco"
+                            label="Preço"
+                            value={formData.preco}
+                            onValueChange={handlePrecoChange}
+                            placeholder="R$ 154.920,00"
+                            required
                         />
                     </div>
 
-                    <div className={styles.formActions}>
-                        <button type="button" onClick={onClose} className={styles.cancelButton}>
-                            Cancelar
-                        </button>
-                        <button type="submit" disabled={isSubmitting} className={styles.submitButton}>
-                            {isSubmitting
-                                ? (isEditing ? 'Salvando...' : 'Cadastrando...')
-                                : (isEditing ? 'Salvar Alterações' : 'Cadastrar Veículo')
-                            }
-                        </button>
+                    <div className={styles.formGroup}>
+                        <label htmlFor="status">Status*</label>
+                        <select
+                            id="status"
+                            name="status"
+                            value={formData.status}
+                            onChange={handleInputChange}
+                            required
+                        >
+                            <option value="Disponível">Disponível</option>
+                            <option value="Vendido">Vendido</option>
+                            <option value="Reservado">Reservado</option>
+                            <option value="Manutenção">Manutenção</option>
+                        </select>
                     </div>
-                </form>
-            </div>
-        </div>
+
+                    <div className={styles.formGroup}>
+                        <label htmlFor="combustivel">Combustível*</label>
+                        <select
+                            id="combustivel"
+                            name="combustivel"
+                            value={formData.combustivel}
+                            onChange={handleInputChange}
+                            required
+                        >
+                            <option value="Flex">Flex</option>
+                            <option value="Gasolina">Gasolina</option>
+                            <option value="Etanol">Etanol</option>
+                            <option value="Diesel">Diesel</option>
+                            <option value="Elétrico">Elétrico</option>
+                            <option value="Híbrido">Híbrido</option>
+                        </select>
+                    </div>
+
+                    <div className={styles.formGroup}>
+                        <label htmlFor="transmissao">Transmissão*</label>
+                        <select
+                            id="transmissao"
+                            name="transmissao"
+                            value={formData.transmissao}
+                            onChange={handleInputChange}
+                            required
+                        >
+                            <option value="Manual">Manual</option>
+                            <option value="Automática">Automática</option>
+                            <option value="CVT">CVT</option>
+                        </select>
+                    </div>
+
+                    <div className={styles.formGroup}>
+                        <label htmlFor="motor">Motor</label>
+                        <input
+                            type="text"
+                            id="motor"
+                            name="motor"
+                            value={formData.motor}
+                            onChange={handleInputChange}
+                            placeholder="Ex: 2.0 16V FLEX"
+                        />
+                    </div>
+
+                    <div className={styles.formGroup}>
+                        <label htmlFor="chassi">Chassi</label>
+                        <input
+                            type="text"
+                            id="chassi"
+                            name="chassi"
+                            value={formData.chassi}
+                            onChange={handleInputChange}
+                            placeholder="Ex: 9BR53ZEC*P*020190"
+                        />
+                    </div>
+
+                    <div className={styles.formGroup}>
+                        <AutocompleteInput
+                            name="concessionaria"
+                            label="Concessionária"
+                            value={formData.concessionaria}
+                            onChange={handleConcessionariaChange}
+                            options={concessionarias}
+                            placeholder="Ex: Toyota Prime São Paulo"
+                            required
+                            onFocus={loadConcessionarias}
+                            loading={loadingConcessionarias}
+                        />
+                    </div>
+
+                    <div className={styles.formGroup}>
+                        <AutocompleteInput
+                            name="estado"
+                            label="Estado"
+                            value={formData.estado}
+                            onChange={handleEstadoChange}
+                            options={estados}
+                            placeholder="Ex: São Paulo - SP"
+                            required
+                        />
+                    </div>
+
+                    <div className={styles.formGroup}>
+                        <AutocompleteInput
+                            name="cidade"
+                            label="Cidade"
+                            value={formData.cidade}
+                            onChange={handleCidadeChange}
+                            getSuggestions={getCidadesSuggestions}
+                            placeholder={formData.estado ? "Ex: São Paulo" : "Selecione um estado primeiro"}
+                            required
+                            disabled={!formData.estado}
+                        />
+                    </div>
+
+
+
+                    <div className={styles.formGroup}>
+                        <label htmlFor="vendedor">Vendedor*</label>
+                        <input
+                            type="text"
+                            id="vendedor"
+                            name="vendedor"
+                            value={formData.vendedor}
+                            onChange={handleInputChange}
+                            required
+                            placeholder="Ex: CARLOS SILVA"
+                        />
+                    </div>
+
+                    <div className={styles.formGroup}>
+                        <MaskedInput
+                            name="telefone"
+                            label="Telefone"
+                            value={formData.telefone}
+                            onChange={handleTelefoneChange}
+                            mask="phone"
+                            placeholder="(11)99999-1001"
+                            required
+                            maxLength={15}
+                        />
+                    </div>
+                </div>
+
+                <div className={styles.formGroupFull}>
+                    <label htmlFor="opcionais">Opcionais</label>
+                    <textarea
+                        id="opcionais"
+                        name="opcionais"
+                        value={formData.opcionais}
+                        onChange={handleInputChange}
+                        placeholder="Ex: AR CONDICIONADO, DIREÇÃO ELÉTRICA, VIDROS ELÉTRICOS, CENTRAL MULTIMÍDIA"
+                        rows={3}
+                    />
+                </div>
+
+                <div className={styles.formGroupFull}>
+                    <label htmlFor="observacoes">Observações</label>
+                    <textarea
+                        id="observacoes"
+                        name="observacoes"
+                        value={formData.observacoes}
+                        onChange={handleInputChange}
+                        placeholder="Observações adicionais sobre o veículo"
+                        rows={3}
+                    />
+                </div>
+
+                <div className={styles.formActions}>
+                    <button type="button" onClick={onClose} className={styles.cancelButton}>
+                        Cancelar
+                    </button>
+                    <button type="submit" disabled={isSubmitting} className={styles.submitButton}>
+                        {isSubmitting
+                            ? (isEditing ? 'Salvando...' : 'Cadastrando...')
+                            : (isEditing ? 'Salvar Alterações' : 'Cadastrar Veículo')
+                        }
+                    </button>
+                </div>
+            </form>
+        </section>
     );
 }

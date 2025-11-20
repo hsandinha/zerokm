@@ -92,9 +92,9 @@ export class VehicleService {
                 vendedor: vehicle.vendedor || '',
                 telefone: vehicle.telefone || '',
                 // Campos opcionais
-                quilometragem: vehicle.quilometragem || undefined,
-                categoria: vehicle.categoria || undefined,
-                descricao: vehicle.descricao || undefined,
+                quilometragem: vehicle.quilometragem ?? 0,
+                categoria: vehicle.categoria ?? '',
+                descricao: vehicle.descricao ?? '',
                 fotos: vehicle.fotos || []
             };
 

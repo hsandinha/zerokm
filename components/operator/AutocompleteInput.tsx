@@ -17,10 +17,12 @@ interface AutocompleteInputProps {
     disabled?: boolean;
 }
 
+const DEFAULT_OPTIONS: string[] = [];
+
 export function AutocompleteInput({
     value,
     onChange,
-    options = [],
+    options = DEFAULT_OPTIONS,
     getSuggestions,
     placeholder,
     label,
@@ -35,6 +37,7 @@ export function AutocompleteInput({
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
     const inputRef = useRef<HTMLInputElement>(null);
     const listRef = useRef<HTMLDivElement>(null);
+    const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Filtrar opções baseado no valor digitado
     useEffect(() => {
@@ -60,6 +63,15 @@ export function AutocompleteInput({
         setIsOpen(value.length > 0);
         setHighlightedIndex(-1);
     }, [value, options, getSuggestions]);
+
+    // Cleanup timeout ao desmontar componente
+    useEffect(() => {
+        return () => {
+            if (blurTimeoutRef.current) {
+                clearTimeout(blurTimeoutRef.current);
+            }
+        };
+    }, []);
 
     // Lidar com teclas de navegação
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -93,12 +105,29 @@ export function AutocompleteInput({
     };
 
     const handleSelectOption = (option: string) => {
+        // Cancelar qualquer timeout de blur pendente
+        if (blurTimeoutRef.current) {
+            clearTimeout(blurTimeoutRef.current);
+            blurTimeoutRef.current = null;
+        }
+
         onChange(option);
         setIsOpen(false);
         setHighlightedIndex(-1);
+
+        // Forçar blur do input após seleção
+        setTimeout(() => {
+            inputRef.current?.blur();
+        }, 10);
     };
 
     const handleInputFocus = () => {
+        // Cancelar timeout de blur se o input receber foco novamente
+        if (blurTimeoutRef.current) {
+            clearTimeout(blurTimeoutRef.current);
+            blurTimeoutRef.current = null;
+        }
+
         if (onFocus) {
             onFocus();
         }
@@ -108,10 +137,11 @@ export function AutocompleteInput({
     };
 
     const handleInputBlur = () => {
-        // Delay para permitir clique nas opções
-        setTimeout(() => {
+        // Agendar fechamento do dropdown
+        blurTimeoutRef.current = setTimeout(() => {
             setIsOpen(false);
             setHighlightedIndex(-1);
+            blurTimeoutRef.current = null;
         }, 150);
     };
 
@@ -151,7 +181,10 @@ export function AutocompleteInput({
                                 key={option}
                                 className={`${styles.option} ${index === highlightedIndex ? styles.highlighted : ''
                                     }`}
-                                onClick={() => handleSelectOption(option)}
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    handleSelectOption(option);
+                                }}
                                 onMouseEnter={() => setHighlightedIndex(index)}
                             >
                                 {option}

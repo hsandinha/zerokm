@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { QueryDocumentSnapshot } from 'firebase/firestore';
 import { useTablesDatabase } from '../../lib/hooks/useTablesDatabase';
 import { Modelo, tablesService, PaginationResult } from '../../lib/services/tablesService';
@@ -17,10 +17,11 @@ export function ModelosTable() {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
     const [hasNextPage, setHasNextPage] = useState(false);
-    const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot | undefined>();
     const itemsPerPage = 50;
+    const lastDocRef = useRef<QueryDocumentSnapshot | undefined>(undefined);
+    const currentPageRef = useRef(1);
 
-    const [showModal, setShowModal] = useState(false);
+    const [showForm, setShowForm] = useState(false);
     const [editingModelo, setEditingModelo] = useState<Modelo | null>(null);
     const [formData, setFormData] = useState({ nome: '', marca: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,6 +33,7 @@ export function ModelosTable() {
         total: 0,
         isImporting: false
     });
+    const [searchTerm, setSearchTerm] = useState('');
 
     const loadModelos = useCallback(async (page: number = 1) => {
         try {
@@ -43,13 +45,14 @@ export function ModelosTable() {
                 const result: PaginationResult<Modelo> = await tablesService.getModelosPaginated({
                     page,
                     itemsPerPage,
-                    lastDoc: page === currentPage + 1 ? lastDoc : undefined
+                    lastDoc: page === currentPageRef.current + 1 ? lastDocRef.current : undefined
                 });
 
                 setModelos(result.data);
                 setTotalItems(result.total);
                 setHasNextPage(result.hasNextPage);
-                setLastDoc(result.lastDoc);
+                lastDocRef.current = result.lastDoc;
+                currentPageRef.current = page;
                 setCurrentPage(page);
             } catch (paginationError) {
                 // Fallback: usar método antigo
@@ -62,6 +65,8 @@ export function ModelosTable() {
                 setModelos(pageData);
                 setTotalItems(allModelos.length);
                 setHasNextPage(endIndex < allModelos.length);
+                lastDocRef.current = undefined;
+                currentPageRef.current = page;
                 setCurrentPage(page);
             }
         } catch (error) {
@@ -70,7 +75,7 @@ export function ModelosTable() {
         } finally {
             setLoading(false);
         }
-    }, [currentPage, lastDoc]);
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -86,7 +91,7 @@ export function ModelosTable() {
 
                 if (success) {
                     console.log('Modelo atualizado com sucesso!');
-                    await loadModelos(currentPage);
+                    await loadModelos(currentPageRef.current);
                 } else {
                     alert('Erro ao atualizar modelo');
                     return;
@@ -108,9 +113,7 @@ export function ModelosTable() {
             }
 
             // Resetar formulário
-            setFormData({ nome: '', marca: '' });
-            setEditingModelo(null);
-            setShowModal(false);
+            closeForm();
         } catch (error) {
             console.error('Erro ao salvar modelo:', error);
             alert('Erro ao salvar modelo');
@@ -122,14 +125,14 @@ export function ModelosTable() {
     const handleEdit = (modelo: Modelo) => {
         setEditingModelo(modelo);
         setFormData({ nome: modelo.nome, marca: modelo.marca });
-        setShowModal(true);
+        setShowForm(true);
     };
 
     const handleDelete = async (id: string) => {
         if (confirm('Tem certeza que deseja excluir este modelo?')) {
             const success = await deleteModelo(id);
             if (success) {
-                await loadModelos(currentPage);
+                await loadModelos(currentPageRef.current);
             } else {
                 alert('Erro ao excluir modelo');
             }
@@ -146,11 +149,30 @@ export function ModelosTable() {
         loadModelos(1);
     }, [loadModelos]);
 
-    const closeModal = () => {
-        setShowModal(false);
+    const closeForm = () => {
+        setShowForm(false);
         setEditingModelo(null);
         setFormData({ nome: '', marca: '' });
     };
+
+    const handleAddClick = () => {
+        if (showForm) {
+            closeForm();
+            return;
+        }
+        setEditingModelo(null);
+        setFormData({ nome: '', marca: '' });
+        setShowForm(true);
+    };
+
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const filteredModelos = normalizedSearch
+        ? modelos.filter((modelo) => {
+            const nomeMatch = modelo.nome.toLowerCase().includes(normalizedSearch);
+            const marcaMatch = modelo.marca.toLowerCase().includes(normalizedSearch);
+            return nomeMatch || marcaMatch;
+        })
+        : modelos;
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -204,6 +226,13 @@ export function ModelosTable() {
             <div className={styles.header}>
                 <h3>Gerenciar Modelos</h3>
                 <div className={styles.headerActions}>
+                    <input
+                        type="text"
+                        className={styles.searchInput}
+                        placeholder="Buscar por modelo ou marca..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
                     <button
                         className={styles.importButton}
                         onClick={() => setShowImportModal(true)}
@@ -212,72 +241,24 @@ export function ModelosTable() {
                     </button>
                     <button
                         className={styles.addButton}
-                        onClick={() => setShowModal(true)}
+                        onClick={handleAddClick}
                     >
-                        + Adicionar Modelo
+                        {showForm ? (editingModelo ? 'Cancelar edição' : 'Cancelar') : '+ Adicionar Modelo'}
                     </button>
                 </div>
-            </div>            <div className={styles.tableContainer}>
-                <table className={styles.table}>
-                    <thead>
-                        <tr>
-                            <th>Nome do Modelo</th>
-                            <th>Marca</th>
-                            <th>Criado em</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {modelos.map(modelo => (
-                            <tr key={modelo.id}>
-                                <td className={styles.modeloName}>{modelo.nome}</td>
-                                <td className={styles.marcaName}>{modelo.marca}</td>
-                                <td>
-                                    {modelo.criadoEm ?
-                                        (modelo.criadoEm as any).toDate ?
-                                            (modelo.criadoEm as any).toDate().toLocaleDateString('pt-BR') :
-                                            new Date(modelo.criadoEm as any).toLocaleDateString('pt-BR')
-                                        : 'N/A'
-                                    }
-                                </td>
-                                <td>
-                                    <div className={styles.actions}>
-                                        <button
-                                            className={styles.editButton}
-                                            onClick={() => handleEdit(modelo)}
-                                        >
-                                            ✏️ Editar
-                                        </button>
-                                        <button
-                                            className={styles.deleteButton}
-                                            onClick={() => modelo.id && handleDelete(modelo.id)}
-                                        >
-                                            🗑️ Excluir
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
             </div>
 
-            {/* Paginação */}
-            <Pagination
-                currentPage={currentPage}
-                totalItems={totalItems}
-                itemsPerPage={itemsPerPage}
-                onPageChange={handlePageChange}
-                loading={loading}
-            />
-
-            {/* Modal de Cadastro/Edição */}
-            {showModal && (
-                <div className={styles.overlay}>
-                    <div className={styles.modal}>
-                        <div className={styles.modalHeader}>
-                            <h3>{editingModelo ? 'Editar Modelo' : 'Adicionar Novo Modelo'}</h3>
-                            <button className={styles.closeButton} onClick={closeModal}>✕</button>
+            {showForm && (
+                <div className={styles.inlineFormWrapper}>
+                    <section className={styles.inlineFormPanel}>
+                        <div className={styles.inlineFormHeader}>
+                            <div>
+                                <h4>{editingModelo ? 'Editar Modelo' : 'Adicionar Novo Modelo'}</h4>
+                                <p>{editingModelo ? 'Atualize o vínculo com a marca e o nome do modelo.' : 'Cadastre modelos para disponibilizar combinações corretas nas demais telas.'}</p>
+                            </div>
+                            <button type="button" className={styles.inlineFormClose} onClick={closeForm}>
+                                {editingModelo ? 'Cancelar edição' : 'Fechar formulário'}
+                            </button>
                         </div>
 
                         <form onSubmit={handleSubmit} className={styles.form}>
@@ -316,7 +297,7 @@ export function ModelosTable() {
                                 <button
                                     type="button"
                                     className={styles.cancelButton}
-                                    onClick={closeModal}
+                                    onClick={closeForm}
                                 >
                                     Cancelar
                                 </button>
@@ -329,9 +310,69 @@ export function ModelosTable() {
                                 </button>
                             </div>
                         </form>
-                    </div>
+                    </section>
                 </div>
             )}
+
+            <div className={styles.tableContainer}>
+                <table className={styles.table}>
+                    <thead>
+                        <tr>
+                            <th>Nome do Modelo</th>
+                            <th>Marca</th>
+                            <th>Criado em</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {filteredModelos.length === 0 ? (
+                            <tr>
+                                <td colSpan={4} className={styles.emptyMessage}>Nenhum modelo encontrado.</td>
+                            </tr>
+                        ) : (
+                            filteredModelos.map(modelo => (
+                                <tr key={modelo.id}>
+                                    <td className={styles.modeloName}>{modelo.nome}</td>
+                                    <td className={styles.marcaName}>{modelo.marca}</td>
+                                    <td>
+                                        {modelo.criadoEm ?
+                                            (modelo.criadoEm as any).toDate ?
+                                                (modelo.criadoEm as any).toDate().toLocaleDateString('pt-BR') :
+                                                new Date(modelo.criadoEm as any).toLocaleDateString('pt-BR')
+                                            : 'N/A'
+                                        }
+                                    </td>
+                                    <td>
+                                        <div className={styles.actions}>
+                                            <button
+                                                className={styles.editButton}
+                                                onClick={() => handleEdit(modelo)}
+                                            >
+                                                ✏️ Editar
+                                            </button>
+                                            <button
+                                                className={styles.deleteButton}
+                                                onClick={() => modelo.id && handleDelete(modelo.id)}
+                                            >
+                                                🗑️ Excluir
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Paginação */}
+            <Pagination
+                currentPage={currentPage}
+                totalItems={totalItems}
+                itemsPerPage={itemsPerPage}
+                onPageChange={handlePageChange}
+                loading={loading}
+            />
 
             {/* Modal de Importação CSV */}
             {showImportModal && (

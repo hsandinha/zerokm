@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { QueryDocumentSnapshot } from 'firebase/firestore';
 import { useTablesDatabase } from '../../lib/hooks/useTablesDatabase';
 import { Marca, tablesService, PaginationResult } from '../../lib/services/tablesService';
@@ -17,14 +17,16 @@ export function MarcasTable() {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
     const [hasNextPage, setHasNextPage] = useState(false);
-    const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot | undefined>();
     const itemsPerPage = 50;
-    const [useFallback, setUseFallback] = useState(false);
+    const lastDocRef = useRef<QueryDocumentSnapshot | undefined>(undefined);
+    const currentPageRef = useRef(1);
+    const useFallbackRef = useRef(false);
 
-    const [showModal, setShowModal] = useState(false);
+    const [showForm, setShowForm] = useState(false);
     const [editingMarca, setEditingMarca] = useState<Marca | null>(null);
     const [formData, setFormData] = useState({ nome: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
 
     const loadMarcas = useCallback(async (page: number = 1) => {
         try {
@@ -33,7 +35,7 @@ export function MarcasTable() {
 
             console.log('Carregando marcas - página:', page);
 
-            if (useFallback) {
+            if (useFallbackRef.current) {
                 // Usar método antigo sempre
                 console.log('Usando método antigo (fallback ativo)');
                 const allMarcas = await tablesService.getAllMarcas();
@@ -53,19 +55,20 @@ export function MarcasTable() {
                     const result: PaginationResult<Marca> = await tablesService.getMarcasPaginated({
                         page,
                         itemsPerPage,
-                        lastDoc: page === currentPage + 1 ? lastDoc : undefined
+                        lastDoc: page === currentPageRef.current + 1 ? lastDocRef.current : undefined
                     });
 
                     console.log('Marcas paginadas carregadas:', result.data.length, 'total:', result.total);
                     setMarcas(result.data);
                     setTotalItems(result.total);
                     setHasNextPage(result.hasNextPage);
-                    setLastDoc(result.lastDoc);
+                    lastDocRef.current = result.lastDoc;
+                    currentPageRef.current = page;
                     setCurrentPage(page);
                 } catch (paginationError) {
                     // Fallback: usar método antigo
                     console.log('Erro na paginação, ativando fallback:', paginationError);
-                    setUseFallback(true);
+                    useFallbackRef.current = true;
 
                     const allMarcas = await tablesService.getAllMarcas();
                     const startIndex = (page - 1) * itemsPerPage;
@@ -76,6 +79,7 @@ export function MarcasTable() {
                     setMarcas(pageData);
                     setTotalItems(allMarcas.length);
                     setHasNextPage(endIndex < allMarcas.length);
+                    currentPageRef.current = page;
                     setCurrentPage(page);
                 }
             }
@@ -85,7 +89,7 @@ export function MarcasTable() {
         } finally {
             setLoading(false);
         }
-    }, [currentPage, lastDoc, useFallback]);
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -100,7 +104,7 @@ export function MarcasTable() {
 
                 if (success) {
                     console.log('Marca atualizada com sucesso!');
-                    await loadMarcas(currentPage); // Recarregar página atual
+                    await loadMarcas(currentPageRef.current); // Recarregar página atual
                 } else {
                     alert('Erro ao atualizar marca');
                     return;
@@ -121,9 +125,7 @@ export function MarcasTable() {
             }
 
             // Resetar formulário
-            setFormData({ nome: '' });
-            setEditingMarca(null);
-            setShowModal(false);
+            closeForm();
         } catch (error) {
             console.error('Erro ao salvar marca:', error);
             alert('Erro ao salvar marca');
@@ -135,7 +137,7 @@ export function MarcasTable() {
     const handleEdit = (marca: Marca) => {
         setEditingMarca(marca);
         setFormData({ nome: marca.nome });
-        setShowModal(true);
+        setShowForm(true);
     };
 
     const handleDelete = async (id: string) => {
@@ -143,7 +145,7 @@ export function MarcasTable() {
             const success = await deleteMarca(id);
             if (success) {
                 // Recarregar página atual após exclusão
-                await loadMarcas(currentPage);
+                await loadMarcas(currentPageRef.current);
             } else {
                 alert('Erro ao excluir marca');
             }
@@ -162,11 +164,26 @@ export function MarcasTable() {
 
 
 
-    const closeModal = () => {
-        setShowModal(false);
+    const closeForm = () => {
+        setShowForm(false);
         setEditingMarca(null);
         setFormData({ nome: '' });
     };
+
+    const handleAddClick = () => {
+        if (showForm) {
+            closeForm();
+            return;
+        }
+        setEditingMarca(null);
+        setFormData({ nome: '' });
+        setShowForm(true);
+    };
+
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const filteredMarcas = normalizedSearch
+        ? marcas.filter((marca) => marca.nome.toLowerCase().includes(normalizedSearch))
+        : marcas;
 
     return (
         <div className={styles.container}>
@@ -178,71 +195,34 @@ export function MarcasTable() {
 
             <div className={styles.header}>
                 <h3>Gerenciar Marcas</h3>
-                <button
-                    className={styles.addButton}
-                    onClick={() => setShowModal(true)}
-                >
-                    + Adicionar Marca
-                </button>
-            </div>            <div className={styles.tableContainer}>
-                <table className={styles.table}>
-                    <thead>
-                        <tr>
-                            <th>Nome da Marca</th>
-                            <th>Criado em</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {marcas.map(marca => (
-                            <tr key={marca.id}>
-                                <td className={styles.marcaName}>{marca.nome}</td>
-                                <td>
-                                    {marca.criadoEm ?
-                                        (marca.criadoEm as any).toDate ?
-                                            (marca.criadoEm as any).toDate().toLocaleDateString('pt-BR') :
-                                            new Date(marca.criadoEm as any).toLocaleDateString('pt-BR')
-                                        : 'N/A'
-                                    }
-                                </td>
-                                <td>
-                                    <div className={styles.actions}>
-                                        <button
-                                            className={styles.editButton}
-                                            onClick={() => handleEdit(marca)}
-                                        >
-                                            ✏️ Editar
-                                        </button>
-                                        <button
-                                            className={styles.deleteButton}
-                                            onClick={() => marca.id && handleDelete(marca.id)}
-                                        >
-                                            🗑️ Excluir
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                <div className={styles.headerActions}>
+                    <input
+                        type="text"
+                        className={styles.searchInput}
+                        placeholder="Buscar por nome..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                    <button
+                        className={styles.addButton}
+                        onClick={handleAddClick}
+                    >
+                        {showForm ? (editingMarca ? 'Cancelar edição' : 'Cancelar') : '+ Adicionar Marca'}
+                    </button>
+                </div>
             </div>
 
-            {/* Paginação */}
-            <Pagination
-                currentPage={currentPage}
-                totalItems={totalItems}
-                itemsPerPage={itemsPerPage}
-                onPageChange={handlePageChange}
-                loading={loading}
-            />
-
-            {/* Modal de Cadastro/Edição */}
-            {showModal && (
-                <div className={styles.overlay}>
-                    <div className={styles.modal}>
-                        <div className={styles.modalHeader}>
-                            <h3>{editingMarca ? 'Editar Marca' : 'Adicionar Nova Marca'}</h3>
-                            <button className={styles.closeButton} onClick={closeModal}>✕</button>
+            {showForm && (
+                <div className={styles.inlineFormWrapper}>
+                    <section className={styles.inlineFormPanel}>
+                        <div className={styles.inlineFormHeader}>
+                            <div>
+                                <h4>{editingMarca ? 'Editar Marca' : 'Adicionar Nova Marca'}</h4>
+                                <p>{editingMarca ? 'Atualize o nome e salve para manter a lista consistente.' : 'Cadastre novas marcas para facilitar o vínculo com os modelos.'}</p>
+                            </div>
+                            <button type="button" className={styles.inlineFormClose} onClick={closeForm}>
+                                {editingMarca ? 'Cancelar edição' : 'Fechar formulário'}
+                            </button>
                         </div>
 
                         <form onSubmit={handleSubmit} className={styles.form}>
@@ -263,7 +243,7 @@ export function MarcasTable() {
                                 <button
                                     type="button"
                                     className={styles.cancelButton}
-                                    onClick={closeModal}
+                                    onClick={closeForm}
                                 >
                                     Cancelar
                                 </button>
@@ -276,9 +256,68 @@ export function MarcasTable() {
                                 </button>
                             </div>
                         </form>
-                    </div>
+                    </section>
                 </div>
             )}
+
+            <div className={styles.tableContainer}>
+                <table className={styles.table}>
+                    <thead>
+                        <tr>
+                            <th>Nome da Marca</th>
+                            <th>Criado em</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {filteredMarcas.length === 0 ? (
+                            <tr>
+                                <td colSpan={3} className={styles.emptyMessage}>Nenhuma marca encontrada.</td>
+                            </tr>
+                        ) : (
+                            filteredMarcas.map(marca => (
+                                <tr key={marca.id}>
+                                    <td className={styles.marcaName}>{marca.nome}</td>
+                                    <td>
+                                        {marca.criadoEm ?
+                                            (marca.criadoEm as any).toDate ?
+                                                (marca.criadoEm as any).toDate().toLocaleDateString('pt-BR') :
+                                                new Date(marca.criadoEm as any).toLocaleDateString('pt-BR')
+                                            : 'N/A'
+                                        }
+                                    </td>
+                                    <td>
+                                        <div className={styles.actions}>
+                                            <button
+                                                className={styles.editButton}
+                                                onClick={() => handleEdit(marca)}
+                                            >
+                                                ✏️ Editar
+                                            </button>
+                                            <button
+                                                className={styles.deleteButton}
+                                                onClick={() => marca.id && handleDelete(marca.id)}
+                                            >
+                                                🗑️ Excluir
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Paginação */}
+            <Pagination
+                currentPage={currentPage}
+                totalItems={totalItems}
+                itemsPerPage={itemsPerPage}
+                onPageChange={handlePageChange}
+                loading={loading}
+            />
+
         </div>
     );
 }

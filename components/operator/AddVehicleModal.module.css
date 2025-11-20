@@ -1,66 +1,49 @@
-.overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1100;
-    padding: 2rem;
-    backdrop-filter: blur(2px);
-}
-
-.modal {
-    background: white;
-    border-radius: 12px;
-    width: 100%;
-    max-width: 900px;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-    position: relative;
-    margin: auto;
+.panel {
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+    overflow: hidden;
 }
 
 .header {
     display: flex;
+    align-items: flex-start;
     justify-content: space-between;
-    align-items: center;
+    gap: 1rem;
     padding: 1.5rem 2rem;
-    border-bottom: 1px solid #e5e5e5;
-    background: #f8f9fa;
-    border-radius: 12px 12px 0 0;
+    border-bottom: 1px solid #eef2f7;
+    background: #f8fafc;
 }
 
 .header h2 {
     margin: 0;
-    color: #333;
-    font-size: 1.5rem;
+    color: #0f172a;
+    font-size: 1.25rem;
     font-weight: 600;
 }
 
+.header p {
+    margin: 0.25rem 0 0;
+    color: #64748b;
+    font-size: 0.875rem;
+}
+
 .closeButton {
-    background: none;
-    border: none;
-    font-size: 1.5rem;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    padding: 0.4rem 0.9rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #475569;
     cursor: pointer;
-    color: #666;
-    padding: 0.5rem;
-    border-radius: 50%;
-    width: 2.5rem;
-    height: 2.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     transition: all 0.2s ease;
 }
 
 .closeButton:hover {
-    background: #e9ecef;
-    color: #333;
+    background: #e2e8f0;
+    color: #0f172a;
 }
 
 .form {
@@ -136,7 +119,7 @@
 .formGroup select,
 .formGroupFull textarea {
     padding: 0.75rem;
-    border: 2px solid #000000;
+    border: 1px solid #cbd5f5;
     border-radius: 8px;
     font-size: 0.9rem;
     transition: border-color 0.2s ease;
@@ -146,8 +129,8 @@
 .formGroup select:focus,
 .formGroupFull textarea:focus {
     outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .formGroup input:invalid,
@@ -177,25 +160,25 @@
 }
 
 .cancelButton {
-    background: #f8f9fa;
-    color: #666;
-    border-color: #e5e5e5;
+    background: #ffffff;
+    color: #475569;
+    border-color: #e2e8f0;
 }
 
 .cancelButton:hover {
-    background: #e9ecef;
-    color: #333;
+    background: #e2e8f0;
+    color: #0f172a;
 }
 
 .submitButton {
-    background: #007bff;
+    background: #2563eb;
     color: white;
-    border-color: #007bff;
+    border-color: #2563eb;
 }
 
 .submitButton:hover:not(:disabled) {
-    background: #0056b3;
-    border-color: #0056b3;
+    background: #1d4ed8;
+    border-color: #1d4ed8;
 }
 
 .submitButton:disabled {

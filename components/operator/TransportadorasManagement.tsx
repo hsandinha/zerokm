@@ -9,9 +9,8 @@ export function TransportadorasManagement() {
     const [transportadoras, setTransportadoras] = useState<Transportadora[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [showModal, setShowModal] = useState(false);
+    const [showForm, setShowForm] = useState(false);
     const [editingTransportadora, setEditingTransportadora] = useState<Transportadora | null>(null);
-    const [isEditing, setIsEditing] = useState(false);
     const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
 
     // Carregar transportadoras
@@ -30,6 +29,11 @@ export function TransportadorasManagement() {
     useEffect(() => {
         loadTransportadoras();
     }, []);
+
+    const closeForm = () => {
+        setShowForm(false);
+        setEditingTransportadora(null);
+    };
 
     // Filtrar transportadoras
     const filteredTransportadoras = transportadoras.filter(transportadora => {
@@ -53,15 +57,17 @@ export function TransportadorasManagement() {
 
     // Handlers
     const handleAddTransportadora = () => {
+        if (showForm && !editingTransportadora) {
+            closeForm();
+            return;
+        }
         setEditingTransportadora(null);
-        setIsEditing(false);
-        setShowModal(true);
+        setShowForm(true);
     };
 
     const handleEditTransportadora = (transportadora: Transportadora) => {
         setEditingTransportadora(transportadora);
-        setIsEditing(true);
-        setShowModal(true);
+        setShowForm(true);
     };
 
     const handleDeleteTransportadora = async (id: string) => {
@@ -113,7 +119,7 @@ export function TransportadorasManagement() {
                 <h2>Gestão de Transportadoras</h2>
                 <div className={styles.headerActions}>
                     <button className={styles.addButton} onClick={handleAddTransportadora}>
-                        + Nova Transportadora
+                        {showForm ? 'Cancelar' : '+ Nova Transportadora'}
                     </button>
                     <div className={styles.viewToggle}>
                         <button
@@ -133,6 +139,18 @@ export function TransportadorasManagement() {
                     </div>
                 </div>
             </div>
+
+            {showForm && (
+                <div className={styles.inlineFormWrapper}>
+                    <AddTransportadoraModal
+                        isOpen={showForm}
+                        onClose={closeForm}
+                        onTransportadoraAdded={handleTransportadoraAdded}
+                        editingTransportadora={editingTransportadora ?? undefined}
+                        isEditing={Boolean(editingTransportadora)}
+                    />
+                </div>
+            )}
 
             <div className={styles.searchSection}>
                 <div className={styles.searchContainer}>
@@ -285,14 +303,6 @@ export function TransportadorasManagement() {
                     </div>
                 )}
             </div>
-
-            <AddTransportadoraModal
-                isOpen={showModal}
-                onClose={() => setShowModal(false)}
-                onTransportadoraAdded={handleTransportadoraAdded}
-                editingTransportadora={editingTransportadora}
-                isEditing={isEditing}
-            />
         </div>
     );
 }

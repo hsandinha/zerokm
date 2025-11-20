@@ -39,13 +39,25 @@ export interface Cor {
 export interface Concessionaria {
     id?: string;
     nome: string;
+    razaoSocial?: string;
     cnpj?: string;
     telefone?: string;
+    celular?: string;
     contato?: string;
+    email?: string;
     endereco?: string;
+    numero?: string;
+    complemento?: string;
+    inscricaoEstadual?: string;
+    bairro?: string;
     cidade?: string;
     uf?: string;
     cep?: string;
+    nomeResponsavel?: string;
+    telefoneResponsavel?: string;
+    emailResponsavel?: string;
+    observacoes?: string;
+    ativo?: boolean;
     criadoEm?: Date | Timestamp;
 }
 
@@ -796,9 +808,12 @@ class TablesService {
                     cnpj: "12.345.678/0001-90",
                     telefone: "(11) 3456-7890",
                     contato: "João Silva",
-                    endereco: "Rua das Flores, 123",
+                    endereco: "Rua das Flores",
+                    numero: "123",
                     cidade: "São Paulo",
+                    bairro: "Jardins",
                     uf: "SP",
+                    complemento: "Loja 1",
                     cep: "01234-567"
                 },
                 {
@@ -806,9 +821,12 @@ class TablesService {
                     cnpj: "23.456.789/0001-01",
                     telefone: "(21) 2345-6789",
                     contato: "Maria Santos",
-                    endereco: "Av. Copacabana, 456",
+                    endereco: "Av. Copacabana",
+                    numero: "456",
                     cidade: "Rio de Janeiro",
+                    bairro: "Copacabana",
                     uf: "RJ",
+                    complemento: "Sala 5",
                     cep: "22070-012"
                 },
                 {
@@ -816,9 +834,12 @@ class TablesService {
                     cnpj: "34.567.890/0001-12",
                     telefone: "(31) 4567-8901",
                     contato: "Pedro Costa",
-                    endereco: "Rua Bahia, 789",
+                    endereco: "Rua Bahia",
+                    numero: "789",
                     cidade: "Belo Horizonte",
+                    bairro: "Funcionários",
                     uf: "MG",
+                    complemento: "",
                     cep: "30112-000"
                 },
                 {
@@ -826,9 +847,12 @@ class TablesService {
                     cnpj: "45.678.901/0001-23",
                     telefone: "(11) 5678-9012",
                     contato: "Ana Lima",
-                    endereco: "Av. Paulista, 1000",
+                    endereco: "Av. Paulista",
+                    numero: "1000",
                     cidade: "São Paulo",
+                    bairro: "Bela Vista",
                     uf: "SP",
+                    complemento: "",
                     cep: "01310-100"
                 },
                 {
@@ -836,9 +860,12 @@ class TablesService {
                     cnpj: "56.789.012/0001-34",
                     telefone: "(62) 6789-0123",
                     contato: "Carlos Pereira",
-                    endereco: "Setor Central, 200",
+                    endereco: "Setor Central",
+                    numero: "200",
                     cidade: "Goiânia",
+                    bairro: "Setor Central",
                     uf: "GO",
+                    complemento: "",
                     cep: "74010-010"
                 }
             ];

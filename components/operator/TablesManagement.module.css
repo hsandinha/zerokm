@@ -18,8 +18,76 @@
 
 .headerActions {
     display: flex;
-    gap: 0.75rem;
     align-items: center;
+    gap: 0.75rem;
+}
+
+.searchInput {
+    min-width: 240px;
+    padding: 0.65rem 0.9rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    transition: all 0.15s ease;
+    background: #fff;
+}
+
+.searchInput:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.inlineFormWrapper {
+    margin: 1.5rem 2rem 0;
+}
+
+.inlineFormPanel {
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 15px 35px rgba(15, 23, 42, 0.08);
+    overflow: hidden;
+}
+
+.inlineFormHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid #eef2f7;
+    background: #f8fafc;
+}
+
+.inlineFormHeader h4 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+.inlineFormHeader p {
+    margin: 0.25rem 0 0;
+    color: #64748b;
+    font-size: 0.875rem;
+}
+
+.inlineFormClose {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    padding: 0.4rem 1rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.inlineFormClose:hover {
+    background: #e2e8f0;
+    color: #0f172a;
 }
 
 .header h3 {
@@ -324,6 +392,45 @@
     gap: 0.5rem;
 }
 
+.actionButton {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.actionButton svg {
+    pointer-events: none;
+    font-size: 0.85rem;
+}
+
+.editAction {
+    color: #1d4ed8;
+}
+
+.editAction:hover {
+    border-color: #1d4ed8;
+    background: rgba(29, 78, 216, 0.08);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+}
+
+.deleteAction {
+    color: #dc2626;
+}
+
+.deleteAction:hover {
+    border-color: #dc2626;
+    background: rgba(220, 38, 38, 0.08);
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15);
+}
+
 .editButton,
 .deleteButton {
     padding: 0.375rem 0.75rem;
@@ -499,13 +606,15 @@
 
 /* Estilos específicos para cores */
 .colorPreview {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    border: 2px solid #e5e7eb;
-    display: inline-block;
-    cursor: pointer;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
+    border: 3px solid #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.15);
+    outline: 2px solid #e2e8f0;
 }
 
 .corName {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useConfig } from '../../lib/contexts/ConfigContext';
 import { useVehicleDatabase } from '../../lib/hooks/useVehicleDatabase';
 import { useTablesDatabase } from '../../lib/hooks/useTablesDatabase';
@@ -21,9 +21,8 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
     const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-    const [showAddModal, setShowAddModal] = useState(false);
-    const [showEditModal, setShowEditModal] = useState(false);
-    const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+    const [showVehicleForm, setShowVehicleForm] = useState(false);
+    const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
     const [showImportModal, setShowImportModal] = useState(false);
     const [csvFile, setCsvFile] = useState<File | null>(null);
     const [importResults, setImportResults] = useState<{
@@ -55,22 +54,22 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
         : 0;
 
     // Função para gerar sugestões de autocompletar
-    const getUniqueSuggestions = (field: keyof Vehicle, searchTerm: string): string[] => {
+    const getUniqueSuggestions = useCallback((field: keyof Vehicle, searchTerm: string): string[] => {
         if (searchTerm.length === 0) return [];
         const allValues = vehicles.map(v => v[field]?.toString() || '').filter(Boolean);
         const uniqueValues = [...new Set(allValues)];
         return uniqueValues.filter(v => v.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 10);
-    };
+    }, [vehicles]);
 
     // Funções de sugestão para cada campo
-    const getMarcaSuggestions = (searchTerm: string) => getUniqueSuggestions('marca', searchTerm);
-    const getModeloSuggestions = (searchTerm: string) => getUniqueSuggestions('modelo', searchTerm);
-    const getCategoriaSuggestions = (searchTerm: string) => getUniqueSuggestions('versao', searchTerm);
-    const getCorSuggestions = (searchTerm: string) => getUniqueSuggestions('cor', searchTerm);
-    const getAnoSuggestions = (searchTerm: string) => getUniqueSuggestions('ano', searchTerm);
-    const getStatusSuggestions = (searchTerm: string) => getUniqueSuggestions('status', searchTerm);
-    const getCombustivelSuggestions = (searchTerm: string) => getUniqueSuggestions('combustivel', searchTerm);
-    const getTransmissaoSuggestions = (searchTerm: string) => getUniqueSuggestions('transmissao', searchTerm);
+    const getMarcaSuggestions = useCallback((searchTerm: string) => getUniqueSuggestions('marca', searchTerm), [getUniqueSuggestions]);
+    const getModeloSuggestions = useCallback((searchTerm: string) => getUniqueSuggestions('modelo', searchTerm), [getUniqueSuggestions]);
+    const getCategoriaSuggestions = useCallback((searchTerm: string) => getUniqueSuggestions('versao', searchTerm), [getUniqueSuggestions]);
+    const getCorSuggestions = useCallback((searchTerm: string) => getUniqueSuggestions('cor', searchTerm), [getUniqueSuggestions]);
+    const getAnoSuggestions = useCallback((searchTerm: string) => getUniqueSuggestions('ano', searchTerm), [getUniqueSuggestions]);
+    const getStatusSuggestions = useCallback((searchTerm: string) => getUniqueSuggestions('status', searchTerm), [getUniqueSuggestions]);
+    const getCombustivelSuggestions = useCallback((searchTerm: string) => getUniqueSuggestions('combustivel', searchTerm), [getUniqueSuggestions]);
+    const getTransmissaoSuggestions = useCallback((searchTerm: string) => getUniqueSuggestions('transmissao', searchTerm), [getUniqueSuggestions]);
 
     // Função para calcular preço com margem
     const calculatePriceWithMargin = (basePrice: number) => {
@@ -79,8 +78,22 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
 
     // Função para editar veículo
     const handleEditVehicle = (vehicle: Vehicle) => {
-        setSelectedVehicle(vehicle);
-        setShowEditModal(true);
+        setEditingVehicle(vehicle);
+        setShowVehicleForm(true);
+    };
+
+    const handleCloseVehicleForm = () => {
+        setShowVehicleForm(false);
+        setEditingVehicle(null);
+    };
+
+    const handleNewVehicleClick = () => {
+        if (showVehicleForm && !editingVehicle) {
+            handleCloseVehicleForm();
+            return;
+        }
+        setEditingVehicle(null);
+        setShowVehicleForm(true);
     };
 
     // Função para excluir veículo
@@ -296,10 +309,10 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                     </button>
                     <button
                         className={styles.addButton}
-                        onClick={() => setShowAddModal(true)}
-                        title="Cadastrar Novo Veículo"
+                        onClick={handleNewVehicleClick}
+                        title={showVehicleForm ? 'Fechar formulário' : 'Cadastrar Novo Veículo'}
                     >
-                        + Novo Veículo
+                        {showVehicleForm ? 'Cancelar' : '+ Novo Veículo'}
                     </button>
                     <div className={styles.viewToggle}>
                         <button
@@ -324,6 +337,18 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                     )}
                 </div>
             </div>
+
+            {showVehicleForm && (
+                <div className={styles.inlineFormWrapper}>
+                    <AddVehicleModal
+                        isOpen={showVehicleForm}
+                        onClose={handleCloseVehicleForm}
+                        onVehicleAdded={refreshVehicles}
+                        editingVehicle={editingVehicle ?? undefined}
+                        isEditing={Boolean(editingVehicle)}
+                    />
+                </div>
+            )}
 
             <div className={styles.searchSection}>
                 <div className={styles.searchContainer}>
@@ -426,9 +451,6 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                 )}
 
                 <div className={styles.searchInfo}>
-                    {searchTerm.length > 0 && (
-                        <p>Buscando por: "{searchTerm}"</p>
-                    )}
                     <button
                         className={styles.filterToggle}
                         onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
@@ -545,25 +567,6 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                     </div>
                 )}
             </div>
-
-            {/* Modal de Cadastro */}
-            <AddVehicleModal
-                isOpen={showAddModal}
-                onClose={() => setShowAddModal(false)}
-                onVehicleAdded={refreshVehicles}
-            />
-
-            {/* Modal de Edição */}
-            <AddVehicleModal
-                isOpen={showEditModal}
-                onClose={() => {
-                    setShowEditModal(false);
-                    setSelectedVehicle(null);
-                }}
-                onVehicleAdded={refreshVehicles}
-                editingVehicle={selectedVehicle}
-                isEditing={true}
-            />
 
             {/* Modal de Importação CSV */}
             {showImportModal && (
