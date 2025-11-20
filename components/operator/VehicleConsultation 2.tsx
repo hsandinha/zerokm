@@ -35,6 +35,9 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
         total: 0,
         isImporting: false
     });
+    const percent = importProgress.total > 0
+        ? Math.max(0, Math.min(100, Math.round((importProgress.current / importProgress.total) * 100)))
+        : 0;
     const [filters, setFilters] = useState({
         marca: '',
         modelo: '',
@@ -77,8 +80,8 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
         const originalHeaders = (importResults.headers && importResults.headers.length === 20)
             ? importResults.headers
             : [
-                'marca','modelo','versao','opcionais','cor','concessionaria','preco','ano','anoModelo','status',
-                'cidade','estado','chassi','motor','combustivel','transmissao','observacoes','dataEntrada','vendedor','telefone'
+                'marca', 'modelo', 'versao', 'opcionais', 'cor', 'concessionaria', 'preco', 'ano', 'anoModelo', 'status',
+                'cidade', 'estado', 'chassi', 'motor', 'combustivel', 'transmissao', 'observacoes', 'dataEntrada', 'vendedor', 'telefone'
             ];
         const header = [...originalHeaders, 'erro'].join(',');
         const rows = importResults.errors.map((e) => {
@@ -587,7 +590,7 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                                     <li><strong>Validação:</strong> Marca deve existir e Modelo deve estar cadastrado para a mesma Marca</li>
                                     <li>Exemplo (role horizontalmente):</li>
                                 </ul>
-                                <pre className={modalStyles.csvExample} style={{overflowX: 'auto', whiteSpace: 'nowrap'}}>
+                                <pre className={modalStyles.csvExample} style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}>
                                     marca,modelo,versao,opcionais,cor,concessionaria,preco,ano,anoModelo,status,cidade,estado,chassi,motor,combustivel,transmissao,observacoes,dataEntrada,vendedor,telefone{"\n"}TOYOTA,COROLLA,XEI 2.0,Ar Cond + Dir Hidráulica,Prata,Concessionária Toyota SP,95000,2023,2024,Disponível,São Paulo,SP,9BR1234567890,2.0 16V,Flex,Automática,Veículo em ótimo estado,19/11/2025,João Silva,(11) 98765-4321
                                 </pre>
                             </div>
@@ -611,52 +614,39 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
 
                             {importProgress.isImporting && (
                                 <div className={modalStyles.progressContainer}>
-                                    <h4>Importando veículos...</h4>
+                                    <h4>
+                                        <span className={modalStyles.spinner} aria-label="Carregando"></span>
+                                        Importando veículos...
+                                        <span className={modalStyles.percentBadge} style={{ marginLeft: '0.5rem' }}>{percent}%</span>
+                                    </h4>
                                     <div className={modalStyles.progressBar}>
                                         <div
                                             className={modalStyles.progressFill}
                                             style={{
-                                                width: `${importProgress.total > 0 ? (importProgress.current / importProgress.total) * 100 : 0}%`
+                                                width: `${percent}%`
                                             }}
                                         ></div>
+                                        <div className={modalStyles.progressPercent}>{percent}%</div>
                                     </div>
                                     <p className={modalStyles.progressText}>
-                                        {importProgress.current} de {importProgress.total} ({Math.round((importProgress.current / importProgress.total) * 100) || 0}%)
+                                        {importProgress.current} de {importProgress.total} ({percent}%)
                                     </p>
                                 </div>
                             )}
 
                             {importResults && !importProgress.isImporting && (
                                 <div className={modalStyles.importResults}>
-                                    <h4>Resultados da Importação:</h4>
-                                    <p><strong>Sucessos:</strong> {importResults.success}</p>
+                                    <h4>✅ Importação Concluída!</h4>
+                                    <p><strong>Veículos importados com sucesso:</strong> {importResults.success}</p>
                                     {importResults.errors.length > 0 && (
-                                        <>
-                                            <p><strong>Erros:</strong> {importResults.errors.length}</p>
-                                            <details open>
-                                                <summary>Ver erros detalhados</summary>
-                                                <div style={{ overflowX: 'auto' }}>
-                                                    <table className={modalStyles.table}>
-                                                        <thead>
-                                                            <tr>
-                                                                <th>Linha</th>
-                                                                <th>Motivo</th>
-                                                                <th>Conteúdo original</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {importResults.errors.map((err, idx) => (
-                                                                <tr key={idx}>
-                                                                    <td>{err.line}</td>
-                                                                    <td>{err.reason}</td>
-                                                                    <td><code style={{ whiteSpace: 'nowrap' }}>{err.raw}</code></td>
-                                                                </tr>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </details>
-                                        </>
+                                        <p style={{ color: '#dc2626', marginTop: '0.5rem' }}>
+                                            <strong>⚠️ Linhas com erro:</strong> {importResults.errors.length}
+                                        </p>
+                                    )}
+                                    {importResults.errors.length > 0 && (
+                                        <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.5rem' }}>
+                                            Use os botões abaixo para baixar o relatório detalhado dos erros e corrigi-los.
+                                        </p>
                                     )}
                                 </div>
                             )}
@@ -692,9 +682,15 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                                 type="button"
                                 className={modalStyles.submitButton}
                                 onClick={handleImportCSV}
-                                disabled={!csvFile || loading}
+                                disabled={!csvFile || importProgress.isImporting}
                             >
-                                {loading ? 'Importando...' : 'Importar Dados'}
+                                {importProgress.isImporting ? (
+                                    <>
+                                        <span className={modalStyles.spinner} aria-hidden="true"></span> Importando... {percent}%
+                                    </>
+                                ) : (
+                                    'Importar Dados'
+                                )}
                             </button>
                         </div>
                     </div>

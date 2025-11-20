@@ -346,13 +346,13 @@ class TablesService {
                 const columns = line.split(',').map(item => item.trim().replace(/"/g, ''));
 
                 if (columns.length < 20) {
-                    results.errors.push({ line: i + 1, reason: `Dados insuficientes - esperado 20 colunas, encontradas ${columns.length}` , raw: line, columns });
+                    results.errors.push({ line: i + 1, reason: `Dados insuficientes - esperado 20 colunas, encontradas ${columns.length}`, raw: line, columns });
                     continue;
                 }
 
                 const [
-                    marca, modelo, versao, opcionais, cor, concessionaria, precoStr, ano, anoModelo, 
-                    status, cidade, estado, chassi, motor, combustivel, transmissao, 
+                    marca, modelo, versao, opcionais, cor, concessionaria, precoStr, ano, anoModelo,
+                    status, cidade, estado, chassi, motor, combustivel, transmissao,
                     observacoes, dataEntrada, vendedor, telefone
                 ] = columns;
 
@@ -422,7 +422,7 @@ class TablesService {
                     // Adicionar veículo ao Firebase usando o serviço de veículos
                     const { vehicleService } = await import('./vehicleService');
                     await vehicleService.addVehicle(vehicleData);
-                    
+
                     results.success++;
                     console.log(`Veículo adicionado: ${marca} ${modelo} - ${concessionaria}`);
                 } catch (error) {

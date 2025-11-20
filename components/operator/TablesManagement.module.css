@@ -211,6 +211,22 @@
     gap: 0.5rem;
 }
 
+/* Spinner para indicar processamento */
+.spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #e0f2fe;
+    border-top-color: #0ea5e9;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 .progressBar {
     width: 100%;
     height: 20px;
@@ -218,6 +234,7 @@
     border-radius: 10px;
     overflow: hidden;
     border: 1px solid #0ea5e9;
+    position: relative;
 }
 
 .progressFill {
@@ -233,6 +250,30 @@
     font-weight: 600;
     color: #0c4a6e;
     font-size: 0.875rem;
+}
+
+/* Percentual destacado (0 a 100%) */
+.percentBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    background: #0ea5e9;
+    color: #f0f9ff;
+    font-weight: 700;
+    font-size: 0.8rem;
+}
+
+.progressPercent {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-weight: 700;
+    color: #0c4a6e;
+    font-size: 0.8rem;
+    pointer-events: none;
 }
 
 .tableContainer {
@@ -335,8 +376,11 @@
     border-radius: 12px;
     width: 100%;
     max-width: 500px;
+    max-height: 90vh;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-    overflow: hidden;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
 }
 
 .modalHeader {
@@ -373,6 +417,8 @@
 
 .form {
     padding: 2rem;
+    flex: 1;
+    overflow-y: auto;
 }
 
 .formGroup {

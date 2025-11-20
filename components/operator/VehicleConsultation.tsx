@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import { useConfig } from '../../lib/contexts/ConfigContext';
 import { useVehicleDatabase } from '../../lib/hooks/useVehicleDatabase';
+import { useTablesDatabase } from '../../lib/hooks/useTablesDatabase';
 import { Vehicle } from '../../lib/services/vehicleService';
 import { AddVehicleModal } from './AddVehicleModal';
 import styles from './VehicleConsultation.module.css';
+import modalStyles from './TablesManagement.module.css';
 
 
 
@@ -21,6 +23,18 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [csvFile, setCsvFile] = useState<File | null>(null);
+    const [importResults, setImportResults] = useState<{
+        success: number;
+        headers?: string[];
+        errors: Array<{ line: number; reason: string; raw?: string; columns?: string[] }>;
+    } | null>(null);
+    const [importProgress, setImportProgress] = useState<{ current: number; total: number; isImporting: boolean }>({
+        current: 0,
+        total: 0,
+        isImporting: false
+    });
     const [filters, setFilters] = useState({
         marca: '',
         modelo: '',
@@ -34,6 +48,10 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
 
     // Usar o hook do banco Firebase
     const { vehicles, loading, error, refreshVehicles, updateVehicle, deleteVehicle } = useVehicleDatabase();
+    const { importVeiculosFromCSV } = useTablesDatabase();
+    const percent = importProgress.total > 0
+        ? Math.max(0, Math.min(100, Math.round((importProgress.current / importProgress.total) * 100)))
+        : 0;
 
     // Função para calcular preço com margem
     const calculatePriceWithMargin = (basePrice: number) => {
@@ -60,6 +78,100 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                 console.error('Erro ao excluir veículo:', error);
                 alert('Erro ao excluir veículo.');
             }
+        }
+    };
+
+    // Importação CSV - helpers e handlers
+    const downloadErrorsCsv = () => {
+        if (!importResults || !importResults.errors || importResults.errors.length === 0) return;
+        const header = 'linha,motivo,conteudo';
+        const rows = importResults.errors.map((e) => {
+            const reason = (e.reason || '').replace(/"/g, '""');
+            const raw = (e.raw || '').replace(/"/g, '""');
+            return `${e.line},"${reason}","${raw}"`;
+        });
+        const csv = [header, ...rows].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'relatorio-erros-importacao.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    const downloadErrorsCsvWithOriginalColumns = () => {
+        if (!importResults || !importResults.errors?.length) return;
+        const originalHeaders = (importResults.headers && importResults.headers.length === 20)
+            ? importResults.headers
+            : [
+                'marca', 'modelo', 'versao', 'opcionais', 'cor', 'concessionaria', 'preco', 'ano', 'anoModelo', 'status',
+                'cidade', 'estado', 'chassi', 'motor', 'combustivel', 'transmissao', 'observacoes', 'dataEntrada', 'vendedor', 'telefone'
+            ];
+        const header = [...originalHeaders, 'erro'].join(',');
+        const rows = importResults.errors.map((e) => {
+            const cols = e.columns ? [...e.columns] : new Array(originalHeaders.length).fill('');
+            while (cols.length < originalHeaders.length) cols.push('');
+            while (cols.length > originalHeaders.length) cols.length = originalHeaders.length;
+            const escaped = cols.map(v => `"${(v ?? '').replace(/"/g, '""')}"`);
+            const reason = `"${(e.reason || '').replace(/"/g, '""')}"`;
+            return [...escaped, reason].join(',');
+        });
+        const csv = [header, ...rows].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'erros-com-colunas-originais.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file && file.type === 'text/csv') {
+            setCsvFile(file);
+        } else {
+            alert('Por favor, selecione um arquivo CSV válido.');
+        }
+    };
+
+    const handleImportCSV = async () => {
+        if (!csvFile) {
+            alert('Selecione um arquivo CSV primeiro.');
+            return;
+        }
+
+        try {
+            const text = await csvFile.text();
+            const lines = text.split('\n').filter(line => line.trim()).length - 1;
+
+            setImportProgress({ current: 0, total: lines, isImporting: true });
+
+            const results = await importVeiculosFromCSV(text, (current, total) => {
+                setImportProgress({ current, total, isImporting: true });
+            });
+
+            setImportResults(results);
+            setImportProgress({ current: 0, total: 0, isImporting: false });
+
+            if (results.success > 0) {
+                alert(`Importação concluída! ${results.success} veículos processados com sucesso.`);
+                if (results.errors.length > 0) {
+                    console.warn('Erros durante a importação:', results.errors);
+                }
+                await refreshVehicles();
+            } else {
+                alert('Nenhum veículo foi importado. Verifique o formato do arquivo.');
+            }
+        } catch (error) {
+            console.error('Erro na importação:', error);
+            alert('Erro ao processar o arquivo CSV.');
+            setImportProgress({ current: 0, total: 0, isImporting: false });
         }
     };
 
@@ -156,6 +268,13 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
             <div className={styles.header}>
                 <h2>Consulta de Veículos</h2>
                 <div className={styles.headerActions}>
+                    <button
+                        className={styles.importButton}
+                        onClick={() => setShowImportModal(true)}
+                        title="Importar Veículos do CSV"
+                    >
+                        📂 Importar CSV
+                    </button>
                     <button
                         className={styles.addButton}
                         onClick={() => setShowAddModal(true)}
@@ -434,6 +553,136 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                 editingVehicle={selectedVehicle}
                 isEditing={true}
             />
+
+            {/* Modal de Importação CSV */}
+            {showImportModal && (
+                <div className={modalStyles.overlay}>
+                    <div className={modalStyles.modal}>
+                        <div className={modalStyles.modalHeader}>
+                            <h3>Importar Veículos do CSV</h3>
+                            <button className={modalStyles.closeButton} onClick={() => setShowImportModal(false)}>✕</button>
+                        </div>
+
+                        <div className={modalStyles.form}>
+                            <div className={modalStyles.importInstructions}>
+                                <h4>📋 Formato do arquivo CSV (20 colunas):</h4>
+                                <ul>
+                                    <li>Primeira linha deve conter os cabeçalhos: <strong>marca,modelo,versao,opcionais,cor,concessionaria,preco,ano,anoModelo,status,cidade,estado,chassi,motor,combustivel,transmissao,observacoes,dataEntrada,vendedor,telefone</strong></li>
+                                    <li>As linhas seguintes devem conter os dados separados por vírgula</li>
+                                    <li><strong>Campos obrigatórios:</strong> marca, modelo, concessionaria, cidade, estado, vendedor, telefone</li>
+                                    <li><strong>Campos opcionais:</strong> versao, opcionais, cor, preco, ano, anoModelo, status, chassi, motor, combustivel, transmissao, observacoes, dataEntrada</li>
+                                    <li><strong>Status válidos:</strong> Disponível, Vendido, Reservado, Manutenção</li>
+                                    <li><strong>Combustível válido:</strong> Flex, Gasolina, Etanol, Diesel, Elétrico, Híbrido</li>
+                                    <li><strong>Transmissão válida:</strong> Manual, Automática, CVT</li>
+                                    <li><strong>Validação:</strong> Marca deve existir e Modelo deve estar cadastrado para a mesma Marca</li>
+                                    <li>Exemplo (role horizontalmente):</li>
+                                </ul>
+                                <pre className={modalStyles.csvExample} style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}>
+                                    marca,modelo,versao,opcionais,cor,concessionaria,preco,ano,anoModelo,status,cidade,estado,chassi,motor,combustivel,transmissao,observacoes,dataEntrada,vendedor,telefone{"\n"}TOYOTA,COROLLA,XEI 2.0,Ar Cond + Dir Hidráulica,Prata,Concessionária Toyota SP,95000,2023,2024,Disponível,São Paulo,SP,9BR1234567890,2.0 16V,Flex,Automática,Veículo em ótimo estado,19/11/2025,João Silva,(11) 98765-4321
+                                </pre>
+                            </div>
+
+                            <div className={modalStyles.formGroup}>
+                                <label htmlFor="csvFile">Selecionar arquivo CSV:</label>
+                                <input
+                                    type="file"
+                                    id="csvFile"
+                                    accept=".csv"
+                                    onChange={handleFileChange}
+                                    className={modalStyles.fileInput}
+                                />
+                            </div>
+
+                            {csvFile && (
+                                <div className={modalStyles.fileInfo}>
+                                    <strong>Arquivo selecionado:</strong> {csvFile.name}
+                                </div>
+                            )}
+
+                            {importProgress.isImporting && (
+                                <div className={modalStyles.progressContainer}>
+                                    <h4>
+                                        <span className={modalStyles.spinner} aria-label="Carregando"></span>
+                                        Importando veículos...
+                                        <span className={modalStyles.percentBadge} style={{ marginLeft: '0.5rem' }}>{percent}%</span>
+                                    </h4>
+                                    <div className={modalStyles.progressBar}>
+                                        <div
+                                            className={modalStyles.progressFill}
+                                            style={{
+                                                width: `${percent}%`
+                                            }}
+                                        ></div>
+                                        <div className={modalStyles.progressPercent}>{percent}%</div>
+                                    </div>
+                                    <p className={modalStyles.progressText}>
+                                        {importProgress.current} de {importProgress.total} ({percent}%)
+                                    </p>
+                                </div>
+                            )}
+
+                            {importResults && !importProgress.isImporting && (
+                                <div className={modalStyles.importResults}>
+                                    <h4>✅ Importação Concluída!</h4>
+                                    <p><strong>Veículos importados com sucesso:</strong> {importResults.success}</p>
+                                    {importResults.errors.length > 0 && (
+                                        <p style={{ color: '#dc2626', marginTop: '0.5rem' }}>
+                                            <strong>⚠️ Linhas com erro:</strong> {importResults.errors.length}
+                                        </p>
+                                    )}
+                                    {importResults.errors.length > 0 && (
+                                        <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.5rem' }}>
+                                            Use os botões abaixo para baixar o relatório detalhado dos erros e corrigi-los.
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className={modalStyles.modalActions}>
+                            <button
+                                type="button"
+                                className={modalStyles.cancelButton}
+                                onClick={() => setShowImportModal(false)}
+                            >
+                                Fechar
+                            </button>
+                            {importResults && importResults.errors?.length > 0 && !importProgress.isImporting && (
+                                <button
+                                    type="button"
+                                    className={modalStyles.addButton || modalStyles.cancelButton}
+                                    onClick={downloadErrorsCsv}
+                                >
+                                    ⬇️ Baixar relatório (CSV)
+                                </button>
+                            )}
+                            {importResults && importResults.errors?.length > 0 && !importProgress.isImporting && (
+                                <button
+                                    type="button"
+                                    className={modalStyles.addButton || modalStyles.cancelButton}
+                                    onClick={downloadErrorsCsvWithOriginalColumns}
+                                >
+                                    ⬇️ Baixar CSV (colunas + erro)
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                className={modalStyles.submitButton}
+                                onClick={handleImportCSV}
+                                disabled={!csvFile || importProgress.isImporting}
+                            >
+                                {importProgress.isImporting ? (
+                                    <>
+                                        <span className={modalStyles.spinner} aria-hidden="true"></span> Importando... {percent}%
+                                    </>
+                                ) : (
+                                    'Importar Dados'
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }// Função para determinar cor do status
