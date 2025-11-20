@@ -57,7 +57,7 @@ export function AutocompleteInput({
         }
 
         setFilteredOptions(filtered);
-        setIsOpen(filtered.length > 0 && value.length > 0);
+        setIsOpen(value.length > 0);
         setHighlightedIndex(-1);
     }, [value, options, getSuggestions]);
 
@@ -102,7 +102,7 @@ export function AutocompleteInput({
         if (onFocus) {
             onFocus();
         }
-        if (value.length > 0 && filteredOptions.length > 0) {
+        if (value.length > 0) {
             setIsOpen(true);
         }
     };
@@ -145,17 +145,23 @@ export function AutocompleteInput({
 
             {isOpen && (
                 <div ref={listRef} className={styles.optionsList}>
-                    {filteredOptions.map((option, index) => (
-                        <div
-                            key={option}
-                            className={`${styles.option} ${index === highlightedIndex ? styles.highlighted : ''
-                                }`}
-                            onClick={() => handleSelectOption(option)}
-                            onMouseEnter={() => setHighlightedIndex(index)}
-                        >
-                            {option}
+                    {filteredOptions.length > 0 ? (
+                        filteredOptions.map((option, index) => (
+                            <div
+                                key={option}
+                                className={`${styles.option} ${index === highlightedIndex ? styles.highlighted : ''
+                                    }`}
+                                onClick={() => handleSelectOption(option)}
+                                onMouseEnter={() => setHighlightedIndex(index)}
+                            >
+                                {option}
+                            </div>
+                        ))
+                    ) : (
+                        <div className={styles.option}>
+                            Sem sugestão
                         </div>
-                    ))}
+                    )}
                 </div>
             )}
         </div>

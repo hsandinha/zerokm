@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { QueryDocumentSnapshot } from 'firebase/firestore';
 import { useTablesDatabase } from '../../lib/hooks/useTablesDatabase';
 import { Modelo, tablesService, PaginationResult } from '../../lib/services/tablesService';
@@ -26,12 +26,51 @@ export function ModelosTable() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
     const [csvFile, setCsvFile] = useState<File | null>(null);
-    const [importResults, setImportResults] = useState<{ success: number; errors: string[] } | null>(null);
+    const [importResults, setImportResults] = useState<{ success: number; headers?: string[]; errors: Array<{ line: number; reason: string; raw?: string; columns?: string[] }> } | null>(null);
     const [importProgress, setImportProgress] = useState<{ current: number; total: number; isImporting: boolean }>({
         current: 0,
         total: 0,
         isImporting: false
     });
+
+    const loadModelos = useCallback(async (page: number = 1) => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            // Tentar primeiro com paginação
+            try {
+                const result: PaginationResult<Modelo> = await tablesService.getModelosPaginated({
+                    page,
+                    itemsPerPage,
+                    lastDoc: page === currentPage + 1 ? lastDoc : undefined
+                });
+
+                setModelos(result.data);
+                setTotalItems(result.total);
+                setHasNextPage(result.hasNextPage);
+                setLastDoc(result.lastDoc);
+                setCurrentPage(page);
+            } catch (paginationError) {
+                // Fallback: usar método antigo
+                console.log('Fallback para método antigo de modelos');
+                const allModelos = await tablesService.getAllModelos();
+                const startIndex = (page - 1) * itemsPerPage;
+                const endIndex = startIndex + itemsPerPage;
+                const pageData = allModelos.slice(startIndex, endIndex);
+
+                setModelos(pageData);
+                setTotalItems(allModelos.length);
+                setHasNextPage(endIndex < allModelos.length);
+                setCurrentPage(page);
+            }
+        } catch (error) {
+            console.error('Erro ao carregar modelos:', error);
+            setError('Erro ao carregar modelos');
+        } finally {
+            setLoading(false);
+        }
+    }, [currentPage, lastDoc]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -98,51 +137,14 @@ export function ModelosTable() {
     };
 
     // Funções de paginação com fallback
-    const loadModelos = async (page: number = 1) => {
-        try {
-            setLoading(true);
-            setError(null);
-
-            // Tentar primeiro com paginação
-            try {
-                const result: PaginationResult<Modelo> = await tablesService.getModelosPaginated({
-                    page,
-                    itemsPerPage,
-                    lastDoc: page === currentPage + 1 ? lastDoc : undefined
-                });
-
-                setModelos(result.data);
-                setTotalItems(result.total);
-                setHasNextPage(result.hasNextPage);
-                setLastDoc(result.lastDoc);
-                setCurrentPage(page);
-            } catch (paginationError) {
-                // Fallback: usar método antigo
-                console.log('Fallback para método antigo de modelos');
-                const allModelos = await tablesService.getAllModelos();
-                const startIndex = (page - 1) * itemsPerPage;
-                const endIndex = startIndex + itemsPerPage;
-                const pageData = allModelos.slice(startIndex, endIndex);
-
-                setModelos(pageData);
-                setTotalItems(allModelos.length);
-                setHasNextPage(endIndex < allModelos.length);
-                setCurrentPage(page);
-            }
-        } catch (error) {
-            console.error('Erro ao carregar modelos:', error);
-            setError('Erro ao carregar modelos');
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const handlePageChange = (page: number) => {
         loadModelos(page);
-    };    // Carregar modelos na inicialização
+    };
+
+    // Carregar modelos na inicialização
     useEffect(() => {
         loadModelos(1);
-    }, []);
+    }, [loadModelos]);
 
     const closeModal = () => {
         setShowModal(false);
@@ -398,7 +400,7 @@ export function ModelosTable() {
                                                 <summary>Ver erros</summary>
                                                 <ul className={styles.errorList}>
                                                     {importResults.errors.map((error, index) => (
-                                                        <li key={index}>{error}</li>
+                                                        <li key={index}>Linha {error.line}: {error.reason}</li>
                                                     ))}
                                                 </ul>
                                             </details>

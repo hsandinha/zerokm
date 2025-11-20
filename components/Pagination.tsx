@@ -6,6 +6,7 @@ interface PaginationProps {
     itemsPerPage: number;
     onPageChange: (page: number) => void;
     loading?: boolean;
+    hasNextPage?: boolean;
 }
 
 export function Pagination({
@@ -13,7 +14,8 @@ export function Pagination({
     totalItems,
     itemsPerPage,
     onPageChange,
-    loading = false
+    loading = false,
+    hasNextPage,
 }: PaginationProps) {
     const totalPages = Math.ceil(totalItems / itemsPerPage);
     const startItem = (currentPage - 1) * itemsPerPage + 1;
@@ -85,7 +87,7 @@ export function Pagination({
                 {/* Botão Próximo */}
                 <button
                     onClick={() => onPageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
+                    disabled={hasNextPage === false || currentPage === totalPages}
                     className="pagination-button"
                 >
                     Próximo →

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import styles from './AutocompleteInput.module.css'; // Usando os mesmos estilos
 
 interface MaskedInputProps {
@@ -25,29 +25,6 @@ export function MaskedInput({
     maxLength
 }: MaskedInputProps) {
     const [displayValue, setDisplayValue] = useState('');
-
-    // Aplicar máscara baseado no tipo
-    const applyMask = (inputValue: string): string => {
-        // Remove tudo que não for número
-        const numbers = inputValue.replace(/\D/g, '');
-
-        switch (mask) {
-            case 'phone':
-                return applyPhoneMask(numbers);
-            case 'cpf':
-                return applyCpfMask(numbers);
-            case 'cnpj':
-                return applyCnpjMask(numbers);
-            case 'chassi':
-                return applyChassiMask(inputValue); // Chassi permite letras e números
-            case 'currency':
-                return applyCurrencyMask(numbers);
-            case 'cep':
-                return applyCepMask(numbers);
-            default:
-                return numbers;
-        }
-    };
 
     // Máscara de telefone brasileiro (XX)XXXXX-XXXX
     const applyPhoneMask = (numbers: string): string => {
@@ -143,6 +120,29 @@ export function MaskedInput({
         return formatted;
     };
 
+    // Aplicar máscara baseado no tipo
+    const applyMask = useCallback((inputValue: string): string => {
+        // Remove tudo que não for número
+        const numbers = inputValue.replace(/\D/g, '');
+
+        switch (mask) {
+            case 'phone':
+                return applyPhoneMask(numbers);
+            case 'cpf':
+                return applyCpfMask(numbers);
+            case 'cnpj':
+                return applyCnpjMask(numbers);
+            case 'chassi':
+                return applyChassiMask(inputValue); // Chassi permite letras e números
+            case 'currency':
+                return applyCurrencyMask(numbers);
+            case 'cep':
+                return applyCepMask(numbers);
+            default:
+                return numbers;
+        }
+    }, [mask]);
+
     // Remover máscara para obter apenas números (ou alfanumérico para chassi)
     const removeMask = (maskedValue: string): string => {
         if (mask === 'chassi') {
@@ -159,7 +159,7 @@ export function MaskedInput({
     useEffect(() => {
         const masked = applyMask(value);
         setDisplayValue(masked);
-    }, [value, mask]);
+    }, [value, applyMask]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const inputValue = e.target.value;

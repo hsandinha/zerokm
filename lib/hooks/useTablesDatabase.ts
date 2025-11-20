@@ -228,7 +228,7 @@ export function useTablesDatabase() {
         } catch (error) {
             setError('Erro ao importar modelos do CSV');
             console.error(error);
-            return { success: 0, errors: ['Erro interno na importação'] };
+            return { success: 0, errors: [{ line: 0, reason: 'Erro interno na importação' }] };
         } finally {
             setLoading(false);
         }

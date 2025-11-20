@@ -14,6 +14,7 @@ import {
     Timestamp,
     QueryDocumentSnapshot
 } from 'firebase/firestore';
+import { VehicleService } from './vehicleService';
 
 export interface Marca {
     id?: string;
@@ -264,11 +265,13 @@ class TablesService {
     async importModelosFromCSV(
         csvData: string,
         onProgress?: (current: number, total: number) => void
-    ): Promise<{ success: number; errors: string[] }> {
+    ): Promise<{ success: number; headers?: string[]; errors: Array<{ line: number; reason: string; raw?: string; columns?: string[] }> }> {
         const lines = csvData.split('\n').filter(line => line.trim());
         const totalLines = lines.length - 1; // Exclui cabeçalho
         const headerLine = lines[0] || '';
-        const headers = headerLine.split(',').map(h => h.trim().replace(/"/g, ''));
+        // Detectar separador: ponto e vírgula ou vírgula
+        const separator = headerLine.includes(';') ? ';' : ',';
+        const headers = headerLine.split(separator).map(h => h.trim().replace(/"/g, ''));
         const results: { success: number; headers?: string[]; errors: Array<{ line: number; reason: string; raw?: string; columns?: string[] }> } = { success: 0, headers, errors: [] };
 
         try {
@@ -283,10 +286,10 @@ class TablesService {
                     onProgress(i, totalLines);
                 }
 
-                const [marca, modelo] = line.split(',').map(item => item.trim().replace(/"/g, ''));
+                const [marca, modelo] = line.split(separator).map(item => item.trim().replace(/"/g, ''));
 
                 if (!marca || !modelo) {
-                    results.errors.push(`Linha ${i + 1}: Dados incompletos - Marca: "${marca}", Modelo: "${modelo}"`);
+                    results.errors.push({ line: i + 1, reason: `Dados incompletos - Marca: "${marca}", Modelo: "${modelo}"`, raw: line });
                     continue;
                 }
 
@@ -298,7 +301,7 @@ class TablesService {
                     results.success++;
                     console.log(`Modelo adicionado: ${marca} - ${modelo}`);
                 } catch (error) {
-                    results.errors.push(`Linha ${i + 1}: Erro ao adicionar ${marca} - ${modelo}: ${error}`);
+                    results.errors.push({ line: i + 1, reason: `Erro ao adicionar ${marca} - ${modelo}: ${error}`, raw: line });
                 }
             }
 
@@ -317,7 +320,11 @@ class TablesService {
     ): Promise<{ success: number; errors: string[] }> {
         const lines = csvData.split('\n').filter(line => line.trim());
         const totalLines = lines.length - 1; // Exclui cabeçalho
-        const results = { success: 0, errors: [] as string[] };
+        // Detectar separador: ponto e vírgula ou vírgula
+        const headerLine = lines[0] || '';
+        const separator = headerLine.includes(';') ? ';' : ',';
+        const headers = headerLine.split(separator).map(h => h.trim().replace(/"/g, ''));
+        const results = { success: 0, headers, errors: [] as Array<{ line: number; reason: string; raw?: string; columns?: string[] }> };
 
         try {
             console.log('Iniciando importação de veículos...');
@@ -343,7 +350,7 @@ class TablesService {
 
                 // Formato completo com 20 campos:
                 // marca,modelo,versao,opcionais,cor,concessionaria,preco,ano,anoModelo,status,cidade,estado,chassi,motor,combustivel,transmissao,observacoes,dataEntrada,vendedor,telefone
-                const columns = line.split(',').map(item => item.trim().replace(/"/g, ''));
+                const columns = line.split(separator).map(item => item.trim().replace(/"/g, ''));
 
                 if (columns.length < 20) {
                     results.errors.push({ line: i + 1, reason: `Dados insuficientes - esperado 20 colunas, encontradas ${columns.length}`, raw: line, columns });
@@ -420,8 +427,7 @@ class TablesService {
                     };
 
                     // Adicionar veículo ao Firebase usando o serviço de veículos
-                    const { vehicleService } = await import('./vehicleService');
-                    await vehicleService.addVehicle(vehicleData);
+                    await VehicleService.addVehicle(vehicleData);
 
                     results.success++;
                     console.log(`Veículo adicionado: ${marca} ${modelo} - ${concessionaria}`);

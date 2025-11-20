@@ -8,7 +8,7 @@ import { SummaryCard } from '../../../components/SummaryCard';
 import { VehicleConsultation } from '../../../components/operator/VehicleConsultation';
 import { MarcasTable } from '../../../components/operator/MarcasTable';
 import { ModelosTable } from '../../../components/operator/ModelosTable';
-import { CoresTable } from '../../../components/operator/CoresTable';
+import CoresTable from '../../../components/operator/CoresTable';
 import { TransportadorasManagement } from '../../../components/operator/TransportadorasManagement';
 import { ConfigContext, useConfig } from '../../../lib/contexts/ConfigContext';
 import styles from './operator.module.css';

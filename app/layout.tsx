@@ -1,10 +1,15 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Login - Zero KM",
   description: "Acesse sua conta no sistema nacional de vendas de carros zero km",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1"
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function LoginLayout({

@@ -8,6 +8,7 @@ import { Vehicle } from '../../lib/services/vehicleService';
 import { AddVehicleModal } from './AddVehicleModal';
 import styles from './VehicleConsultation.module.css';
 import modalStyles from './TablesManagement.module.css';
+import { AutocompleteInput } from './AutocompleteInput';
 
 
 
@@ -52,6 +53,24 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
     const percent = importProgress.total > 0
         ? Math.max(0, Math.min(100, Math.round((importProgress.current / importProgress.total) * 100)))
         : 0;
+
+    // Função para gerar sugestões de autocompletar
+    const getUniqueSuggestions = (field: keyof Vehicle, searchTerm: string): string[] => {
+        if (searchTerm.length === 0) return [];
+        const allValues = vehicles.map(v => v[field]?.toString() || '').filter(Boolean);
+        const uniqueValues = [...new Set(allValues)];
+        return uniqueValues.filter(v => v.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 10);
+    };
+
+    // Funções de sugestão para cada campo
+    const getMarcaSuggestions = (searchTerm: string) => getUniqueSuggestions('marca', searchTerm);
+    const getModeloSuggestions = (searchTerm: string) => getUniqueSuggestions('modelo', searchTerm);
+    const getCategoriaSuggestions = (searchTerm: string) => getUniqueSuggestions('versao', searchTerm);
+    const getCorSuggestions = (searchTerm: string) => getUniqueSuggestions('cor', searchTerm);
+    const getAnoSuggestions = (searchTerm: string) => getUniqueSuggestions('ano', searchTerm);
+    const getStatusSuggestions = (searchTerm: string) => getUniqueSuggestions('status', searchTerm);
+    const getCombustivelSuggestions = (searchTerm: string) => getUniqueSuggestions('combustivel', searchTerm);
+    const getTransmissaoSuggestions = (searchTerm: string) => getUniqueSuggestions('transmissao', searchTerm);
 
     // Função para calcular preço com margem
     const calculatePriceWithMargin = (basePrice: number) => {
@@ -323,82 +342,74 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                         <h3>Filtros Avançados</h3>
                         <div className={styles.filterGrid}>
                             <div className={styles.filterItem}>
-                                <label>Marca</label>
-                                <input
-                                    type="text"
+                                <AutocompleteInput
+                                    label="Marca"
                                     value={filters.marca}
-                                    onChange={(e) => setFilters({ ...filters, marca: e.target.value })}
-                                    className={styles.filterInput}
+                                    onChange={(value) => setFilters({ ...filters, marca: value })}
+                                    getSuggestions={getMarcaSuggestions}
                                     placeholder="Filtrar por marca"
                                 />
                             </div>
                             <div className={styles.filterItem}>
-                                <label>Modelo</label>
-                                <input
-                                    type="text"
+                                <AutocompleteInput
+                                    label="Modelo"
                                     value={filters.modelo}
-                                    onChange={(e) => setFilters({ ...filters, modelo: e.target.value })}
-                                    className={styles.filterInput}
+                                    onChange={(value) => setFilters({ ...filters, modelo: value })}
+                                    getSuggestions={getModeloSuggestions}
                                     placeholder="Filtrar por modelo"
                                 />
                             </div>
                             <div className={styles.filterItem}>
-                                <label>Categoria</label>
-                                <input
-                                    type="text"
+                                <AutocompleteInput
+                                    label="Categoria"
                                     value={filters.categoria}
-                                    onChange={(e) => setFilters({ ...filters, categoria: e.target.value })}
-                                    className={styles.filterInput}
+                                    onChange={(value) => setFilters({ ...filters, categoria: value })}
+                                    getSuggestions={getCategoriaSuggestions}
                                     placeholder="Filtrar por categoria"
                                 />
                             </div>
                             <div className={styles.filterItem}>
-                                <label>Cor</label>
-                                <input
-                                    type="text"
+                                <AutocompleteInput
+                                    label="Cor"
                                     value={filters.cor}
-                                    onChange={(e) => setFilters({ ...filters, cor: e.target.value })}
-                                    className={styles.filterInput}
+                                    onChange={(value) => setFilters({ ...filters, cor: value })}
+                                    getSuggestions={getCorSuggestions}
                                     placeholder="Filtrar por cor"
                                 />
                             </div>
                             <div className={styles.filterItem}>
-                                <label>Ano</label>
-                                <input
-                                    type="text"
+                                <AutocompleteInput
+                                    label="Ano"
                                     value={filters.ano}
-                                    onChange={(e) => setFilters({ ...filters, ano: e.target.value })}
-                                    className={styles.filterInput}
+                                    onChange={(value) => setFilters({ ...filters, ano: value })}
+                                    getSuggestions={getAnoSuggestions}
                                     placeholder="Filtrar por ano"
                                 />
                             </div>
                             <div className={styles.filterItem}>
-                                <label>Status</label>
-                                <input
-                                    type="text"
+                                <AutocompleteInput
+                                    label="Status"
                                     value={filters.status}
-                                    onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                                    className={styles.filterInput}
+                                    onChange={(value) => setFilters({ ...filters, status: value })}
+                                    getSuggestions={getStatusSuggestions}
                                     placeholder="Filtrar por status"
                                 />
                             </div>
                             <div className={styles.filterItem}>
-                                <label>Combustível</label>
-                                <input
-                                    type="text"
+                                <AutocompleteInput
+                                    label="Combustível"
                                     value={filters.combustivel}
-                                    onChange={(e) => setFilters({ ...filters, combustivel: e.target.value })}
-                                    className={styles.filterInput}
+                                    onChange={(value) => setFilters({ ...filters, combustivel: value })}
+                                    getSuggestions={getCombustivelSuggestions}
                                     placeholder="Filtrar por combustível"
                                 />
                             </div>
                             <div className={styles.filterItem}>
-                                <label>Transmissão</label>
-                                <input
-                                    type="text"
+                                <AutocompleteInput
+                                    label="Transmissão"
                                     value={filters.transmissao}
-                                    onChange={(e) => setFilters({ ...filters, transmissao: e.target.value })}
-                                    className={styles.filterInput}
+                                    onChange={(value) => setFilters({ ...filters, transmissao: value })}
+                                    getSuggestions={getTransmissaoSuggestions}
                                     placeholder="Filtrar por transmissão"
                                 />
                             </div>
