@@ -91,6 +91,20 @@ export const useVehicleDatabase = () => {
         }
     };
 
+    // Deletar múltiplos veículos
+    const deleteVehicles = async (ids: string[]) => {
+        try {
+            await VehicleService.deleteVehicles(ids);
+            // Remover da lista local
+            setVehicles(prev => prev.filter(v => v.id && !ids.includes(v.id)));
+            return true;
+        } catch (err) {
+            console.error('Erro ao deletar veículos em massa:', err);
+            setError('Erro ao deletar veículos em massa');
+            return false;
+        }
+    };
+
     useEffect(() => {
         initializeDatabase();
     }, []);
@@ -103,6 +117,7 @@ export const useVehicleDatabase = () => {
         addVehicle,
         updateVehicle,
         deleteVehicle,
+        deleteVehicles,
         refreshVehicles: initializeDatabase
     };
 };

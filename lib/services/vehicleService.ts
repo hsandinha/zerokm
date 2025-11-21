@@ -157,6 +157,17 @@ export class VehicleService {
         }
     }
 
+    // Deletar múltiplos veículos
+    static async deleteVehicles(ids: string[]): Promise<void> {
+        try {
+            const deletePromises = ids.map(id => deleteDoc(doc(db, VEHICLES_COLLECTION, id)));
+            await Promise.all(deletePromises);
+        } catch (error) {
+            console.error('Erro ao deletar veículos em massa:', error);
+            throw error;
+        }
+    }
+
     // Limpar banco e reinserir dados
     static async clearAndResetDatabase(): Promise<void> {
         try {

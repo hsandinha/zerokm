@@ -47,8 +47,9 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
     });
 
     // Usar o hook do banco Firebase
-    const { vehicles, loading, error, refreshVehicles, updateVehicle, deleteVehicle } = useVehicleDatabase();
+    const { vehicles, loading, error, refreshVehicles, updateVehicle, deleteVehicle, deleteVehicles } = useVehicleDatabase();
     const { importVeiculosFromCSV } = useTablesDatabase();
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const percent = importProgress.total > 0
         ? Math.max(0, Math.min(100, Math.round((importProgress.current / importProgress.total) * 100)))
         : 0;
@@ -275,6 +276,39 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
         });
     };
 
+    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.checked) {
+            const allIds = filteredVehicles.map(v => v.id).filter(Boolean) as string[];
+            setSelectedIds(allIds);
+        } else {
+            setSelectedIds([]);
+        }
+    };
+
+    const handleSelectOne = (id: string) => {
+        setSelectedIds(prev => {
+            if (prev.includes(id)) {
+                return prev.filter(i => i !== id);
+            } else {
+                return [...prev, id];
+            }
+        });
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedIds.length === 0) return;
+
+        if (confirm(`Tem certeza que deseja excluir ${selectedIds.length} veículos selecionados?`)) {
+            const success = await deleteVehicles(selectedIds);
+            if (success) {
+                alert('Veículos excluídos com sucesso!');
+                setSelectedIds([]);
+            } else {
+                alert('Erro ao excluir alguns veículos.');
+            }
+        }
+    };
+
     if (loading) {
         return (
             <div className={styles.container}>
@@ -300,6 +334,16 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
             <div className={styles.header}>
                 <h2>Consulta de Veículos</h2>
                 <div className={styles.headerActions}>
+                    {selectedIds.length > 0 && (
+                        <button
+                            className={styles.deleteButton}
+                            onClick={handleBulkDelete}
+                            title="Excluir Selecionados"
+                            style={{ marginRight: '10px', backgroundColor: '#dc3545', color: 'white' }}
+                        >
+                            🗑️ Excluir ({selectedIds.length})
+                        </button>
+                    )}
                     <button
                         className={styles.importButton}
                         onClick={() => setShowImportModal(true)}
@@ -472,6 +516,13 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                         <table className={styles.table}>
                             <thead>
                                 <tr>
+                                    <th className={styles.tableHeader}>
+                                        <input
+                                            type="checkbox"
+                                            onChange={handleSelectAll}
+                                            checked={filteredVehicles.length > 0 && selectedIds.length === filteredVehicles.length}
+                                        />
+                                    </th>
                                     <th className={styles.tableHeader}>MARCA</th>
                                     <th className={styles.tableHeader}>MODELO</th>
                                     <th className={styles.tableHeader}>VERSÃO</th>
@@ -498,6 +549,13 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                             <tbody>
                                 {filteredVehicles.map((vehicle) => (
                                     <tr key={vehicle.id} className={styles.tableRow}>
+                                        <td className={styles.tableCell}>
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedIds.includes(vehicle.id || '')}
+                                                onChange={() => handleSelectOne(vehicle.id || '')}
+                                            />
+                                        </td>
                                         <td className={styles.tableCell}>{vehicle.marca}</td>
                                         <td className={styles.tableCell}>{vehicle.modelo}</td>
                                         <td className={styles.tableCell}>{vehicle.versao}</td>
