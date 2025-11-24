@@ -341,16 +341,6 @@ class TablesService {
         try {
             console.log('Iniciando importação de veículos...');
 
-            // Pré-carregar marcas e modelos existentes para validação
-            const [marcasExistentes, modelosExistentes] = await Promise.all([
-                this.getAllMarcas(),
-                this.getAllModelos()
-            ]);
-            const marcasSet = new Set(marcasExistentes.map(m => (m.nome || '').toUpperCase().trim()));
-            const modelosSet = new Set(
-                modelosExistentes.map(m => `${(m.marca || '').toUpperCase().trim()}|${(m.nome || '').toUpperCase().trim()}`)
-            );
-
             for (let i = 1; i < lines.length; i++) { // Pula cabeçalho
                 const line = lines[i].trim();
                 if (!line) continue;
@@ -360,41 +350,23 @@ class TablesService {
                     onProgress(i, totalLines);
                 }
 
-                // Formato completo com 20 campos:
-                // marca,modelo,versao,opcionais,cor,concessionaria,preco,ano,anoModelo,status,cidade,estado,chassi,motor,combustivel,transmissao,observacoes,dataEntrada,vendedor,telefone
+                // Formato completo com 16 campos:
+                // dataEntrada,modelo,transmissao,combustivel,cor,ano,opcionais,preco,status,observacoes,cidade,estado,concessionaria,telefone,nomeContato,operador
                 const columns = line.split(separator).map(item => item.trim().replace(/"/g, ''));
 
-                if (columns.length < 20) {
-                    results.errors.push({ line: i + 1, reason: `Dados insuficientes - esperado 20 colunas, encontradas ${columns.length}`, raw: line, columns });
+                if (columns.length < 16) {
+                    results.errors.push({ line: i + 1, reason: `Dados insuficientes - esperado 16 colunas, encontradas ${columns.length}`, raw: line, columns });
                     continue;
                 }
 
                 const [
-                    marca, modelo, versao, opcionais, cor, concessionaria, precoStr, ano, anoModelo,
-                    status, cidade, estado, chassi, motor, combustivel, transmissao,
-                    observacoes, dataEntrada, vendedor, telefone
+                    dataEntrada, modelo, transmissao, combustivel, cor, ano, opcionais, precoStr,
+                    status, observacoes, cidade, estado, concessionaria, telefone, nomeContato, operador
                 ] = columns;
 
-                // Validar campos obrigatórios (marca, modelo, concessionaria, cidade, estado, vendedor, telefone)
-                if (!marca || !modelo || !concessionaria || !cidade || !estado || !vendedor || !telefone) {
-                    results.errors.push({ line: i + 1, reason: 'Campos obrigatórios em branco (marca, modelo, concessionaria, cidade, estado, vendedor, telefone)', raw: line, columns });
-                    continue;
-                }
-
-                // Normalização para validação
-                const marcaKey = marca.toUpperCase().trim();
-                const modeloKey = modelo.toUpperCase().trim();
-                const modeloComboKey = `${marcaKey}|${modeloKey}`;
-
-                // Validar marca existente
-                if (!marcasSet.has(marcaKey)) {
-                    results.errors.push({ line: i + 1, reason: `Marca não cadastrada: "${marca}"`, raw: line, columns });
-                    continue;
-                }
-
-                // Validar modelo existente para a marca
-                if (!modelosSet.has(modeloComboKey)) {
-                    results.errors.push({ line: i + 1, reason: `Modelo "${modelo}" não cadastrado para a marca "${marca}"`, raw: line, columns });
+                // Validar campos obrigatórios
+                if (!modelo || !concessionaria || !cidade || !estado || !nomeContato || !telefone) {
+                    results.errors.push({ line: i + 1, reason: 'Campos obrigatórios em branco (modelo, concessionaria, cidade, estado, nomeContato, telefone)', raw: line, columns });
                     continue;
                 }
 
@@ -416,35 +388,31 @@ class TablesService {
 
                     // Criar objeto do veículo com todos os campos
                     const vehicleData = {
-                        marca: marca.toUpperCase(),
+                        dataEntrada: dataEntrada || new Date().toLocaleDateString('pt-BR'),
                         modelo: modelo.toUpperCase(),
-                        versao: versao || '',
-                        opcionais: opcionais || '',
+                        transmissao: transmissaoFinal as 'Manual' | 'Automática' | 'CVT',
+                        combustivel: combustivelFinal as 'Flex' | 'Gasolina' | 'Etanol' | 'Diesel' | 'Elétrico' | 'Híbrido',
                         cor: cor || '',
-                        concessionaria: concessionaria,
-                        preco: preco,
                         ano: ano || '',
-                        anoModelo: anoModelo || '',
+                        opcionais: opcionais || '',
+                        preco: preco,
                         status: statusFinal as 'Disponível' | 'Vendido' | 'Reservado' | 'Manutenção',
+                        observacoes: observacoes || `Importado via CSV em ${new Date().toLocaleDateString('pt-BR')}`,
                         cidade: cidade,
                         estado: estado,
-                        chassi: chassi || '',
-                        motor: motor || '',
-                        combustivel: combustivelFinal as 'Flex' | 'Gasolina' | 'Etanol' | 'Diesel' | 'Elétrico' | 'Híbrido',
-                        transmissao: transmissaoFinal as 'Manual' | 'Automática' | 'CVT',
-                        observacoes: observacoes || `Importado via CSV em ${new Date().toLocaleDateString('pt-BR')}`,
-                        dataEntrada: dataEntrada || new Date().toLocaleDateString('pt-BR'),
-                        vendedor: vendedor,
-                        telefone: telefone
+                        concessionaria: concessionaria,
+                        telefone: telefone,
+                        nomeContato: nomeContato,
+                        operador: operador || ''
                     };
 
                     // Adicionar veículo ao Firebase usando o serviço de veículos
                     await VehicleService.addVehicle(vehicleData);
 
                     results.success++;
-                    console.log(`Veículo adicionado: ${marca} ${modelo} - ${concessionaria}`);
+                    console.log(`Veículo adicionado: ${modelo} - ${concessionaria}`);
                 } catch (error) {
-                    results.errors.push({ line: i + 1, reason: `Erro ao adicionar ${marca} ${modelo}: ${error}`, raw: line, columns });
+                    results.errors.push({ line: i + 1, reason: `Erro ao adicionar ${modelo}: ${error}`, raw: line, columns });
                     console.error(`Erro na linha ${i + 1}:`, error);
                 }
             }

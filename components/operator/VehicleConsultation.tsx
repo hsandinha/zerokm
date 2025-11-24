@@ -45,6 +45,12 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
         combustivel: '',
         transmissao: ''
     });
+    const [sortConfig, setSortConfig] = useState<{ key: keyof Vehicle | null; direction: 'asc' | 'desc' }>({
+        key: null,
+        direction: 'asc'
+    });
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(50);
 
     // Usar o hook do banco Firebase
     const { vehicles, loading, error, refreshVehicles, updateVehicle, deleteVehicle, deleteVehicles } = useVehicleDatabase();
@@ -63,9 +69,7 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
     }, [vehicles]);
 
     // Funções de sugestão para cada campo
-    const getMarcaSuggestions = useCallback((searchTerm: string) => getUniqueSuggestions('marca', searchTerm), [getUniqueSuggestions]);
     const getModeloSuggestions = useCallback((searchTerm: string) => getUniqueSuggestions('modelo', searchTerm), [getUniqueSuggestions]);
-    const getCategoriaSuggestions = useCallback((searchTerm: string) => getUniqueSuggestions('versao', searchTerm), [getUniqueSuggestions]);
     const getCorSuggestions = useCallback((searchTerm: string) => getUniqueSuggestions('cor', searchTerm), [getUniqueSuggestions]);
     const getAnoSuggestions = useCallback((searchTerm: string) => getUniqueSuggestions('ano', searchTerm), [getUniqueSuggestions]);
     const getStatusSuggestions = useCallback((searchTerm: string) => getUniqueSuggestions('status', searchTerm), [getUniqueSuggestions]);
@@ -99,7 +103,7 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
 
     // Função para excluir veículo
     const handleDeleteVehicle = async (vehicle: Vehicle) => {
-        if (window.confirm(`Tem certeza que deseja excluir o veículo ${vehicle.marca} ${vehicle.modelo}?`)) {
+        if (window.confirm(`Tem certeza que deseja excluir o veículo ${vehicle.modelo}?`)) {
             try {
                 const success = await deleteVehicle(vehicle.id!);
                 if (success) {
@@ -137,11 +141,11 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
 
     const downloadErrorsCsvWithOriginalColumns = () => {
         if (!importResults || !importResults.errors?.length) return;
-        const originalHeaders = (importResults.headers && importResults.headers.length === 20)
+        const originalHeaders = (importResults.headers && importResults.headers.length === 16)
             ? importResults.headers
             : [
-                'marca', 'modelo', 'versao', 'opcionais', 'cor', 'concessionaria', 'preco', 'ano', 'anoModelo', 'status',
-                'cidade', 'estado', 'chassi', 'motor', 'combustivel', 'transmissao', 'observacoes', 'dataEntrada', 'vendedor', 'telefone'
+                'dataEntrada', 'modelo', 'transmissao', 'combustivel', 'cor', 'ano', 'opcionais', 'preco', 'status', 'observacoes',
+                'cidade', 'estado', 'concessionaria', 'telefone', 'nomeContato', 'operador'
             ];
         const header = [...originalHeaders, 'erro'].join(',');
         const rows = importResults.errors.map((e) => {
@@ -208,7 +212,13 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
         }
     };
 
-
+    const handleSort = (key: keyof Vehicle) => {
+        let direction: 'asc' | 'desc' = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
 
     // Filtrar veículos baseado na busca e filtros avançados
     const filteredVehicles = vehicles.filter(vehicle => {
@@ -216,9 +226,7 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
         let matchesSearch = true;
         if (searchTerm.length >= 3) {
             const searchFields = [
-                vehicle.marca,
                 vehicle.modelo,
-                vehicle.versao,
                 vehicle.cor,
                 vehicle.concessionaria,
                 vehicle.cidade,
@@ -227,8 +235,8 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                 vehicle.combustivel,
                 vehicle.transmissao,
                 vehicle.ano,
-                vehicle.anoModelo,
-                vehicle.vendedor,
+                vehicle.nomeContato,
+                vehicle.operador,
                 vehicle.observacoes,
                 vehicle.preco?.toString()
             ];
@@ -240,9 +248,7 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
 
         // Filtros avançados (usando campos disponíveis no Firebase)
         const matchesAdvancedFilters = (
-            (filters.marca === '' || vehicle.marca?.toLowerCase().includes(filters.marca.toLowerCase())) &&
             (filters.modelo === '' || vehicle.modelo?.toLowerCase().includes(filters.modelo.toLowerCase())) &&
-            (filters.categoria === '' || vehicle.versao?.toLowerCase().includes(filters.categoria.toLowerCase())) &&
             (filters.cor === '' || vehicle.cor?.toLowerCase().includes(filters.cor.toLowerCase())) &&
             (filters.status === '' || vehicle.status?.toLowerCase().includes(filters.status.toLowerCase())) &&
             (filters.combustivel === '' || vehicle.combustivel?.toLowerCase().includes(filters.combustivel.toLowerCase())) &&
@@ -252,6 +258,39 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
 
         return matchesSearch && matchesAdvancedFilters;
     });
+
+    const sortedVehicles = [...filteredVehicles].sort((a, b) => {
+        if (!sortConfig.key) return 0;
+
+        const aValue = a[sortConfig.key] ?? '';
+        const bValue = b[sortConfig.key] ?? '';
+
+        if (aValue < bValue) {
+            return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+            return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+    });
+
+    // Lógica de Paginação
+    const totalPages = itemsPerPage === -1 ? 1 : Math.ceil(sortedVehicles.length / itemsPerPage);
+    const paginatedVehicles = itemsPerPage === -1
+        ? sortedVehicles
+        : sortedVehicles.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+    const handlePageChange = (page: number) => {
+        if (page >= 1 && page <= totalPages) {
+            setCurrentPage(page);
+        }
+    };
+
+    const handleItemsPerPageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const value = parseInt(e.target.value);
+        setItemsPerPage(value);
+        setCurrentPage(1);
+    };
 
     const clearFilters = () => {
         setSearchTerm('');
@@ -274,11 +313,9 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
             combustivel: '',
             transmissao: ''
         });
-    };
-
-    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    }; const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.checked) {
-            const allIds = filteredVehicles.map(v => v.id).filter(Boolean) as string[];
+            const allIds = paginatedVehicles.map(v => v.id).filter(Boolean) as string[];
             setSelectedIds(allIds);
         } else {
             setSelectedIds([]);
@@ -412,29 +449,11 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                         <div className={styles.filterGrid}>
                             <div className={styles.filterItem}>
                                 <AutocompleteInput
-                                    label="Marca"
-                                    value={filters.marca}
-                                    onChange={(value) => setFilters({ ...filters, marca: value })}
-                                    getSuggestions={getMarcaSuggestions}
-                                    placeholder="Filtrar por marca"
-                                />
-                            </div>
-                            <div className={styles.filterItem}>
-                                <AutocompleteInput
                                     label="Modelo"
                                     value={filters.modelo}
                                     onChange={(value) => setFilters({ ...filters, modelo: value })}
                                     getSuggestions={getModeloSuggestions}
                                     placeholder="Filtrar por modelo"
-                                />
-                            </div>
-                            <div className={styles.filterItem}>
-                                <AutocompleteInput
-                                    label="Categoria"
-                                    value={filters.categoria}
-                                    onChange={(value) => setFilters({ ...filters, categoria: value })}
-                                    getSuggestions={getCategoriaSuggestions}
-                                    placeholder="Filtrar por categoria"
                                 />
                             </div>
                             <div className={styles.filterItem}>
@@ -509,7 +528,7 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
             </div>
 
             <div className={styles.resultsSection}>
-                <h3>Resultados ({filteredVehicles.length})</h3>
+                <h3>Resultados ({sortedVehicles.length})</h3>
 
                 {viewMode === 'table' ? (
                     <div className={styles.tableContainer}>
@@ -520,34 +539,62 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                                         <input
                                             type="checkbox"
                                             onChange={handleSelectAll}
-                                            checked={filteredVehicles.length > 0 && selectedIds.length === filteredVehicles.length}
+                                            checked={paginatedVehicles.length > 0 && selectedIds.length === paginatedVehicles.length}
                                         />
                                     </th>
-                                    <th className={styles.tableHeader}>MARCA</th>
-                                    <th className={styles.tableHeader}>MODELO</th>
-                                    <th className={styles.tableHeader}>VERSÃO</th>
-                                    <th className={styles.tableHeader}>OPCIONAIS</th>
-                                    <th className={styles.tableHeader}>COR</th>
-                                    <th className={styles.tableHeader}>CONCESSIONÁRIA</th>
-                                    <th className={styles.tableHeader}>PREÇO (R$)</th>
-                                    <th className={styles.tableHeader}>ANO</th>
-                                    <th className={styles.tableHeader}>ANO MODELO</th>
-                                    <th className={styles.tableHeader}>STATUS</th>
-                                    <th className={styles.tableHeader}>CIDADE</th>
-                                    <th className={styles.tableHeader}>ESTADO</th>
-                                    <th className={styles.tableHeader}>CHASSI</th>
-                                    <th className={styles.tableHeader}>MOTOR</th>
-                                    <th className={styles.tableHeader}>COMBUSTÍVEL</th>
-                                    <th className={styles.tableHeader}>TRANSMISSÃO</th>
-                                    <th className={styles.tableHeader}>OBSERVAÇÕES</th>
-                                    <th className={styles.tableHeader}>DATA ENTRADA</th>
-                                    <th className={styles.tableHeader}>VENDEDOR</th>
-                                    <th className={styles.tableHeader}>TELEFONE</th>
+                                    <th className={styles.tableHeader} onClick={() => handleSort('dataEntrada')} style={{ cursor: 'pointer' }}>
+                                        DATA ENTRADA {sortConfig.key === 'dataEntrada' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                    </th>
+                                    <th className={styles.tableHeader} onClick={() => handleSort('modelo')} style={{ cursor: 'pointer' }}>
+                                        MODELO {sortConfig.key === 'modelo' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                    </th>
+                                    <th className={styles.tableHeader} onClick={() => handleSort('transmissao')} style={{ cursor: 'pointer' }}>
+                                        TRANSMISSÃO {sortConfig.key === 'transmissao' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                    </th>
+                                    <th className={styles.tableHeader} onClick={() => handleSort('combustivel')} style={{ cursor: 'pointer' }}>
+                                        COMBUSTÍVEL {sortConfig.key === 'combustivel' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                    </th>
+                                    <th className={styles.tableHeader} onClick={() => handleSort('cor')} style={{ cursor: 'pointer' }}>
+                                        COR {sortConfig.key === 'cor' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                    </th>
+                                    <th className={styles.tableHeader} onClick={() => handleSort('ano')} style={{ cursor: 'pointer' }}>
+                                        ANO {sortConfig.key === 'ano' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                    </th>
+                                    <th className={styles.tableHeader} onClick={() => handleSort('opcionais')} style={{ cursor: 'pointer' }}>
+                                        OPCIONAIS {sortConfig.key === 'opcionais' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                    </th>
+                                    <th className={styles.tableHeader} onClick={() => handleSort('preco')} style={{ cursor: 'pointer' }}>
+                                        VALOR (R$) {sortConfig.key === 'preco' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                    </th>
+                                    <th className={styles.tableHeader} onClick={() => handleSort('status')} style={{ cursor: 'pointer' }}>
+                                        STATUS {sortConfig.key === 'status' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                    </th>
+                                    <th className={styles.tableHeader} onClick={() => handleSort('observacoes')} style={{ cursor: 'pointer' }}>
+                                        OBSERVAÇÕES {sortConfig.key === 'observacoes' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                    </th>
+                                    <th className={styles.tableHeader} onClick={() => handleSort('cidade')} style={{ cursor: 'pointer' }}>
+                                        CIDADE {sortConfig.key === 'cidade' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                    </th>
+                                    <th className={styles.tableHeader} onClick={() => handleSort('estado')} style={{ cursor: 'pointer' }}>
+                                        ESTADO {sortConfig.key === 'estado' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                    </th>
+                                    <th className={styles.tableHeader} onClick={() => handleSort('concessionaria')} style={{ cursor: 'pointer' }}>
+                                        CONCESSIONÁRIA {sortConfig.key === 'concessionaria' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                    </th>
+                                    <th className={styles.tableHeader} onClick={() => handleSort('telefone')} style={{ cursor: 'pointer' }}>
+                                        TELEFONE {sortConfig.key === 'telefone' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                    </th>
+                                    <th className={styles.tableHeader} onClick={() => handleSort('nomeContato')} style={{ cursor: 'pointer' }}>
+                                        NOME DO CONTATO {sortConfig.key === 'nomeContato' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                    </th>
+                                    <th className={styles.tableHeader} onClick={() => handleSort('operador')} style={{ cursor: 'pointer' }}>
+                                        OPERADOR {sortConfig.key === 'operador' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                    </th>
                                     <th className={styles.tableHeader}>AÇÕES</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredVehicles.map((vehicle) => (
+                                {paginatedVehicles.map((vehicle) => (
                                     <tr key={vehicle.id} className={styles.tableRow}>
                                         <td className={styles.tableCell}>
                                             <input
@@ -556,32 +603,28 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                                                 onChange={() => handleSelectOne(vehicle.id || '')}
                                             />
                                         </td>
-                                        <td className={styles.tableCell}>{vehicle.marca}</td>
+                                        <td className={styles.tableCell}>{vehicle.dataEntrada}</td>
                                         <td className={styles.tableCell}>{vehicle.modelo}</td>
-                                        <td className={styles.tableCell}>{vehicle.versao}</td>
-                                        <td className={styles.tableCell}>{vehicle.opcionais}</td>
+                                        <td className={styles.tableCell}>{vehicle.transmissao}</td>
+                                        <td className={styles.tableCell}>{vehicle.combustivel}</td>
                                         <td className={styles.tableCell}>{vehicle.cor}</td>
-                                        <td className={styles.tableCell}>{vehicle.concessionaria}</td>
+                                        <td className={styles.tableCell}>{vehicle.ano}</td>
+                                        <td className={styles.tableCell}>{vehicle.opcionais}</td>
                                         <td className={styles.tableCell}>
                                             R$ {calculatePriceWithMargin(vehicle.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                         </td>
-                                        <td className={styles.tableCell}>{vehicle.ano}</td>
-                                        <td className={styles.tableCell}>{vehicle.anoModelo}</td>
                                         <td className={styles.tableCell}>
                                             <span className={`${styles.statusBadge} ${getStatusColor(vehicle.status)}`}>
                                                 {vehicle.status}
                                             </span>
                                         </td>
+                                        <td className={styles.tableCell}>{vehicle.observacoes}</td>
                                         <td className={styles.tableCell}>{vehicle.cidade}</td>
                                         <td className={styles.tableCell}>{vehicle.estado}</td>
-                                        <td className={styles.tableCell}>{vehicle.chassi}</td>
-                                        <td className={styles.tableCell}>{vehicle.motor}</td>
-                                        <td className={styles.tableCell}>{vehicle.combustivel}</td>
-                                        <td className={styles.tableCell}>{vehicle.transmissao}</td>
-                                        <td className={styles.tableCell}>{vehicle.observacoes}</td>
-                                        <td className={styles.tableCell}>{vehicle.dataEntrada}</td>
-                                        <td className={styles.tableCell}>{vehicle.vendedor}</td>
+                                        <td className={styles.tableCell}>{vehicle.concessionaria}</td>
                                         <td className={styles.tableCell}>{vehicle.telefone}</td>
+                                        <td className={styles.tableCell}>{vehicle.nomeContato}</td>
+                                        <td className={styles.tableCell}>{vehicle.operador}</td>
                                         <td className={styles.tableCell}>
                                             <div className={styles.actionButtons}>
                                                 <button className={styles.proposalButton} title="Criar Proposta">
@@ -613,7 +656,7 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                     </div>
                 ) : (
                     <div className={styles.gridContainer}>
-                        {filteredVehicles.map((vehicle) => (
+                        {paginatedVehicles.map((vehicle) => (
                             <VehicleCard
                                 key={vehicle.id}
                                 vehicle={vehicle}
@@ -624,6 +667,58 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                         ))}
                     </div>
                 )}
+
+                <div className={styles.paginationContainer} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', padding: '10px', borderTop: '1px solid #eee' }}>
+                    <div className={styles.itemsPerPage}>
+                        <label htmlFor="itemsPerPage">Itens por página: </label>
+                        <select
+                            id="itemsPerPage"
+                            value={itemsPerPage}
+                            onChange={handleItemsPerPageChange}
+                            style={{ marginLeft: '10px', padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
+                        >
+                            <option value={25}>25</option>
+                            <option value={50}>50</option>
+                            <option value={75}>75</option>
+                            <option value={100}>100</option>
+                            <option value={-1}>Todos</option>
+                        </select>
+                    </div>
+
+                    <div className={styles.paginationControls} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        <button
+                            onClick={() => handlePageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
+                            style={{
+                                padding: '5px 10px',
+                                cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                                opacity: currentPage === 1 ? 0.5 : 1,
+                                border: '1px solid #ccc',
+                                borderRadius: '4px',
+                                background: '#fff'
+                            }}
+                        >
+                            Anterior
+                        </button>
+                        <span>
+                            Página {currentPage} de {totalPages}
+                        </span>
+                        <button
+                            onClick={() => handlePageChange(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                            style={{
+                                padding: '5px 10px',
+                                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                                opacity: currentPage === totalPages ? 0.5 : 1,
+                                border: '1px solid #ccc',
+                                borderRadius: '4px',
+                                background: '#fff'
+                            }}
+                        >
+                            Próxima
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {/* Modal de Importação CSV */}
@@ -637,20 +732,19 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
 
                         <div className={modalStyles.form}>
                             <div className={modalStyles.importInstructions}>
-                                <h4>📋 Formato do arquivo CSV (20 colunas):</h4>
+                                <h4>📋 Formato do arquivo CSV (16 colunas):</h4>
                                 <ul>
-                                    <li>Primeira linha deve conter os cabeçalhos: <strong>marca,modelo,versao,opcionais,cor,concessionaria,preco,ano,anoModelo,status,cidade,estado,chassi,motor,combustivel,transmissao,observacoes,dataEntrada,vendedor,telefone</strong></li>
+                                    <li>Primeira linha deve conter os cabeçalhos: <strong>dataEntrada,modelo,transmissao,combustivel,cor,ano,opcionais,preco,status,observacoes,cidade,estado,concessionaria,telefone,nomeContato,operador</strong></li>
                                     <li>As linhas seguintes devem conter os dados separados por vírgula</li>
-                                    <li><strong>Campos obrigatórios:</strong> marca, modelo, concessionaria, cidade, estado, vendedor, telefone</li>
-                                    <li><strong>Campos opcionais:</strong> versao, opcionais, cor, preco, ano, anoModelo, status, chassi, motor, combustivel, transmissao, observacoes, dataEntrada</li>
-                                    <li><strong>Status válidos:</strong> Disponível, Vendido, Reservado, Manutenção</li>
+                                    <li><strong>Campos obrigatórios:</strong> modelo, transmissao, combustivel, ano, preco, status, cidade, estado, concessionaria, telefone, nomeContato</li>
+                                    <li><strong>Campos opcionais:</strong> dataEntrada, cor, opcionais, observacoes, operador</li>
+                                    <li><strong>Status válidos:</strong> A faturar, Refaturamento, Licenciado</li>
                                     <li><strong>Combustível válido:</strong> Flex, Gasolina, Etanol, Diesel, Elétrico, Híbrido</li>
                                     <li><strong>Transmissão válida:</strong> Manual, Automática, CVT</li>
-                                    <li><strong>Validação:</strong> Marca deve existir e Modelo deve estar cadastrado para a mesma Marca</li>
                                     <li>Exemplo (role horizontalmente):</li>
                                 </ul>
                                 <pre className={modalStyles.csvExample} style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}>
-                                    marca,modelo,versao,opcionais,cor,concessionaria,preco,ano,anoModelo,status,cidade,estado,chassi,motor,combustivel,transmissao,observacoes,dataEntrada,vendedor,telefone{"\n"}TOYOTA,COROLLA,XEI 2.0,Ar Cond + Dir Hidráulica,Prata,Concessionária Toyota SP,95000,2023,2024,Disponível,São Paulo,SP,9BR1234567890,2.0 16V,Flex,Automática,Veículo em ótimo estado,19/11/2025,João Silva,(11) 98765-4321
+                                    dataEntrada,modelo,transmissao,combustivel,cor,ano,opcionais,preco,status,observacoes,cidade,estado,concessionaria,telefone,nomeContato,operador{"\n"}20/11/2025,COROLLA ALTIS 2.0,Automática,Flex,BRANCO POLAR,2024,AR CONDICIONADO,154920,Disponível,Veículo novo,São Paulo,SP,Toyota Prime,11999991001,CARLOS SILVA,JOÃO
                                 </pre>
                             </div>
 
@@ -760,12 +854,12 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
 }// Função para determinar cor do status
 function getStatusColor(status: string) {
     switch (status?.toLowerCase()) {
-        case 'disponível':
-            return styles.statusAvailable;
-        case 'reservado':
-            return styles.statusReserved;
-        case 'vendido':
-            return styles.statusSold;
+        case 'a faturar':
+            return styles.statusAvailable; // Verde (reutilizando classe existente por enquanto)
+        case 'refaturamento':
+            return styles.statusReserved; // Amarelo
+        case 'licenciado':
+            return styles.statusSold; // Vermelho/Outra cor
         default:
             return styles.statusDefault;
     }
@@ -795,20 +889,12 @@ function VehicleCard({ vehicle, margem, onEdit, onDelete }: VehicleCardProps) {
 
             <div className={styles.cardBody}>
                 <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>Marca:</span>
-                    <span className={styles.cardValue}>{vehicle.marca}</span>
-                </div>
-                <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>Versão:</span>
-                    <span className={styles.cardValue}>{vehicle.versao}</span>
+                    <span className={styles.cardLabel}>Data Entrada:</span>
+                    <span className={styles.cardValue}>{vehicle.dataEntrada}</span>
                 </div>
                 <div className={styles.cardRow}>
                     <span className={styles.cardLabel}>Ano:</span>
                     <span className={styles.cardValue}>{vehicle.ano}</span>
-                </div>
-                <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>Ano Modelo:</span>
-                    <span className={styles.cardValue}>{vehicle.anoModelo}</span>
                 </div>
                 <div className={styles.cardRow}>
                     <span className={styles.cardLabel}>Cor:</span>
@@ -831,13 +917,19 @@ function VehicleCard({ vehicle, margem, onEdit, onDelete }: VehicleCardProps) {
                     <span className={styles.cardValue}>{vehicle.transmissao}</span>
                 </div>
                 <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>Motor:</span>
-                    <span className={styles.cardValue}>{vehicle.motor}</span>
+                    <span className={styles.cardLabel}>Contato:</span>
+                    <span className={styles.cardValue}>{vehicle.nomeContato}</span>
                 </div>
                 <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>Vendedor:</span>
-                    <span className={styles.cardValue}>{vehicle.vendedor}</span>
+                    <span className={styles.cardLabel}>Telefone:</span>
+                    <span className={styles.cardValue}>{vehicle.telefone}</span>
                 </div>
+                {vehicle.operador && (
+                    <div className={styles.cardRow}>
+                        <span className={styles.cardLabel}>Operador:</span>
+                        <span className={styles.cardValue}>{vehicle.operador}</span>
+                    </div>
+                )}
                 {vehicle.observacoes && (
                     <div className={styles.cardRow}>
                         <span className={styles.cardLabel}>Observações:</span>

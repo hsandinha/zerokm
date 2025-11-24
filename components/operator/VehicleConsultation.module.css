@@ -790,6 +790,28 @@
     border-color: #64748b;
 }
 
+.itemsPerPage {
+    color: #000000;
+    display: flex;
+    align-items: center;
+}
+
+.itemsPerPage label {
+    color: #000000;
+    margin-right: 0.5rem;
+}
+
+.itemsPerPage select {
+    color: #000000;
+}
+
+.paginationControls {
+    color: #000000;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
 @media (max-width: 768px) {
     .filterGrid {
         grid-template-columns: 1fr;

@@ -34,104 +34,81 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
     const [loadingCores, setLoadingCores] = useState(false);
     const [loadingConcessionarias, setLoadingConcessionarias] = useState(false);
     const [formData, setFormData] = useState<Omit<Vehicle, 'id'>>({
-        marca: '',
+        dataEntrada: new Date().toLocaleDateString('pt-BR'),
         modelo: '',
-        versao: '',
-        opcionais: '',
+        transmissao: 'Manual',
+        combustivel: 'Flex',
         cor: '',
-        concessionaria: '',
-        preco: 0,
         ano: '',
-        anoModelo: '',
-        status: 'Disponível',
+        opcionais: '',
+        preco: 0,
+        status: 'A faturar',
+        observacoes: '',
         cidade: '',
         estado: '',
-        chassi: '',
-        motor: '',
-        combustivel: 'Flex',
-        transmissao: 'Manual',
-        observacoes: '',
-        dataEntrada: new Date().toLocaleDateString('pt-BR'),
-        vendedor: '',
-        telefone: ''
+        concessionaria: '',
+        telefone: '',
+        nomeContato: '',
+        operador: ''
     });
 
     // Preencher dados quando estiver editando
     useEffect(() => {
         if (isEditing && editingVehicle && isOpen) {
             setFormData({
-                marca: editingVehicle.marca || '',
+                dataEntrada: editingVehicle.dataEntrada || new Date().toLocaleDateString('pt-BR'),
                 modelo: editingVehicle.modelo || '',
-                versao: editingVehicle.versao || '',
-                opcionais: editingVehicle.opcionais || '',
+                transmissao: editingVehicle.transmissao || 'Manual',
+                combustivel: editingVehicle.combustivel || 'Flex',
                 cor: editingVehicle.cor || '',
-                concessionaria: editingVehicle.concessionaria || '',
-                preco: editingVehicle.preco || 0,
                 ano: editingVehicle.ano || '',
-                anoModelo: editingVehicle.anoModelo || '',
-                status: editingVehicle.status || 'Disponível',
+                opcionais: editingVehicle.opcionais || '',
+                preco: editingVehicle.preco || 0,
+                status: editingVehicle.status || 'A faturar',
+                observacoes: editingVehicle.observacoes || '',
                 cidade: editingVehicle.cidade || '',
                 estado: editingVehicle.estado || '',
-                chassi: editingVehicle.chassi || '',
-                motor: editingVehicle.motor || '',
-                combustivel: editingVehicle.combustivel || 'Flex',
-                transmissao: editingVehicle.transmissao || 'Manual',
-                observacoes: editingVehicle.observacoes || '',
-                dataEntrada: editingVehicle.dataEntrada || new Date().toLocaleDateString('pt-BR'),
-                vendedor: editingVehicle.vendedor || '',
-                telefone: editingVehicle.telefone || ''
+                concessionaria: editingVehicle.concessionaria || '',
+                telefone: editingVehicle.telefone || '',
+                nomeContato: editingVehicle.nomeContato || editingVehicle.vendedor || '',
+                operador: editingVehicle.operador || ''
             });
         } else if (!isEditing && isOpen) {
             // Reset form when not editing
             setFormData({
-                marca: '',
+                dataEntrada: new Date().toLocaleDateString('pt-BR'),
                 modelo: '',
-                versao: '',
-                opcionais: '',
+                transmissao: 'Manual',
+                combustivel: 'Flex',
                 cor: '',
-                concessionaria: '',
-                preco: 0,
                 ano: '',
-                anoModelo: '',
-                status: 'Disponível',
+                opcionais: '',
+                preco: 0,
+                status: 'A faturar',
+                observacoes: '',
                 cidade: '',
                 estado: '',
-                chassi: '',
-                motor: '',
-                combustivel: 'Flex',
-                transmissao: 'Manual',
-                observacoes: '',
-                dataEntrada: new Date().toLocaleDateString('pt-BR'),
-                vendedor: '',
-                telefone: ''
+                concessionaria: '',
+                telefone: '',
+                nomeContato: '',
+                operador: ''
             });
         }
     }, [isEditing, editingVehicle, isOpen]);
 
-    // Função para carregar marcas
-    const loadMarcas = async () => {
-        if (marcas.length > 0) return; // Já carregadas
-
-        setLoadingMarcas(true);
-        try {
-            const marcasData = await tablesService.getAllMarcas();
-            setMarcas(marcasData.map(marca => marca.nome));
-        } catch (error) {
-            console.error('Erro ao carregar marcas:', error);
-        } finally {
-            setLoadingMarcas(false);
-        }
-    };
-
-    // Função para carregar modelos filtrados por marca
-    const loadModelos = async (marcaSelecionada: string) => {
+    // Função para carregar modelos (agora carrega todos, pois não há filtro de marca)
+    const loadModelos = async () => {
+        if (modelos.length > 0) return;
         setLoadingModelos(true);
         try {
             const modelosData = await tablesService.getAllModelos();
-            const modelosFiltrados = modelosData
-                .filter(modelo => modelo.marca.toLowerCase() === marcaSelecionada.toLowerCase())
-                .map(modelo => modelo.nome);
-            setModelos(modelosFiltrados);
+            // Como não temos marca, mostramos todos os modelos. 
+            // Idealmente, o backend filtraria ou paginaria, mas aqui carregamos tudo.
+            // Podemos concatenar Marca + Modelo para ficar mais claro na lista se desejado,
+            // mas o requisito pediu para remover Marca. Vamos listar apenas os nomes dos modelos.
+            const modelosNomes = modelosData.map(modelo => modelo.nome);
+            // Remover duplicatas se houver
+            setModelos([...new Set(modelosNomes)]);
         } catch (error) {
             console.error('Erro ao carregar modelos:', error);
         } finally {
@@ -171,14 +148,6 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
             setLoadingConcessionarias(false);
         }
     };    // Handlers para os campos de autocomplete
-    const handleMarcaChange = (value: string) => {
-        setFormData(prev => ({ ...prev, marca: value, modelo: '' })); // Limpar modelo ao mudar marca
-        setModelos([]); // Limpar lista de modelos
-        if (value.length > 0) {
-            loadModelos(value);
-        }
-    };
-
     const handleModeloChange = (value: string) => {
         setFormData(prev => ({ ...prev, modelo: value }));
     };
@@ -235,12 +204,11 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
 
             // Validar campos obrigatórios
             const camposObrigatorios = {
-                marca: formData.marca,
                 modelo: formData.modelo,
                 concessionaria: formData.concessionaria,
                 cidade: formData.cidade,
                 estado: formData.estado,
-                vendedor: formData.vendedor,
+                nomeContato: formData.nomeContato,
                 telefone: formData.telefone
             };
 
@@ -304,16 +272,14 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
             <form onSubmit={handleSubmit} className={styles.form}>
                 <div className={styles.formGrid}>
                     <div className={styles.formGroup}>
-                        <AutocompleteInput
-                            name="marca"
-                            label="Marca"
-                            value={formData.marca}
-                            onChange={handleMarcaChange}
-                            options={marcas}
-                            placeholder="Ex: TOYOTA"
-                            required
-                            onFocus={loadMarcas}
-                            loading={loadingMarcas}
+                        <label htmlFor="dataEntrada">Data de Entrada</label>
+                        <input
+                            type="text"
+                            id="dataEntrada"
+                            name="dataEntrada"
+                            value={formData.dataEntrada}
+                            onChange={handleInputChange}
+                            placeholder="Ex: 20/11/2025"
                         />
                     </div>
 
@@ -324,92 +290,25 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                             value={formData.modelo}
                             onChange={handleModeloChange}
                             options={modelos}
-                            placeholder={formData.marca ? "Ex: COROLLA ALTIS 2.0" : "Selecione uma marca primeiro"}
+                            placeholder="Ex: COROLLA ALTIS 2.0"
                             required
+                            onFocus={loadModelos}
                             loading={loadingModelos}
-                            disabled={!formData.marca}
                         />
                     </div>
 
                     <div className={styles.formGroup}>
-                        <label htmlFor="versao">Versão</label>
-                        <input
-                            type="text"
-                            id="versao"
-                            name="versao"
-                            value={formData.versao}
-                            onChange={handleInputChange}
-                            placeholder="Ex: ALTIS PREMIUM"
-                        />
-                    </div>
-
-                    <div className={styles.formGroupDual}>
-                        <div className={styles.dualInputContainer}>
-                            <div className={styles.dualInput}>
-                                <label htmlFor="ano">Ano*</label>
-                                <input
-                                    type="text"
-                                    id="ano"
-                                    name="ano"
-                                    value={formData.ano}
-                                    onChange={handleInputChange}
-                                    required
-                                    placeholder="Ex: 2024"
-                                />
-                            </div>
-                            <div className={styles.dualInput}>
-                                <label htmlFor="anoModelo">Ano Modelo*</label>
-                                <input
-                                    type="text"
-                                    id="anoModelo"
-                                    name="anoModelo"
-                                    value={formData.anoModelo}
-                                    onChange={handleInputChange}
-                                    required
-                                    placeholder="Ex: 2024"
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className={styles.formGroup}>
-                        <AutocompleteInput
-                            name="cor"
-                            label="Cor"
-                            value={formData.cor}
-                            onChange={handleCorChange}
-                            options={cores}
-                            placeholder="Ex: BRANCO POLAR"
-                            required
-                            onFocus={loadCores}
-                            loading={loadingCores}
-                        />
-                    </div>
-
-                    <div className={styles.formGroup}>
-                        <CurrencyInput
-                            name="preco"
-                            label="Preço"
-                            value={formData.preco}
-                            onValueChange={handlePrecoChange}
-                            placeholder="R$ 154.920,00"
-                            required
-                        />
-                    </div>
-
-                    <div className={styles.formGroup}>
-                        <label htmlFor="status">Status*</label>
+                        <label htmlFor="transmissao">Transmissão*</label>
                         <select
-                            id="status"
-                            name="status"
-                            value={formData.status}
+                            id="transmissao"
+                            name="transmissao"
+                            value={formData.transmissao}
                             onChange={handleInputChange}
                             required
                         >
-                            <option value="Disponível">Disponível</option>
-                            <option value="Vendido">Vendido</option>
-                            <option value="Reservado">Reservado</option>
-                            <option value="Manutenção">Manutenção</option>
+                            <option value="Manual">Manual</option>
+                            <option value="Automática">Automática</option>
+                            <option value="CVT">CVT</option>
                         </select>
                     </div>
 
@@ -432,56 +331,56 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                     </div>
 
                     <div className={styles.formGroup}>
-                        <label htmlFor="transmissao">Transmissão*</label>
+                        <AutocompleteInput
+                            name="cor"
+                            label="Cor"
+                            value={formData.cor}
+                            onChange={handleCorChange}
+                            options={cores}
+                            placeholder="Ex: BRANCO POLAR"
+                            required
+                            onFocus={loadCores}
+                            loading={loadingCores}
+                        />
+                    </div>
+
+                    <div className={styles.formGroup}>
+                        <label htmlFor="ano">Ano*</label>
+                        <input
+                            type="text"
+                            id="ano"
+                            name="ano"
+                            value={formData.ano}
+                            onChange={handleInputChange}
+                            required
+                            placeholder="Ex: 2024"
+                        />
+                    </div>
+
+                    <div className={styles.formGroup}>
+                        <CurrencyInput
+                            name="preco"
+                            label="Valor"
+                            value={formData.preco}
+                            onValueChange={handlePrecoChange}
+                            placeholder="R$ 154.920,00"
+                            required
+                        />
+                    </div>
+
+                    <div className={styles.formGroup}>
+                        <label htmlFor="status">Status*</label>
                         <select
-                            id="transmissao"
-                            name="transmissao"
-                            value={formData.transmissao}
+                            id="status"
+                            name="status"
+                            value={formData.status}
                             onChange={handleInputChange}
                             required
                         >
-                            <option value="Manual">Manual</option>
-                            <option value="Automática">Automática</option>
-                            <option value="CVT">CVT</option>
+                            <option value="A faturar">A faturar</option>
+                            <option value="Refaturamento">Refaturamento</option>
+                            <option value="Licenciado">Licenciado</option>
                         </select>
-                    </div>
-
-                    <div className={styles.formGroup}>
-                        <label htmlFor="motor">Motor</label>
-                        <input
-                            type="text"
-                            id="motor"
-                            name="motor"
-                            value={formData.motor}
-                            onChange={handleInputChange}
-                            placeholder="Ex: 2.0 16V FLEX"
-                        />
-                    </div>
-
-                    <div className={styles.formGroup}>
-                        <label htmlFor="chassi">Chassi</label>
-                        <input
-                            type="text"
-                            id="chassi"
-                            name="chassi"
-                            value={formData.chassi}
-                            onChange={handleInputChange}
-                            placeholder="Ex: 9BR53ZEC*P*020190"
-                        />
-                    </div>
-
-                    <div className={styles.formGroup}>
-                        <AutocompleteInput
-                            name="concessionaria"
-                            label="Concessionária"
-                            value={formData.concessionaria}
-                            onChange={handleConcessionariaChange}
-                            options={concessionarias}
-                            placeholder="Ex: Toyota Prime São Paulo"
-                            required
-                            onFocus={loadConcessionarias}
-                            loading={loadingConcessionarias}
-                        />
                     </div>
 
                     <div className={styles.formGroup}>
@@ -509,18 +408,17 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                         />
                     </div>
 
-
-
                     <div className={styles.formGroup}>
-                        <label htmlFor="vendedor">Vendedor*</label>
-                        <input
-                            type="text"
-                            id="vendedor"
-                            name="vendedor"
-                            value={formData.vendedor}
-                            onChange={handleInputChange}
+                        <AutocompleteInput
+                            name="concessionaria"
+                            label="Concessionária"
+                            value={formData.concessionaria}
+                            onChange={handleConcessionariaChange}
+                            options={concessionarias}
+                            placeholder="Ex: Toyota Prime São Paulo"
                             required
-                            placeholder="Ex: CARLOS SILVA"
+                            onFocus={loadConcessionarias}
+                            loading={loadingConcessionarias}
                         />
                     </div>
 
@@ -534,6 +432,31 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                             placeholder="(11)99999-1001"
                             required
                             maxLength={15}
+                        />
+                    </div>
+
+                    <div className={styles.formGroup}>
+                        <label htmlFor="nomeContato">Nome do Contato*</label>
+                        <input
+                            type="text"
+                            id="nomeContato"
+                            name="nomeContato"
+                            value={formData.nomeContato}
+                            onChange={handleInputChange}
+                            required
+                            placeholder="Ex: CARLOS SILVA"
+                        />
+                    </div>
+
+                    <div className={styles.formGroup}>
+                        <label htmlFor="operador">Operador</label>
+                        <input
+                            type="text"
+                            id="operador"
+                            name="operador"
+                            value={formData.operador}
+                            onChange={handleInputChange}
+                            placeholder="Ex: JOÃO"
                         />
                     </div>
                 </div>
