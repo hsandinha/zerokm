@@ -198,6 +198,7 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                 vehicle.anoModelo,
                 vehicle.vendedor,
                 vehicle.observacoes,
+                vehicle.opcionais,
                 vehicle.preco?.toString()
             ];
 

@@ -8,26 +8,22 @@ export default function TestPage() {
             console.log('Testando cadastro direto no Firebase...');
 
             const testVehicle = {
-                marca: 'Toyota',
-                modelo: 'Corolla',
-                versao: 'XEi',
+                modelo: 'Corolla XEi',
                 opcionais: 'Ar condicionado, Direção hidráulica',
                 cor: 'Prata',
                 concessionaria: 'Toyota Center',
                 preco: 85000,
                 ano: '2024',
-                anoModelo: '2024',
-                status: 'Disponível' as const,
+                status: 'A faturar' as const,
                 cidade: 'São Paulo',
                 estado: 'SP',
-                chassi: 'ABC123456789',
-                motor: '2.0',
                 combustivel: 'Flex' as const,
                 transmissao: 'Automática' as const,
                 observacoes: 'Teste direto via VehicleService',
                 dataEntrada: new Date().toLocaleDateString('pt-BR'),
-                vendedor: 'João Silva',
-                telefone: '11987654321'
+                nomeContato: 'João Silva',
+                telefone: '11987654321',
+                operador: 'Sistema'
             };
 
             const vehicleId = await VehicleService.addVehicle(testVehicle);
