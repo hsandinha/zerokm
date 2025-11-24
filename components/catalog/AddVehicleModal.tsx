@@ -34,7 +34,7 @@ const emptyDraft: Omit<VehicleDraft, "sitePrice" | "salePrice"> & {
   version: "",
   color: "",
   modelYear: "",
-  status: "A FATURAR",
+  status: "A faturar",
   optional: "",
   supplierCode: "",
   logistics: "",
@@ -177,9 +177,9 @@ export function AddVehicleModal({
                   handleChange("status", event.target.value as VehicleStatus)
                 }
               >
-                <option value="A FATURAR">A FATURAR</option>
-                <option value="PRONTA ENTREGA">PRONTA ENTREGA</option>
-                <option value="EM TRÂNSITO">EM TRÂNSITO</option>
+                <option value="A faturar">A faturar</option>
+                <option value="Refaturamento">Refaturamento</option>
+                <option value="Licenciado">Licenciado</option>
               </select>
             </div>
             <div className={styles.field}>

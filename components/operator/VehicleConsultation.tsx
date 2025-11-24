@@ -744,7 +744,7 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                                     <li>Exemplo (role horizontalmente):</li>
                                 </ul>
                                 <pre className={modalStyles.csvExample} style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}>
-                                    dataEntrada,modelo,transmissao,combustivel,cor,ano,opcionais,preco,status,observacoes,cidade,estado,concessionaria,telefone,nomeContato,operador{"\n"}20/11/2025,COROLLA ALTIS 2.0,Automática,Flex,BRANCO POLAR,2024,AR CONDICIONADO,154920,Disponível,Veículo novo,São Paulo,SP,Toyota Prime,11999991001,CARLOS SILVA,JOÃO
+                                    dataEntrada,modelo,transmissao,combustivel,cor,ano,opcionais,preco,status,observacoes,cidade,estado,concessionaria,telefone,nomeContato,operador{"\n"}20/11/2025,COROLLA ALTIS 2.0,Automática,Flex,BRANCO POLAR,2024,AR CONDICIONADO,154920,A faturar,Veículo novo,São Paulo,SP,Toyota Prime,11999991001,CARLOS SILVA,JOÃO
                                 </pre>
                             </div>
 

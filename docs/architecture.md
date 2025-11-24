@@ -32,7 +32,7 @@ type Vehicle = {
   version: string;
   color: string;
   modelYear: string;
-  status: 'A FATURAR' | 'PRONTA ENTREGA' | 'EM TRÂNSITO';
+  status: 'A faturar' | 'Refaturamento' | 'Licenciado';
   supplierCode: string;
   sitePrice: number;
   salePrice: number;

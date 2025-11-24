@@ -375,8 +375,8 @@ class TablesService {
                     const preco = precoStr ? parseFloat(precoStr.replace(/[^\d.-]/g, '')) : 0;
 
                     // Validar status
-                    const validStatus = ['Disponível', 'Vendido', 'Reservado', 'Manutenção'];
-                    const statusFinal = validStatus.includes(status) ? status : 'Disponível';
+                    const validStatus = ['A faturar', 'Refaturamento', 'Licenciado'];
+                    const statusFinal = validStatus.includes(status) ? status : 'A faturar';
 
                     // Validar combustível
                     const validCombustivel = ['Flex', 'Gasolina', 'Etanol', 'Diesel', 'Elétrico', 'Híbrido'];
@@ -396,7 +396,7 @@ class TablesService {
                         ano: ano || '',
                         opcionais: opcionais || '',
                         preco: preco,
-                        status: statusFinal as 'Disponível' | 'Vendido' | 'Reservado' | 'Manutenção',
+                        status: statusFinal as 'A faturar' | 'Refaturamento' | 'Licenciado',
                         observacoes: observacoes || `Importado via CSV em ${new Date().toLocaleDateString('pt-BR')}`,
                         cidade: cidade,
                         estado: estado,

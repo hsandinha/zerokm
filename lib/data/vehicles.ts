@@ -1,6 +1,6 @@
 import { calculateMargin } from "@/lib/utils/format";
 
-export type VehicleStatus = "A FATURAR" | "PRONTA ENTREGA" | "EM TRÂNSITO";
+export type VehicleStatus = "A faturar" | "Refaturamento" | "Licenciado";
 
 export type Vehicle = {
   id: string;
@@ -33,7 +33,7 @@ const rawVehicles: Omit<Vehicle, "flags">[] = [
     color: "CINZA SILVERSTONE",
     modelYear: "25/26",
     optional: "SÉRIE",
-    status: "A FATURAR",
+    status: "A faturar",
     supplierCode: "ATAC.",
     supplierName: "Atacadão Jeep/RAM e BYD",
     salePrice: 77900,
@@ -49,7 +49,7 @@ const rawVehicles: Omit<Vehicle, "flags">[] = [
     color: "BRANCO BANCHISA",
     modelYear: "25/26",
     optional: "ISENTO DE IPVA",
-    status: "A FATURAR",
+    status: "A faturar",
     supplierCode: "ATAC.",
     supplierName: "Atacadão Jeep/RAM e BYD",
     salePrice: 83900,
@@ -65,7 +65,7 @@ const rawVehicles: Omit<Vehicle, "flags">[] = [
     color: "CINZA SILVERSTONE",
     modelYear: "25/26",
     optional: "PACK DRIVE PLUS",
-    status: "A FATURAR",
+    status: "A faturar",
     supplierCode: "ATAC.",
     supplierName: "Atacadão Jeep/RAM e BYD",
     salePrice: 102900,
@@ -81,7 +81,7 @@ const rawVehicles: Omit<Vehicle, "flags">[] = [
     color: "PRETO VULCANO",
     modelYear: "25/26",
     optional: "TREKKING TOP",
-    status: "A FATURAR",
+    status: "A faturar",
     supplierCode: "ATAC.",
     supplierName: "Atacadão Jeep/RAM e BYD",
     salePrice: 108900,
@@ -97,7 +97,7 @@ const rawVehicles: Omit<Vehicle, "flags">[] = [
     color: "PRETO",
     modelYear: "25/26",
     optional: "S-DESIGN",
-    status: "PRONTA ENTREGA",
+    status: "Licenciado",
     supplierCode: "VENTU",
     supplierName: "Ventura Motors",
     salePrice: 112890,
@@ -113,7 +113,7 @@ const rawVehicles: Omit<Vehicle, "flags">[] = [
     color: "CINZA SILVERSTONE",
     modelYear: "25/26",
     optional: "ISENTO DE IPVA",
-    status: "EM TRÂNSITO",
+    status: "Refaturamento",
     supplierCode: "VENTU",
     supplierName: "Ventura Motors",
     salePrice: 107900,
@@ -129,7 +129,7 @@ const rawVehicles: Omit<Vehicle, "flags">[] = [
     color: "BRANCO BANCHISA",
     modelYear: "25/26",
     optional: "SÉRIE",
-    status: "A FATURAR",
+    status: "A faturar",
     supplierCode: "BEST",
     supplierName: "Best Distribuidora",
     salePrice: 109900,
@@ -145,7 +145,7 @@ const rawVehicles: Omit<Vehicle, "flags">[] = [
     color: "BRANCO BANCHISA",
     modelYear: "25/26",
     optional: "ISENTO DE IPVA",
-    status: "A FATURAR",
+    status: "A faturar",
     supplierCode: "BEST",
     supplierName: "Best Distribuidora",
     salePrice: 83500,
@@ -161,7 +161,7 @@ const rawVehicles: Omit<Vehicle, "flags">[] = [
     color: "PRETO",
     modelYear: "25/26",
     optional: "S-DESIGN",
-    status: "A FATURAR",
+    status: "A faturar",
     supplierCode: "VENTU",
     supplierName: "Ventura Motors",
     salePrice: 104900,

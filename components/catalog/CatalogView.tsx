@@ -220,9 +220,9 @@ export function CatalogView({ vehicles, suppliers }: Props) {
               }
             >
               <option value="todos">Todos</option>
-              <option value="A FATURAR">A FATURAR</option>
-              <option value="PRONTA ENTREGA">PRONTA ENTREGA</option>
-              <option value="EM TRÂNSITO">EM TRÂNSITO</option>
+              <option value="A faturar">A faturar</option>
+              <option value="Refaturamento">Refaturamento</option>
+              <option value="Licenciado">Licenciado</option>
             </select>
           </label>
           <label className={styles.fieldLabel}>
