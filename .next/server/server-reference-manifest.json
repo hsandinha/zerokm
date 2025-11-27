@@ -1,5 +1,141 @@
 {
-  "node": {},
+  "node": {
+    "40a46139c932d3959726cd93c6b71252f0ea695272": {
+      "workers": {
+        "app/page": {
+          "moduleId": 57526,
+          "async": true,
+          "exportedName": "checkUserAndLogin",
+          "filename": "app/actions.ts"
+        }
+      },
+      "layer": {
+        "app/page": "action-browser"
+      },
+      "filename": "app/actions.ts",
+      "exportedName": "checkUserAndLogin"
+    },
+    "40761261014f34b4cdd32e8b460c813fb7669e3b66": {
+      "workers": {
+        "app/page": {
+          "moduleId": 57526,
+          "async": true,
+          "exportedName": "getUserAllowedProfiles",
+          "filename": "app/actions.ts"
+        }
+      },
+      "layer": {
+        "app/page": "action-browser"
+      },
+      "filename": "app/actions.ts",
+      "exportedName": "getUserAllowedProfiles"
+    },
+    "4019c513bf989b73865f2be1672913492185df07bc": {
+      "workers": {
+        "app/page": {
+          "moduleId": 57526,
+          "async": true,
+          "exportedName": "markUserAsSetup",
+          "filename": "app/actions.ts"
+        }
+      },
+      "layer": {
+        "app/page": "action-browser"
+      },
+      "filename": "app/actions.ts",
+      "exportedName": "markUserAsSetup"
+    },
+    "007583240d0e97b03dc88c0a96ad8c330dc53ebcd2": {
+      "workers": {
+        "app/dashboard/admin/page": {
+          "moduleId": 87473,
+          "async": true,
+          "exportedName": "listAllUsers",
+          "filename": "app/dashboard/admin/users/actions.ts"
+        }
+      },
+      "layer": {
+        "app/dashboard/admin/page": "action-browser"
+      },
+      "filename": "app/dashboard/admin/users/actions.ts",
+      "exportedName": "listAllUsers"
+    },
+    "78eceff70e3987dec3d225ac5005d635afc970b7e2": {
+      "workers": {
+        "app/dashboard/admin/page": {
+          "moduleId": 87473,
+          "async": true,
+          "exportedName": "updateUserProfiles",
+          "filename": "app/dashboard/admin/users/actions.ts"
+        }
+      },
+      "layer": {
+        "app/dashboard/admin/page": "action-browser"
+      },
+      "filename": "app/dashboard/admin/users/actions.ts",
+      "exportedName": "updateUserProfiles"
+    },
+    "60442e5178fcb85b40e3781e8adbd999e31a678e49": {
+      "workers": {
+        "app/dashboard/admin/page": {
+          "moduleId": 87473,
+          "async": true,
+          "exportedName": "toggleUserStatus",
+          "filename": "app/dashboard/admin/users/actions.ts"
+        }
+      },
+      "layer": {
+        "app/dashboard/admin/page": "action-browser"
+      },
+      "filename": "app/dashboard/admin/users/actions.ts",
+      "exportedName": "toggleUserStatus"
+    },
+    "40f224643419d98481cd55cc80bec60690b6b983b9": {
+      "workers": {
+        "app/dashboard/admin/page": {
+          "moduleId": 87473,
+          "async": true,
+          "exportedName": "createUser",
+          "filename": "app/dashboard/admin/users/actions.ts"
+        }
+      },
+      "layer": {
+        "app/dashboard/admin/page": "action-browser"
+      },
+      "filename": "app/dashboard/admin/users/actions.ts",
+      "exportedName": "createUser"
+    },
+    "005599014204a95c306e2cb74e8df40ab038b40643": {
+      "workers": {
+        "app/dashboard/profile/page": {
+          "moduleId": 38458,
+          "async": true,
+          "exportedName": "getUserProfile",
+          "filename": "app/dashboard/profile/actions.ts"
+        }
+      },
+      "layer": {
+        "app/dashboard/profile/page": "action-browser"
+      },
+      "filename": "app/dashboard/profile/actions.ts",
+      "exportedName": "getUserProfile"
+    },
+    "40e3347730b5e3702adf3a33d1df726692751d1c87": {
+      "workers": {
+        "app/dashboard/profile/page": {
+          "moduleId": 38458,
+          "async": true,
+          "exportedName": "updateUserProfile",
+          "filename": "app/dashboard/profile/actions.ts"
+        }
+      },
+      "layer": {
+        "app/dashboard/profile/page": "action-browser"
+      },
+      "filename": "app/dashboard/profile/actions.ts",
+      "exportedName": "updateUserProfile"
+    }
+  },
   "edge": {},
-  "encryptionKey": "090G2yQsdnWtD+Dz4wJc13rPu3xPqkTjwKkkSbFHC1g="
+  "encryptionKey": "7QqVwKnNsTFqH7Q4YhlIuA+NOZlh1qFeYHxnlL/woAg="
 }

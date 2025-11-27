@@ -13,6 +13,7 @@ import { TransportadorasManagement } from '../../../components/operator/Transpor
 import { MaskedInput } from '../../../components/operator/MaskedInput';
 import { ConfigContext, useConfig } from '../../../lib/contexts/ConfigContext';
 import { ConcessionariaService } from '../../../lib/services/concessionariaService';
+import UserMenu from '../../../components/UserMenu';
 import styles from './operator.module.css';
 import transportStyles from '../../../components/operator/VehicleConsultation.module.css';
 
@@ -110,17 +111,11 @@ export default function OperatorDashboard() {
                         <span className={styles.subtitle}>Operador</span>
                     </div>
                     <div className={styles.headerRight}>
-                        <div className={styles.userInfo}>
-                            <span className={styles.welcome}>Bem-vindo, {userName}</span>
-                            {userEmail && <span className={styles.userEmail}>{userEmail}</span>}
-                        </div>
-                        <button
-                            className={styles.exitButton}
-                            onClick={handleLogout}
-                            title="Fazer logout"
-                        >
-                            Sair
-                        </button>
+                        <UserMenu
+                            name={userName}
+                            email={userEmail}
+                            role="Operador"
+                        />
                     </div>
                 </div>
 

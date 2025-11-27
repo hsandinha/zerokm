@@ -123,8 +123,8 @@ const buildUpdatePayload = (body: Record<string, unknown>) => {
     return updates;
 };
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
-    const { id } = params;
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
 
     if (!id) {
         return NextResponse.json({ error: 'ID da concessionária não informado' }, { status: 400 });
@@ -167,8 +167,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     }
 }
 
-export async function DELETE(_request: Request, { params }: { params: { id: string } }) {
-    const { id } = params;
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
 
     if (!id) {
         return NextResponse.json({ error: 'ID da concessionária não informado' }, { status: 400 });

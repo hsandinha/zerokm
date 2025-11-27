@@ -1,3 +1,13 @@
 {
-  "/dashboard/operator/page": "app/dashboard/operator/page.js"
+  "/_global-error/page": "app/_global-error/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/concessionarias/[id]/route": "app/api/concessionarias/[id]/route.js",
+  "/api/concessionarias/route": "app/api/concessionarias/route.js",
+  "/dashboard/admin/page": "app/dashboard/admin/page.js",
+  "/dashboard/cliente/page": "app/dashboard/cliente/page.js",
+  "/dashboard/dealership/page": "app/dashboard/dealership/page.js",
+  "/dashboard/operator/page": "app/dashboard/operator/page.js",
+  "/dashboard/profile/page": "app/dashboard/profile/page.js",
+  "/page": "app/page.js",
+  "/test/page": "app/test/page.js"
 }

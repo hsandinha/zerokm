@@ -19,6 +19,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
 const auth = getAuth(app);
+auth.languageCode = 'pt';
 const db = getFirestore(app);
 
 export { app, analytics, auth, db };

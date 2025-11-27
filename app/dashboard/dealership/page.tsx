@@ -7,6 +7,7 @@ import { Badge } from '../../../components/Badge';
 import { SummaryCard } from '../../../components/SummaryCard';
 import { VehicleConsultation } from '../../../components/operator/VehicleConsultation';
 import { ConfigContext, useConfig } from '../../../lib/contexts/ConfigContext';
+import UserMenu from '../../../components/UserMenu';
 import styles from './dealership.module.css';
 
 type TabType = 'visao-geral' | 'veiculos' | 'perfil';
@@ -66,14 +67,10 @@ export default function DealershipDashboard() {
                         <span className={styles.subtitle}>Concessionária</span>
                     </div>
                     <div className={styles.headerRight}>
-                        <span className={styles.welcome}>Bem vindo, Concessionária</span>
-                        <button
-                            className={styles.exitButton}
-                            onClick={handleLogout}
-                            title="Fazer logout"
-                        >
-                            Sair
-                        </button>
+                        <UserMenu
+                            name="Concessionária"
+                            role="Concessionária"
+                        />
                     </div>
                 </div>
 

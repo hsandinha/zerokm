@@ -1,0 +1,132 @@
+.container {
+    position: relative;
+    display: inline-block;
+}
+
+.trigger {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    transition: background-color 0.2s;
+    color: #111827;
+}
+
+.trigger:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.userInfo {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    text-align: right;
+}
+
+.userName {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #111827;
+}
+
+.userRole {
+    font-size: 0.75rem;
+    opacity: 1;
+    color: #6b7280;
+}
+
+.avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background-color: #eff6ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: #3b82f6;
+    border: 2px solid #dbeafe;
+}
+
+.dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 0.5rem;
+    background: white;
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    min-width: 200px;
+    overflow: hidden;
+    z-index: 50;
+    animation: slideDown 0.2s ease-out;
+    border: 1px solid #e5e7eb;
+}
+
+.menuItem {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    text-align: left;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #374151;
+    font-size: 0.95rem;
+    transition: background-color 0.2s;
+    text-decoration: none;
+}
+
+.menuItem:hover {
+    background-color: #f3f4f6;
+    color: #111827;
+}
+
+.menuItemIcon {
+    font-size: 1.1rem;
+    width: 1.5rem;
+    text-align: center;
+}
+
+.divider {
+    height: 1px;
+    background-color: #e5e7eb;
+    margin: 0.25rem 0;
+}
+
+.menuLabel {
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.logoutButton {
+    color: #ef4444;
+}
+
+.logoutButton:hover {
+    background-color: #fef2f2;
+    color: #dc2626;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

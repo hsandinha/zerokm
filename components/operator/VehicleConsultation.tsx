@@ -14,9 +14,10 @@ import { AutocompleteInput } from './AutocompleteInput';
 
 interface VehicleConsultationProps {
     onClose?: () => void;
+    role?: 'admin' | 'operator' | 'client' | 'dealership';
 }
 
-export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
+export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsultationProps) {
     const { margem } = useConfig();
     const [searchTerm, setSearchTerm] = useState('');
     const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
@@ -99,6 +100,21 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
         }
         setEditingVehicle(null);
         setShowVehicleForm(true);
+    };
+
+    const handleWhatsAppClick = (vehicle: Vehicle) => {
+        if (!vehicle.telefone) {
+            alert('Telefone não disponível para este veículo.');
+            return;
+        }
+
+        // Remove non-numeric characters
+        const phone = vehicle.telefone.replace(/\D/g, '');
+        const message = encodeURIComponent(
+            `Olá, tenho interesse no veículo ${vehicle.modelo} ${vehicle.cor} ${vehicle.ano} (R$ ${calculatePriceWithMargin(vehicle.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })})`
+        );
+
+        window.open(`https://wa.me/55${phone}?text=${message}`, '_blank');
     };
 
     // Função para excluir veículo
@@ -372,7 +388,7 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
             <div className={styles.header}>
                 <h2>Consulta de Veículos</h2>
                 <div className={styles.headerActions}>
-                    {selectedIds.length > 0 && (
+                    {role !== 'client' && selectedIds.length > 0 && (
                         <button
                             className={styles.deleteButton}
                             onClick={handleBulkDelete}
@@ -382,20 +398,24 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                             🗑️ Excluir ({selectedIds.length})
                         </button>
                     )}
-                    <button
-                        className={styles.importButton}
-                        onClick={() => setShowImportModal(true)}
-                        title="Importar Veículos do CSV"
-                    >
-                        📂 Importar CSV
-                    </button>
-                    <button
-                        className={styles.addButton}
-                        onClick={handleNewVehicleClick}
-                        title={showVehicleForm ? 'Fechar formulário' : 'Cadastrar Novo Veículo'}
-                    >
-                        {showVehicleForm ? 'Cancelar' : '+ Novo Veículo'}
-                    </button>
+                    {role !== 'client' && (
+                        <>
+                            <button
+                                className={styles.importButton}
+                                onClick={() => setShowImportModal(true)}
+                                title="Importar Veículos do CSV"
+                            >
+                                📂 Importar CSV
+                            </button>
+                            <button
+                                className={styles.addButton}
+                                onClick={handleNewVehicleClick}
+                                title={showVehicleForm ? 'Fechar formulário' : 'Cadastrar Novo Veículo'}
+                            >
+                                {showVehicleForm ? 'Cancelar' : '+ Novo Veículo'}
+                            </button>
+                        </>
+                    )}
                     <div className={styles.viewToggle}>
                         <button
                             className={`${styles.viewButton} ${viewMode === 'table' ? styles.active : ''}`}
@@ -588,9 +608,11 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                                     <th className={styles.tableHeader} onClick={() => handleSort('nomeContato')} style={{ cursor: 'pointer' }}>
                                         NOME DO CONTATO {sortConfig.key === 'nomeContato' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                     </th>
-                                    <th className={styles.tableHeader} onClick={() => handleSort('operador')} style={{ cursor: 'pointer' }}>
-                                        OPERADOR {sortConfig.key === 'operador' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                    </th>
+                                    {role !== 'client' && (
+                                        <th className={styles.tableHeader} onClick={() => handleSort('operador')} style={{ cursor: 'pointer' }}>
+                                            OPERADOR {sortConfig.key === 'operador' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                        </th>
+                                    )}
                                     <th className={styles.tableHeader}>AÇÕES</th>
                                 </tr>
                             </thead>
@@ -625,29 +647,44 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                                         <td className={styles.tableCell}>{vehicle.concessionaria}</td>
                                         <td className={styles.tableCell}>{vehicle.telefone}</td>
                                         <td className={styles.tableCell}>{vehicle.nomeContato}</td>
-                                        <td className={styles.tableCell}>{vehicle.operador}</td>
+                                        {role !== 'client' && (
+                                            <td className={styles.tableCell}>{vehicle.operador}</td>
+                                        )}
                                         <td className={styles.tableCell}>
                                             <div className={styles.actionButtons}>
-                                                <button className={styles.proposalButton} title="Criar Proposta">
-                                                    📋
-                                                </button>
-                                                <button className={styles.whatsappButton} title="WhatsApp">
-                                                    💬
-                                                </button>
-                                                <button
-                                                    className={styles.editButton}
-                                                    title="Editar"
-                                                    onClick={() => handleEditVehicle(vehicle)}
-                                                >
-                                                    ✏️
-                                                </button>
-                                                <button
-                                                    className={styles.deleteButton}
-                                                    title="Excluir"
-                                                    onClick={() => handleDeleteVehicle(vehicle)}
-                                                >
-                                                    🗑️
-                                                </button>
+                                                {role === 'client' ? (
+                                                    <button
+                                                        className={styles.whatsappButton}
+                                                        title="Contatar Vendedor via WhatsApp"
+                                                        onClick={() => handleWhatsAppClick(vehicle)}
+                                                        style={{ backgroundColor: '#25D366', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}
+                                                    >
+                                                        💬 WhatsApp
+                                                    </button>
+                                                ) : (
+                                                    <>
+                                                        <button className={styles.proposalButton} title="Criar Proposta">
+                                                            📋
+                                                        </button>
+                                                        <button className={styles.whatsappButton} title="WhatsApp">
+                                                            💬
+                                                        </button>
+                                                        <button
+                                                            className={styles.editButton}
+                                                            title="Editar"
+                                                            onClick={() => handleEditVehicle(vehicle)}
+                                                        >
+                                                            ✏️
+                                                        </button>
+                                                        <button
+                                                            className={styles.deleteButton}
+                                                            title="Excluir"
+                                                            onClick={() => handleDeleteVehicle(vehicle)}
+                                                        >
+                                                            🗑️
+                                                        </button>
+                                                    </>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -664,6 +701,8 @@ export function VehicleConsultation({ onClose }: VehicleConsultationProps) {
                                 margem={margem}
                                 onEdit={handleEditVehicle}
                                 onDelete={handleDeleteVehicle}
+                                onWhatsApp={handleWhatsAppClick}
+                                role={role}
                             />
                         ))}
                     </div>
@@ -871,9 +910,11 @@ interface VehicleCardProps {
     margem: number;
     onEdit: (vehicle: Vehicle) => void;
     onDelete: (vehicle: Vehicle) => void;
+    onWhatsApp: (vehicle: Vehicle) => void;
+    role?: 'admin' | 'operator' | 'client' | 'dealership';
 }
 
-function VehicleCard({ vehicle, margem, onEdit, onDelete }: VehicleCardProps) {
+function VehicleCard({ vehicle, margem, onEdit, onDelete, onWhatsApp, role = 'operator' }: VehicleCardProps) {
     // Função para calcular preço com margem
     const calculatePriceWithMargin = (basePrice: number) => {
         return basePrice * (1 + margem / 100);
@@ -925,7 +966,7 @@ function VehicleCard({ vehicle, margem, onEdit, onDelete }: VehicleCardProps) {
                     <span className={styles.cardLabel}>Telefone:</span>
                     <span className={styles.cardValue}>{vehicle.telefone}</span>
                 </div>
-                {vehicle.operador && (
+                {role !== 'client' && vehicle.operador && (
                     <div className={styles.cardRow}>
                         <span className={styles.cardLabel}>Operador:</span>
                         <span className={styles.cardValue}>{vehicle.operador}</span>
@@ -947,26 +988,43 @@ function VehicleCard({ vehicle, margem, onEdit, onDelete }: VehicleCardProps) {
                     </span>
                 </div>
                 <div className={styles.cardActions}>
-                    <button className={styles.proposalButton} title="Criar Proposta">
-                        📋
-                    </button>
-                    <button className={styles.whatsappButton} title="WhatsApp">
-                        💬
-                    </button>
-                    <button
-                        className={styles.editButton}
-                        title="Editar"
-                        onClick={() => onEdit(vehicle)}
-                    >
-                        ✏️
-                    </button>
-                    <button
-                        className={styles.deleteButton}
-                        title="Excluir"
-                        onClick={() => onDelete(vehicle)}
-                    >
-                        🗑️
-                    </button>
+                    {role === 'client' ? (
+                        <button
+                            className={styles.whatsappButton}
+                            title="Contatar Vendedor via WhatsApp"
+                            onClick={() => onWhatsApp(vehicle)}
+                            style={{ backgroundColor: '#25D366', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', width: '100%' }}
+                        >
+                            💬 WhatsApp
+                        </button>
+                    ) : (
+                        <>
+                            <button className={styles.proposalButton} title="Criar Proposta">
+                                📋
+                            </button>
+                            <button
+                                className={styles.whatsappButton}
+                                title="WhatsApp"
+                                onClick={() => onWhatsApp(vehicle)}
+                            >
+                                💬
+                            </button>
+                            <button
+                                className={styles.editButton}
+                                title="Editar"
+                                onClick={() => onEdit(vehicle)}
+                            >
+                                ✏️
+                            </button>
+                            <button
+                                className={styles.deleteButton}
+                                title="Excluir"
+                                onClick={() => onDelete(vehicle)}
+                            >
+                                🗑️
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
         </div>

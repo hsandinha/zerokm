@@ -1,50 +1,60 @@
-import { Badge } from '../../../components/Badge';
-import { SummaryCard } from '../../../components/SummaryCard';
-import styles from '../page.module.css';
+'use client';
+
+import { useState, useEffect } from 'react';
+import { signOut, getSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { VehicleConsultation } from '../../../components/operator/VehicleConsultation';
+import { ConfigContext } from '../../../lib/contexts/ConfigContext';
+import UserMenu from '../../../components/UserMenu';
+import styles from './cliente.module.css';
 
 export default function ClientDashboard() {
+    const [userInfo, setUserInfo] = useState<{ name?: string | null; email?: string | null }>({});
+    const [margem, setMargem] = useState<number>(0);
+    const router = useRouter();
+
+    useEffect(() => {
+        getSession()
+            .then((session) => {
+                if (session?.user) {
+                    setUserInfo({
+                        name: session.user.name ?? 'Cliente',
+                        email: session.user.email ?? null,
+                    });
+                }
+            })
+            .catch((error) => {
+                console.error('Erro ao carregar sessão do usuário:', error);
+            });
+
+        // Carregar margem do localStorage (se aplicável para cliente, ou usar padrão)
+        const savedMargem = localStorage.getItem('vehicleMargem');
+        if (savedMargem) {
+            setMargem(parseFloat(savedMargem));
+        }
+    }, []);
+
     return (
-        <div className={styles.container}>
-            <div className={styles.header}>
-                <h1>Meus Veículos Zero KM</h1>
-                <Badge variant="client">Cliente</Badge>
-            </div>
+        <ConfigContext.Provider value={{ margem, setMargem }}>
+            <div className={styles.container}>
+                <div className={styles.header}>
+                    <div className={styles.headerLeft}>
+                        <h1>Zero KM</h1>
+                        <span className={styles.subtitle}>Cliente</span>
+                    </div>
+                    <div className={styles.headerRight}>
+                        <UserMenu
+                            name={userInfo.name || 'Cliente'}
+                            email={userInfo.email}
+                            role="Cliente"
+                        />
+                    </div>
+                </div>
 
-            <div className={styles.grid}>
-                <SummaryCard
-                    title="Favoritos"
-                    value="8"
-                    change="+2"
-                    trend="up"
-                    icon="❤️"
-                />
-                <SummaryCard
-                    title="Propostas Enviadas"
-                    value="3"
-                    change="0"
-                    trend="neutral"
-                    icon="📤"
-                />
-                <SummaryCard
-                    title="Test Drives Agendados"
-                    value="2"
-                    change="+1"
-                    trend="up"
-                    icon="🗓️"
-                />
-                <SummaryCard
-                    title="Orçamento Máximo"
-                    value="R$ 85k"
-                    change="0"
-                    trend="neutral"
-                    icon="💳"
-                />
+                <div className={styles.content}>
+                    <VehicleConsultation role="client" />
+                </div>
             </div>
-
-            <div className={styles.section}>
-                <h2>Encontre seu Carro dos Sonhos</h2>
-                <p>Explore nossa seleção de veículos zero quilômetro, compare preços e faça propostas diretamente às concessionárias.</p>
-            </div>
-        </div>
+        </ConfigContext.Provider>
     );
 }
