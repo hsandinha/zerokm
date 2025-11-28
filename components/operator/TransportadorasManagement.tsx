@@ -13,12 +13,22 @@ export function TransportadorasManagement() {
     const [editingTransportadora, setEditingTransportadora] = useState<Transportadora | null>(null);
     const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
 
+    // Paginação
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(50);
+    const [totalItems, setTotalItems] = useState(0);
+
     // Carregar transportadoras
     const loadTransportadoras = async () => {
         try {
             setLoading(true);
-            const data = await TransportadoraService.getAllTransportadoras();
+            const { data, total } = await TransportadoraService.getTransportadorasPaginated({
+                page: currentPage,
+                itemsPerPage: itemsPerPage === -1 ? 1000 : itemsPerPage,
+                searchTerm
+            });
             setTransportadoras(data);
+            setTotalItems(total);
         } catch (error) {
             console.error('Erro ao carregar transportadoras:', error);
         } finally {
@@ -27,33 +37,21 @@ export function TransportadorasManagement() {
     };
 
     useEffect(() => {
-        loadTransportadoras();
-    }, []);
+        const timeoutId = setTimeout(() => {
+            loadTransportadoras();
+        }, 500);
+        return () => clearTimeout(timeoutId);
+    }, [currentPage, itemsPerPage, searchTerm]);
+
+    // Resetar página quando busca muda
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm]);
 
     const closeForm = () => {
         setShowForm(false);
         setEditingTransportadora(null);
     };
-
-    // Filtrar transportadoras
-    const filteredTransportadoras = transportadoras.filter(transportadora => {
-        if (searchTerm.length < 3) return true;
-
-        const searchFields = [
-            transportadora.nome,
-            transportadora.razaoSocial,
-            transportadora.cnpj,
-            transportadora.telefone,
-            transportadora.email,
-            transportadora.cidade,
-            transportadora.estado,
-            transportadora.nomeResponsavel
-        ];
-
-        return searchFields.some(field =>
-            field?.toString().toLowerCase().includes(searchTerm.toLowerCase())
-        );
-    });
 
     // Handlers
     const handleAddTransportadora = () => {
@@ -171,7 +169,7 @@ export function TransportadorasManagement() {
 
             <div className={styles.resultsSection}>
                 <div className={styles.resultsHeader}>
-                    <h3>Resultados ({filteredTransportadoras.length})</h3>
+                    <h3>Resultados ({totalItems})</h3>
                 </div>
 
                 {viewMode === 'table' ? (
@@ -190,7 +188,7 @@ export function TransportadorasManagement() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredTransportadoras.map((transportadora) => (
+                                {transportadoras.map((transportadora) => (
                                     <tr key={transportadora.id} className={styles.tableRow}>
                                         <td className={styles.tableCell}>{transportadora.nome}</td>
                                         <td className={styles.tableCell}>{transportadora.razaoSocial}</td>
@@ -240,7 +238,7 @@ export function TransportadorasManagement() {
                     </div>
                 ) : (
                     <div className={styles.cardsContainer}>
-                        {filteredTransportadoras.map((transportadora) => (
+                        {transportadoras.map((transportadora) => (
                             <div key={transportadora.id} className={styles.card}>
                                 <div className={styles.cardHeader}>
                                     <h4 className={styles.cardTitle}>{transportadora.nome}</h4>
@@ -302,6 +300,61 @@ export function TransportadorasManagement() {
                         ))}
                     </div>
                 )}
+
+                <div className={styles.paginationContainer} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', padding: '10px', borderTop: '1px solid #eee' }}>
+                    <div className={styles.itemsPerPage}>
+                        <label htmlFor="itemsPerPage">Itens por página: </label>
+                        <select
+                            id="itemsPerPage"
+                            value={itemsPerPage}
+                            onChange={(e) => {
+                                setItemsPerPage(parseInt(e.target.value));
+                                setCurrentPage(1);
+                            }}
+                            style={{ marginLeft: '10px', padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
+                        >
+                            <option value={25}>25</option>
+                            <option value={50}>50</option>
+                            <option value={75}>75</option>
+                            <option value={100}>100</option>
+                            <option value={-1}>Todos</option>
+                        </select>
+                    </div>
+
+                    <div className={styles.paginationControls} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        <button
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            style={{
+                                padding: '5px 10px',
+                                cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                                opacity: currentPage === 1 ? 0.5 : 1,
+                                border: '1px solid #ccc',
+                                borderRadius: '4px',
+                                background: '#fff'
+                            }}
+                        >
+                            Anterior
+                        </button>
+                        <span>
+                            Página {currentPage} de {itemsPerPage === -1 ? 1 : Math.ceil(totalItems / itemsPerPage)}
+                        </span>
+                        <button
+                            onClick={() => setCurrentPage(p => Math.min(itemsPerPage === -1 ? 1 : Math.ceil(totalItems / itemsPerPage), p + 1))}
+                            disabled={currentPage === (itemsPerPage === -1 ? 1 : Math.ceil(totalItems / itemsPerPage))}
+                            style={{
+                                padding: '5px 10px',
+                                cursor: currentPage === (itemsPerPage === -1 ? 1 : Math.ceil(totalItems / itemsPerPage)) ? 'not-allowed' : 'pointer',
+                                opacity: currentPage === (itemsPerPage === -1 ? 1 : Math.ceil(totalItems / itemsPerPage)) ? 0.5 : 1,
+                                border: '1px solid #ccc',
+                                borderRadius: '4px',
+                                background: '#fff'
+                            }}
+                        >
+                            Próxima
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     );

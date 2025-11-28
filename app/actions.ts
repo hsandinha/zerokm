@@ -1,10 +1,12 @@
 'use server';
 
-import { adminAuth, adminDb } from '@/lib/firebase-admin';
+import { adminAuth } from '@/lib/firebase-admin';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { UserProfile } from '@/lib/types/auth';
 import { getUserAllowedProfiles as getUserAllowedProfilesService } from '@/lib/services/userService';
+import connectDB from '@/lib/mongodb';
+import User from '@/models/User';
 
 export async function getUserAllowedProfiles(email: string): Promise<{ profiles: UserProfile[], forcePasswordChange: boolean }> {
     return getUserAllowedProfilesService(email);
@@ -12,10 +14,12 @@ export async function getUserAllowedProfiles(email: string): Promise<{ profiles:
 
 export async function markUserAsSetup(email: string) {
     try {
+        await connectDB();
         const userRecord = await adminAuth.getUserByEmail(email);
-        await adminDb.collection('users').doc(userRecord.uid).update({
-            forcePasswordChange: false
-        });
+        await User.findOneAndUpdate(
+            { firebaseUid: userRecord.uid },
+            { $set: { forcePasswordChange: false } }
+        );
         return { success: true };
     } catch (error) {
         console.error('Error marking user as setup:', error);

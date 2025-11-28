@@ -1,15 +1,3 @@
-import {
-    collection,
-    addDoc,
-    getDocs,
-    updateDoc,
-    doc,
-    deleteDoc,
-    orderBy,
-    query
-} from 'firebase/firestore';
-import { db } from '../firebase';
-
 export interface Concessionaria {
     id?: string;
     nome: string;
@@ -42,14 +30,12 @@ export class ConcessionariaService {
     // Adicionar nova concessionária
     static async addConcessionaria(concessionaria: Omit<Concessionaria, 'id'>): Promise<boolean> {
         try {
-            const concessionariaData = {
-                ...concessionaria,
-                dataCadastro: concessionaria.dataCadastro || new Date().toISOString(),
-                criadoEm: new Date().toISOString(),
-                ativo: concessionaria.ativo !== undefined ? concessionaria.ativo : true
-            };
-
-            await addDoc(collection(db, COLLECTION_NAME), concessionariaData);
+            const response = await fetch('/api/concessionarias', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(concessionaria)
+            });
+            if (!response.ok) throw new Error('Failed to add concessionaria');
             return true;
         } catch (error) {
             console.error('Erro ao adicionar concessionária:', error);
@@ -60,24 +46,9 @@ export class ConcessionariaService {
     // Buscar todas as concessionárias
     static async getAllConcessionarias(): Promise<Concessionaria[]> {
         try {
-            const q = query(collection(db, COLLECTION_NAME), orderBy('nome', 'asc'));
-            const querySnapshot = await getDocs(q);
-
-            return querySnapshot.docs.map(doc => {
-                const data = doc.data();
-                // Converter Timestamps para strings se necessário
-                const dataCadastro = data.dataCadastro?.toDate ? data.dataCadastro.toDate().toISOString() : data.dataCadastro;
-                const criadoEm = data.criadoEm?.toDate ? data.criadoEm.toDate().toISOString() : data.criadoEm;
-                const atualizadoEm = data.atualizadoEm?.toDate ? data.atualizadoEm.toDate().toISOString() : data.atualizadoEm;
-
-                return {
-                    ...data,
-                    id: doc.id,
-                    dataCadastro,
-                    criadoEm,
-                    atualizadoEm
-                } as unknown as Concessionaria;
-            });
+            const response = await fetch('/api/concessionarias');
+            if (!response.ok) throw new Error('Failed to fetch concessionarias');
+            return await response.json();
         } catch (error) {
             console.error('Erro ao buscar concessionárias:', error);
             throw error;
@@ -87,8 +58,12 @@ export class ConcessionariaService {
     // Atualizar concessionária
     static async updateConcessionaria(id: string, updates: Partial<Concessionaria>): Promise<void> {
         try {
-            const concessionariaRef = doc(db, COLLECTION_NAME, id);
-            await updateDoc(concessionariaRef, updates);
+            const response = await fetch(`/api/concessionarias/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+            if (!response.ok) throw new Error('Failed to update concessionaria');
         } catch (error) {
             console.error('Erro ao atualizar concessionária:', error);
             throw error;
@@ -98,7 +73,10 @@ export class ConcessionariaService {
     // Deletar concessionária
     static async deleteConcessionaria(id: string): Promise<void> {
         try {
-            await deleteDoc(doc(db, COLLECTION_NAME, id));
+            const response = await fetch(`/api/concessionarias/${id}`, {
+                method: 'DELETE'
+            });
+            if (!response.ok) throw new Error('Failed to delete concessionaria');
         } catch (error) {
             console.error('Erro ao deletar concessionária:', error);
             throw error;

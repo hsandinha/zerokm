@@ -1,39 +1,26 @@
-import { db } from '../firebase';
-import {
-    collection,
-    addDoc,
-    getDocs,
-    updateDoc,
-    deleteDoc,
-    doc,
-    query,
-    orderBy,
-    limit,
-    startAfter,
-    getCountFromServer,
-    Timestamp,
-    QueryDocumentSnapshot
-} from 'firebase/firestore';
 import { VehicleService } from './vehicleService';
 
 export interface Marca {
     id?: string;
     nome: string;
-    criadoEm?: Date | Timestamp;
+    createdAt?: Date | string;
+    updatedAt?: Date | string;
 }
 
 export interface Modelo {
     id?: string;
     nome: string;
     marca: string;
-    criadoEm?: Date | Timestamp;
+    createdAt?: Date | string;
+    updatedAt?: Date | string;
 }
 
 export interface Cor {
     id?: string;
     nome: string;
     hex?: string;
-    criadoEm?: Date | Timestamp;
+    createdAt?: Date | string;
+    updatedAt?: Date | string;
 }
 
 export interface Concessionaria {
@@ -58,37 +45,35 @@ export interface Concessionaria {
     emailResponsavel?: string;
     observacoes?: string;
     ativo?: boolean;
-    criadoEm?: Date | Timestamp;
+    createdAt?: Date | string;
+    updatedAt?: Date | string;
 }
 
 export interface PaginationResult<T> {
     data: T[];
     total: number;
     hasNextPage: boolean;
-    lastDoc?: QueryDocumentSnapshot;
+    lastDoc?: any;
 }
 
 export interface PaginationOptions {
     page?: number;
     itemsPerPage?: number;
-    lastDoc?: QueryDocumentSnapshot;
+    lastDoc?: any;
 }
 
 class TablesService {
-    private marcasCollection = collection(db, 'marcas');
-    private modelosCollection = collection(db, 'modelos');
-    private coresCollection = collection(db, 'cores');
-
     // MARCAS
     async addMarca(marcaData: Omit<Marca, 'id'>): Promise<string> {
         try {
-            console.log('Adicionando marca:', marcaData);
-            const docRef = await addDoc(this.marcasCollection, {
-                ...marcaData,
-                criadoEm: Timestamp.now()
+            const response = await fetch('/api/tables/marcas', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(marcaData)
             });
-            console.log('Marca adicionada com ID:', docRef.id);
-            return docRef.id;
+            if (!response.ok) throw new Error('Failed to add marca');
+            const data = await response.json();
+            return data.id;
         } catch (error) {
             console.error('Erro ao adicionar marca:', error);
             throw error;
@@ -97,22 +82,9 @@ class TablesService {
 
     async getAllMarcas(): Promise<Marca[]> {
         try {
-            console.log('Buscando todas as marcas...');
-            const q = query(this.marcasCollection, orderBy('nome'));
-            const querySnapshot = await getDocs(q);
-            const marcas: Marca[] = [];
-
-            querySnapshot.forEach((doc) => {
-                const data = doc.data();
-                marcas.push({
-                    id: doc.id,
-                    nome: data.nome,
-                    criadoEm: data.criadoEm
-                });
-            });
-
-            console.log(`Encontradas ${marcas.length} marcas`);
-            return marcas;
+            const response = await fetch('/api/tables/marcas');
+            if (!response.ok) throw new Error('Failed to fetch marcas');
+            return await response.json();
         } catch (error) {
             console.error('Erro ao buscar marcas:', error);
             throw error;
@@ -121,10 +93,12 @@ class TablesService {
 
     async updateMarca(id: string, marcaData: Omit<Marca, 'id'>): Promise<void> {
         try {
-            console.log('Atualizando marca:', id, marcaData);
-            const marcaRef = doc(db, 'marcas', id);
-            await updateDoc(marcaRef, marcaData);
-            console.log('Marca atualizada com sucesso');
+            const response = await fetch(`/api/tables/marcas/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(marcaData)
+            });
+            if (!response.ok) throw new Error('Failed to update marca');
         } catch (error) {
             console.error('Erro ao atualizar marca:', error);
             throw error;
@@ -133,10 +107,10 @@ class TablesService {
 
     async deleteMarca(id: string): Promise<void> {
         try {
-            console.log('Excluindo marca:', id);
-            const marcaRef = doc(db, 'marcas', id);
-            await deleteDoc(marcaRef);
-            console.log('Marca excluída com sucesso');
+            const response = await fetch(`/api/tables/marcas/${id}`, {
+                method: 'DELETE'
+            });
+            if (!response.ok) throw new Error('Failed to delete marca');
         } catch (error) {
             console.error('Erro ao excluir marca:', error);
             throw error;
@@ -146,13 +120,14 @@ class TablesService {
     // MODELOS
     async addModelo(modeloData: Omit<Modelo, 'id'>): Promise<string> {
         try {
-            console.log('Adicionando modelo:', modeloData);
-            const docRef = await addDoc(this.modelosCollection, {
-                ...modeloData,
-                criadoEm: Timestamp.now()
+            const response = await fetch('/api/tables/modelos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(modeloData)
             });
-            console.log('Modelo adicionado com ID:', docRef.id);
-            return docRef.id;
+            if (!response.ok) throw new Error('Failed to add modelo');
+            const data = await response.json();
+            return data.id;
         } catch (error) {
             console.error('Erro ao adicionar modelo:', error);
             throw error;
@@ -161,23 +136,9 @@ class TablesService {
 
     async getAllModelos(): Promise<Modelo[]> {
         try {
-            console.log('Buscando todos os modelos...');
-            const q = query(this.modelosCollection, orderBy('marca'), orderBy('nome'));
-            const querySnapshot = await getDocs(q);
-            const modelos: Modelo[] = [];
-
-            querySnapshot.forEach((doc) => {
-                const data = doc.data();
-                modelos.push({
-                    id: doc.id,
-                    nome: data.nome,
-                    marca: data.marca,
-                    criadoEm: data.criadoEm
-                });
-            });
-
-            console.log(`Encontrados ${modelos.length} modelos`);
-            return modelos;
+            const response = await fetch('/api/tables/modelos');
+            if (!response.ok) throw new Error('Failed to fetch modelos');
+            return await response.json();
         } catch (error) {
             console.error('Erro ao buscar modelos:', error);
             throw error;
@@ -186,10 +147,12 @@ class TablesService {
 
     async updateModelo(id: string, modeloData: Omit<Modelo, 'id'>): Promise<void> {
         try {
-            console.log('Atualizando modelo:', id, modeloData);
-            const modeloRef = doc(db, 'modelos', id);
-            await updateDoc(modeloRef, modeloData);
-            console.log('Modelo atualizado com sucesso');
+            const response = await fetch(`/api/tables/modelos/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(modeloData)
+            });
+            if (!response.ok) throw new Error('Failed to update modelo');
         } catch (error) {
             console.error('Erro ao atualizar modelo:', error);
             throw error;
@@ -198,10 +161,10 @@ class TablesService {
 
     async deleteModelo(id: string): Promise<void> {
         try {
-            console.log('Excluindo modelo:', id);
-            const modeloRef = doc(db, 'modelos', id);
-            await deleteDoc(modeloRef);
-            console.log('Modelo excluído com sucesso');
+            const response = await fetch(`/api/tables/modelos/${id}`, {
+                method: 'DELETE'
+            });
+            if (!response.ok) throw new Error('Failed to delete modelo');
         } catch (error) {
             console.error('Erro ao excluir modelo:', error);
             throw error;
@@ -211,13 +174,14 @@ class TablesService {
     // CORES
     async addCor(corData: Omit<Cor, 'id'>): Promise<string> {
         try {
-            console.log('Adicionando cor:', corData);
-            const docRef = await addDoc(this.coresCollection, {
-                ...corData,
-                criadoEm: Timestamp.now()
+            const response = await fetch('/api/tables/cores', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(corData)
             });
-            console.log('Cor adicionada com ID:', docRef.id);
-            return docRef.id;
+            if (!response.ok) throw new Error('Failed to add cor');
+            const data = await response.json();
+            return data.id;
         } catch (error) {
             console.error('Erro ao adicionar cor:', error);
             throw error;
@@ -226,23 +190,9 @@ class TablesService {
 
     async getAllCores(): Promise<Cor[]> {
         try {
-            console.log('Buscando todas as cores...');
-            const q = query(this.coresCollection, orderBy('nome'));
-            const querySnapshot = await getDocs(q);
-            const cores: Cor[] = [];
-
-            querySnapshot.forEach((doc) => {
-                const data = doc.data();
-                cores.push({
-                    id: doc.id,
-                    nome: data.nome,
-                    hex: data.hex,
-                    criadoEm: data.criadoEm
-                });
-            });
-
-            console.log(`Encontradas ${cores.length} cores`);
-            return cores;
+            const response = await fetch('/api/tables/cores');
+            if (!response.ok) throw new Error('Failed to fetch cores');
+            return await response.json();
         } catch (error) {
             console.error('Erro ao buscar cores:', error);
             throw error;
@@ -251,10 +201,12 @@ class TablesService {
 
     async updateCor(id: string, corData: Omit<Cor, 'id'>): Promise<void> {
         try {
-            console.log('Atualizando cor:', id, corData);
-            const corRef = doc(db, 'cores', id);
-            await updateDoc(corRef, corData);
-            console.log('Cor atualizada com sucesso');
+            const response = await fetch(`/api/tables/cores/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(corData)
+            });
+            if (!response.ok) throw new Error('Failed to update cor');
         } catch (error) {
             console.error('Erro ao atualizar cor:', error);
             throw error;
@@ -263,10 +215,10 @@ class TablesService {
 
     async deleteCor(id: string): Promise<void> {
         try {
-            console.log('Excluindo cor:', id);
-            const corRef = doc(db, 'cores', id);
-            await deleteDoc(corRef);
-            console.log('Cor excluída com sucesso');
+            const response = await fetch(`/api/tables/cores/${id}`, {
+                method: 'DELETE'
+            });
+            if (!response.ok) throw new Error('Failed to delete cor');
         } catch (error) {
             console.error('Erro ao excluir cor:', error);
             throw error;
@@ -281,7 +233,6 @@ class TablesService {
         const lines = csvData.split('\n').filter(line => line.trim());
         const totalLines = lines.length - 1; // Exclui cabeçalho
         const headerLine = lines[0] || '';
-        // Detectar separador: ponto e vírgula ou vírgula
         const separator = headerLine.includes(';') ? ';' : ',';
         const headers = headerLine.split(separator).map(h => h.trim().replace(/"/g, ''));
         const results: { success: number; headers?: string[]; errors: Array<{ line: number; reason: string; raw?: string; columns?: string[] }> } = { success: 0, headers, errors: [] };
@@ -289,11 +240,10 @@ class TablesService {
         try {
             console.log('Iniciando importação de modelos...');
 
-            for (let i = 1; i < lines.length; i++) { // Pula cabeçalho
+            for (let i = 1; i < lines.length; i++) {
                 const line = lines[i].trim();
                 if (!line) continue;
 
-                // Atualizar progresso
                 if (onProgress) {
                     onProgress(i, totalLines);
                 }
@@ -311,13 +261,11 @@ class TablesService {
                         marca: marca.toUpperCase()
                     });
                     results.success++;
-                    console.log(`Modelo adicionado: ${marca} - ${modelo}`);
                 } catch (error) {
                     results.errors.push({ line: i + 1, reason: `Erro ao adicionar ${marca} - ${modelo}: ${error}`, raw: line });
                 }
             }
 
-            console.log(`Importação concluída: ${results.success} sucessos, ${results.errors.length} erros`);
             return results;
         } catch (error) {
             console.error('Erro na importação:', error);
@@ -331,8 +279,7 @@ class TablesService {
         onProgress?: (current: number, total: number) => void
     ): Promise<{ success: number; errors: string[] }> {
         const lines = csvData.split('\n').filter(line => line.trim());
-        const totalLines = lines.length - 1; // Exclui cabeçalho
-        // Detectar separador: ponto e vírgula ou vírgula
+        const totalLines = lines.length - 1;
         const headerLine = lines[0] || '';
         const separator = headerLine.includes(';') ? ';' : ',';
         const headers = headerLine.split(separator).map(h => h.trim().replace(/"/g, ''));
@@ -341,17 +288,14 @@ class TablesService {
         try {
             console.log('Iniciando importação de veículos...');
 
-            for (let i = 1; i < lines.length; i++) { // Pula cabeçalho
+            for (let i = 1; i < lines.length; i++) {
                 const line = lines[i].trim();
                 if (!line) continue;
 
-                // Atualizar progresso
                 if (onProgress) {
                     onProgress(i, totalLines);
                 }
 
-                // Formato completo com 16 campos:
-                // dataEntrada,modelo,transmissao,combustivel,cor,ano,opcionais,preco,status,observacoes,cidade,estado,concessionaria,telefone,nomeContato,operador
                 const columns = line.split(separator).map(item => item.trim().replace(/"/g, ''));
 
                 if (columns.length < 16) {
@@ -364,29 +308,20 @@ class TablesService {
                     status, observacoes, cidade, estado, concessionaria, telefone, nomeContato, operador
                 ] = columns;
 
-                // Validar campos obrigatórios
                 if (!modelo || !concessionaria || !cidade || !estado || !nomeContato || !telefone) {
-                    results.errors.push({ line: i + 1, reason: 'Campos obrigatórios em branco (modelo, concessionaria, cidade, estado, nomeContato, telefone)', raw: line, columns });
+                    results.errors.push({ line: i + 1, reason: 'Campos obrigatórios em branco', raw: line, columns });
                     continue;
                 }
 
                 try {
-                    // Converter preço para número (remover formatação se houver)
                     const preco = precoStr ? parseFloat(precoStr.replace(/[^\d.-]/g, '')) : 0;
-
-                    // Validar status
                     const validStatus = ['A faturar', 'Refaturamento', 'Licenciado'];
                     const statusFinal = validStatus.includes(status) ? status : 'A faturar';
-
-                    // Validar combustível
                     const validCombustivel = ['Flex', 'Gasolina', 'Etanol', 'Diesel', 'Elétrico', 'Híbrido'];
                     const combustivelFinal = validCombustivel.includes(combustivel) ? combustivel : 'Flex';
-
-                    // Validar transmissão
                     const validTransmissao = ['Manual', 'Automática', 'CVT'];
                     const transmissaoFinal = validTransmissao.includes(transmissao) ? transmissao : 'Manual';
 
-                    // Criar objeto do veículo com todos os campos
                     const vehicleData = {
                         dataEntrada: dataEntrada || new Date().toLocaleDateString('pt-BR'),
                         modelo: modelo.toUpperCase(),
@@ -406,24 +341,20 @@ class TablesService {
                         operador: operador || ''
                     };
 
-                    // Adicionar veículo ao Firebase usando o serviço de veículos
                     await VehicleService.addVehicle(vehicleData);
-
                     results.success++;
-                    console.log(`Veículo adicionado: ${modelo} - ${concessionaria}`);
                 } catch (error) {
                     results.errors.push({ line: i + 1, reason: `Erro ao adicionar ${modelo}: ${error}`, raw: line, columns });
-                    console.error(`Erro na linha ${i + 1}:`, error);
                 }
             }
 
-            console.log(`Importação concluída: ${results.success} sucessos, ${results.errors.length} erros`);
             return results as unknown as { success: number; errors: string[] };
         } catch (error) {
             console.error('Erro na importação:', error);
             throw error;
         }
-    }    // Função para popular marcas iniciais
+    }
+
     async populateInitialMarcas(): Promise<void> {
         const marcasIniciais = [
             'Acura', 'Agrale', 'Alfa Romeo', 'AM Gen', 'Asia Motors', 'ASTON MARTIN',
@@ -455,86 +386,20 @@ class TablesService {
         }
     }
 
-    // MÉTODOS DE PAGINAÇÃO
+    // MÉTODOS DE PAGINAÇÃO (Simulados com fetch all)
     async getMarcasPaginated(options: PaginationOptions = {}): Promise<PaginationResult<Marca>> {
-        const { page = 1, itemsPerPage = 50, lastDoc } = options;
-
+        const { page = 1, itemsPerPage = 50 } = options;
         try {
-            console.log('Iniciando busca paginada otimizada de marcas...');
-
-            // Verificar se há marcas (busca otimizada apenas para verificar existência)
-            if (page === 1 && !lastDoc) {
-                const checkQuery = query(this.marcasCollection, limit(1));
-                const checkSnapshot = await getDocs(checkQuery);
-
-                if (checkSnapshot.empty) {
-                    console.log('Nenhuma marca encontrada, populando marcas iniciais...');
-                    await this.populateInitialMarcas();
-                }
-            }
-
-            // Query otimizada - busca apenas os itens da página
-            let dataQuery = query(
-                this.marcasCollection,
-                orderBy('nome'),
-                limit(itemsPerPage + 1) // +1 para verificar se há próxima página
-            );
-
-            if (lastDoc) {
-                dataQuery = query(
-                    this.marcasCollection,
-                    orderBy('nome'),
-                    startAfter(lastDoc),
-                    limit(itemsPerPage + 1)
-                );
-            } else if (page > 1) {
-                // Para páginas intermediárias, usar skip simulado
-                const skip = (page - 1) * itemsPerPage;
-                const skipQuery = query(
-                    this.marcasCollection,
-                    orderBy('nome'),
-                    limit(skip)
-                );
-                const skipSnapshot = await getDocs(skipQuery);
-                const lastVisible = skipSnapshot.docs[skipSnapshot.docs.length - 1];
-
-                if (lastVisible) {
-                    dataQuery = query(
-                        this.marcasCollection,
-                        orderBy('nome'),
-                        startAfter(lastVisible),
-                        limit(itemsPerPage + 1)
-                    );
-                }
-            }
-
-            const querySnapshot = await getDocs(dataQuery);
-            const docs = querySnapshot.docs;
-
-            // Verificar se há próxima página
-            const hasNextPage = docs.length > itemsPerPage;
-
-            // Pegar apenas os itens da página atual
-            const pageData = hasNextPage ? docs.slice(0, itemsPerPage) : docs;
-
-            const data: Marca[] = pageData.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-                criadoEm: doc.data().criadoEm?.toDate()
-            } as Marca));
-
-            const newLastDoc = pageData[pageData.length - 1];
-
-            // Total estimado (não preciso para paginação cursor-based)
-            const total = page * itemsPerPage + (hasNextPage ? 1 : 0);
-
-            console.log(`Marcas página ${page} carregadas:`, data.length, 'hasNextPage:', hasNextPage);
+            const all = await this.getAllMarcas();
+            const start = (page - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            const data = all.slice(start, end);
 
             return {
                 data,
-                total,
-                hasNextPage,
-                lastDoc: newLastDoc
+                total: all.length,
+                hasNextPage: end < all.length,
+                lastDoc: null
             };
         } catch (error) {
             console.error('Erro ao buscar marcas paginadas:', error);
@@ -543,77 +408,18 @@ class TablesService {
     }
 
     async getModelosPaginated(options: PaginationOptions = {}): Promise<PaginationResult<Modelo>> {
-        const { page = 1, itemsPerPage = 50, lastDoc } = options;
-
+        const { page = 1, itemsPerPage = 50 } = options;
         try {
-            console.log('Iniciando busca paginada otimizada de modelos...');
-
-            // Query otimizada - busca apenas os itens da página
-            let dataQuery = query(
-                this.modelosCollection,
-                orderBy('marca'),
-                orderBy('nome'),
-                limit(itemsPerPage + 1) // +1 para verificar se há próxima página
-            );
-
-            if (lastDoc) {
-                dataQuery = query(
-                    this.modelosCollection,
-                    orderBy('marca'),
-                    orderBy('nome'),
-                    startAfter(lastDoc),
-                    limit(itemsPerPage + 1)
-                );
-            } else if (page > 1) {
-                // Para páginas intermediárias, usar skip simulado
-                const skip = (page - 1) * itemsPerPage;
-                const skipQuery = query(
-                    this.modelosCollection,
-                    orderBy('marca'),
-                    orderBy('nome'),
-                    limit(skip)
-                );
-                const skipSnapshot = await getDocs(skipQuery);
-                const lastVisible = skipSnapshot.docs[skipSnapshot.docs.length - 1];
-
-                if (lastVisible) {
-                    dataQuery = query(
-                        this.modelosCollection,
-                        orderBy('marca'),
-                        orderBy('nome'),
-                        startAfter(lastVisible),
-                        limit(itemsPerPage + 1)
-                    );
-                }
-            }
-
-            const querySnapshot = await getDocs(dataQuery);
-            const docs = querySnapshot.docs;
-
-            // Verificar se há próxima página
-            const hasNextPage = docs.length > itemsPerPage;
-
-            // Pegar apenas os itens da página atual
-            const pageData = hasNextPage ? docs.slice(0, itemsPerPage) : docs;
-
-            const data: Modelo[] = pageData.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-                criadoEm: doc.data().criadoEm?.toDate()
-            } as Modelo));
-
-            const newLastDoc = pageData[pageData.length - 1];
-
-            // Total estimado (não preciso para paginação cursor-based)
-            const total = page * itemsPerPage + (hasNextPage ? 1 : 0);
-
-            console.log(`Modelos página ${page} carregados:`, data.length, 'hasNextPage:', hasNextPage);
+            const all = await this.getAllModelos();
+            const start = (page - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            const data = all.slice(start, end);
 
             return {
                 data,
-                total,
-                hasNextPage,
-                lastDoc: newLastDoc
+                total: all.length,
+                hasNextPage: end < all.length,
+                lastDoc: null
             };
         } catch (error) {
             console.error('Erro ao buscar modelos paginados:', error);
@@ -622,73 +428,18 @@ class TablesService {
     }
 
     async getCoresPaginated(options: PaginationOptions = {}): Promise<PaginationResult<Cor>> {
-        const { page = 1, itemsPerPage = 50, lastDoc } = options;
-
+        const { page = 1, itemsPerPage = 50 } = options;
         try {
-            console.log('Iniciando busca paginada otimizada de cores...');
-
-            // Query otimizada - busca apenas os itens da página
-            let dataQuery = query(
-                this.coresCollection,
-                orderBy('nome'),
-                limit(itemsPerPage + 1) // +1 para verificar se há próxima página
-            );
-
-            if (lastDoc) {
-                dataQuery = query(
-                    this.coresCollection,
-                    orderBy('nome'),
-                    startAfter(lastDoc),
-                    limit(itemsPerPage + 1)
-                );
-            } else if (page > 1) {
-                // Para páginas intermediárias, usar skip simulado
-                const skip = (page - 1) * itemsPerPage;
-                const skipQuery = query(
-                    this.coresCollection,
-                    orderBy('nome'),
-                    limit(skip)
-                );
-                const skipSnapshot = await getDocs(skipQuery);
-                const lastVisible = skipSnapshot.docs[skipSnapshot.docs.length - 1];
-
-                if (lastVisible) {
-                    dataQuery = query(
-                        this.coresCollection,
-                        orderBy('nome'),
-                        startAfter(lastVisible),
-                        limit(itemsPerPage + 1)
-                    );
-                }
-            }
-
-            const querySnapshot = await getDocs(dataQuery);
-            const docs = querySnapshot.docs;
-
-            // Verificar se há próxima página
-            const hasNextPage = docs.length > itemsPerPage;
-
-            // Pegar apenas os itens da página atual
-            const pageData = hasNextPage ? docs.slice(0, itemsPerPage) : docs;
-
-            const data: Cor[] = pageData.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-                criadoEm: doc.data().criadoEm?.toDate()
-            } as Cor));
-
-            const newLastDoc = pageData[pageData.length - 1];
-
-            // Total estimado (não preciso para paginação cursor-based)
-            const total = page * itemsPerPage + (hasNextPage ? 1 : 0);
-
-            console.log(`Cores página ${page} carregadas:`, data.length, 'hasNextPage:', hasNextPage);
+            const all = await this.getAllCores();
+            const start = (page - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            const data = all.slice(start, end);
 
             return {
                 data,
-                total,
-                hasNextPage,
-                lastDoc: newLastDoc
+                total: all.length,
+                hasNextPage: end < all.length,
+                lastDoc: null
             };
         } catch (error) {
             console.error('Erro ao buscar cores paginadas:', error);
@@ -700,20 +451,9 @@ class TablesService {
 
     async getAllConcessionarias(): Promise<Concessionaria[]> {
         try {
-            console.log('Buscando todas as concessionárias...');
-            const q = query(
-                collection(db, 'concessionarias'),
-                orderBy('nome')
-            );
-            const querySnapshot = await getDocs(q);
-            const concessionarias = querySnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-                criadoEm: doc.data().criadoEm?.toDate()
-            } as Concessionaria));
-
-            console.log(`Carregadas ${concessionarias.length} concessionárias`);
-            return concessionarias;
+            const response = await fetch('/api/concessionarias');
+            if (!response.ok) throw new Error('Failed to fetch concessionarias');
+            return await response.json();
         } catch (error) {
             console.error('Erro ao buscar concessionárias:', error);
             throw error;
@@ -722,14 +462,14 @@ class TablesService {
 
     async addConcessionaria(concessionaria: Omit<Concessionaria, 'id'>): Promise<string> {
         try {
-            const docData = {
-                ...concessionaria,
-                criadoEm: new Date()
-            };
-
-            const docRef = await addDoc(collection(db, 'concessionarias'), docData);
-            console.log('Concessionária criada com ID:', docRef.id);
-            return docRef.id;
+            const response = await fetch('/api/concessionarias', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(concessionaria)
+            });
+            if (!response.ok) throw new Error('Failed to add concessionaria');
+            const data = await response.json();
+            return data.id;
         } catch (error) {
             console.error('Erro ao adicionar concessionária:', error);
             throw error;
@@ -738,9 +478,12 @@ class TablesService {
 
     async updateConcessionaria(id: string, updates: Partial<Concessionaria>): Promise<void> {
         try {
-            const concessionariaRef = doc(db, 'concessionarias', id);
-            await updateDoc(concessionariaRef, updates);
-            console.log('Concessionária atualizada:', id);
+            const response = await fetch(`/api/concessionarias/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+            if (!response.ok) throw new Error('Failed to update concessionaria');
         } catch (error) {
             console.error('Erro ao atualizar concessionária:', error);
             throw error;
@@ -749,27 +492,21 @@ class TablesService {
 
     async deleteConcessionaria(id: string): Promise<void> {
         try {
-            const concessionariaRef = doc(db, 'concessionarias', id);
-            await deleteDoc(concessionariaRef);
-            console.log('Concessionária deletada:', id);
+            const response = await fetch(`/api/concessionarias/${id}`, {
+                method: 'DELETE'
+            });
+            if (!response.ok) throw new Error('Failed to delete concessionaria');
         } catch (error) {
             console.error('Erro ao deletar concessionária:', error);
             throw error;
         }
     }
 
-    // Método para popular concessionárias iniciais (baseado no mock do operator/page.tsx)
     async populateInitialConcessionarias(): Promise<void> {
         try {
-            console.log('Verificando se há concessionárias cadastradas...');
             const existing = await this.getAllConcessionarias();
+            if (existing.length > 0) return;
 
-            if (existing.length > 0) {
-                console.log('Concessionárias já existem, não precisa popular');
-                return;
-            }
-
-            console.log('Populando concessionárias iniciais...');
             const concessionariasIniciais = [
                 {
                     nome: "Concessionária Premium Motors",
@@ -782,7 +519,12 @@ class TablesService {
                     bairro: "Jardins",
                     uf: "SP",
                     complemento: "Loja 1",
-                    cep: "01234-567"
+                    cep: "01234-567",
+                    email: "contato@premium.com",
+                    inscricaoEstadual: "123.456.789.000",
+                    nomeResponsavel: "João Silva",
+                    telefoneResponsavel: "(11) 99999-9999",
+                    emailResponsavel: "joao@premium.com"
                 },
                 {
                     nome: "Auto Center Sul",
@@ -795,54 +537,18 @@ class TablesService {
                     bairro: "Copacabana",
                     uf: "RJ",
                     complemento: "Sala 5",
-                    cep: "22070-012"
-                },
-                {
-                    nome: "Veículos Minas Gerais Ltda",
-                    cnpj: "34.567.890/0001-12",
-                    telefone: "(31) 4567-8901",
-                    contato: "Pedro Costa",
-                    endereco: "Rua Bahia",
-                    numero: "789",
-                    cidade: "Belo Horizonte",
-                    bairro: "Funcionários",
-                    uf: "MG",
-                    complemento: "",
-                    cep: "30112-000"
-                },
-                {
-                    nome: "Toyota Prime São Paulo",
-                    cnpj: "45.678.901/0001-23",
-                    telefone: "(11) 5678-9012",
-                    contato: "Ana Lima",
-                    endereco: "Av. Paulista",
-                    numero: "1000",
-                    cidade: "São Paulo",
-                    bairro: "Bela Vista",
-                    uf: "SP",
-                    complemento: "",
-                    cep: "01310-100"
-                },
-                {
-                    nome: "Honda Centro Oeste",
-                    cnpj: "56.789.012/0001-34",
-                    telefone: "(62) 6789-0123",
-                    contato: "Carlos Pereira",
-                    endereco: "Setor Central",
-                    numero: "200",
-                    cidade: "Goiânia",
-                    bairro: "Setor Central",
-                    uf: "GO",
-                    complemento: "",
-                    cep: "74010-010"
+                    cep: "22070-012",
+                    email: "contato@autocenter.com",
+                    inscricaoEstadual: "234.567.890.000",
+                    nomeResponsavel: "Maria Santos",
+                    telefoneResponsavel: "(21) 98888-8888",
+                    emailResponsavel: "maria@autocenter.com"
                 }
             ];
 
             for (const concessionaria of concessionariasIniciais) {
                 await this.addConcessionaria(concessionaria);
             }
-
-            console.log('Concessionárias iniciais populadas com sucesso!');
         } catch (error) {
             console.error('Erro ao popular concessionárias iniciais:', error);
             throw error;

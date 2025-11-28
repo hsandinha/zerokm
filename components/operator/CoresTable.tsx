@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { QueryDocumentSnapshot } from "firebase/firestore";
 import {
     tablesService,
     Cor,
@@ -23,7 +22,7 @@ const CoresTable: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
-    const pageDocsRef = useRef<Record<number, QueryDocumentSnapshot | undefined>>({});
+    const pageDocsRef = useRef<Record<number, any>>({});
     const [hasMore, setHasMore] = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [formData, setFormData] = useState({ nome: "", hex: "" });

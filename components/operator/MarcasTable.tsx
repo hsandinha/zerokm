@@ -1,11 +1,21 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { QueryDocumentSnapshot } from 'firebase/firestore';
 import { useTablesDatabase } from '../../lib/hooks/useTablesDatabase';
 import { Marca, tablesService, PaginationResult } from '../../lib/services/tablesService';
 import { Pagination } from '../Pagination';
 import styles from './TablesManagement.module.css';
+
+const formatDate = (dateString: string | Date | undefined) => {
+    if (!dateString) return 'N/A';
+    try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return 'N/A';
+        return date.toLocaleDateString('pt-BR');
+    } catch (e) {
+        return 'N/A';
+    }
+};
 
 export function MarcasTable() {
     const { addMarca, updateMarca, deleteMarca } = useTablesDatabase();
@@ -18,9 +28,8 @@ export function MarcasTable() {
     const [totalItems, setTotalItems] = useState(0);
     const [hasNextPage, setHasNextPage] = useState(false);
     const itemsPerPage = 50;
-    const lastDocRef = useRef<QueryDocumentSnapshot | undefined>(undefined);
+    const lastDocRef = useRef<any>(undefined);
     const currentPageRef = useRef(1);
-    const useFallbackRef = useRef(false);
 
     const [showForm, setShowForm] = useState(false);
     const [editingMarca, setEditingMarca] = useState<Marca | null>(null);
@@ -35,54 +44,20 @@ export function MarcasTable() {
 
             console.log('Carregando marcas - página:', page);
 
-            if (useFallbackRef.current) {
-                // Usar método antigo sempre
-                console.log('Usando método antigo (fallback ativo)');
-                const allMarcas = await tablesService.getAllMarcas();
-                const startIndex = (page - 1) * itemsPerPage;
-                const endIndex = startIndex + itemsPerPage;
-                const pageData = allMarcas.slice(startIndex, endIndex);
+            const result: PaginationResult<Marca> = await tablesService.getMarcasPaginated({
+                page,
+                itemsPerPage,
+                lastDoc: page === currentPageRef.current + 1 ? lastDocRef.current : undefined
+            });
 
-                console.log('Marcas carregadas:', pageData.length, 'total:', allMarcas.length);
-                setMarcas(pageData);
-                setTotalItems(allMarcas.length);
-                setHasNextPage(endIndex < allMarcas.length);
-                setCurrentPage(page);
-            } else {
-                // Tentar primeiro com paginação
-                try {
-                    console.log('Tentando carregar marcas com paginação...');
-                    const result: PaginationResult<Marca> = await tablesService.getMarcasPaginated({
-                        page,
-                        itemsPerPage,
-                        lastDoc: page === currentPageRef.current + 1 ? lastDocRef.current : undefined
-                    });
+            console.log('Marcas paginadas carregadas:', result.data.length, 'total:', result.total);
+            setMarcas(result.data);
+            setTotalItems(result.total);
+            setHasNextPage(result.hasNextPage);
+            lastDocRef.current = result.lastDoc;
+            currentPageRef.current = page;
+            setCurrentPage(page);
 
-                    console.log('Marcas paginadas carregadas:', result.data.length, 'total:', result.total);
-                    setMarcas(result.data);
-                    setTotalItems(result.total);
-                    setHasNextPage(result.hasNextPage);
-                    lastDocRef.current = result.lastDoc;
-                    currentPageRef.current = page;
-                    setCurrentPage(page);
-                } catch (paginationError) {
-                    // Fallback: usar método antigo
-                    console.log('Erro na paginação, ativando fallback:', paginationError);
-                    useFallbackRef.current = true;
-
-                    const allMarcas = await tablesService.getAllMarcas();
-                    const startIndex = (page - 1) * itemsPerPage;
-                    const endIndex = startIndex + itemsPerPage;
-                    const pageData = allMarcas.slice(startIndex, endIndex);
-
-                    console.log('Marcas fallback carregadas:', pageData.length, 'total:', allMarcas.length);
-                    setMarcas(pageData);
-                    setTotalItems(allMarcas.length);
-                    setHasNextPage(endIndex < allMarcas.length);
-                    currentPageRef.current = page;
-                    setCurrentPage(page);
-                }
-            }
         } catch (error) {
             console.error('Erro ao carregar marcas:', error);
             setError(`Erro ao carregar marcas: ${error}`);
@@ -279,12 +254,7 @@ export function MarcasTable() {
                                 <tr key={marca.id}>
                                     <td className={styles.marcaName}>{marca.nome}</td>
                                     <td>
-                                        {marca.criadoEm ?
-                                            (marca.criadoEm as any).toDate ?
-                                                (marca.criadoEm as any).toDate().toLocaleDateString('pt-BR') :
-                                                new Date(marca.criadoEm as any).toLocaleDateString('pt-BR')
-                                            : 'N/A'
-                                        }
+                                        {formatDate(marca.createdAt)}
                                     </td>
                                     <td>
                                         <div className={styles.actions}>

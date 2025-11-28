@@ -1,20 +1,22 @@
-import { adminAuth, adminDb } from '@/lib/firebase-admin';
+import { adminAuth } from '@/lib/firebase-admin';
 import { UserProfile } from '@/lib/types/auth';
+import connectDB from '@/lib/mongodb';
+import User from '@/models/User';
 
 export async function getUserAllowedProfiles(email: string): Promise<{ profiles: UserProfile[], forcePasswordChange: boolean }> {
     try {
+        await connectDB();
         const userRecord = await adminAuth.getUserByEmail(email);
-        const userDoc = await adminDb.collection('users').doc(userRecord.uid).get();
-        const userData = userDoc.data();
+        const user = await User.findOne({ firebaseUid: userRecord.uid });
 
         let profiles: UserProfile[] = ['operador'];
         let forcePasswordChange = false;
 
-        if (userData) {
-            if (userData.allowedProfiles && Array.isArray(userData.allowedProfiles)) {
-                profiles = userData.allowedProfiles;
+        if (user) {
+            if (user.allowedProfiles && Array.isArray(user.allowedProfiles)) {
+                profiles = user.allowedProfiles as UserProfile[];
             }
-            if (userData.forcePasswordChange === true) {
+            if (user.forcePasswordChange === true) {
                 forcePasswordChange = true;
             }
         } else {

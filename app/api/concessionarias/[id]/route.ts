@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
-import { Timestamp } from 'firebase-admin/firestore';
-import type { DocumentData, DocumentSnapshot } from 'firebase-admin/firestore';
-import { adminDb } from '@/lib/firebase-admin';
-
-const collectionRef = adminDb.collection('concessionarias');
+import connectDB from '@/lib/mongodb';
+import Concessionaria from '@/models/Concessionaria';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
 
 const formatErrorMessage = (error: unknown) => {
     if (error instanceof Error) return error.message;
@@ -37,46 +36,32 @@ const sanitizeBoolean = (value: unknown): boolean | undefined => {
     return undefined;
 };
 
-const serializeConcessionaria = (
-    doc: DocumentSnapshot<DocumentData>
-) => {
-    const data = doc.data();
-    if (!data) {
-        return null;
-    }
-
-    const createdAt = data.criadoEm instanceof Timestamp
-        ? data.criadoEm.toDate()
-        : (typeof data.criadoEm?.toDate === 'function' ? data.criadoEm.toDate() : undefined);
-    const updatedAt = data.atualizadoEm instanceof Timestamp
-        ? data.atualizadoEm.toDate()
-        : (typeof data.atualizadoEm?.toDate === 'function' ? data.atualizadoEm.toDate() : undefined);
-
+const serializeConcessionaria = (doc: any) => {
     return {
-        id: doc.id,
-        nome: data.nome ?? '',
-        razaoSocial: data.razaoSocial ?? '',
-        telefone: data.telefone ?? '',
-        celular: data.celular ?? '',
-        contato: data.contato ?? '',
-        email: data.email ?? '',
-        endereco: data.endereco ?? '',
-        numero: data.numero ?? '',
-        complemento: data.complemento ?? '',
-        inscricaoEstadual: data.inscricaoEstadual ?? '',
-        bairro: data.bairro ?? '',
-        cidade: data.cidade ?? '',
-        cnpj: data.cnpj ?? '',
-        uf: data.uf ?? '',
-        cep: data.cep ?? '',
-        nomeResponsavel: data.nomeResponsavel ?? '',
-        telefoneResponsavel: data.telefoneResponsavel ?? '',
-        emailResponsavel: data.emailResponsavel ?? '',
-        observacoes: data.observacoes ?? '',
-        ativo: typeof data.ativo === 'boolean' ? data.ativo : true,
-        dataCadastro: data.dataCadastro ?? (createdAt ? createdAt.toISOString() : null),
-        criadoEm: createdAt ? createdAt.toISOString() : null,
-        atualizadoEm: updatedAt ? updatedAt.toISOString() : null
+        id: doc._id.toString(),
+        nome: doc.nome,
+        razaoSocial: doc.razaoSocial,
+        telefone: doc.telefone,
+        celular: doc.celular,
+        contato: doc.contato,
+        email: doc.email,
+        endereco: doc.endereco,
+        numero: doc.numero,
+        complemento: doc.complemento,
+        inscricaoEstadual: doc.inscricaoEstadual,
+        bairro: doc.bairro,
+        cidade: doc.cidade,
+        cnpj: doc.cnpj,
+        uf: doc.uf,
+        cep: doc.cep,
+        nomeResponsavel: doc.nomeResponsavel,
+        telefoneResponsavel: doc.telefoneResponsavel,
+        emailResponsavel: doc.emailResponsavel,
+        observacoes: doc.observacoes,
+        ativo: doc.ativo,
+        dataCadastro: doc.dataCadastro ? new Date(doc.dataCadastro).toISOString() : null,
+        criadoEm: doc.createdAt ? new Date(doc.createdAt).toISOString() : null,
+        atualizadoEm: doc.updatedAt ? new Date(doc.updatedAt).toISOString() : null
     };
 };
 
@@ -131,6 +116,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     }
 
     try {
+        const session = await getServerSession(authOptions);
+        if (!session) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        await connectDB();
         const body = await request.json();
         const updates = buildUpdatePayload(body);
 
@@ -138,24 +129,17 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
             return NextResponse.json({ error: 'Nenhum campo válido para atualizar' }, { status: 400 });
         }
 
-        const docRef = collectionRef.doc(id);
-        const docSnapshot = await docRef.get();
+        const updatedConcessionaria = await Concessionaria.findByIdAndUpdate(
+            id,
+            { $set: updates },
+            { new: true }
+        );
 
-        if (!docSnapshot.exists) {
+        if (!updatedConcessionaria) {
             return NextResponse.json({ error: 'Concessionária não encontrada' }, { status: 404 });
         }
 
-        await docRef.update({
-            ...updates,
-            atualizadoEm: Timestamp.now()
-        });
-
-        const updatedDoc = await docRef.get();
-        const serialized = serializeConcessionaria(updatedDoc);
-
-        if (!serialized) {
-            return NextResponse.json({ error: 'Erro ao ler a concessionária atualizada' }, { status: 500 });
-        }
+        const serialized = serializeConcessionaria(updatedConcessionaria);
 
         return NextResponse.json(serialized);
     } catch (error) {
@@ -175,14 +159,18 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     }
 
     try {
-        const docRef = collectionRef.doc(id);
-        const docSnapshot = await docRef.get();
+        const session = await getServerSession(authOptions);
+        if (!session) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
 
-        if (!docSnapshot.exists) {
+        await connectDB();
+        const deletedConcessionaria = await Concessionaria.findByIdAndDelete(id);
+
+        if (!deletedConcessionaria) {
             return NextResponse.json({ error: 'Concessionária não encontrada' }, { status: 404 });
         }
 
-        await docRef.delete();
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error(`Erro ao excluir concessionária ${id}:`, error);

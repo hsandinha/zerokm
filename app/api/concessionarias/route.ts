@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
-import { Timestamp } from 'firebase-admin/firestore';
-import type { DocumentData, DocumentSnapshot } from 'firebase-admin/firestore';
-import { adminDb } from '@/lib/firebase-admin';
-
-const collectionRef = adminDb.collection('concessionarias');
+import connectDB from '@/lib/mongodb';
+import Concessionaria from '@/models/Concessionaria';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
 
 const formatErrorMessage = (error: unknown) => {
     if (error instanceof Error) return error.message;
@@ -68,45 +67,32 @@ const sanitizeBoolean = (value: unknown, defaultValue = true): boolean => {
     return defaultValue;
 };
 
-const serializeConcessionaria = (
-    doc: DocumentSnapshot<DocumentData>
-) => {
-    const data = doc.data();
-    if (!data) {
-        return null;
-    }
-    const createdAt = data.criadoEm instanceof Timestamp
-        ? data.criadoEm.toDate()
-        : (typeof data.criadoEm?.toDate === 'function' ? data.criadoEm.toDate() : undefined);
-    const updatedAt = data.atualizadoEm instanceof Timestamp
-        ? data.atualizadoEm.toDate()
-        : (typeof data.atualizadoEm?.toDate === 'function' ? data.atualizadoEm.toDate() : undefined);
-
+const serializeConcessionaria = (doc: any) => {
     return {
-        id: doc.id,
-        nome: data.nome ?? '',
-        razaoSocial: data.razaoSocial ?? '',
-        telefone: data.telefone ?? '',
-        celular: data.celular ?? '',
-        contato: data.contato ?? '',
-        email: data.email ?? '',
-        endereco: data.endereco ?? '',
-        numero: data.numero ?? '',
-        complemento: data.complemento ?? '',
-        inscricaoEstadual: data.inscricaoEstadual ?? '',
-        bairro: data.bairro ?? '',
-        cidade: data.cidade ?? '',
-        cnpj: data.cnpj ?? '',
-        uf: data.uf ?? '',
-        cep: data.cep ?? '',
-        nomeResponsavel: data.nomeResponsavel ?? '',
-        telefoneResponsavel: data.telefoneResponsavel ?? '',
-        emailResponsavel: data.emailResponsavel ?? '',
-        observacoes: data.observacoes ?? '',
-        ativo: typeof data.ativo === 'boolean' ? data.ativo : true,
-        dataCadastro: data.dataCadastro ?? (createdAt ? createdAt.toISOString() : null),
-        criadoEm: createdAt ? createdAt.toISOString() : null,
-        atualizadoEm: updatedAt ? updatedAt.toISOString() : null
+        id: doc._id.toString(),
+        nome: doc.nome,
+        razaoSocial: doc.razaoSocial,
+        telefone: doc.telefone,
+        celular: doc.celular,
+        contato: doc.contato,
+        email: doc.email,
+        endereco: doc.endereco,
+        numero: doc.numero,
+        complemento: doc.complemento,
+        inscricaoEstadual: doc.inscricaoEstadual,
+        bairro: doc.bairro,
+        cidade: doc.cidade,
+        cnpj: doc.cnpj,
+        uf: doc.uf,
+        cep: doc.cep,
+        nomeResponsavel: doc.nomeResponsavel,
+        telefoneResponsavel: doc.telefoneResponsavel,
+        emailResponsavel: doc.emailResponsavel,
+        observacoes: doc.observacoes,
+        ativo: doc.ativo,
+        dataCadastro: doc.dataCadastro ? new Date(doc.dataCadastro).toISOString() : null,
+        criadoEm: doc.createdAt ? new Date(doc.createdAt).toISOString() : null,
+        atualizadoEm: doc.updatedAt ? new Date(doc.updatedAt).toISOString() : null
     };
 };
 
@@ -144,11 +130,15 @@ const buildPayload = (data: Partial<ConcessionariaPayload>): ConcessionariaPaylo
 
 export async function GET() {
     try {
-        const snapshot = await collectionRef.orderBy('nome').get();
-        const concessionarias = snapshot.docs
-            .map(serializeConcessionaria)
-            .filter((item): item is NonNullable<typeof item> => Boolean(item));
-        return NextResponse.json(concessionarias);
+        const session = await getServerSession(authOptions);
+        if (!session) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        await connectDB();
+        const concessionarias = await Concessionaria.find().sort({ nome: 1 });
+        const serialized = concessionarias.map(serializeConcessionaria);
+        return NextResponse.json(serialized);
     } catch (error) {
         console.error('Erro ao listar concessionárias:', error);
         return NextResponse.json({
@@ -160,6 +150,12 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
+        const session = await getServerSession(authOptions);
+        if (!session) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        await connectDB();
         const body = await request.json();
         const payload = buildPayload(body);
         const requiredFields: Array<keyof ConcessionariaPayload> = [
@@ -184,19 +180,8 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: `Campos obrigatórios faltando: ${missing.join(', ')}` }, { status: 400 });
         }
 
-        const timestamp = Timestamp.now();
-        const docRef = await collectionRef.add({
-            ...payload,
-            criadoEm: timestamp,
-            atualizadoEm: timestamp
-        });
-
-        const createdDoc = await docRef.get();
-        const serialized = serializeConcessionaria(createdDoc);
-
-        if (!serialized) {
-            return NextResponse.json({ error: 'Erro ao ler a concessionária criada' }, { status: 500 });
-        }
+        const newConcessionaria = await Concessionaria.create(payload);
+        const serialized = serializeConcessionaria(newConcessionaria);
 
         return NextResponse.json(serialized, { status: 201 });
     } catch (error) {

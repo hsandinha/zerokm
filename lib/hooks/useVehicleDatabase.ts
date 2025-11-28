@@ -5,15 +5,17 @@ import { VehicleService, Vehicle } from '../services/vehicleService';
 export const useVehicleDatabase = () => {
     // const { data: session } = useSession();
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+    const [totalItems, setTotalItems] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     // Inicializar banco com dados de exemplo se estiver vazio
     const initializeDatabase = async () => {
         try {
-            // Buscar todos os veículos do banco
-            const allVehicles = await VehicleService.getAllVehicles();
-            setVehicles(allVehicles);
+            // Buscar todos os veículos do banco (limitado a 50 por padrão para não pesar)
+            const result = await VehicleService.getVehiclesPaginated({ page: 1, itemsPerPage: 50 });
+            setVehicles(result.data);
+            setTotalItems(result.total);
             setLoading(false);
         } catch (err) {
             console.error('Erro ao inicializar banco:', err);
@@ -22,12 +24,30 @@ export const useVehicleDatabase = () => {
         }
     };
 
-    // Buscar veículos com filtros
+    // Buscar veículos paginados
+    const getVehiclesPaginated = async (options: any) => {
+        try {
+            setLoading(true);
+            const result = await VehicleService.getVehiclesPaginated(options);
+            setVehicles(result.data);
+            setTotalItems(result.total);
+            setLoading(false);
+            return result;
+        } catch (err) {
+            console.error('Erro ao buscar veículos paginados:', err);
+            setError('Erro ao buscar veículos');
+            setLoading(false);
+            throw err;
+        }
+    };
+
+    // Buscar veículos com filtros (mantido por compatibilidade, mas redirecionando para paginado)
     const searchVehicles = async (filters: any) => {
         try {
             setLoading(true);
-            const results = await VehicleService.searchVehicles(filters);
-            setVehicles(results);
+            const result = await VehicleService.getVehiclesPaginated({ filters, page: 1, itemsPerPage: 50 });
+            setVehicles(result.data);
+            setTotalItems(result.total);
             setLoading(false);
         } catch (err) {
             console.error('Erro ao buscar veículos:', err);
@@ -111,9 +131,11 @@ export const useVehicleDatabase = () => {
 
     return {
         vehicles,
+        totalItems,
         loading,
         error,
         searchVehicles,
+        getVehiclesPaginated,
         addVehicle,
         updateVehicle,
         deleteVehicle,

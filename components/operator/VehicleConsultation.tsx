@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useConfig } from '../../lib/contexts/ConfigContext';
 import { useVehicleDatabase } from '../../lib/hooks/useVehicleDatabase';
 import { useTablesDatabase } from '../../lib/hooks/useTablesDatabase';
@@ -10,7 +10,16 @@ import styles from './VehicleConsultation.module.css';
 import modalStyles from './TablesManagement.module.css';
 import { AutocompleteInput } from './AutocompleteInput';
 
-
+const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return '';
+    try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return dateString;
+        return date.toLocaleDateString('pt-BR');
+    } catch (e) {
+        return dateString || '';
+    }
+};
 
 interface VehicleConsultationProps {
     onClose?: () => void;
@@ -53,17 +62,45 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(50);
 
-    // Usar o hook do banco Firebase
-    const { vehicles, loading, error, refreshVehicles, updateVehicle, deleteVehicle, deleteVehicles } = useVehicleDatabase();
+    // Usar o hook do banco de dados
+    const { vehicles, totalItems, loading, error, refreshVehicles, updateVehicle, deleteVehicle, deleteVehicles, getVehiclesPaginated } = useVehicleDatabase();
     const { importVeiculosFromCSV } = useTablesDatabase();
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const percent = importProgress.total > 0
         ? Math.max(0, Math.min(100, Math.round((importProgress.current / importProgress.total) * 100)))
         : 0;
 
-    // Função para gerar sugestões de autocompletar
+    // Carregar dados paginados do servidor
+    useEffect(() => {
+        const loadData = async () => {
+            await getVehiclesPaginated({
+                page: currentPage,
+                itemsPerPage: itemsPerPage === -1 ? 1000 : itemsPerPage,
+                searchTerm,
+                filters,
+                sortConfig: sortConfig.key ? sortConfig : undefined
+            });
+        };
+
+        // Debounce para busca
+        const timeoutId = setTimeout(() => {
+            loadData();
+        }, 500);
+
+        return () => clearTimeout(timeoutId);
+    }, [currentPage, itemsPerPage, searchTerm, filters, sortConfig]);
+
+    // Resetar página quando filtros mudam
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, filters]);
+
+    // Função para gerar sugestões de autocompletar (ainda precisa de todos os dados ou endpoint específico)
+    // Por enquanto, vamos manter vazio ou usar os dados da página atual (que é o que temos)
     const getUniqueSuggestions = useCallback((field: keyof Vehicle, searchTerm: string): string[] => {
         if (searchTerm.length === 0) return [];
+        // Nota: Isso só vai sugerir baseado nos veículos da página atual. 
+        // Para sugerir globalmente, precisaríamos de um endpoint de sugestões na API.
         const allValues = vehicles.map(v => v[field]?.toString() || '').filter(Boolean);
         const uniqueValues = [...new Set(allValues)];
         return uniqueValues.filter(v => v.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 10);
@@ -236,66 +273,10 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         setSortConfig({ key, direction });
     };
 
-    // Filtrar veículos baseado na busca e filtros avançados
-    const filteredVehicles = vehicles.filter(vehicle => {
-        // Filtro de busca geral
-        let matchesSearch = true;
-        if (searchTerm.length >= 3) {
-            const searchFields = [
-                vehicle.modelo,
-                vehicle.cor,
-                vehicle.concessionaria,
-                vehicle.cidade,
-                vehicle.estado,
-                vehicle.status,
-                vehicle.combustivel,
-                vehicle.transmissao,
-                vehicle.ano,
-                vehicle.nomeContato,
-                vehicle.operador,
-                vehicle.observacoes,
-                vehicle.opcionais,
-                vehicle.preco?.toString()
-            ];
-
-            matchesSearch = searchFields.some(field =>
-                field?.toString().toLowerCase().includes(searchTerm.toLowerCase())
-            );
-        }
-
-        // Filtros avançados (usando campos disponíveis no Firebase)
-        const matchesAdvancedFilters = (
-            (filters.modelo === '' || vehicle.modelo?.toLowerCase().includes(filters.modelo.toLowerCase())) &&
-            (filters.cor === '' || vehicle.cor?.toLowerCase().includes(filters.cor.toLowerCase())) &&
-            (filters.status === '' || vehicle.status?.toLowerCase().includes(filters.status.toLowerCase())) &&
-            (filters.combustivel === '' || vehicle.combustivel?.toLowerCase().includes(filters.combustivel.toLowerCase())) &&
-            (filters.transmissao === '' || vehicle.transmissao?.toLowerCase().includes(filters.transmissao.toLowerCase())) &&
-            (filters.ano === '' || vehicle.ano?.toString().includes(filters.ano))
-        );
-
-        return matchesSearch && matchesAdvancedFilters;
-    });
-
-    const sortedVehicles = [...filteredVehicles].sort((a, b) => {
-        if (!sortConfig.key) return 0;
-
-        const aValue = a[sortConfig.key] ?? '';
-        const bValue = b[sortConfig.key] ?? '';
-
-        if (aValue < bValue) {
-            return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-            return sortConfig.direction === 'asc' ? 1 : -1;
-        }
-        return 0;
-    });
-
-    // Lógica de Paginação
-    const totalPages = itemsPerPage === -1 ? 1 : Math.ceil(sortedVehicles.length / itemsPerPage);
-    const paginatedVehicles = itemsPerPage === -1
-        ? sortedVehicles
-        : sortedVehicles.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+    // Lógica de Paginação (Server-side)
+    // Os veículos já vêm filtrados e paginados do servidor
+    const totalPages = itemsPerPage === -1 ? 1 : Math.ceil(totalItems / itemsPerPage);
+    const paginatedVehicles = vehicles;
 
     const handlePageChange = (page: number) => {
         if (page >= 1 && page <= totalPages) {
@@ -549,7 +530,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
             </div>
 
             <div className={styles.resultsSection}>
-                <h3>Resultados ({sortedVehicles.length})</h3>
+                <h3>Resultados ({totalItems})</h3>
 
                 {viewMode === 'table' ? (
                     <div className={styles.tableContainer}>
@@ -626,7 +607,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                                 onChange={() => handleSelectOne(vehicle.id || '')}
                                             />
                                         </td>
-                                        <td className={styles.tableCell}>{vehicle.dataEntrada}</td>
+                                        <td className={styles.tableCell}>{formatDate(vehicle.dataEntrada)}</td>
                                         <td className={styles.tableCell}>{vehicle.modelo}</td>
                                         <td className={styles.tableCell}>{vehicle.transmissao}</td>
                                         <td className={styles.tableCell}>{vehicle.combustivel}</td>
@@ -932,7 +913,7 @@ function VehicleCard({ vehicle, margem, onEdit, onDelete, onWhatsApp, role = 'op
             <div className={styles.cardBody}>
                 <div className={styles.cardRow}>
                     <span className={styles.cardLabel}>Data Entrada:</span>
-                    <span className={styles.cardValue}>{vehicle.dataEntrada}</span>
+                    <span className={styles.cardValue}>{formatDate(vehicle.dataEntrada)}</span>
                 </div>
                 <div className={styles.cardRow}>
                     <span className={styles.cardLabel}>Ano:</span>

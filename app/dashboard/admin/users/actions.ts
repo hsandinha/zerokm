@@ -1,7 +1,9 @@
 'use server';
 
-import { adminAuth, adminDb } from '@/lib/firebase-admin';
+import { adminAuth } from '@/lib/firebase-admin';
 import { UserProfile } from '@/lib/types/auth';
+import connectDB from '@/lib/mongodb';
+import User from '@/models/User';
 
 export interface AdminUser {
     uid: string;
@@ -18,15 +20,19 @@ export interface AdminUser {
 
 export async function listAllUsers(): Promise<AdminUser[]> {
     try {
+        await connectDB();
         // 1. List users from Firebase Auth
         const listUsersResult = await adminAuth.listUsers(1000); // Limit to 1000 for now
 
         const users: AdminUser[] = [];
 
+        // Fetch all users from MongoDB
+        const dbUsers = await User.find({ firebaseUid: { $in: listUsersResult.users.map(u => u.uid) } });
+        const dbUsersMap = new Map(dbUsers.map(u => [u.firebaseUid, u]));
+
         for (const userRecord of listUsersResult.users) {
-            // 2. Fetch additional data from Firestore for each user
-            const userDoc = await adminDb.collection('users').doc(userRecord.uid).get();
-            const userData = userDoc.data();
+            // 2. Fetch additional data from MongoDB for each user
+            const userData = dbUsersMap.get(userRecord.uid);
 
             users.push({
                 uid: userRecord.uid,
@@ -36,8 +42,8 @@ export async function listAllUsers(): Promise<AdminUser[]> {
                 disabled: userRecord.disabled,
                 lastSignInTime: userRecord.metadata.lastSignInTime,
                 creationTime: userRecord.metadata.creationTime,
-                allowedProfiles: userData?.allowedProfiles || [],
-                defaultProfile: userData?.defaultProfile,
+                allowedProfiles: (userData?.allowedProfiles as UserProfile[]) || [],
+                defaultProfile: userData?.defaultProfile as UserProfile,
                 dealershipId: userData?.dealershipId
             });
         }
@@ -51,6 +57,7 @@ export async function listAllUsers(): Promise<AdminUser[]> {
 
 export async function updateUserProfiles(uid: string, allowedProfiles: UserProfile[], defaultProfile?: UserProfile, dealershipId?: string) {
     try {
+        await connectDB();
         const updateData: any = {
             allowedProfiles,
             defaultProfile: defaultProfile || allowedProfiles[0],
@@ -61,7 +68,11 @@ export async function updateUserProfiles(uid: string, allowedProfiles: UserProfi
             updateData.dealershipId = dealershipId;
         }
 
-        await adminDb.collection('users').doc(uid).set(updateData, { merge: true });
+        await User.findOneAndUpdate(
+            { firebaseUid: uid },
+            { $set: updateData },
+            { upsert: true, new: true }
+        );
 
         // Optional: Set Custom Claims for faster access control without DB lookup
         // await adminAuth.setCustomUserClaims(uid, { allowedProfiles });
@@ -91,6 +102,7 @@ export async function createUser(data: {
     dealershipId?: string;
 }) {
     try {
+        await connectDB();
         // 1. Create user in Firebase Auth
         const userRecord = await adminAuth.createUser({
             email: data.email,
@@ -100,16 +112,17 @@ export async function createUser(data: {
             disabled: false
         });
 
-        // 2. Create user document in Firestore with profiles
-        await adminDb.collection('users').doc(userRecord.uid).set({
+        // 2. Create user in MongoDB
+        await User.create({
+            firebaseUid: userRecord.uid,
             email: data.email,
             displayName: data.displayName,
             allowedProfiles: data.allowedProfiles,
             defaultProfile: data.allowedProfiles[0],
-            dealershipId: data.dealershipId || null,
+            dealershipId: data.dealershipId || undefined,
             forcePasswordChange: true, // Force password change on first login
-            createdAt: new Date(),
-            createdBy: 'admin' // You might want to pass the admin's ID here if available
+            createdAt: new Date()
+            // createdBy: 'admin' // Not in schema yet
         });
 
         return { success: true, uid: userRecord.uid };

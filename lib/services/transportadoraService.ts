@@ -1,15 +1,3 @@
-import {
-    collection,
-    addDoc,
-    getDocs,
-    updateDoc,
-    doc,
-    deleteDoc,
-    orderBy,
-    query
-} from 'firebase/firestore';
-import { db } from '../firebase';
-
 export interface Transportadora {
     id?: string;
     nome: string;
@@ -34,19 +22,16 @@ export interface Transportadora {
     dataCreated: string;
 }
 
-const COLLECTION_NAME = 'transportadoras';
-
 export class TransportadoraService {
     // Adicionar nova transportadora
     static async addTransportadora(transportadora: Omit<Transportadora, 'id'>): Promise<boolean> {
         try {
-            const transportadoraData = {
-                ...transportadora,
-                dataCreated: transportadora.dataCreated || new Date().toLocaleDateString('pt-BR'),
-                ativo: transportadora.ativo !== undefined ? transportadora.ativo : true
-            };
-
-            await addDoc(collection(db, COLLECTION_NAME), transportadoraData);
+            const response = await fetch('/api/transportadoras', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(transportadora)
+            });
+            if (!response.ok) throw new Error('Failed to add transportadora');
             return true;
         } catch (error) {
             console.error('Erro ao adicionar transportadora:', error);
@@ -54,18 +39,42 @@ export class TransportadoraService {
         }
     }
 
-    // Buscar todas as transportadoras
+    // Buscar todas as transportadoras (agora usa paginação com limite alto)
     static async getAllTransportadoras(): Promise<Transportadora[]> {
         try {
-            const q = query(collection(db, COLLECTION_NAME), orderBy('nome', 'asc'));
-            const querySnapshot = await getDocs(q);
-
-            return querySnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            } as Transportadora));
+            const response = await fetch('/api/transportadoras?limit=1000');
+            if (!response.ok) throw new Error('Failed to fetch transportadoras');
+            const result = await response.json();
+            return result.data || [];
         } catch (error) {
             console.error('Erro ao buscar transportadoras:', error);
+            throw error;
+        }
+    }
+
+    // Buscar transportadoras paginadas
+    static async getTransportadorasPaginated(params: {
+        page: number;
+        itemsPerPage: number;
+        searchTerm?: string;
+    }): Promise<{ data: Transportadora[]; total: number }> {
+        try {
+            const queryParams = new URLSearchParams({
+                page: params.page.toString(),
+                limit: params.itemsPerPage.toString(),
+                search: params.searchTerm || ''
+            });
+
+            const response = await fetch(`/api/transportadoras?${queryParams.toString()}`);
+            if (!response.ok) throw new Error('Failed to fetch transportadoras');
+
+            const result = await response.json();
+            return {
+                data: result.data,
+                total: result.total
+            };
+        } catch (error) {
+            console.error('Erro ao buscar transportadoras paginadas:', error);
             throw error;
         }
     }
@@ -73,8 +82,12 @@ export class TransportadoraService {
     // Atualizar transportadora
     static async updateTransportadora(id: string, updates: Partial<Transportadora>): Promise<void> {
         try {
-            const transportadoraRef = doc(db, COLLECTION_NAME, id);
-            await updateDoc(transportadoraRef, updates);
+            const response = await fetch(`/api/transportadoras/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+            if (!response.ok) throw new Error('Failed to update transportadora');
         } catch (error) {
             console.error('Erro ao atualizar transportadora:', error);
             throw error;
@@ -84,7 +97,10 @@ export class TransportadoraService {
     // Deletar transportadora
     static async deleteTransportadora(id: string): Promise<void> {
         try {
-            await deleteDoc(doc(db, COLLECTION_NAME, id));
+            const response = await fetch(`/api/transportadoras/${id}`, {
+                method: 'DELETE'
+            });
+            if (!response.ok) throw new Error('Failed to delete transportadora');
         } catch (error) {
             console.error('Erro ao deletar transportadora:', error);
             throw error;

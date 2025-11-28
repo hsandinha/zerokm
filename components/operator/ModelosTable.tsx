@@ -1,11 +1,21 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { QueryDocumentSnapshot } from 'firebase/firestore';
 import { useTablesDatabase } from '../../lib/hooks/useTablesDatabase';
 import { Modelo, tablesService, PaginationResult } from '../../lib/services/tablesService';
 import { Pagination } from '../Pagination';
 import styles from './TablesManagement.module.css';
+
+const formatDate = (dateString: string | Date | undefined) => {
+    if (!dateString) return 'N/A';
+    try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return 'N/A';
+        return date.toLocaleDateString('pt-BR');
+    } catch (e) {
+        return 'N/A';
+    }
+};
 
 export function ModelosTable() {
     const { marcas, addModelo, updateModelo, deleteModelo, importModelosFromCSV } = useTablesDatabase();
@@ -18,7 +28,7 @@ export function ModelosTable() {
     const [totalItems, setTotalItems] = useState(0);
     const [hasNextPage, setHasNextPage] = useState(false);
     const itemsPerPage = 50;
-    const lastDocRef = useRef<QueryDocumentSnapshot | undefined>(undefined);
+    const lastDocRef = useRef<any>(undefined);
     const currentPageRef = useRef(1);
 
     const [showForm, setShowForm] = useState(false);
@@ -40,35 +50,19 @@ export function ModelosTable() {
             setLoading(true);
             setError(null);
 
-            // Tentar primeiro com paginação
-            try {
-                const result: PaginationResult<Modelo> = await tablesService.getModelosPaginated({
-                    page,
-                    itemsPerPage,
-                    lastDoc: page === currentPageRef.current + 1 ? lastDocRef.current : undefined
-                });
+            const result: PaginationResult<Modelo> = await tablesService.getModelosPaginated({
+                page,
+                itemsPerPage,
+                lastDoc: page === currentPageRef.current + 1 ? lastDocRef.current : undefined
+            });
 
-                setModelos(result.data);
-                setTotalItems(result.total);
-                setHasNextPage(result.hasNextPage);
-                lastDocRef.current = result.lastDoc;
-                currentPageRef.current = page;
-                setCurrentPage(page);
-            } catch (paginationError) {
-                // Fallback: usar método antigo
-                console.log('Fallback para método antigo de modelos');
-                const allModelos = await tablesService.getAllModelos();
-                const startIndex = (page - 1) * itemsPerPage;
-                const endIndex = startIndex + itemsPerPage;
-                const pageData = allModelos.slice(startIndex, endIndex);
+            setModelos(result.data);
+            setTotalItems(result.total);
+            setHasNextPage(result.hasNextPage);
+            lastDocRef.current = result.lastDoc;
+            currentPageRef.current = page;
+            setCurrentPage(page);
 
-                setModelos(pageData);
-                setTotalItems(allModelos.length);
-                setHasNextPage(endIndex < allModelos.length);
-                lastDocRef.current = undefined;
-                currentPageRef.current = page;
-                setCurrentPage(page);
-            }
         } catch (error) {
             console.error('Erro ao carregar modelos:', error);
             setError('Erro ao carregar modelos');
@@ -335,12 +329,7 @@ export function ModelosTable() {
                                     <td className={styles.modeloName}>{modelo.nome}</td>
                                     <td className={styles.marcaName}>{modelo.marca}</td>
                                     <td>
-                                        {modelo.criadoEm ?
-                                            (modelo.criadoEm as any).toDate ?
-                                                (modelo.criadoEm as any).toDate().toLocaleDateString('pt-BR') :
-                                                new Date(modelo.criadoEm as any).toLocaleDateString('pt-BR')
-                                            : 'N/A'
-                                        }
+                                        {formatDate(modelo.createdAt)}
                                     </td>
                                     <td>
                                         <div className={styles.actions}>

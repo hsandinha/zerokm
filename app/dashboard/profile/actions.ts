@@ -1,8 +1,10 @@
 'use server';
 
-import { adminAuth, adminDb } from '@/lib/firebase-admin';
+import { adminAuth } from '@/lib/firebase-admin';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/pages/api/auth/[...nextauth]';
+import connectDB from '@/lib/mongodb';
+import User from '@/models/User';
 
 export interface UserProfileData {
     uid?: string;
@@ -24,22 +26,30 @@ export interface UserProfileData {
 
 export async function getUserProfile(): Promise<UserProfileData | null> {
     try {
+        await connectDB();
         const session = await getServerSession(authOptions);
         if (!session?.user?.email) {
             return null;
         }
 
         const userRecord = await adminAuth.getUserByEmail(session.user.email);
-        const userDoc = await adminDb.collection('users').doc(userRecord.uid).get();
-        const userData = userDoc.data();
+        const user = await User.findOne({ firebaseUid: userRecord.uid }).lean();
 
         return {
             uid: userRecord.uid,
             email: userRecord.email || '',
-            displayName: userData?.displayName || userRecord.displayName || '',
-            phoneNumber: userData?.phoneNumber || '',
-            cpf: userData?.cpf || '',
-            address: userData?.address || {
+            displayName: user?.displayName || userRecord.displayName || '',
+            phoneNumber: user?.phoneNumber || '',
+            cpf: user?.cpf || '',
+            address: user?.address ? {
+                street: user.address.street || '',
+                number: user.address.number || '',
+                complement: user.address.complement || '',
+                neighborhood: user.address.neighborhood || '',
+                city: user.address.city || '',
+                state: user.address.state || '',
+                zipCode: user.address.zipCode || ''
+            } : {
                 street: '',
                 number: '',
                 complement: '',
@@ -58,6 +68,7 @@ export async function getUserProfile(): Promise<UserProfileData | null> {
 
 export async function updateUserProfile(data: Partial<UserProfileData>) {
     try {
+        await connectDB();
         const session = await getServerSession(authOptions);
         if (!session?.user?.email) {
             return { success: false, error: 'Not authenticated' };
@@ -73,14 +84,20 @@ export async function updateUserProfile(data: Partial<UserProfileData>) {
             });
         }
 
-        // Update Firestore Data
-        await adminDb.collection('users').doc(uid).set({
-            displayName: data.displayName,
-            phoneNumber: data.phoneNumber,
-            cpf: data.cpf,
-            address: data.address,
-            updatedAt: new Date()
-        }, { merge: true });
+        // Update MongoDB Data
+        await User.findOneAndUpdate(
+            { firebaseUid: uid },
+            {
+                $set: {
+                    displayName: data.displayName,
+                    phoneNumber: data.phoneNumber,
+                    cpf: data.cpf,
+                    address: data.address,
+                    updatedAt: new Date()
+                }
+            },
+            { upsert: true, new: true }
+        );
 
         return { success: true };
     } catch (error) {
