@@ -1,21 +1,17 @@
 // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getAuth } from "firebase/auth";
 
-// Your web app's Firebase configuration
+// Your web app's Firebase configuration (from env)
 const firebaseConfig = {
-    apiKey: "AIzaSyCCYcm59Sk-DZwhe7Co--BGzzI0NZVd52c",
-    authDomain: "zerokm-64d2f.firebaseapp.com",
-    projectId: "zerokm-64d2f",
-    storageBucket: "zerokm-64d2f.firebasestorage.app",
-    messagingSenderId: "10708933516",
-    appId: "1:10708933516:web:41a16d6e84854fa2d454a9",
-    measurementId: "G-V4ZPR6Q59K"
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY as string,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN as string,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID as string,
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase (avoid re-init on client hot reload)
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
 const auth = getAuth(app);
 auth.languageCode = 'pt';
