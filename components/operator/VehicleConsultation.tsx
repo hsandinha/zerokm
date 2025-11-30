@@ -101,8 +101,19 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         return () => clearTimeout(timeoutId);
     }, [currentPage, itemsPerPage, searchTerm, filters, sortConfig, getVehiclesPaginated]);
 
-    // Resetar página quando filtros mudam
-    // Removido reset automático de página em cada tecla; agora feito ao aplicar filtros/busca
+    // Auto-aplicar busca com debounce quando usuário digita (busca server-side automática)
+    useEffect(() => {
+        const term = pendingSearchTerm.trim();
+        // Se menos de 3 caracteres, limpa a busca aplicada
+        if (term.length > 0 && term.length < 3) return;
+        
+        const timeoutId = setTimeout(() => {
+            setSearchTerm(term);
+            setCurrentPage(1);
+        }, 600); // Debounce de 600ms para dar tempo do usuário terminar de digitar
+
+        return () => clearTimeout(timeoutId);
+    }, [pendingSearchTerm]);
 
     // Cache de sugestões carregadas uma vez da API dedicada (evita reload por tecla)
     const [suggestionsCache, setSuggestionsCache] = useState<Record<string, string[]>>({});
@@ -302,76 +313,9 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
     };
 
     // Lógica de Paginação (Server-side)
-    // Os veículos já vêm filtrados e paginados do servidor
+    // Os veículos já vêm filtrados e paginados do servidor via auto-search com debounce
     const totalPages = itemsPerPage === -1 ? 1 : Math.ceil(totalItems / itemsPerPage);
-    // Filtro local abrangente com suporte a busca por intervalo (ano:2024, preco:>100000, preco:<150000)
-    const displayVehicles = (() => {
-        const term = pendingSearchTerm.trim();
-        if (term && term !== searchTerm) {
-            const lower = term.toLowerCase();
-            // Busca por intervalo: ano:2024 ou preco:>100000
-            const rangeMatch = term.match(/^(ano|preco):([><]=?)?(\d+)$/);
-            if (rangeMatch) {
-                const [, field, op, valueStr] = rangeMatch;
-                const value = parseInt(valueStr);
-                return vehicles.filter(v => {
-                    if (field === 'ano') {
-                        const ano = parseInt(v.ano || '0');
-                        if (!op || op === ':') return ano === value;
-                        if (op === '>') return ano > value;
-                        if (op === '<') return ano < value;
-                        if (op === '>=') return ano >= value;
-                        if (op === '<=') return ano <= value;
-                    } else if (field === 'preco') {
-                        const preco = v.preco || 0;
-                        if (!op || op === ':') return Math.abs(preco - value) < 1;
-                        if (op === '>') return preco > value;
-                        if (op === '<') return preco < value;
-                        if (op === '>=') return preco >= value;
-                        if (op === '<=') return preco <= value;
-                    }
-                    return false;
-                });
-            }
-            // Busca textual em todos os campos
-            return vehicles.filter(v => {
-                const precoBase = v.preco != null ? v.preco.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '';
-                const precoMargem = v.preco != null ? calculatePriceWithMargin(v.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '';
-                const dataStr = formatDate(v.dataEntrada);
-                const quilometragemStr = v.quilometragem != null ? String(v.quilometragem) : '';
-                const searchableValues = [
-                    dataStr,
-                    v.modelo,
-                    v.transmissao,
-                    v.combustivel,
-                    v.cor,
-                    v.ano,
-                    v.opcionais,
-                    precoBase,
-                    precoMargem,
-                    v.status,
-                    v.observacoes,
-                    v.cidade,
-                    v.estado,
-                    v.concessionaria,
-                    v.telefone,
-                    v.nomeContato,
-                    v.operador,
-                    v.marca,
-                    v.versao,
-                    v.anoModelo,
-                    v.chassi,
-                    v.motor,
-                    v.vendedor,
-                    quilometragemStr,
-                    v.categoria,
-                    v.descricao
-                ].filter(Boolean);
-                return searchableValues.some(val => (val || '').toLowerCase().includes(lower));
-            });
-        }
-        return vehicles;
-    })();
+    const displayVehicles = vehicles; // Server-side já traz filtrado
 
     const handlePageChange = (page: number) => {
         if (page >= 1 && page <= totalPages) {
