@@ -10,14 +10,17 @@ import styles from './VehicleConsultation.module.css';
 import modalStyles from './TablesManagement.module.css';
 import { AutocompleteInput } from './AutocompleteInput';
 
-const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return '';
+const formatDate = (dateInput: string | Date | undefined) => {
+    if (!dateInput) return '';
     try {
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) return dateString;
+        if (dateInput instanceof Date) {
+            return dateInput.toLocaleDateString('pt-BR');
+        }
+        const date = new Date(dateInput);
+        if (isNaN(date.getTime())) return dateInput;
         return date.toLocaleDateString('pt-BR');
     } catch (e) {
-        return dateString || '';
+        return typeof dateInput === 'string' ? dateInput : '';
     }
 };
 
