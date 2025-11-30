@@ -73,11 +73,17 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
 
     // Usar o hook do banco de dados
     const { vehicles, totalItems, loading, error, refreshVehicles, updateVehicle, deleteVehicle, deleteVehicles, getVehiclesPaginated } = useVehicleDatabase();
-    const { importVeiculosFromCSV } = useTablesDatabase();
+    const { importVeiculosFromCSV, marcas, cores, refreshMarcas, refreshCores } = useTablesDatabase();
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const percent = importProgress.total > 0
         ? Math.max(0, Math.min(100, Math.round((importProgress.current / importProgress.total) * 100)))
         : 0;
+
+    // Carregar marcas e cores para detecção automática
+    useEffect(() => {
+        refreshMarcas();
+        refreshCores();
+    }, []);
 
     // Carregar dados paginados do servidor
     useEffect(() => {
@@ -136,9 +142,51 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
             };
 
             const warnings: string[] = [];
+            // Criar mapas de detecção para marca e cor (normalizado)
+            const marcasMap: Record<string, string> = {};
+            marcas.forEach(m => {
+                const normalized = norm(m.nome);
+                marcasMap[normalized] = m.nome;
+            });
+            const coresMap: Record<string, string> = {};
+            cores.forEach(c => {
+                const normalized = norm(c.nome);
+                coresMap[normalized] = c.nome;
+            });
+
             for (const p of parts) {
                 const m = p.match(/^(combustivel|transmissao|status|ano|preco|marca|cor):(.+)$/i);
                 if (!m) {
+                    // Detecção automática: verificar se é marca ou cor conhecida
+                    const normalizedPart = norm(p);
+
+                    // Verificar se corresponde a um combustível conhecido
+                    if (fuelMap[normalizedPart]) {
+                        nextFilters.combustivel = fuelMap[normalizedPart];
+                        continue;
+                    }
+                    // Verificar se corresponde a uma transmissão conhecida
+                    if (transMap[normalizedPart]) {
+                        nextFilters.transmissao = transMap[normalizedPart];
+                        continue;
+                    }
+                    // Verificar se corresponde a um status conhecido
+                    if (statusMap[normalizedPart]) {
+                        nextFilters.status = statusMap[normalizedPart];
+                        continue;
+                    }
+                    // Verificar se corresponde a uma marca conhecida
+                    if (marcasMap[normalizedPart]) {
+                        nextFilters.marca = marcasMap[normalizedPart];
+                        continue;
+                    }
+                    // Verificar se corresponde a uma cor conhecida
+                    if (coresMap[normalizedPart]) {
+                        nextFilters.cor = coresMap[normalizedPart];
+                        continue;
+                    }
+
+                    // Se não corresponde a nada conhecido, adiciona como busca livre
                     freeText.push(p);
                     continue;
                 }
