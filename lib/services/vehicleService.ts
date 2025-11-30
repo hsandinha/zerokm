@@ -1,7 +1,7 @@
 // Interface para os veículos atualizada
 export interface Vehicle {
     id?: string;
-    dataEntrada: string;
+    dataEntrada: Date | string;
     modelo: string;
     transmissao: 'Manual' | 'Automática' | 'CVT';
     combustivel: 'Flex' | 'Gasolina' | 'Etanol' | 'Diesel' | 'Elétrico' | 'Híbrido';

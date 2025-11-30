@@ -315,15 +315,63 @@ class TablesService {
 
                 try {
                     const preco = precoStr ? parseFloat(precoStr.replace(/[^\d.-]/g, '')) : 0;
-                    const validStatus = ['A faturar', 'Refaturamento', 'Licenciado'];
-                    const statusFinal = validStatus.includes(status) ? status : 'A faturar';
-                    const validCombustivel = ['Flex', 'Gasolina', 'Etanol', 'Diesel', 'Elétrico', 'Híbrido'];
-                    const combustivelFinal = validCombustivel.includes(combustivel) ? combustivel : 'Flex';
-                    const validTransmissao = ['Manual', 'Automática', 'CVT'];
-                    const transmissaoFinal = validTransmissao.includes(transmissao) ? transmissao : 'Manual';
+
+                    // Normaliza e valida STATUS - gera erro se inválido
+                    const normalizeStatus = (s?: string): 'A faturar' | 'Refaturamento' | 'Licenciado' => {
+                        if (!s || !s.trim()) {
+                            throw new Error('Status não pode ser vazio');
+                        }
+                        const normalized = s.trim().toUpperCase();
+                        if (normalized === 'A FATURAR' || normalized === 'AFATURAR') return 'A faturar';
+                        if (normalized === 'REFATURAMENTO') return 'Refaturamento';
+                        if (normalized === 'LICENCIADO') return 'Licenciado';
+                        throw new Error(`Status inválido: "${s}". Use: A FATURAR, REFATURAMENTO ou LICENCIADO`);
+                    };
+
+                    // Normaliza e valida COMBUSTÍVEL - gera erro se inválido
+                    const normalizeCombustivel = (c?: string): 'Flex' | 'Gasolina' | 'Etanol' | 'Diesel' | 'Elétrico' | 'Híbrido' => {
+                        if (!c || !c.trim()) {
+                            throw new Error('Combustível não pode ser vazio');
+                        }
+                        const normalized = c.trim().toUpperCase();
+                        if (normalized === 'FLEX') return 'Flex';
+                        if (normalized === 'GASOLINA') return 'Gasolina';
+                        if (normalized === 'ETANOL' || normalized === 'ÁLCOOL' || normalized === 'ALCOOL') return 'Etanol';
+                        if (normalized === 'DIESEL') return 'Diesel';
+                        if (normalized === 'ELÉTRICO' || normalized === 'ELETRICO') return 'Elétrico';
+                        if (normalized === 'HÍBRIDO' || normalized === 'HIBRIDO') return 'Híbrido';
+                        throw new Error(`Combustível inválido: "${c}". Use: FLEX, GASOLINA, ETANOL/ALCOOL, DIESEL, ELÉTRICO ou HÍBRIDO`);
+                    };
+
+                    // Normaliza e valida TRANSMISSÃO - gera erro se não for reconhecida
+                    const normalizeTransmissao = (t?: string): 'Manual' | 'Automática' | 'CVT' => {
+                        if (!t || !t.trim()) {
+                            throw new Error('Transmissão não pode ser vazia');
+                        }
+                        const s = t.trim().toUpperCase();
+                        if (s === 'AUTOMATICO' || s === 'AUTOMÁTICO' || s === 'AUT.' || s === 'AUTO' || s === 'AUTOMATICA' || s === 'AUTOMÁTICA') return 'Automática';
+                        if (s === 'MANUAL') return 'Manual';
+                        if (s === 'CVT') return 'CVT';
+                        throw new Error(`Transmissão inválida: "${t}". Use: AUTOMATICO, MANUAL ou CVT`);
+                    };
+
+                    const statusFinal = normalizeStatus(status);
+                    const combustivelFinal = normalizeCombustivel(combustivel);
+                    const transmissaoFinal = normalizeTransmissao(transmissao);
+
+                    // Converte data brasileira DD/MM/YYYY para objeto Date
+                    const parseDataEntrada = (dateStr?: string): Date => {
+                        if (!dateStr || !dateStr.trim()) return new Date();
+                        const parts = dateStr.trim().split('/');
+                        if (parts.length === 3) {
+                            const [day, month, year] = parts;
+                            return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                        }
+                        return new Date();
+                    };
 
                     const vehicleData = {
-                        dataEntrada: dataEntrada || new Date().toLocaleDateString('pt-BR'),
+                        dataEntrada: parseDataEntrada(dataEntrada),
                         modelo: modelo.toUpperCase(),
                         transmissao: transmissaoFinal as 'Manual' | 'Automática' | 'CVT',
                         combustivel: combustivelFinal as 'Flex' | 'Gasolina' | 'Etanol' | 'Diesel' | 'Elétrico' | 'Híbrido',
