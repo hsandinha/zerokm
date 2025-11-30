@@ -31,6 +31,39 @@ export async function GET(request: Request) {
 
         if (search) {
             const searchRegex = { $regex: search, $options: 'i' };
+            // Se o termo de busca corresponde exatamente a valores de enum conhecidos, aplicar como filtro específico
+            const normalized = search.trim().toLowerCase();
+            const fuelMap: Record<string, string> = {
+                'flex': 'Flex',
+                'gasolina': 'Gasolina',
+                'etanol': 'Etanol',
+                'alcool': 'Etanol',
+                'álcool': 'Etanol',
+                'diesel': 'Diesel',
+                'elétrico': 'Elétrico',
+                'eletrico': 'Elétrico',
+                'híbrido': 'Híbrido',
+                'hibrido': 'Híbrido'
+            };
+            const transMap: Record<string, string> = {
+                'manual': 'Manual',
+                'automatico': 'Automático',
+                'automático': 'Automático',
+                'cvt': 'CVT'
+            };
+            const statusMap: Record<string, string> = {
+                'a faturar': 'A faturar',
+                'refaturamento': 'Refaturamento',
+                'licenciado': 'Licenciado'
+            };
+
+            if (fuelMap[normalized]) {
+                query.combustivel = fuelMap[normalized];
+            } else if (transMap[normalized]) {
+                query.transmissao = transMap[normalized];
+            } else if (statusMap[normalized]) {
+                query.status = statusMap[normalized];
+            }
             query.$or = [
                 { marca: searchRegex },
                 { modelo: searchRegex },

@@ -101,15 +101,90 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         return () => clearTimeout(timeoutId);
     }, [currentPage, itemsPerPage, searchTerm, filters, sortConfig, getVehiclesPaginated]);
 
-    // Auto-aplicar busca com debounce quando usuário digita (busca server-side automática)
+    // Auto-aplicar busca com debounce quando usuário digita (busca server-side automática com suporte a prefixos)
     useEffect(() => {
-        const term = pendingSearchTerm.trim();
+        const raw = pendingSearchTerm || '';
+        const term = raw.trim();
         // Se menos de 3 caracteres e não está vazio, aguarda mais caracteres
         if (term.length > 0 && term.length < 3) return;
 
         const timeoutId = setTimeout(() => {
-            // Se vazio, limpa a busca; se tem 3+ caracteres, aplica
-            setSearchTerm(term);
+            // Parser simples de prefixos: combustivel:, transmissao:, status:, ano:, preco:
+            const parts = term.split(/\s+/);
+            const nextFilters = { ...filters };
+            let freeText: string[] = [];
+
+            const norm = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+            const fuelMap: Record<string, string> = {
+                'flex': 'Flex',
+                'gasolina': 'Gasolina',
+                'etanol': 'Etanol',
+                'alcool': 'Etanol',
+                'diesel': 'Diesel',
+                'eletrico': 'Elétrico',
+                'hibrido': 'Híbrido'
+            };
+            const transMap: Record<string, string> = {
+                'manual': 'Manual',
+                'automatico': 'Automático',
+                'cvt': 'CVT'
+            };
+            const statusMap: Record<string, string> = {
+                'afaturar': 'A faturar',
+                'refaturamento': 'Refaturamento',
+                'licenciado': 'Licenciado'
+            };
+
+            const warnings: string[] = [];
+            for (const p of parts) {
+                const m = p.match(/^(combustivel|transmissao|status|ano|preco|marca|cor):(.+)$/i);
+                if (!m) {
+                    freeText.push(p);
+                    continue;
+                }
+                const [, key, valueRaw] = m;
+                const value = valueRaw.trim();
+                switch (key.toLowerCase()) {
+                    case 'combustivel': {
+                        const mapped = fuelMap[norm(value)] || value;
+                        nextFilters.combustivel = mapped;
+                        break;
+                    }
+                    case 'transmissao': {
+                        const mapped = transMap[norm(value)] || value;
+                        nextFilters.transmissao = mapped;
+                        break;
+                    }
+                    case 'status': {
+                        const mapped = statusMap[norm(value)] || value;
+                        nextFilters.status = mapped;
+                        break;
+                    }
+                    case 'ano': {
+                        nextFilters.ano = value;
+                        break;
+                    }
+                    case 'marca': {
+                        nextFilters.marca = value;
+                        break;
+                    }
+                    case 'cor': {
+                        nextFilters.cor = value;
+                        break;
+                    }
+                    case 'preco': {
+                        // Prefixo suportado no cliente; servidor atual não usa preco no GET
+                        // Mantemos no freeText para não perder o termo
+                        freeText.push(p);
+                        warnings.push('Prefixo preco não é aplicado na busca do servidor.');
+                        break;
+                    }
+                }
+            }
+
+            setFilters(nextFilters);
+            setSearchTerm(freeText.join(' ').trim());
+            setPrefixWarnings(warnings);
             setCurrentPage(1);
         }, 400); // Debounce de 400ms
 
@@ -119,6 +194,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
     // Cache de sugestões carregadas uma vez da API dedicada (evita reload por tecla)
     const [suggestionsCache, setSuggestionsCache] = useState<Record<string, string[]>>({});
     const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+    const [prefixWarnings, setPrefixWarnings] = useState<string[]>([]);
 
     useEffect(() => {
         // Carrega apenas quando usuário abre filtros avançados e ainda não tem cache
@@ -484,7 +560,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                 <div className={styles.searchContainer}>
                     <input
                         type="text"
-                        placeholder="Digite para pesquisar (ex: argo, ano:2024, preco:>100000)..."
+                        placeholder="Digite para pesquisar (ex: argo, combustivel:diesel, transmissao:manual, marca:fiat, cor:preto, ano:2024)"
                         value={pendingSearchTerm}
                         onChange={(e) => setPendingSearchTerm(e.target.value)}
                         className={styles.searchInput}
@@ -582,6 +658,57 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                     <button onClick={clearFilters} className={styles.clearButton}>
                         Limpar Busca
                     </button>
+                    {/* Chips de filtros aplicados */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
+                        {searchTerm && (
+                            <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center' }}>
+                                Busca: {searchTerm}
+                                <button onClick={() => { setSearchTerm(''); setPendingSearchTerm(''); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                            </span>
+                        )}
+                        {filters.combustivel && (
+                            <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center' }}>
+                                Combustível: {filters.combustivel}
+                                <button onClick={() => { setFilters({ ...filters, combustivel: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                            </span>
+                        )}
+                        {filters.transmissao && (
+                            <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center' }}>
+                                Transmissão: {filters.transmissao}
+                                <button onClick={() => { setFilters({ ...filters, transmissao: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                            </span>
+                        )}
+                        {filters.status && (
+                            <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center' }}>
+                                Status: {filters.status}
+                                <button onClick={() => { setFilters({ ...filters, status: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                            </span>
+                        )}
+                        {filters.ano && (
+                            <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center' }}>
+                                Ano: {filters.ano}
+                                <button onClick={() => { setFilters({ ...filters, ano: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                            </span>
+                        )}
+                        {filters.marca && (
+                            <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center' }}>
+                                Marca: {filters.marca}
+                                <button onClick={() => { setFilters({ ...filters, marca: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                            </span>
+                        )}
+                        {filters.cor && (
+                            <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center' }}>
+                                Cor: {filters.cor}
+                                <button onClick={() => { setFilters({ ...filters, cor: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                            </span>
+                        )}
+                    </div>
+                    {/* Warnings de prefixos */}
+                    {prefixWarnings.length > 0 && (
+                        <div style={{ marginTop: '6px', color: '#a66', fontSize: '0.85rem' }}>
+                            {prefixWarnings.map((w, i) => (<div key={i}>⚠️ {w}</div>))}
+                        </div>
+                    )}
                 </div>
             </div>
 
