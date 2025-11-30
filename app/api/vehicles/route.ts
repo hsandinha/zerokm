@@ -41,7 +41,12 @@ export async function GET(request: Request) {
                 { estado: searchRegex },
                 { vendedor: searchRegex },
                 { observacoes: searchRegex },
-                { nomeContato: searchRegex }
+                { nomeContato: searchRegex },
+                { combustivel: searchRegex },
+                { transmissao: searchRegex },
+                { status: searchRegex },
+                { ano: searchRegex },
+                { opcionais: searchRegex }
             ];
         }
 
