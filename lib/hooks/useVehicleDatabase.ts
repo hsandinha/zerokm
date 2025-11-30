@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { VehicleService, Vehicle } from '../services/vehicleService';
 // import { useSession } from 'next-auth/react';
 
@@ -10,7 +10,7 @@ export const useVehicleDatabase = () => {
     const [error, setError] = useState<string | null>(null);
 
     // Inicializar banco com dados de exemplo se estiver vazio
-    const initializeDatabase = async () => {
+    const initializeDatabase = useCallback(async () => {
         try {
             // Buscar todos os veículos do banco (limitado a 50 por padrão para não pesar)
             const result = await VehicleService.getVehiclesPaginated({ page: 1, itemsPerPage: 50 });
@@ -22,10 +22,10 @@ export const useVehicleDatabase = () => {
             setError('Erro ao carregar veículos');
             setLoading(false);
         }
-    };
+    }, []);
 
     // Buscar veículos paginados
-    const getVehiclesPaginated = async (options: any) => {
+    const getVehiclesPaginated = useCallback(async (options: any) => {
         try {
             setLoading(true);
             const result = await VehicleService.getVehiclesPaginated(options);
@@ -39,10 +39,10 @@ export const useVehicleDatabase = () => {
             setLoading(false);
             throw err;
         }
-    };
+    }, []);
 
     // Buscar veículos com filtros (mantido por compatibilidade, mas redirecionando para paginado)
-    const searchVehicles = async (filters: any) => {
+    const searchVehicles = useCallback(async (filters: any) => {
         try {
             setLoading(true);
             const result = await VehicleService.getVehiclesPaginated({ filters, page: 1, itemsPerPage: 50 });
@@ -54,10 +54,10 @@ export const useVehicleDatabase = () => {
             setError('Erro ao buscar veículos');
             setLoading(false);
         }
-    };
+    }, []);
 
     // Adicionar novo veículo
-    const addVehicle = async (vehicle: Omit<Vehicle, 'id'>) => {
+    const addVehicle = useCallback(async (vehicle: Omit<Vehicle, 'id'>) => {
         try {
             console.log('Hook: Tentando adicionar veículo:', vehicle);
             // console.log('Hook: Sessão atual:', session);
@@ -80,10 +80,10 @@ export const useVehicleDatabase = () => {
             setError('Erro ao adicionar veículo');
             return false;
         }
-    };
+    }, []);
 
     // Atualizar veículo
-    const updateVehicle = async (id: string, updates: Partial<Vehicle>) => {
+    const updateVehicle = useCallback(async (id: string, updates: Partial<Vehicle>) => {
         try {
             await VehicleService.updateVehicle(id, updates);
             // Recarregar lista
@@ -95,10 +95,10 @@ export const useVehicleDatabase = () => {
             setError('Erro ao atualizar veículo');
             return false;
         }
-    };
+    }, []);
 
     // Deletar veículo
-    const deleteVehicle = async (id: string) => {
+    const deleteVehicle = useCallback(async (id: string) => {
         try {
             await VehicleService.deleteVehicle(id);
             // Remover da lista local
@@ -109,10 +109,10 @@ export const useVehicleDatabase = () => {
             setError('Erro ao deletar veículo');
             return false;
         }
-    };
+    }, []);
 
     // Deletar múltiplos veículos
-    const deleteVehicles = async (ids: string[]) => {
+    const deleteVehicles = useCallback(async (ids: string[]) => {
         try {
             await VehicleService.deleteVehicles(ids);
             // Remover da lista local
@@ -123,11 +123,11 @@ export const useVehicleDatabase = () => {
             setError('Erro ao deletar veículos em massa');
             return false;
         }
-    };
+    }, []);
 
     useEffect(() => {
         initializeDatabase();
-    }, []);
+    }, [initializeDatabase]);
 
     return {
         vehicles,
