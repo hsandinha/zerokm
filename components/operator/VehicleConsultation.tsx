@@ -104,13 +104,14 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
     // Auto-aplicar busca com debounce quando usuário digita (busca server-side automática)
     useEffect(() => {
         const term = pendingSearchTerm.trim();
-        // Se menos de 3 caracteres, limpa a busca aplicada
+        // Se menos de 3 caracteres e não está vazio, aguarda mais caracteres
         if (term.length > 0 && term.length < 3) return;
-        
+
         const timeoutId = setTimeout(() => {
+            // Se vazio, limpa a busca; se tem 3+ caracteres, aplica
             setSearchTerm(term);
             setCurrentPage(1);
-        }, 600); // Debounce de 600ms para dar tempo do usuário terminar de digitar
+        }, 400); // Debounce de 400ms
 
         return () => clearTimeout(timeoutId);
     }, [pendingSearchTerm]);
