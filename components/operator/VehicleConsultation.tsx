@@ -9,6 +9,7 @@ import { AddVehicleModal } from './AddVehicleModal';
 import styles from './VehicleConsultation.module.css';
 import modalStyles from './TablesManagement.module.css';
 import { AutocompleteInput } from './AutocompleteInput';
+import { HighlightText } from '../HighlightText';
 
 const formatDate = (dateInput: string | Date | undefined) => {
     if (!dateInput) return '';
@@ -303,7 +304,74 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
     // Lógica de Paginação (Server-side)
     // Os veículos já vêm filtrados e paginados do servidor
     const totalPages = itemsPerPage === -1 ? 1 : Math.ceil(totalItems / itemsPerPage);
-    const paginatedVehicles = vehicles;
+    // Filtro local abrangente com suporte a busca por intervalo (ano:2024, preco:>100000, preco:<150000)
+    const displayVehicles = (() => {
+        const term = pendingSearchTerm.trim();
+        if (term && term !== searchTerm) {
+            const lower = term.toLowerCase();
+            // Busca por intervalo: ano:2024 ou preco:>100000
+            const rangeMatch = term.match(/^(ano|preco):([><]=?)?(\d+)$/);
+            if (rangeMatch) {
+                const [, field, op, valueStr] = rangeMatch;
+                const value = parseInt(valueStr);
+                return vehicles.filter(v => {
+                    if (field === 'ano') {
+                        const ano = parseInt(v.ano || '0');
+                        if (!op || op === ':') return ano === value;
+                        if (op === '>') return ano > value;
+                        if (op === '<') return ano < value;
+                        if (op === '>=') return ano >= value;
+                        if (op === '<=') return ano <= value;
+                    } else if (field === 'preco') {
+                        const preco = v.preco || 0;
+                        if (!op || op === ':') return Math.abs(preco - value) < 1;
+                        if (op === '>') return preco > value;
+                        if (op === '<') return preco < value;
+                        if (op === '>=') return preco >= value;
+                        if (op === '<=') return preco <= value;
+                    }
+                    return false;
+                });
+            }
+            // Busca textual em todos os campos
+            return vehicles.filter(v => {
+                const precoBase = v.preco != null ? v.preco.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '';
+                const precoMargem = v.preco != null ? calculatePriceWithMargin(v.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '';
+                const dataStr = formatDate(v.dataEntrada);
+                const quilometragemStr = v.quilometragem != null ? String(v.quilometragem) : '';
+                const searchableValues = [
+                    dataStr,
+                    v.modelo,
+                    v.transmissao,
+                    v.combustivel,
+                    v.cor,
+                    v.ano,
+                    v.opcionais,
+                    precoBase,
+                    precoMargem,
+                    v.status,
+                    v.observacoes,
+                    v.cidade,
+                    v.estado,
+                    v.concessionaria,
+                    v.telefone,
+                    v.nomeContato,
+                    v.operador,
+                    v.marca,
+                    v.versao,
+                    v.anoModelo,
+                    v.chassi,
+                    v.motor,
+                    v.vendedor,
+                    quilometragemStr,
+                    v.categoria,
+                    v.descricao
+                ].filter(Boolean);
+                return searchableValues.some(val => (val || '').toLowerCase().includes(lower));
+            });
+        }
+        return vehicles;
+    })();
 
     const handlePageChange = (page: number) => {
         if (page >= 1 && page <= totalPages) {
@@ -347,7 +415,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
     };
     const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.checked) {
-            const allIds = paginatedVehicles.map(v => v.id).filter(Boolean) as string[];
+            const allIds = displayVehicles.map(v => v.id).filter(Boolean) as string[];
             setSelectedIds(allIds);
         } else {
             setSelectedIds([]);
@@ -471,7 +539,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                 <div className={styles.searchContainer}>
                     <input
                         type="text"
-                        placeholder="Digite para pesquisar (mín. 3 caracteres)..."
+                        placeholder="Digite para pesquisar (ex: argo, ano:2024, preco:>100000)..."
                         value={pendingSearchTerm}
                         onChange={(e) => setPendingSearchTerm(e.target.value)}
                         className={styles.searchInput}
@@ -481,7 +549,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                         style={{ marginLeft: '8px' }}
                         onClick={() => { setSearchTerm(pendingSearchTerm); setCurrentPage(1); }}
                         disabled={pendingSearchTerm.length > 0 && pendingSearchTerm.length < 3}
-                        title={pendingSearchTerm.length > 0 && pendingSearchTerm.length < 3 ? 'Digite pelo menos 3 caracteres' : 'Aplicar busca'}
+                        title={pendingSearchTerm.length > 0 && pendingSearchTerm.length < 3 ? 'Digite pelo menos 3 caracteres' : 'Aplicar busca no servidor'}
                     >
                         Buscar
                     </button>
@@ -584,7 +652,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                         <input
                                             type="checkbox"
                                             onChange={handleSelectAll}
-                                            checked={paginatedVehicles.length > 0 && selectedIds.length === paginatedVehicles.length}
+                                            checked={displayVehicles.length > 0 && selectedIds.length === displayVehicles.length}
                                         />
                                     </th>
                                     <th className={styles.tableHeader} onClick={() => handleSort('dataEntrada')} style={{ cursor: 'pointer' }}>
@@ -641,7 +709,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                 </tr>
                             </thead>
                             <tbody>
-                                {paginatedVehicles.map((vehicle) => (
+                                {displayVehicles.map((vehicle) => (
                                     <tr key={vehicle.id} className={styles.tableRow}>
                                         <td className={styles.tableCell}>
                                             <input
@@ -650,13 +718,13 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                                 onChange={() => handleSelectOne(vehicle.id || '')}
                                             />
                                         </td>
-                                        <td className={styles.tableCell}>{formatDate(vehicle.dataEntrada)}</td>
-                                        <td className={styles.tableCell}>{vehicle.modelo}</td>
-                                        <td className={styles.tableCell}>{vehicle.transmissao}</td>
-                                        <td className={styles.tableCell}>{vehicle.combustivel}</td>
-                                        <td className={styles.tableCell}>{vehicle.cor}</td>
-                                        <td className={styles.tableCell}>{vehicle.ano}</td>
-                                        <td className={styles.tableCell}>{vehicle.opcionais}</td>
+                                        <td className={styles.tableCell}><HighlightText text={formatDate(vehicle.dataEntrada)} searchTerm={pendingSearchTerm} /></td>
+                                        <td className={styles.tableCell}><HighlightText text={vehicle.modelo} searchTerm={pendingSearchTerm} /></td>
+                                        <td className={styles.tableCell}><HighlightText text={vehicle.transmissao} searchTerm={pendingSearchTerm} /></td>
+                                        <td className={styles.tableCell}><HighlightText text={vehicle.combustivel} searchTerm={pendingSearchTerm} /></td>
+                                        <td className={styles.tableCell}><HighlightText text={vehicle.cor} searchTerm={pendingSearchTerm} /></td>
+                                        <td className={styles.tableCell}><HighlightText text={vehicle.ano} searchTerm={pendingSearchTerm} /></td>
+                                        <td className={styles.tableCell}><HighlightText text={vehicle.opcionais} searchTerm={pendingSearchTerm} /></td>
                                         <td className={styles.tableCell}>
                                             R$ {calculatePriceWithMargin(vehicle.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                         </td>
@@ -665,14 +733,14 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                                 {vehicle.status}
                                             </span>
                                         </td>
-                                        <td className={styles.tableCell}>{vehicle.observacoes}</td>
-                                        <td className={styles.tableCell}>{vehicle.cidade}</td>
-                                        <td className={styles.tableCell}>{vehicle.estado}</td>
-                                        <td className={styles.tableCell}>{vehicle.concessionaria}</td>
-                                        <td className={styles.tableCell}>{vehicle.telefone}</td>
-                                        <td className={styles.tableCell}>{vehicle.nomeContato}</td>
+                                        <td className={styles.tableCell}><HighlightText text={vehicle.observacoes} searchTerm={pendingSearchTerm} /></td>
+                                        <td className={styles.tableCell}><HighlightText text={vehicle.cidade} searchTerm={pendingSearchTerm} /></td>
+                                        <td className={styles.tableCell}><HighlightText text={vehicle.estado} searchTerm={pendingSearchTerm} /></td>
+                                        <td className={styles.tableCell}><HighlightText text={vehicle.concessionaria} searchTerm={pendingSearchTerm} /></td>
+                                        <td className={styles.tableCell}><HighlightText text={vehicle.telefone} searchTerm={pendingSearchTerm} /></td>
+                                        <td className={styles.tableCell}><HighlightText text={vehicle.nomeContato} searchTerm={pendingSearchTerm} /></td>
                                         {role !== 'client' && (
-                                            <td className={styles.tableCell}>{vehicle.operador}</td>
+                                            <td className={styles.tableCell}><HighlightText text={vehicle.operador} searchTerm={pendingSearchTerm} /></td>
                                         )}
                                         <td className={styles.tableCell}>
                                             <div className={styles.actionButtons}>
@@ -718,7 +786,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                     </div>
                 ) : (
                     <div className={styles.gridContainer}>
-                        {paginatedVehicles.map((vehicle) => (
+                        {displayVehicles.map((vehicle) => (
                             <VehicleCard
                                 key={vehicle.id}
                                 vehicle={vehicle}
