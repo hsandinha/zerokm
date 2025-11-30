@@ -117,7 +117,17 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         const timeoutId = setTimeout(() => {
             // Parser simples de prefixos: combustivel:, transmissao:, status:, ano:, preco:
             const parts = term.split(/\s+/);
-            const nextFilters = { ...filters };
+            // Inicializar filtros vazios - reprocessar tudo do zero
+            const nextFilters = {
+                marca: '',
+                modelo: '',
+                categoria: '',
+                cor: '',
+                ano: '',
+                status: '',
+                combustivel: '',
+                transmissao: ''
+            };
             let freeText: string[] = [];
 
             const norm = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
