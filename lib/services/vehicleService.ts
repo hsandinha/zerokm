@@ -3,7 +3,7 @@ export interface Vehicle {
     id?: string;
     dataEntrada: Date | string;
     modelo: string;
-    transmissao: 'Manual' | 'Automática' | 'CVT';
+    transmissao: 'Manual' | 'Automático' | 'CVT';
     combustivel: 'Flex' | 'Gasolina' | 'Etanol' | 'Diesel' | 'Elétrico' | 'Híbrido';
     cor: string;
     ano: string;

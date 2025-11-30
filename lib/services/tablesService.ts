@@ -344,12 +344,12 @@ class TablesService {
                     };
 
                     // Normaliza e valida TRANSMISSÃO - gera erro se não for reconhecida
-                    const normalizeTransmissao = (t?: string): 'Manual' | 'Automática' | 'CVT' => {
+                    const normalizeTransmissao = (t?: string): 'Manual' | 'Automático' | 'CVT' => {
                         if (!t || !t.trim()) {
                             throw new Error('Transmissão não pode ser vazia');
                         }
                         const s = t.trim().toUpperCase();
-                        if (s === 'AUTOMATICO' || s === 'AUTOMÁTICO' || s === 'AUT.' || s === 'AUTO' || s === 'AUTOMATICA' || s === 'AUTOMÁTICA') return 'Automática';
+                        if (s === 'AUTOMATICO' || s === 'AUTOMÁTICO' || s === 'AUT.' || s === 'AUTO' || s === 'AUTOMATICA' || s === 'AUTOMÁTICA') return 'Automático';
                         if (s === 'MANUAL') return 'Manual';
                         if (s === 'CVT') return 'CVT';
                         throw new Error(`Transmissão inválida: "${t}". Use: AUTOMATICO, MANUAL ou CVT`);
@@ -373,7 +373,7 @@ class TablesService {
                     const vehicleData = {
                         dataEntrada: parseDataEntrada(dataEntrada),
                         modelo: modelo.toUpperCase(),
-                        transmissao: transmissaoFinal as 'Manual' | 'Automática' | 'CVT',
+                        transmissao: transmissaoFinal as 'Manual' | 'Automático' | 'CVT',
                         combustivel: combustivelFinal as 'Flex' | 'Gasolina' | 'Etanol' | 'Diesel' | 'Elétrico' | 'Híbrido',
                         cor: cor || '',
                         ano: ano || '',

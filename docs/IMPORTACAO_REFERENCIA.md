@@ -38,7 +38,7 @@ Ordem: marca,modelo,versao,opcionais,cor,concessionaria,preco,ano,anoModelo,stat
 | 13 | chassi | ❌ | 9BR1234567890 |
 | 14 | motor | ❌ | 2.0 16V |
 | 15 | combustivel | ❌ | Flex |
-| 16 | transmissao | ❌ | Automática |
+| 16 | transmissao | ❌ | Automático |
 | 17 | observacoes | ❌ | Veículo em ótimo estado |
 | 18 | dataEntrada | ❌ | 19/11/2025 |
 | 19 | vendedor | ✅ | João Silva |
@@ -58,7 +58,7 @@ Ordem: marca,modelo,versao,opcionais,cor,concessionaria,preco,ano,anoModelo,stat
 6. ✅ Preço sem pontos/vírgulas (ex: 95000 não 95.000,00)
 7. ✅ **Status válidos:** Disponível, Vendido, Reservado, Manutenção
 8. ✅ **Combustível válido:** Flex, Gasolina, Etanol, Diesel, Elétrico, Híbrido
-9. ✅ **Transmissão válida:** Manual, Automática, CVT
+9. ✅ **Transmissão válida:** Manual, Automático, CVT
 10. ✅ Data no formato DD/MM/AAAA (ex: 19/11/2025)
 
 ---

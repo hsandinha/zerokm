@@ -31,7 +31,10 @@ interface VehicleConsultationProps {
 
 export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsultationProps) {
     const { margem } = useConfig();
+    // Estado efetivo (aplicado) para busca e filtros
     const [searchTerm, setSearchTerm] = useState('');
+    // Estado pendente (digitando) para evitar disparar requisições a cada tecla
+    const [pendingSearchTerm, setPendingSearchTerm] = useState('');
     const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
     const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
     const [showVehicleForm, setShowVehicleForm] = useState(false);
@@ -58,6 +61,8 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         combustivel: '',
         transmissao: ''
     });
+    // Filtros pendentes enquanto o usuário digita
+    const [pendingFilters, setPendingFilters] = useState(filters);
     const [sortConfig, setSortConfig] = useState<{ key: keyof Vehicle | null; direction: 'asc' | 'desc' }>({
         key: null,
         direction: 'asc'
@@ -76,40 +81,59 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
     // Carregar dados paginados do servidor
     useEffect(() => {
         const loadData = async () => {
+            // Se busca tiver menos de 3 caracteres, não dispara (segue placeholder)
+            const effectiveSearch = searchTerm && searchTerm.length < 3 ? '' : searchTerm;
             await getVehiclesPaginated({
                 page: currentPage,
                 itemsPerPage: itemsPerPage === -1 ? 1000 : itemsPerPage,
-                searchTerm,
+                searchTerm: effectiveSearch,
                 filters,
                 sortConfig: sortConfig.key ? sortConfig : undefined
             });
         };
 
-        // Debounce para busca
+        // Debounce apenas quando estados efetivos mudam
         const timeoutId = setTimeout(() => {
             loadData();
-        }, 500);
+        }, 400);
 
         return () => clearTimeout(timeoutId);
-    }, [currentPage, itemsPerPage, searchTerm, filters, sortConfig]);
+    }, [currentPage, itemsPerPage, searchTerm, filters, sortConfig, getVehiclesPaginated]);
 
     // Resetar página quando filtros mudam
+    // Removido reset automático de página em cada tecla; agora feito ao aplicar filtros/busca
+
+    // Cache de sugestões carregadas uma vez da API dedicada (evita reload por tecla)
+    const [suggestionsCache, setSuggestionsCache] = useState<Record<string, string[]>>({});
+    const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+
     useEffect(() => {
-        setCurrentPage(1);
-    }, [searchTerm, filters]);
+        // Carrega apenas quando usuário abre filtros avançados e ainda não tem cache
+        if (!showAdvancedFilters) return;
+        if (Object.keys(suggestionsCache).length > 0) return;
+        const fetchSuggestions = async () => {
+            setLoadingSuggestions(true);
+            try {
+                const res = await fetch('/api/vehicles/suggestions?fields=modelo,cor,ano,status,combustivel,transmissao');
+                if (res.ok) {
+                    const data = await res.json();
+                    setSuggestionsCache(data.suggestions || {});
+                }
+            } catch (e) {
+                console.error('Erro ao carregar sugestões:', e);
+            } finally {
+                setLoadingSuggestions(false);
+            }
+        };
+        fetchSuggestions();
+    }, [showAdvancedFilters, suggestionsCache]);
 
-    // Função para gerar sugestões de autocompletar (ainda precisa de todos os dados ou endpoint específico)
-    // Por enquanto, vamos manter vazio ou usar os dados da página atual (que é o que temos)
     const getUniqueSuggestions = useCallback((field: keyof Vehicle, searchTerm: string): string[] => {
-        if (searchTerm.length === 0) return [];
-        // Nota: Isso só vai sugerir baseado nos veículos da página atual. 
-        // Para sugerir globalmente, precisaríamos de um endpoint de sugestões na API.
-        const allValues = vehicles.map(v => v[field]?.toString() || '').filter(Boolean);
-        const uniqueValues = [...new Set(allValues)];
-        return uniqueValues.filter(v => v.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 10);
-    }, [vehicles]);
+        if (!searchTerm) return [];
+        const list = suggestionsCache[field as string] || [];
+        return list.filter(v => v.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 10);
+    }, [suggestionsCache]);
 
-    // Funções de sugestão para cada campo
     const getModeloSuggestions = useCallback((searchTerm: string) => getUniqueSuggestions('modelo', searchTerm), [getUniqueSuggestions]);
     const getCorSuggestions = useCallback((searchTerm: string) => getUniqueSuggestions('cor', searchTerm), [getUniqueSuggestions]);
     const getAnoSuggestions = useCallback((searchTerm: string) => getUniqueSuggestions('ano', searchTerm), [getUniqueSuggestions]);
@@ -294,17 +318,20 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
     };
 
     const clearFilters = () => {
+        setPendingSearchTerm('');
         setSearchTerm('');
+        setCurrentPage(1);
     };
 
     const applyAdvancedFilters = () => {
-        // Filtros são aplicados automaticamente através do useState
-        console.log('Filtros aplicados:', filters);
+        setFilters(pendingFilters);
+        setCurrentPage(1);
     };
 
     const clearAllFilters = () => {
+        setPendingSearchTerm('');
         setSearchTerm('');
-        setFilters({
+        const cleared = {
             marca: '',
             modelo: '',
             categoria: '',
@@ -313,8 +340,12 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
             status: '',
             combustivel: '',
             transmissao: ''
-        });
-    }; const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+        };
+        setFilters(cleared);
+        setPendingFilters(cleared);
+        setCurrentPage(1);
+    };
+    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.checked) {
             const allIds = paginatedVehicles.map(v => v.id).filter(Boolean) as string[];
             setSelectedIds(allIds);
@@ -441,22 +472,31 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                     <input
                         type="text"
                         placeholder="Digite para pesquisar (mín. 3 caracteres)..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        value={pendingSearchTerm}
+                        onChange={(e) => setPendingSearchTerm(e.target.value)}
                         className={styles.searchInput}
                     />
+                    <button
+                        className={styles.applyButton}
+                        style={{ marginLeft: '8px' }}
+                        onClick={() => { setSearchTerm(pendingSearchTerm); setCurrentPage(1); }}
+                        disabled={pendingSearchTerm.length > 0 && pendingSearchTerm.length < 3}
+                        title={pendingSearchTerm.length > 0 && pendingSearchTerm.length < 3 ? 'Digite pelo menos 3 caracteres' : 'Aplicar busca'}
+                    >
+                        Buscar
+                    </button>
 
                 </div>
 
                 {showAdvancedFilters && (
                     <div className={styles.advancedFilters}>
-                        <h3>Filtros Avançados</h3>
+                        <h3>Filtros Avançados {loadingSuggestions && <span style={{ fontSize: '0.75rem', marginLeft: '6px' }}>carregando...</span>}</h3>
                         <div className={styles.filterGrid}>
                             <div className={styles.filterItem}>
                                 <AutocompleteInput
                                     label="Modelo"
-                                    value={filters.modelo}
-                                    onChange={(value) => setFilters({ ...filters, modelo: value })}
+                                    value={pendingFilters.modelo}
+                                    onChange={(value) => setPendingFilters({ ...pendingFilters, modelo: value })}
                                     getSuggestions={getModeloSuggestions}
                                     placeholder="Filtrar por modelo"
                                 />
@@ -464,8 +504,8 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                             <div className={styles.filterItem}>
                                 <AutocompleteInput
                                     label="Cor"
-                                    value={filters.cor}
-                                    onChange={(value) => setFilters({ ...filters, cor: value })}
+                                    value={pendingFilters.cor}
+                                    onChange={(value) => setPendingFilters({ ...pendingFilters, cor: value })}
                                     getSuggestions={getCorSuggestions}
                                     placeholder="Filtrar por cor"
                                 />
@@ -473,8 +513,8 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                             <div className={styles.filterItem}>
                                 <AutocompleteInput
                                     label="Ano"
-                                    value={filters.ano}
-                                    onChange={(value) => setFilters({ ...filters, ano: value })}
+                                    value={pendingFilters.ano}
+                                    onChange={(value) => setPendingFilters({ ...pendingFilters, ano: value })}
                                     getSuggestions={getAnoSuggestions}
                                     placeholder="Filtrar por ano"
                                 />
@@ -482,8 +522,8 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                             <div className={styles.filterItem}>
                                 <AutocompleteInput
                                     label="Status"
-                                    value={filters.status}
-                                    onChange={(value) => setFilters({ ...filters, status: value })}
+                                    value={pendingFilters.status}
+                                    onChange={(value) => setPendingFilters({ ...pendingFilters, status: value })}
                                     getSuggestions={getStatusSuggestions}
                                     placeholder="Filtrar por status"
                                 />
@@ -491,8 +531,8 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                             <div className={styles.filterItem}>
                                 <AutocompleteInput
                                     label="Combustível"
-                                    value={filters.combustivel}
-                                    onChange={(value) => setFilters({ ...filters, combustivel: value })}
+                                    value={pendingFilters.combustivel}
+                                    onChange={(value) => setPendingFilters({ ...pendingFilters, combustivel: value })}
                                     getSuggestions={getCombustivelSuggestions}
                                     placeholder="Filtrar por combustível"
                                 />
@@ -500,8 +540,8 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                             <div className={styles.filterItem}>
                                 <AutocompleteInput
                                     label="Transmissão"
-                                    value={filters.transmissao}
-                                    onChange={(value) => setFilters({ ...filters, transmissao: value })}
+                                    value={pendingFilters.transmissao}
+                                    onChange={(value) => setPendingFilters({ ...pendingFilters, transmissao: value })}
                                     getSuggestions={getTransmissaoSuggestions}
                                     placeholder="Filtrar por transmissão"
                                 />
@@ -764,11 +804,11 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                     <li><strong>Campos opcionais:</strong> dataEntrada, cor, opcionais, observacoes, operador</li>
                                     <li><strong>Status válidos:</strong> A faturar, Refaturamento, Licenciado</li>
                                     <li><strong>Combustível válido:</strong> Flex, Gasolina, Etanol, Diesel, Elétrico, Híbrido</li>
-                                    <li><strong>Transmissão válida:</strong> Manual, Automática, CVT</li>
+                                    <li><strong>Transmissão válida:</strong> Manual, Automático, CVT</li>
                                     <li>Exemplo (role horizontalmente):</li>
                                 </ul>
                                 <pre className={modalStyles.csvExample} style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}>
-                                    dataEntrada,modelo,transmissao,combustivel,cor,ano,opcionais,preco,status,observacoes,cidade,estado,concessionaria,telefone,nomeContato,operador{"\n"}20/11/2025,COROLLA ALTIS 2.0,Automática,Flex,BRANCO POLAR,2024,AR CONDICIONADO,154920,A faturar,Veículo novo,São Paulo,SP,Toyota Prime,11999991001,CARLOS SILVA,JOÃO
+                                    dataEntrada,modelo,transmissao,combustivel,cor,ano,opcionais,preco,status,observacoes,cidade,estado,concessionaria,telefone,nomeContato,operador{"\n"}20/11/2025,COROLLA ALTIS 2.0,Automático,Flex,BRANCO POLAR,2024,AR CONDICIONADO,154920,A faturar,Veículo novo,São Paulo,SP,Toyota Prime,11999991001,CARLOS SILVA,JOÃO
                                 </pre>
                             </div>
 

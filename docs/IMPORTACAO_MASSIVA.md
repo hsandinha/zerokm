@@ -55,7 +55,7 @@ VOLKSWAGEN,GOL
 13. **chassi** - Número do chassi (opcional)
 14. **motor** - Especificação do motor (opcional)
 15. **combustivel** - Tipo de combustível (opcional: Flex, Gasolina, Etanol, Diesel, Elétrico, Híbrido)
-16. **transmissao** - Tipo de transmissão (opcional: Manual, Automática, CVT)
+16. **transmissao** - Tipo de transmissão (opcional: Manual, Automático, CVT)
 17. **observacoes** - Observações adicionais (opcional)
 18. **dataEntrada** - Data de entrada no estoque (opcional, formato DD/MM/AAAA)
 19. **vendedor** - Nome do vendedor responsável (obrigatório)
@@ -65,7 +65,7 @@ VOLKSWAGEN,GOL
 
 ```csv
 marca,modelo,versao,opcionais,cor,concessionaria,preco,ano,anoModelo,status,cidade,estado,chassi,motor,combustivel,transmissao,observacoes,dataEntrada,vendedor,telefone
-TOYOTA,COROLLA,XEI 2.0,Ar Cond + Dir Hidráulica,Prata,Concessionária Toyota SP,95000,2023,2024,Disponível,São Paulo,SP,9BR1234567890,2.0 16V,Flex,Automática,Veículo em ótimo estado,19/11/2025,João Silva,(11) 98765-4321
+TOYOTA,COROLLA,XEI 2.0,Ar Cond + Dir Hidráulica,Prata,Concessionária Toyota SP,95000,2023,2024,Disponível,São Paulo,SP,9BR1234567890,2.0 16V,Flex,Automático,Veículo em ótimo estado,19/11/2025,João Silva,(11) 98765-4321
 FORD,FOCUS,SE 1.6,Central Multimídia,Branco,Ford Premium,75000,2022,2023,Disponível,Campinas,SP,9BR2345678901,1.6 8V,Flex,Manual,Único dono,15/10/2025,Maria Santos,(19) 99876-5432
 HONDA,CIVIC,EXL 2.0,Sensor de Estacionamento,Preto,Honda Elite,120000,2023,2024,Reservado,Rio de Janeiro,RJ,9BR3456789012,2.0 16V,Flex,CVT,Revisões em dia,10/11/2025,Pedro Costa,(21) 97654-3210
 ```
@@ -101,7 +101,7 @@ HONDA,CIVIC,EXL 2.0,Sensor de Estacionamento,Preto,Honda Elite,120000,2023,2024,
 | chassi | Texto | ❌ Não | 9BR1234567890 | Número do chassi |
 | motor | Texto | ❌ Não | 2.0 16V | Especificação técnica |
 | combustivel | Texto | ❌ Não | Flex | Flex, Gasolina, Etanol, Diesel, Elétrico, Híbrido |
-| transmissao | Texto | ❌ Não | Automática | Manual, Automática, CVT |
+| transmissao | Texto | ❌ Não | Automático | Manual, Automático, CVT |
 | observacoes | Texto | ❌ Não | Veículo em ótimo estado | Informações adicionais |
 | dataEntrada | Texto | ❌ Não | 19/11/2025 | Formato DD/MM/AAAA |
 | vendedor | Texto | ✅ Sim | João Silva | Nome completo |

@@ -18,7 +18,7 @@ export default function TestPage() {
                 cidade: 'São Paulo',
                 estado: 'SP',
                 combustivel: 'Flex' as const,
-                transmissao: 'Automática' as const,
+                transmissao: 'Automático' as const,
                 observacoes: 'Teste direto via VehicleService',
                 dataEntrada: new Date().toLocaleDateString('pt-BR'),
                 nomeContato: 'João Silva',

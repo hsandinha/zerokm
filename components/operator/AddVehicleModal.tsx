@@ -307,7 +307,7 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                             required
                         >
                             <option value="Manual">Manual</option>
-                            <option value="Automática">Automática</option>
+                            <option value="Automático">Automático</option>
                             <option value="CVT">CVT</option>
                         </select>
                     </div>
