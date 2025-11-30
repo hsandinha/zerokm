@@ -277,7 +277,7 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                             type="text"
                             id="dataEntrada"
                             name="dataEntrada"
-                            value={formData.dataEntrada}
+                            value={typeof formData.dataEntrada === 'string' ? formData.dataEntrada : formData.dataEntrada.toLocaleDateString('pt-BR')}
                             onChange={handleInputChange}
                             placeholder="Ex: 20/11/2025"
                         />
