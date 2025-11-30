@@ -102,7 +102,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         // Debounce apenas quando estados efetivos mudam
         const timeoutId = setTimeout(() => {
             loadData();
-        }, 400);
+        }, 700);
 
         return () => clearTimeout(timeoutId);
     }, [currentPage, itemsPerPage, searchTerm, filters, sortConfig, getVehiclesPaginated]);
@@ -244,7 +244,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
             setSearchTerm(freeText.join(' ').trim());
             setPrefixWarnings(warnings);
             setCurrentPage(1);
-        }, 400); // Debounce de 400ms
+        }, 700); // Debounce aumentado para 700ms
 
         return () => clearTimeout(timeoutId);
     }, [pendingSearchTerm]);

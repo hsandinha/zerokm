@@ -27,7 +27,15 @@ export async function GET(request: Request) {
         if (searchParams.get('transmissao')) filters.transmissao = searchParams.get('transmissao');
         if (searchParams.get('ano')) filters.ano = searchParams.get('ano');
 
-        let query: any = { ...filters };
+        // Build base query from filters, using regex for marca/cor to allow partial matches
+        let query: any = {};
+        if (filters.status) query.status = filters.status;
+        if (filters.combustivel) query.combustivel = filters.combustivel;
+        if (filters.transmissao) query.transmissao = filters.transmissao;
+        if (filters.ano) query.ano = filters.ano;
+        if (filters.marca) query.marca = { $regex: `^${filters.marca.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, $options: 'i' };
+        const corParam = searchParams.get('cor');
+        if (corParam) query.cor = { $regex: `^${corParam.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, $options: 'i' };
 
         if (search) {
             const searchRegex = { $regex: search, $options: 'i' };
