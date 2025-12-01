@@ -16,23 +16,10 @@ export async function GET(request: Request) {
         await connectDB();
         const { searchParams } = new URL(request.url);
 
-        let page = parseInt(searchParams.get('page') || '1');
-        let limit = parseInt(searchParams.get('limit') || '50');
-
-        // Validate pagination
-        if (isNaN(page) || page < 1) page = 1;
-        if (isNaN(limit) || limit < 1) limit = 50;
-        if (limit > 100) limit = 100; // Limit max items per page
-
+        const page = parseInt(searchParams.get('page') || '1');
+        const limit = parseInt(searchParams.get('limit') || '50');
         const search = searchParams.get('search') || '';
-
-        // Validate sort
-        const allowedSortKeys = ['dataEntrada', 'modelo', 'marca', 'ano', 'preco', 'status', 'createdAt', 'updatedAt'];
-        let sortKey = searchParams.get('sortKey') || 'dataEntrada';
-        if (!allowedSortKeys.includes(sortKey)) {
-            sortKey = 'dataEntrada';
-        }
-
+        const sortKey = searchParams.get('sortKey') || 'dataEntrada';
         const sortDir = searchParams.get('sortDir') === 'asc' ? 1 : -1;
 
         const filters: any = {};
