@@ -187,7 +187,10 @@ export class VehicleService {
             if (filters.opcionais) params.set('opcionais', filters.opcionais);
 
             const response = await fetch(`/api/vehicles?${params.toString()}`);
-            if (!response.ok) throw new Error('Failed to fetch paginated vehicles');
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || 'Failed to fetch paginated vehicles');
+            }
 
             const result = await response.json();
 
