@@ -53,7 +53,6 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         isImporting: false
     });
     const [filters, setFilters] = useState({
-        marca: '',
         modelo: '',
         categoria: '',
         cor: '',
@@ -73,17 +72,16 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
 
     // Usar o hook do banco de dados
     const { vehicles, totalItems, loading, error, refreshVehicles, updateVehicle, deleteVehicle, deleteVehicles, getVehiclesPaginated } = useVehicleDatabase();
-    const { importVeiculosFromCSV, marcas, cores, refreshMarcas, refreshCores } = useTablesDatabase();
+    const { importVeiculosFromCSV, cores, refreshCores } = useTablesDatabase();
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const percent = importProgress.total > 0
         ? Math.max(0, Math.min(100, Math.round((importProgress.current / importProgress.total) * 100)))
         : 0;
 
-    // Carregar marcas e cores para detecção automática
+    // Carregar cores para detecção automática
     useEffect(() => {
-        refreshMarcas();
         refreshCores();
-    }, []);
+    }, [refreshCores]);
 
     // Carregar dados paginados do servidor
     useEffect(() => {
@@ -115,7 +113,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         if (term.length > 0 && term.length < 3) return;
 
         const timeoutId = setTimeout(() => {
-            // Parser simples de prefixos: combustivel:, transmissao:, status:, ano:, preco:
+            // Parser simples de prefixos: combustivel:, transmissao:, status:, ano:, preco:, cor:
             const parts = term.split(/\s+/);
             // Inicializar filtros vazios - reprocessar tudo do zero
             const nextFilters = {
@@ -152,12 +150,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
             };
 
             const warnings: string[] = [];
-            // Criar mapas de detecção para marca e cor (normalizado)
-            const marcasMap: Record<string, string> = {};
-            marcas.forEach(m => {
-                const normalized = norm(m.nome);
-                marcasMap[normalized] = m.nome;
-            });
+            // Criar mapa de detecção para cor (normalizado)
             const coresMap: Record<string, string> = {};
             cores.forEach(c => {
                 const normalized = norm(c.nome);
@@ -165,9 +158,9 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
             });
 
             for (const p of parts) {
-                const m = p.match(/^(combustivel|transmissao|status|ano|preco|marca|cor):(.+)$/i);
+                const m = p.match(/^(combustivel|transmissao|status|ano|preco|cor):(.+)$/i);
                 if (!m) {
-                    // Detecção automática: verificar se é marca ou cor conhecida
+                    // Detecção automática: verificar se o termo corresponde a filtros conhecidos
                     const normalizedPart = norm(p);
 
                     // Verificar se corresponde a um combustível conhecido
@@ -183,11 +176,6 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                     // Verificar se corresponde a um status conhecido
                     if (statusMap[normalizedPart]) {
                         nextFilters.status = statusMap[normalizedPart];
-                        continue;
-                    }
-                    // Verificar se corresponde a uma marca conhecida
-                    if (marcasMap[normalizedPart]) {
-                        nextFilters.marca = marcasMap[normalizedPart];
                         continue;
                     }
                     // Verificar se corresponde a uma cor conhecida
@@ -220,10 +208,6 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                     }
                     case 'ano': {
                         nextFilters.ano = value;
-                        break;
-                    }
-                    case 'marca': {
-                        nextFilters.marca = value;
                         break;
                     }
                     case 'cor': {
@@ -479,7 +463,6 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         setPendingSearchTerm('');
         setSearchTerm('');
         const cleared = {
-            marca: '',
             modelo: '',
             categoria: '',
             cor: '',
@@ -618,7 +601,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                 <div className={styles.searchContainer}>
                     <input
                         type="text"
-                        placeholder="Digite para pesquisar (ex: argo, combustivel:diesel, transmissao:manual, marca:fiat, cor:preto, ano:2024)"
+                        placeholder="Digite para pesquisar (ex: argo, combustivel:diesel, transmissao:manual, cor:preto, ano:2024)"
                         value={pendingSearchTerm}
                         onChange={(e) => setPendingSearchTerm(e.target.value)}
                         className={styles.searchInput}
@@ -746,12 +729,6 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                             <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center' }}>
                                 Ano: {filters.ano}
                                 <button onClick={() => { setFilters({ ...filters, ano: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                            </span>
-                        )}
-                        {filters.marca && (
-                            <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center' }}>
-                                Marca: {filters.marca}
-                                <button onClick={() => { setFilters({ ...filters, marca: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
                             </span>
                         )}
                         {filters.cor && (

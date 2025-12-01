@@ -47,7 +47,7 @@ export interface VehiclePaginationOptions {
     searchTerm?: string;
     filters?: {
         status?: string;
-        marca?: string;
+        cor?: string;
         combustivel?: string;
         transmissao?: string;
         ano?: string;
@@ -177,7 +177,7 @@ export class VehicleService {
             }
 
             if (filters.status) params.set('status', filters.status);
-            if (filters.marca) params.set('marca', filters.marca);
+            if (filters.cor) params.set('cor', filters.cor);
             if (filters.combustivel) params.set('combustivel', filters.combustivel);
             if (filters.transmissao) params.set('transmissao', filters.transmissao);
             if (filters.ano) params.set('ano', filters.ano);

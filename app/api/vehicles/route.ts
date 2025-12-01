@@ -22,20 +22,18 @@ export async function GET(request: Request) {
 
         const filters: any = {};
         if (searchParams.get('status')) filters.status = searchParams.get('status');
-        if (searchParams.get('marca')) filters.marca = searchParams.get('marca');
         if (searchParams.get('combustivel')) filters.combustivel = searchParams.get('combustivel');
         if (searchParams.get('transmissao')) filters.transmissao = searchParams.get('transmissao');
         if (searchParams.get('ano')) filters.ano = searchParams.get('ano');
 
-        // Build base query from filters, using regex for marca/cor to allow partial matches
+        // Build base query from filters, using regex for cor to allow partial matches
         let query: any = {};
         if (filters.status) query.status = filters.status;
         if (filters.combustivel) query.combustivel = filters.combustivel;
         if (filters.transmissao) query.transmissao = filters.transmissao;
         if (filters.ano) query.ano = filters.ano;
-        if (filters.marca) query.marca = { $regex: `^${filters.marca.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, $options: 'i' };
         const corParam = searchParams.get('cor');
-        if (corParam) query.cor = { $regex: `^${corParam.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, $options: 'i' };
+        if (corParam) query.cor = { $regex: corParam.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
 
         if (search) {
             const searchRegex = { $regex: search, $options: 'i' };
@@ -73,21 +71,16 @@ export async function GET(request: Request) {
                 query.status = statusMap[normalized];
             }
             query.$or = [
-                { marca: searchRegex },
                 { modelo: searchRegex },
-                { versao: searchRegex },
+                { transmissao: searchRegex },
+                { combustivel: searchRegex },
                 { cor: searchRegex },
-                { concessionaria: searchRegex },
+                { ano: searchRegex },
+                { opcionais: searchRegex },
+                { observacoes: searchRegex },
                 { cidade: searchRegex },
                 { estado: searchRegex },
-                { vendedor: searchRegex },
-                { observacoes: searchRegex },
-                { nomeContato: searchRegex },
-                { combustivel: searchRegex },
-                { transmissao: searchRegex },
-                { status: searchRegex },
-                { ano: searchRegex },
-                { opcionais: searchRegex }
+                { concessionaria: searchRegex }
             ];
         }
 
