@@ -1,12 +1,26 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { signOut, getSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { UsersTable } from './users/UsersTable';
-import { VehicleConsultation } from '../../../components/operator/VehicleConsultation';
 import UserMenu from '../../../components/UserMenu';
 import styles from './admin.module.css';
+
+const VehicleConsultation = dynamic(
+    () =>
+        // @ts-expect-error Next.js handles extensionless dynamic import under NodeNext
+        import('../../../components/operator/VehicleConsultation').then((mod) => ({ default: mod.VehicleConsultation })),
+    {
+        loading: () => (
+            <div className={styles.contentArea}>
+                <p className={styles.subtitle}>Carregando consulta de veículos...</p>
+            </div>
+        ),
+        ssr: false
+    }
+);
 
 type TabType = 'visao-geral' | 'usuarios' | 'veiculos' | 'configuracoes';
 
