@@ -82,6 +82,16 @@ const INITIAL_FILTERS: FiltersState = {
 
 type FilterKey = keyof FiltersState;
 
+const areFiltersEqual = (a: FiltersState, b: FiltersState) => {
+    const keys = Object.keys(a) as FilterKey[];
+    for (const key of keys) {
+        if (a[key] !== b[key]) {
+            return false;
+        }
+    }
+    return true;
+};
+
 export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsultationProps) {
     const { margem } = useConfig();
     // Estado efetivo (aplicado) para busca e filtros
@@ -164,13 +174,18 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         const loadData = async () => {
             // Se busca tiver menos de 3 caracteres, não dispara (segue placeholder)
             const effectiveSearch = searchTerm && searchTerm.length < 3 ? '' : searchTerm;
-            await getVehiclesPaginated({
-                page: currentPage,
-                itemsPerPage: itemsPerPage === -1 ? 1000 : itemsPerPage,
-                searchTerm: effectiveSearch,
-                filters,
-                sortConfig: sortConfig.key ? sortConfig : undefined
-            });
+
+            try {
+                await getVehiclesPaginated({
+                    page: currentPage,
+                    itemsPerPage: itemsPerPage === -1 ? 1000 : itemsPerPage,
+                    searchTerm: effectiveSearch,
+                    filters,
+                    sortConfig: sortConfig.key ? sortConfig : undefined
+                });
+            } catch (error) {
+                console.error('Erro ao carregar dados paginados:', error);
+            }
         };
 
         // Debounce apenas quando estados efetivos mudam
@@ -186,11 +201,11 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
     const processInput = useCallback(async (input: string, signal: AbortSignal) => {
         const tokens = input.split(/\s+/).filter(Boolean);
         if (!tokens.length) {
+            // Don't clear filters/search if input is empty - let explicit clear button handle it
             return;
         }
 
-        const nextFilters = { ...filters };
-        let filtersChanged = false;
+        const nextFilters = { ...INITIAL_FILTERS };
         const warnings: string[] = [];
         const residualTokens: string[] = [];
 
@@ -206,9 +221,6 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         };
 
         const applyFilterValue = (field: FilterKey, value: string) => {
-            if (nextFilters[field] !== value) {
-                filtersChanged = true;
-            }
             nextFilters[field] = value;
         };
 
@@ -394,12 +406,18 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
             return;
         }
 
-        if (filtersChanged) {
-            setFilters(nextFilters);
-        }
+        const residual = residualTokens.join(' ');
+
+        let filtersChanged = false;
+        setFilters((prev) => {
+            if (areFiltersEqual(prev, nextFilters)) {
+                return prev;
+            }
+            filtersChanged = true;
+            return nextFilters;
+        });
 
         let searchChanged = false;
-        const residual = residualTokens.join(' ');
         setSearchTerm((prev) => {
             if (prev === residual) {
                 return prev;
@@ -407,20 +425,35 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
             searchChanged = true;
             return residual;
         });
+
         setPendingSearchTerm((prev) => (prev === residual ? prev : residual));
-        setPrefixWarnings(warnings);
+
+        setPrefixWarnings((prev) => {
+            if (prev.length === warnings.length && prev.every((value, index) => value === warnings[index])) {
+                return prev;
+            }
+            return warnings;
+        });
 
         if (filtersChanged || searchChanged) {
             setCurrentPage(1);
         }
-    }, [filters, vehicles, normalizedColorMap]);
+    }, [vehicles, normalizedColorMap]);
 
     // Auto-aplicar busca com debounce quando usuário digita (detecta coluna automaticamente)
     useEffect(() => {
         const raw = pendingSearchTerm || '';
         const term = raw.trim();
-        if (!term) {
+
+        // If empty and all filters are clear, just clear warnings and return
+        const hasAnyFilter = Object.values(filters).some(v => v !== '');
+        if (!term && !hasAnyFilter) {
             setPrefixWarnings([]);
+            return;
+        }
+
+        // If term is empty but filters exist, don't process (avoid clearing existing filters)
+        if (!term) {
             return;
         }
 
@@ -438,7 +471,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
             controller.abort();
             clearTimeout(timeoutId);
         };
-    }, [pendingSearchTerm, processInput]);
+    }, [pendingSearchTerm, processInput, filters]);
 
     // Função para calcular preço com margem
     const calculatePriceWithMargin = (basePrice: number) => {
@@ -656,16 +689,6 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         }
     };
 
-    if (loading) {
-        return (
-            <div className={styles.container}>
-                <div className={styles.loadingMessage}>
-                    Carregando veículos...
-                </div>
-            </div>
-        );
-    }
-
     if (error) {
         return (
             <div className={styles.container}>
@@ -678,6 +701,11 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
 
     return (
         <div className={styles.container}>
+            {loading && (
+                <div className={styles.loadingOverlay}>
+                    <div className={styles.loadingOverlayMessage}>Atualizando resultados...</div>
+                </div>
+            )}
             <div className={styles.header}>
                 <h2>Consulta de Veículos</h2>
                 <div className={styles.headerActions}>
