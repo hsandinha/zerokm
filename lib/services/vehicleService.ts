@@ -51,6 +51,8 @@ export interface VehiclePaginationOptions {
         combustivel?: string;
         transmissao?: string;
         ano?: string;
+        modelo?: string;
+        opcionais?: string;
     };
     sortConfig?: {
         key: string;
@@ -181,6 +183,8 @@ export class VehicleService {
             if (filters.combustivel) params.set('combustivel', filters.combustivel);
             if (filters.transmissao) params.set('transmissao', filters.transmissao);
             if (filters.ano) params.set('ano', filters.ano);
+            if (filters.modelo) params.set('modelo', filters.modelo);
+            if (filters.opcionais) params.set('opcionais', filters.opcionais);
 
             const response = await fetch(`/api/vehicles?${params.toString()}`);
             if (!response.ok) throw new Error('Failed to fetch paginated vehicles');

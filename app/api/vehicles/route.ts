@@ -4,6 +4,8 @@ import Vehicle from '@/models/Vehicle';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 
+const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 export async function GET(request: Request) {
     try {
         const session = await getServerSession(authOptions);
@@ -25,6 +27,8 @@ export async function GET(request: Request) {
         if (searchParams.get('combustivel')) filters.combustivel = searchParams.get('combustivel');
         if (searchParams.get('transmissao')) filters.transmissao = searchParams.get('transmissao');
         if (searchParams.get('ano')) filters.ano = searchParams.get('ano');
+        if (searchParams.get('modelo')) filters.modelo = searchParams.get('modelo');
+        if (searchParams.get('opcionais')) filters.opcionais = searchParams.get('opcionais');
 
         // Build base query from filters, using regex for cor to allow partial matches
         let query: any = {};
@@ -32,8 +36,15 @@ export async function GET(request: Request) {
         if (filters.combustivel) query.combustivel = filters.combustivel;
         if (filters.transmissao) query.transmissao = filters.transmissao;
         if (filters.ano) query.ano = filters.ano;
+        if (filters.modelo) {
+            query.modelo = { $regex: escapeRegex(filters.modelo), $options: 'i' };
+        }
         const corParam = searchParams.get('cor');
-        if (corParam) query.cor = { $regex: corParam.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+        if (corParam) query.cor = { $regex: escapeRegex(corParam), $options: 'i' };
+        const opcionaisParam = searchParams.get('opcionais');
+        if (opcionaisParam) {
+            query.opcionais = { $regex: escapeRegex(opcionaisParam), $options: 'i' };
+        }
 
         if (search) {
             const searchRegex = { $regex: search, $options: 'i' };

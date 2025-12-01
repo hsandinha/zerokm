@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useConfig } from '../../lib/contexts/ConfigContext';
 import { useVehicleDatabase } from '../../lib/hooks/useVehicleDatabase';
 import { useTablesDatabase } from '../../lib/hooks/useTablesDatabase';
@@ -9,6 +9,37 @@ import { AddVehicleModal } from './AddVehicleModal';
 import styles from './VehicleConsultation.module.css';
 import modalStyles from './TablesManagement.module.css';
 import { HighlightText } from '../HighlightText';
+
+const normalizeString = (value: string) => value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+
+const fuelLookup: Record<string, string> = {
+    'flex': 'Flex',
+    'gasolina': 'Gasolina',
+    'etanol': 'Etanol',
+    'alcool': 'Etanol',
+    'álcool': 'Etanol',
+    'diesel': 'Diesel',
+    'eletrico': 'Elétrico',
+    'elétrico': 'Elétrico',
+    'hibrido': 'Híbrido',
+    'híbrido': 'Híbrido'
+};
+
+const transmissionLookup: Record<string, string> = {
+    'manual': 'Manual',
+    'automatico': 'Automático',
+    'automático': 'Automático',
+    'cvt': 'CVT'
+};
+
+const statusLookup: Record<string, string> = {
+    'a faturar': 'A faturar',
+    'faturar': 'A faturar',
+    'refaturamento': 'Refaturamento',
+    'licenciado': 'Licenciado'
+};
+
+const YEAR_REGEX = /^\d{4}$/;
 
 const formatDate = (dateInput: string | Date | undefined) => {
     if (!dateInput) return '';
@@ -30,20 +61,26 @@ interface VehicleConsultationProps {
 }
 
 type FiltersState = {
+    modelo: string;
     cor: string;
     ano: string;
     status: string;
     combustivel: string;
     transmissao: string;
+    opcionais: string;
 };
 
 const INITIAL_FILTERS: FiltersState = {
+    modelo: '',
     cor: '',
     ano: '',
     status: '',
     combustivel: '',
-    transmissao: ''
+    transmissao: '',
+    opcionais: ''
 };
+
+type FilterKey = keyof FiltersState;
 
 export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsultationProps) {
     const { margem } = useConfig();
@@ -67,6 +104,15 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         isImporting: false
     });
     const [filters, setFilters] = useState<FiltersState>(() => ({ ...INITIAL_FILTERS }));
+    const [knownColors, setKnownColors] = useState<string[]>([]);
+    const suggestionsCacheRef = useRef<Map<string, Record<string, string[]>>>(new Map());
+    const normalizedColorMap = useMemo(() => {
+        const map: Record<string, string> = {};
+        knownColors.forEach((color) => {
+            map[normalizeString(color)] = color;
+        });
+        return map;
+    }, [knownColors]);
     const [sortConfig, setSortConfig] = useState<{ key: keyof Vehicle | null; direction: 'asc' | 'desc' }>({
         key: null,
         direction: 'asc'
@@ -76,16 +122,42 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
 
     // Usar o hook do banco de dados
     const { vehicles, totalItems, loading, error, refreshVehicles, updateVehicle, deleteVehicle, deleteVehicles, getVehiclesPaginated } = useVehicleDatabase();
-    const { importVeiculosFromCSV, cores, refreshCores } = useTablesDatabase();
+    const { importVeiculosFromCSV } = useTablesDatabase();
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const percent = importProgress.total > 0
         ? Math.max(0, Math.min(100, Math.round((importProgress.current / importProgress.total) * 100)))
         : 0;
 
-    // Carregar cores para detecção automática
+    // Carregar cores conhecidas para detecção automática
     useEffect(() => {
-        refreshCores();
-    }, [refreshCores]);
+        const abortController = new AbortController();
+
+        const loadColors = async () => {
+            try {
+                const res = await fetch('/api/vehicles/suggestions?fields=cor&limit=200', { signal: abortController.signal });
+                if (!res.ok) {
+                    console.error('Não foi possível carregar sugestões de cor:', res.status);
+                    return;
+                }
+                const data = await res.json();
+                const suggestions = Array.isArray(data?.suggestions?.cor)
+                    ? data.suggestions.cor
+                    : Array.isArray(data?.suggestions)
+                        ? data.suggestions
+                        : [];
+                const uniqueColors = Array.from(new Set((suggestions as string[]).filter(Boolean)));
+                setKnownColors(uniqueColors);
+            } catch (error: any) {
+                if (error?.name !== 'AbortError') {
+                    console.error('Erro ao carregar cores para busca inteligente:', error);
+                }
+            }
+        };
+
+        loadColors();
+
+        return () => abortController.abort();
+    }, []);
 
     // Carregar dados paginados do servidor
     useEffect(() => {
@@ -109,126 +181,264 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         return () => clearTimeout(timeoutId);
     }, [currentPage, itemsPerPage, searchTerm, filters, sortConfig, getVehiclesPaginated]);
 
-    // Auto-aplicar busca com debounce quando usuário digita (busca server-side automática com suporte a prefixos)
-    useEffect(() => {
-        const raw = pendingSearchTerm || '';
-        const term = raw.trim();
-        // Se menos de 3 caracteres e não está vazio, aguarda mais caracteres
-        if (term.length > 0 && term.length < 3) return;
+    const [prefixWarnings, setPrefixWarnings] = useState<string[]>([]);
 
-        const timeoutId = setTimeout(() => {
-            // Parser simples de prefixos: combustivel:, transmissao:, status:, ano:, preco:, cor:
-            const parts = term.split(/\s+/);
-            // Inicializar filtros vazios - reprocessar tudo do zero
-            const nextFilters = { ...INITIAL_FILTERS };
-            let freeText: string[] = [];
+    const processInput = useCallback(async (input: string, signal: AbortSignal) => {
+        const tokens = input.split(/\s+/).filter(Boolean);
+        if (!tokens.length) {
+            return;
+        }
 
-            const norm = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
-            const fuelMap: Record<string, string> = {
-                'flex': 'Flex',
-                'gasolina': 'Gasolina',
-                'etanol': 'Etanol',
-                'alcool': 'Etanol',
-                'diesel': 'Diesel',
-                'eletrico': 'Elétrico',
-                'hibrido': 'Híbrido'
-            };
-            const transMap: Record<string, string> = {
-                'manual': 'Manual',
-                'automatico': 'Automático',
-                'cvt': 'CVT'
-            };
-            const statusMap: Record<string, string> = {
-                'afaturar': 'A faturar',
-                'refaturamento': 'Refaturamento',
-                'licenciado': 'Licenciado'
-            };
+        const nextFilters = { ...filters };
+        let filtersChanged = false;
+        const warnings: string[] = [];
+        const residualTokens: string[] = [];
 
-            const warnings: string[] = [];
-            // Criar mapa de detecção para cor (normalizado)
-            const coresMap: Record<string, string> = {};
-            cores.forEach(c => {
-                const normalized = norm(c.nome);
-                coresMap[normalized] = c.nome;
-            });
+        const datasetOrder: FilterKey[] = ['modelo', 'transmissao', 'combustivel', 'status', 'cor', 'ano', 'opcionais'];
+        const datasetFieldGetters: Record<FilterKey, (vehicle: Vehicle) => string | undefined> = {
+            modelo: (vehicle) => vehicle.modelo,
+            cor: (vehicle) => vehicle.cor,
+            ano: (vehicle) => vehicle.ano,
+            status: (vehicle) => vehicle.status,
+            combustivel: (vehicle) => vehicle.combustivel,
+            transmissao: (vehicle) => vehicle.transmissao,
+            opcionais: (vehicle) => vehicle.opcionais
+        };
 
-            for (const p of parts) {
-                const m = p.match(/^(combustivel|transmissao|status|ano|preco|cor):(.+)$/i);
-                if (!m) {
-                    // Detecção automática: verificar se o termo corresponde a filtros conhecidos
-                    const normalizedPart = norm(p);
+        const applyFilterValue = (field: FilterKey, value: string) => {
+            if (nextFilters[field] !== value) {
+                filtersChanged = true;
+            }
+            nextFilters[field] = value;
+        };
 
-                    // Verificar se corresponde a um combustível conhecido
-                    if (fuelMap[normalizedPart]) {
-                        nextFilters.combustivel = fuelMap[normalizedPart];
-                        continue;
-                    }
-                    // Verificar se corresponde a uma transmissão conhecida
-                    if (transMap[normalizedPart]) {
-                        nextFilters.transmissao = transMap[normalizedPart];
-                        continue;
-                    }
-                    // Verificar se corresponde a um status conhecido
-                    if (statusMap[normalizedPart]) {
-                        nextFilters.status = statusMap[normalizedPart];
-                        continue;
-                    }
-                    // Verificar se corresponde a uma cor conhecida
-                    if (coresMap[normalizedPart]) {
-                        nextFilters.cor = coresMap[normalizedPart];
-                        continue;
-                    }
-
-                    // Se não corresponde a nada conhecido, adiciona como busca livre
-                    freeText.push(p);
-                    continue;
-                }
-                const [, key, valueRaw] = m;
-                const value = valueRaw.trim();
-                switch (key.toLowerCase()) {
-                    case 'combustivel': {
-                        const mapped = fuelMap[norm(value)] || value;
-                        nextFilters.combustivel = mapped;
-                        break;
-                    }
-                    case 'transmissao': {
-                        const mapped = transMap[norm(value)] || value;
-                        nextFilters.transmissao = mapped;
-                        break;
-                    }
-                    case 'status': {
-                        const mapped = statusMap[norm(value)] || value;
-                        nextFilters.status = mapped;
-                        break;
-                    }
-                    case 'ano': {
-                        nextFilters.ano = value;
-                        break;
-                    }
-                    case 'cor': {
-                        nextFilters.cor = value;
-                        break;
-                    }
-                    case 'preco': {
-                        // Prefixo suportado no cliente; servidor atual não usa preco no GET
-                        // Mantemos no freeText para não perder o termo
-                        freeText.push(p);
-                        warnings.push('Prefixo preco não é aplicado na busca do servidor.');
-                        break;
+        const findInVehicles = (normalizedToken: string): { field: FilterKey; value: string } | null => {
+            for (const field of datasetOrder) {
+                for (const vehicle of vehicles) {
+                    const fieldValue = datasetFieldGetters[field](vehicle);
+                    if (!fieldValue) continue;
+                    if (normalizeString(fieldValue).includes(normalizedToken)) {
+                        return { field, value: fieldValue };
                     }
                 }
             }
+            return null;
+        };
 
+        const fetchSuggestionsForToken = async (token: string) => {
+            const cacheKey = normalizeString(token);
+            if (suggestionsCacheRef.current.has(cacheKey)) {
+                return suggestionsCacheRef.current.get(cacheKey)!;
+            }
+            try {
+                const response = await fetch(`/api/vehicles/suggestions?fields=modelo,opcionais,cor&searchTerm=${encodeURIComponent(token)}&limit=20`, { signal });
+                if (!response.ok) {
+                    return null;
+                }
+                const data = await response.json();
+                if (signal.aborted) {
+                    return null;
+                }
+                const suggestions = (data?.suggestions || {}) as Record<string, string[]>;
+                suggestionsCacheRef.current.set(cacheKey, suggestions);
+                return suggestions;
+            } catch (error: any) {
+                if (error?.name === 'AbortError' || signal.aborted) {
+                    return null;
+                }
+                console.error('Erro ao buscar sugestões para auto-filtro:', error);
+                return null;
+            }
+        };
+
+        for (const token of tokens) {
+            if (signal.aborted) {
+                return;
+            }
+
+            const trimmed = token.trim();
+            if (!trimmed) {
+                continue;
+            }
+
+            const prefixMatch = trimmed.match(/^(combustivel|transmissao|status|ano|preco|cor|modelo|opcionais):(.+)$/i);
+            if (prefixMatch) {
+                const [, key, rawValue] = prefixMatch;
+                const value = rawValue.trim();
+                if (!value) {
+                    residualTokens.push(trimmed);
+                    continue;
+                }
+                switch (key.toLowerCase()) {
+                    case 'combustivel': {
+                        const mapped = fuelLookup[normalizeString(value)] || value;
+                        applyFilterValue('combustivel', mapped);
+                        break;
+                    }
+                    case 'transmissao': {
+                        const mapped = transmissionLookup[normalizeString(value)] || value;
+                        applyFilterValue('transmissao', mapped);
+                        break;
+                    }
+                    case 'status': {
+                        const mapped = statusLookup[normalizeString(value)] || value;
+                        applyFilterValue('status', mapped);
+                        break;
+                    }
+                    case 'ano': {
+                        applyFilterValue('ano', value);
+                        break;
+                    }
+                    case 'cor': {
+                        const normalizedValue = normalizeString(value);
+                        const canonical = normalizedColorMap[normalizedValue] || value;
+                        applyFilterValue('cor', canonical);
+                        break;
+                    }
+                    case 'modelo': {
+                        applyFilterValue('modelo', value);
+                        break;
+                    }
+                    case 'opcionais': {
+                        applyFilterValue('opcionais', value);
+                        break;
+                    }
+                    case 'preco': {
+                        residualTokens.push(trimmed);
+                        warnings.push('Prefixo preco não é aplicado na busca do servidor.');
+                        break;
+                    }
+                    default: {
+                        residualTokens.push(trimmed);
+                        break;
+                    }
+                }
+                continue;
+            }
+
+            const normalizedToken = normalizeString(trimmed);
+
+            if (fuelLookup[normalizedToken]) {
+                applyFilterValue('combustivel', fuelLookup[normalizedToken]);
+                continue;
+            }
+            if (transmissionLookup[normalizedToken]) {
+                applyFilterValue('transmissao', transmissionLookup[normalizedToken]);
+                continue;
+            }
+            if (statusLookup[normalizedToken]) {
+                applyFilterValue('status', statusLookup[normalizedToken]);
+                continue;
+            }
+            if (YEAR_REGEX.test(trimmed)) {
+                applyFilterValue('ano', trimmed);
+                continue;
+            }
+
+            const colorCanonical = normalizedColorMap[normalizedToken];
+            if (colorCanonical) {
+                applyFilterValue('cor', colorCanonical);
+                continue;
+            }
+
+            const datasetMatch = findInVehicles(normalizedToken);
+            if (datasetMatch) {
+                const { field, value } = datasetMatch;
+                if (field === 'modelo' || field === 'opcionais') {
+                    applyFilterValue(field, trimmed);
+                } else if (field === 'cor') {
+                    const normalizedValue = normalizeString(value);
+                    applyFilterValue('cor', normalizedColorMap[normalizedValue] || value);
+                } else if (field === 'ano') {
+                    applyFilterValue('ano', trimmed);
+                } else {
+                    applyFilterValue(field, value);
+                }
+                continue;
+            }
+
+            if (trimmed.length < 2) {
+                residualTokens.push(trimmed);
+                continue;
+            }
+
+            const suggestions = await fetchSuggestionsForToken(trimmed);
+            if (signal.aborted) {
+                return;
+            }
+            if (suggestions) {
+                const suggestionOrder: FilterKey[] = ['modelo', 'opcionais', 'cor'];
+                let matchedSuggestion = false;
+                for (const field of suggestionOrder) {
+                    const values = suggestions[field];
+                    if (Array.isArray(values) && values.length > 0) {
+                        if (field === 'cor') {
+                            const match = values.find((option) => normalizeString(option) === normalizedToken) || values[0];
+                            applyFilterValue('cor', match || trimmed);
+                        } else {
+                            applyFilterValue(field, trimmed);
+                        }
+                        matchedSuggestion = true;
+                        break;
+                    }
+                }
+                if (matchedSuggestion) {
+                    continue;
+                }
+            }
+
+            residualTokens.push(trimmed);
+        }
+
+        if (signal.aborted) {
+            return;
+        }
+
+        if (filtersChanged) {
             setFilters(nextFilters);
-            setSearchTerm(freeText.join(' ').trim());
-            setPrefixWarnings(warnings);
+        }
+
+        let searchChanged = false;
+        const residual = residualTokens.join(' ');
+        setSearchTerm((prev) => {
+            if (prev === residual) {
+                return prev;
+            }
+            searchChanged = true;
+            return residual;
+        });
+        setPendingSearchTerm((prev) => (prev === residual ? prev : residual));
+        setPrefixWarnings(warnings);
+
+        if (filtersChanged || searchChanged) {
             setCurrentPage(1);
-        }, 700); // Debounce aumentado para 700ms
+        }
+    }, [filters, vehicles, normalizedColorMap]);
 
-        return () => clearTimeout(timeoutId);
-    }, [pendingSearchTerm]);
+    // Auto-aplicar busca com debounce quando usuário digita (detecta coluna automaticamente)
+    useEffect(() => {
+        const raw = pendingSearchTerm || '';
+        const term = raw.trim();
+        if (!term) {
+            setPrefixWarnings([]);
+            return;
+        }
 
-    const [prefixWarnings, setPrefixWarnings] = useState<string[]>([]);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+            processInput(term, controller.signal).catch((error: any) => {
+                if (error?.name === 'AbortError' || controller.signal.aborted) {
+                    return;
+                }
+                console.error('Erro ao processar busca inteligente:', error);
+            });
+        }, 500);
+
+        return () => {
+            controller.abort();
+            clearTimeout(timeoutId);
+        };
+    }, [pendingSearchTerm, processInput]);
 
     // Função para calcular preço com margem
     const calculatePriceWithMargin = (basePrice: number) => {
@@ -541,7 +751,14 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                         type="text"
                         placeholder="Digite para pesquisar (ex: argo, combustivel:diesel, transmissao:manual, cor:preto, ano:2024)"
                         value={pendingSearchTerm}
-                        onChange={(e) => setPendingSearchTerm(e.target.value)}
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            setPendingSearchTerm(value);
+                            if (value === '') {
+                                setSearchTerm('');
+                                setPrefixWarnings([]);
+                            }
+                        }}
                         className={styles.searchInput}
                     />
                 </div>
@@ -556,6 +773,12 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                             <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center' }}>
                                 Busca: {searchTerm}
                                 <button onClick={() => { setSearchTerm(''); setPendingSearchTerm(''); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                            </span>
+                        )}
+                        {filters.modelo && (
+                            <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center' }}>
+                                Modelo: {filters.modelo}
+                                <button onClick={() => { setFilters((prev) => ({ ...prev, modelo: '' })); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
                             </span>
                         )}
                         {filters.combustivel && (
@@ -586,6 +809,12 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                             <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center' }}>
                                 Cor: {filters.cor}
                                 <button onClick={() => { setFilters({ ...filters, cor: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                            </span>
+                        )}
+                        {filters.opcionais && (
+                            <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center' }}>
+                                Opcionais: {filters.opcionais}
+                                <button onClick={() => { setFilters((prev) => ({ ...prev, opcionais: '' })); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
                             </span>
                         )}
                     </div>

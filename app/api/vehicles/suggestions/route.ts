@@ -19,7 +19,7 @@ export async function GET(request: Request) {
         const searchTerm = searchParams.get('searchTerm') || '';
         const limitParam = parseInt(searchParams.get('limit') || '10');
 
-        const defaultFields = ['modelo', 'cor', 'ano', 'status', 'combustivel', 'transmissao'];
+        const defaultFields = ['modelo', 'cor', 'ano', 'status', 'combustivel', 'transmissao', 'opcionais'];
         const fields = (fieldsParam ? fieldsParam.split(',') : defaultFields).filter(Boolean);
 
         const suggestions: Record<string, string[]> = {};
