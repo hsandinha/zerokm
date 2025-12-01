@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useConfig } from '../../lib/contexts/ConfigContext';
 import { useVehicleDatabase } from '../../lib/hooks/useVehicleDatabase';
 import { useTablesDatabase } from '../../lib/hooks/useTablesDatabase';
@@ -8,7 +8,6 @@ import { Vehicle } from '../../lib/services/vehicleService';
 import { AddVehicleModal } from './AddVehicleModal';
 import styles from './VehicleConsultation.module.css';
 import modalStyles from './TablesManagement.module.css';
-import { AutocompleteInput } from './AutocompleteInput';
 import { HighlightText } from '../HighlightText';
 
 const formatDate = (dateInput: string | Date | undefined) => {
@@ -30,6 +29,22 @@ interface VehicleConsultationProps {
     role?: 'admin' | 'operator' | 'client' | 'dealership';
 }
 
+type FiltersState = {
+    cor: string;
+    ano: string;
+    status: string;
+    combustivel: string;
+    transmissao: string;
+};
+
+const INITIAL_FILTERS: FiltersState = {
+    cor: '',
+    ano: '',
+    status: '',
+    combustivel: '',
+    transmissao: ''
+};
+
 export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsultationProps) {
     const { margem } = useConfig();
     // Estado efetivo (aplicado) para busca e filtros
@@ -37,7 +52,6 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
     // Estado pendente (digitando) para evitar disparar requisições a cada tecla
     const [pendingSearchTerm, setPendingSearchTerm] = useState('');
     const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
-    const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
     const [showVehicleForm, setShowVehicleForm] = useState(false);
     const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
     const [showImportModal, setShowImportModal] = useState(false);
@@ -52,17 +66,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         total: 0,
         isImporting: false
     });
-    const [filters, setFilters] = useState({
-        modelo: '',
-        categoria: '',
-        cor: '',
-        ano: '',
-        status: '',
-        combustivel: '',
-        transmissao: ''
-    });
-    // Filtros pendentes enquanto o usuário digita
-    const [pendingFilters, setPendingFilters] = useState(filters);
+    const [filters, setFilters] = useState<FiltersState>(() => ({ ...INITIAL_FILTERS }));
     const [sortConfig, setSortConfig] = useState<{ key: keyof Vehicle | null; direction: 'asc' | 'desc' }>({
         key: null,
         direction: 'asc'
@@ -116,16 +120,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
             // Parser simples de prefixos: combustivel:, transmissao:, status:, ano:, preco:, cor:
             const parts = term.split(/\s+/);
             // Inicializar filtros vazios - reprocessar tudo do zero
-            const nextFilters = {
-                marca: '',
-                modelo: '',
-                categoria: '',
-                cor: '',
-                ano: '',
-                status: '',
-                combustivel: '',
-                transmissao: ''
-            };
+            const nextFilters = { ...INITIAL_FILTERS };
             let freeText: string[] = [];
 
             const norm = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
@@ -233,44 +228,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         return () => clearTimeout(timeoutId);
     }, [pendingSearchTerm]);
 
-    // Cache de sugestões carregadas uma vez da API dedicada (evita reload por tecla)
-    const [suggestionsCache, setSuggestionsCache] = useState<Record<string, string[]>>({});
-    const [loadingSuggestions, setLoadingSuggestions] = useState(false);
     const [prefixWarnings, setPrefixWarnings] = useState<string[]>([]);
-
-    useEffect(() => {
-        // Carrega apenas quando usuário abre filtros avançados e ainda não tem cache
-        if (!showAdvancedFilters) return;
-        if (Object.keys(suggestionsCache).length > 0) return;
-        const fetchSuggestions = async () => {
-            setLoadingSuggestions(true);
-            try {
-                const res = await fetch('/api/vehicles/suggestions?fields=modelo,cor,ano,status,combustivel,transmissao');
-                if (res.ok) {
-                    const data = await res.json();
-                    setSuggestionsCache(data.suggestions || {});
-                }
-            } catch (e) {
-                console.error('Erro ao carregar sugestões:', e);
-            } finally {
-                setLoadingSuggestions(false);
-            }
-        };
-        fetchSuggestions();
-    }, [showAdvancedFilters, suggestionsCache]);
-
-    const getUniqueSuggestions = useCallback((field: keyof Vehicle, searchTerm: string): string[] => {
-        if (!searchTerm) return [];
-        const list = suggestionsCache[field as string] || [];
-        return list.filter(v => v.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 10);
-    }, [suggestionsCache]);
-
-    const getModeloSuggestions = useCallback((searchTerm: string) => getUniqueSuggestions('modelo', searchTerm), [getUniqueSuggestions]);
-    const getCorSuggestions = useCallback((searchTerm: string) => getUniqueSuggestions('cor', searchTerm), [getUniqueSuggestions]);
-    const getAnoSuggestions = useCallback((searchTerm: string) => getUniqueSuggestions('ano', searchTerm), [getUniqueSuggestions]);
-    const getStatusSuggestions = useCallback((searchTerm: string) => getUniqueSuggestions('status', searchTerm), [getUniqueSuggestions]);
-    const getCombustivelSuggestions = useCallback((searchTerm: string) => getUniqueSuggestions('combustivel', searchTerm), [getUniqueSuggestions]);
-    const getTransmissaoSuggestions = useCallback((searchTerm: string) => getUniqueSuggestions('transmissao', searchTerm), [getUniqueSuggestions]);
 
     // Função para calcular preço com margem
     const calculatePriceWithMargin = (basePrice: number) => {
@@ -451,28 +409,8 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
     const clearFilters = () => {
         setPendingSearchTerm('');
         setSearchTerm('');
-        setCurrentPage(1);
-    };
-
-    const applyAdvancedFilters = () => {
-        setFilters(pendingFilters);
-        setCurrentPage(1);
-    };
-
-    const clearAllFilters = () => {
-        setPendingSearchTerm('');
-        setSearchTerm('');
-        const cleared = {
-            modelo: '',
-            categoria: '',
-            cor: '',
-            ano: '',
-            status: '',
-            combustivel: '',
-            transmissao: ''
-        };
-        setFilters(cleared);
-        setPendingFilters(cleared);
+        setFilters({ ...INITIAL_FILTERS });
+        setPrefixWarnings([]);
         setCurrentPage(1);
     };
     const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -606,96 +544,9 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                         onChange={(e) => setPendingSearchTerm(e.target.value)}
                         className={styles.searchInput}
                     />
-                    <button
-                        className={styles.applyButton}
-                        style={{ marginLeft: '8px' }}
-                        onClick={() => { setSearchTerm(pendingSearchTerm); setCurrentPage(1); }}
-                        disabled={pendingSearchTerm.length > 0 && pendingSearchTerm.length < 3}
-                        title={pendingSearchTerm.length > 0 && pendingSearchTerm.length < 3 ? 'Digite pelo menos 3 caracteres' : 'Aplicar busca no servidor'}
-                    >
-                        Buscar
-                    </button>
-
                 </div>
 
-                {showAdvancedFilters && (
-                    <div className={styles.advancedFilters}>
-                        <h3>Filtros Avançados {loadingSuggestions && <span style={{ fontSize: '0.75rem', marginLeft: '6px' }}>carregando...</span>}</h3>
-                        <div className={styles.filterGrid}>
-                            <div className={styles.filterItem}>
-                                <AutocompleteInput
-                                    label="Modelo"
-                                    value={pendingFilters.modelo}
-                                    onChange={(value) => setPendingFilters({ ...pendingFilters, modelo: value })}
-                                    getSuggestions={getModeloSuggestions}
-                                    placeholder="Filtrar por modelo"
-                                />
-                            </div>
-                            <div className={styles.filterItem}>
-                                <AutocompleteInput
-                                    label="Cor"
-                                    value={pendingFilters.cor}
-                                    onChange={(value) => setPendingFilters({ ...pendingFilters, cor: value })}
-                                    getSuggestions={getCorSuggestions}
-                                    placeholder="Filtrar por cor"
-                                />
-                            </div>
-                            <div className={styles.filterItem}>
-                                <AutocompleteInput
-                                    label="Ano"
-                                    value={pendingFilters.ano}
-                                    onChange={(value) => setPendingFilters({ ...pendingFilters, ano: value })}
-                                    getSuggestions={getAnoSuggestions}
-                                    placeholder="Filtrar por ano"
-                                />
-                            </div>
-                            <div className={styles.filterItem}>
-                                <AutocompleteInput
-                                    label="Status"
-                                    value={pendingFilters.status}
-                                    onChange={(value) => setPendingFilters({ ...pendingFilters, status: value })}
-                                    getSuggestions={getStatusSuggestions}
-                                    placeholder="Filtrar por status"
-                                />
-                            </div>
-                            <div className={styles.filterItem}>
-                                <AutocompleteInput
-                                    label="Combustível"
-                                    value={pendingFilters.combustivel}
-                                    onChange={(value) => setPendingFilters({ ...pendingFilters, combustivel: value })}
-                                    getSuggestions={getCombustivelSuggestions}
-                                    placeholder="Filtrar por combustível"
-                                />
-                            </div>
-                            <div className={styles.filterItem}>
-                                <AutocompleteInput
-                                    label="Transmissão"
-                                    value={pendingFilters.transmissao}
-                                    onChange={(value) => setPendingFilters({ ...pendingFilters, transmissao: value })}
-                                    getSuggestions={getTransmissaoSuggestions}
-                                    placeholder="Filtrar por transmissão"
-                                />
-                            </div>
-                        </div>
-                        <div className={styles.filterActions}>
-                            <button onClick={applyAdvancedFilters} className={styles.applyButton}>
-                                Aplicar Filtros
-                            </button>
-                            <button onClick={clearAllFilters} className={styles.clearButton}>
-                                Limpar Filtros
-                            </button>
-                        </div>
-                    </div>
-                )}
-
                 <div className={styles.searchInfo}>
-                    <button
-                        className={styles.filterToggle}
-                        onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                        title="Filtros avançados"
-                    >
-                        Filtros Avançados {showAdvancedFilters ? '▲' : '▼'}
-                    </button>
                     <button onClick={clearFilters} className={styles.clearButton}>
                         Limpar Busca
                     </button>
