@@ -205,7 +205,8 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
             return;
         }
 
-        const nextFilters = { ...INITIAL_FILTERS };
+        // Start with current filters to allow additive filtering
+        const nextFilters = { ...filters };
         const warnings: string[] = [];
         const residualTokens: string[] = [];
 
@@ -438,7 +439,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         if (filtersChanged || searchChanged) {
             setCurrentPage(1);
         }
-    }, [vehicles, normalizedColorMap]);
+    }, [vehicles, normalizedColorMap, filters]);
 
     // Auto-aplicar busca com debounce quando usuário digita (detecta coluna automaticamente)
     useEffect(() => {
