@@ -432,7 +432,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                 }
                 console.error('Erro ao processar busca inteligente:', error);
             });
-        }, 500);
+        }, 1000);
 
         return () => {
             controller.abort();
