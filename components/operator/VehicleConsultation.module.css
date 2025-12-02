@@ -368,7 +368,7 @@
     white-space: nowrap;
     font-size: 0.875rem;
     color: #1f2937;
-    font-weight: 400;
+    font-weight: 700;
 }
 
 .tableCell:last-child {
@@ -870,6 +870,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    font-weight: 700;
 }
 
 .modelItem:hover {
