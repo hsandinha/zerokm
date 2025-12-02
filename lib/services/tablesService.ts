@@ -362,9 +362,9 @@ class TablesService {
                     // Converte data brasileira DD/MM/YYYY ou ISO YYYY-MM-DD para objeto Date
                     const parseDataEntrada = (dateStr?: string): Date => {
                         if (!dateStr || !dateStr.trim()) return new Date();
-                        
+
                         const cleanDate = dateStr.trim();
-                        
+
                         // Tenta formato DD/MM/YYYY, MM/DD/YYYY ou YYYY/MM/DD
                         if (cleanDate.includes('/')) {
                             const parts = cleanDate.split('/');
@@ -393,7 +393,7 @@ class TablesService {
                                 }
                             }
                         }
-                        
+
                         // Tenta formato YYYY-MM-DD, DD-MM-YYYY ou MM-DD-YYYY
                         if (cleanDate.includes('-')) {
                             const parts = cleanDate.split('-');
