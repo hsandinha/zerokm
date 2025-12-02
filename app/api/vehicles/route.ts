@@ -82,7 +82,7 @@ export async function GET(request: Request) {
                 query.status = statusMap[normalized];
             }
 
-            const orConditions = [
+            const orConditions: any[] = [
                 { transmissao: searchRegex },
                 { combustivel: searchRegex },
                 { cor: searchRegex },
