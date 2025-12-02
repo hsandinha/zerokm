@@ -884,6 +884,11 @@
     font-weight: 500;
 }
 
+.modelItem.focused {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+
 .mainContent {
     flex: 1;
     overflow: hidden;

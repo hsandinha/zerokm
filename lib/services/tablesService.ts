@@ -359,14 +359,74 @@ class TablesService {
                     const combustivelFinal = normalizeCombustivel(combustivel);
                     const transmissaoFinal = normalizeTransmissao(transmissao);
 
-                    // Converte data brasileira DD/MM/YYYY para objeto Date
+                    // Converte data brasileira DD/MM/YYYY ou ISO YYYY-MM-DD para objeto Date
                     const parseDataEntrada = (dateStr?: string): Date => {
                         if (!dateStr || !dateStr.trim()) return new Date();
-                        const parts = dateStr.trim().split('/');
-                        if (parts.length === 3) {
-                            const [day, month, year] = parts;
-                            return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                        
+                        const cleanDate = dateStr.trim();
+                        
+                        // Tenta formato DD/MM/YYYY, MM/DD/YYYY ou YYYY/MM/DD
+                        if (cleanDate.includes('/')) {
+                            const parts = cleanDate.split('/');
+                            if (parts.length === 3) {
+                                // Verifica se é YYYY/MM/DD
+                                if (parts[0].length === 4) {
+                                    const [year, month, day] = parts;
+                                    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                                    if (!isNaN(date.getTime())) return date;
+                                } else {
+                                    // Assume DD/MM/YYYY ou MM/DD/YYYY
+                                    let day = parseInt(parts[0]);
+                                    let month = parseInt(parts[1]);
+                                    let year = parseInt(parts[2]);
+
+                                    // Detecção de formato americano (MM/DD/YYYY)
+                                    // Se o segundo número > 12 (não pode ser mês) e o primeiro <= 12 (pode ser mês)
+                                    if (month > 12 && day <= 12) {
+                                        const temp = day;
+                                        day = month;
+                                        month = temp;
+                                    }
+
+                                    const date = new Date(year, month - 1, day);
+                                    if (!isNaN(date.getTime())) return date;
+                                }
+                            }
                         }
+                        
+                        // Tenta formato YYYY-MM-DD, DD-MM-YYYY ou MM-DD-YYYY
+                        if (cleanDate.includes('-')) {
+                            const parts = cleanDate.split('-');
+                            if (parts.length === 3) {
+                                // Verifica se é YYYY-MM-DD
+                                if (parts[0].length === 4) {
+                                    const [year, month, day] = parts;
+                                    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                                    if (!isNaN(date.getTime())) return date;
+                                } else {
+                                    // Assume DD-MM-YYYY ou MM-DD-YYYY
+                                    let day = parseInt(parts[0]);
+                                    let month = parseInt(parts[1]);
+                                    let year = parseInt(parts[2]);
+
+                                    // Detecção de formato americano (MM-DD-YYYY)
+                                    if (month > 12 && day <= 12) {
+                                        const temp = day;
+                                        day = month;
+                                        month = temp;
+                                    }
+
+                                    const date = new Date(year, month - 1, day);
+                                    if (!isNaN(date.getTime())) return date;
+                                }
+                            }
+                        }
+
+                        // Tenta construtor padrão como fallback
+                        const date = new Date(cleanDate);
+                        if (!isNaN(date.getTime())) return date;
+
+                        // Se não conseguiu ler a data, usa a data atual (hoje)
                         return new Date();
                     };
 

@@ -118,6 +118,8 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
     const [availableModels, setAvailableModels] = useState<string[]>([]);
     const [modelSearch, setModelSearch] = useState('');
     const [selectedModel, setSelectedModel] = useState<string | null>(null);
+    const [focusedModelIndex, setFocusedModelIndex] = useState<number>(-1);
+    const modelListRef = useRef<HTMLDivElement>(null);
     const suggestionsCacheRef = useRef<Map<string, Record<string, string[]>>>(new Map());
     const normalizedColorMap = useMemo(() => {
         const map: Record<string, string> = {};
@@ -743,6 +745,52 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         }
     }, [filters.modelo]);
 
+    const handleModelSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        const totalItems = filteredModels.length + 1; // +1 for "Todos os Modelos"
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setFocusedModelIndex(prev => {
+                const nextIndex = prev + 1;
+                return nextIndex >= totalItems ? 0 : nextIndex;
+            });
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setFocusedModelIndex(prev => {
+                const nextIndex = prev - 1;
+                return nextIndex < 0 ? totalItems - 1 : nextIndex;
+            });
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (focusedModelIndex === 0) {
+                handleModelSelect(null);
+            } else if (focusedModelIndex > 0) {
+                const modelToSelect = filteredModels[focusedModelIndex - 1];
+                if (modelToSelect) {
+                    handleModelSelect(modelToSelect);
+                }
+            }
+        }
+    };
+
+    // Reset focused index when search changes
+    useEffect(() => {
+        setFocusedModelIndex(0);
+    }, [modelSearch]);
+
+    // Scroll focused item into view
+    useEffect(() => {
+        if (focusedModelIndex >= 0 && modelListRef.current) {
+            const listItems = modelListRef.current.children;
+            if (listItems[focusedModelIndex]) {
+                listItems[focusedModelIndex].scrollIntoView({
+                    block: 'nearest',
+                    behavior: 'smooth'
+                });
+            }
+        }
+    }, [focusedModelIndex]);
+
     if (error) {
         return (
             <div className={styles.container}>
@@ -836,19 +884,20 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                             className={styles.modelSearchInput}
                             value={modelSearch}
                             onChange={(e) => setModelSearch(e.target.value)}
+                            onKeyDown={handleModelSearchKeyDown}
                         />
                     </div>
-                    <div className={styles.modelList}>
+                    <div className={styles.modelList} ref={modelListRef}>
                         <div
-                            className={`${styles.modelItem} ${selectedModel === null ? styles.active : ''}`}
+                            className={`${styles.modelItem} ${selectedModel === null ? styles.active : ''} ${focusedModelIndex === 0 ? styles.focused : ''}`}
                             onClick={() => handleModelSelect(null)}
                         >
                             Todos os Modelos
                         </div>
-                        {filteredModels.map(model => (
+                        {filteredModels.map((model, index) => (
                             <div
                                 key={model}
-                                className={`${styles.modelItem} ${selectedModel === model ? styles.active : ''}`}
+                                className={`${styles.modelItem} ${selectedModel === model ? styles.active : ''} ${focusedModelIndex === index + 1 ? styles.focused : ''}`}
                                 onClick={() => handleModelSelect(model)}
                             >
                                 {model}
