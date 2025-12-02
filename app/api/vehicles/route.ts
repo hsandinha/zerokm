@@ -81,8 +81,8 @@ export async function GET(request: Request) {
             } else if (statusMap[normalized]) {
                 query.status = statusMap[normalized];
             }
-            query.$or = [
-                { modelo: searchRegex },
+
+            const orConditions = [
                 { transmissao: searchRegex },
                 { combustivel: searchRegex },
                 { cor: searchRegex },
@@ -93,6 +93,13 @@ export async function GET(request: Request) {
                 { estado: searchRegex },
                 { concessionaria: searchRegex }
             ];
+
+            // Only search in model if we are not already filtering by a specific model
+            if (!filters.modelo) {
+                orConditions.unshift({ modelo: searchRegex });
+            }
+
+            query.$or = orConditions;
         }
 
         const skip = (page - 1) * limit;

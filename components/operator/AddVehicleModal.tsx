@@ -274,12 +274,29 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                     <div className={styles.formGroup}>
                         <label htmlFor="dataEntrada">Data de Entrada</label>
                         <input
-                            type="text"
+                            type="date"
                             id="dataEntrada"
                             name="dataEntrada"
-                            value={typeof formData.dataEntrada === 'string' ? formData.dataEntrada : formData.dataEntrada.toLocaleDateString('pt-BR')}
-                            onChange={handleInputChange}
-                            placeholder="Ex: 20/11/2025"
+                            value={(() => {
+                                const val = typeof formData.dataEntrada === 'string' ? formData.dataEntrada : formData.dataEntrada.toLocaleDateString('pt-BR');
+                                if (!val) return '';
+                                if (val.includes('/')) {
+                                    const parts = val.split('/');
+                                    if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+                                }
+                                return val;
+                            })()}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                if (!val) {
+                                    setFormData(prev => ({ ...prev, dataEntrada: '' }));
+                                    return;
+                                }
+                                const parts = val.split('-');
+                                const formatted = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                                setFormData(prev => ({ ...prev, dataEntrada: formatted }));
+                            }}
+                            required
                         />
                     </div>
 

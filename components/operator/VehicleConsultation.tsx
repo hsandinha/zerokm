@@ -115,6 +115,9 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
     });
     const [filters, setFilters] = useState<FiltersState>(() => ({ ...INITIAL_FILTERS }));
     const [knownColors, setKnownColors] = useState<string[]>([]);
+    const [availableModels, setAvailableModels] = useState<string[]>([]);
+    const [modelSearch, setModelSearch] = useState('');
+    const [selectedModel, setSelectedModel] = useState<string | null>(null);
     const suggestionsCacheRef = useRef<Map<string, Record<string, string[]>>>(new Map());
     const normalizedColorMap = useMemo(() => {
         const map: Record<string, string> = {};
@@ -124,7 +127,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         return map;
     }, [knownColors]);
     const [sortConfig, setSortConfig] = useState<{ key: keyof Vehicle | null; direction: 'asc' | 'desc' }>({
-        key: null,
+        key: 'preco',
         direction: 'asc'
     });
     const [currentPage, setCurrentPage] = useState(1);
@@ -164,7 +167,23 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
             }
         };
 
+        const loadModels = async () => {
+            try {
+                const res = await fetch('/api/vehicles/suggestions?fields=modelo&limit=1000', { signal: abortController.signal });
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data.suggestions?.modelo) {
+                    setAvailableModels(data.suggestions.modelo);
+                }
+            } catch (error: any) {
+                if (error?.name !== 'AbortError') {
+                    console.error('Erro ao carregar modelos:', error);
+                }
+            }
+        };
+
         loadColors();
+        loadModels();
 
         return () => abortController.abort();
     }, []);
@@ -210,7 +229,14 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         const warnings: string[] = [];
         const residualTokens: string[] = [];
 
-        const datasetOrder: FilterKey[] = ['modelo', 'transmissao', 'combustivel', 'status', 'cor', 'ano', 'opcionais'];
+        const datasetOrder: FilterKey[] = ['transmissao', 'combustivel', 'status', 'cor', 'ano'];
+
+        // If a model is already selected via sidebar, do not auto-detect model from search input
+        // This prevents the search input from overriding the sidebar selection
+        if (selectedModel) {
+            // No need to remove 'modelo' as it is not in datasetOrder anymore
+        }
+
         const datasetFieldGetters: Record<FilterKey, (vehicle: Vehicle) => string | undefined> = {
             modelo: (vehicle) => vehicle.modelo,
             cor: (vehicle) => vehicle.cor,
@@ -380,7 +406,13 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                 return;
             }
             if (suggestions) {
-                const suggestionOrder: FilterKey[] = ['modelo', 'opcionais', 'cor'];
+                const suggestionOrder: FilterKey[] = ['cor'];
+
+                // If model is selected, don't use model suggestions to override filter
+                if (selectedModel) {
+                    // No need to remove 'modelo' as it is not in suggestionOrder anymore
+                }
+
                 let matchedSuggestion = false;
                 for (const field of suggestionOrder) {
                     const values = suggestions[field];
@@ -439,7 +471,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         if (filtersChanged || searchChanged) {
             setCurrentPage(1);
         }
-    }, [vehicles, normalizedColorMap, filters]);
+    }, [vehicles, normalizedColorMap, filters, selectedModel]);
 
     // Auto-aplicar busca com debounce quando usuário digita (detecta coluna automaticamente)
     useEffect(() => {
@@ -690,6 +722,27 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         }
     };
 
+    const handleModelSelect = (model: string | null) => {
+        setSelectedModel(model);
+        setFilters(prev => ({ ...prev, modelo: model || '' }));
+        setCurrentPage(1);
+    };
+
+    const filteredModels = availableModels.filter(m =>
+        normalizeString(m).includes(normalizeString(modelSearch))
+    );
+
+    // Sync filters.modelo with selectedModel in case it changes via search input
+    useEffect(() => {
+        if (filters.modelo !== (selectedModel || '')) {
+            if (filters.modelo === '') {
+                setSelectedModel(null);
+            } else {
+                setSelectedModel(filters.modelo);
+            }
+        }
+    }, [filters.modelo]);
+
     if (error) {
         return (
             <div className={styles.container}>
@@ -774,297 +827,334 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                 </div>
             )}
 
-            <div className={styles.searchSection}>
-                <div className={styles.searchContainer}>
-                    <input
-                        type="text"
-                        placeholder="Digite para pesquisar (ex: argo, combustivel:diesel, transmissao:manual, cor:preto, ano:2024)"
-                        value={pendingSearchTerm}
-                        onChange={(e) => {
-                            const value = e.target.value;
-                            setPendingSearchTerm(value);
-                            if (value === '') {
-                                setSearchTerm('');
-                                setPrefixWarnings([]);
-                            }
-                        }}
-                        className={styles.searchInput}
-                    />
-                </div>
-
-                <div className={styles.searchInfo}>
-                    <button onClick={clearFilters} className={styles.clearButton}>
-                        Limpar Busca
-                    </button>
-                    {/* Chips de filtros aplicados */}
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
-                        {searchTerm && (
-                            <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                Busca: {searchTerm}
-                                <button onClick={() => { setSearchTerm(''); setPendingSearchTerm(''); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                            </span>
-                        )}
-                        {filters.modelo && (
-                            <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                Modelo: {filters.modelo}
-                                <button onClick={() => { setFilters((prev) => ({ ...prev, modelo: '' })); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                            </span>
-                        )}
-                        {filters.combustivel && (
-                            <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                Combustível: {filters.combustivel}
-                                <button onClick={() => { setFilters({ ...filters, combustivel: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                            </span>
-                        )}
-                        {filters.transmissao && (
-                            <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                Transmissão: {filters.transmissao}
-                                <button onClick={() => { setFilters({ ...filters, transmissao: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                            </span>
-                        )}
-                        {filters.status && (
-                            <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                Status: {filters.status}
-                                <button onClick={() => { setFilters({ ...filters, status: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                            </span>
-                        )}
-                        {filters.ano && (
-                            <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                Ano: {filters.ano}
-                                <button onClick={() => { setFilters({ ...filters, ano: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                            </span>
-                        )}
-                        {filters.cor && (
-                            <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                Cor: {filters.cor}
-                                <button onClick={() => { setFilters({ ...filters, cor: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                            </span>
-                        )}
-                        {filters.opcionais && (
-                            <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                Opcionais: {filters.opcionais}
-                                <button onClick={() => { setFilters((prev) => ({ ...prev, opcionais: '' })); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                            </span>
-                        )}
+            <div className={styles.splitLayout}>
+                <div className={styles.sidebar}>
+                    <div className={styles.sidebarHeader}>
+                        <input
+                            type="text"
+                            placeholder="Filtrar modelos..."
+                            className={styles.modelSearchInput}
+                            value={modelSearch}
+                            onChange={(e) => setModelSearch(e.target.value)}
+                        />
                     </div>
-                    {/* Warnings de prefixos */}
-                    {prefixWarnings.length > 0 && (
-                        <div style={{ marginTop: '6px', color: '#a66', fontSize: '0.85rem' }}>
-                            {prefixWarnings.map((w, i) => (<div key={i}>⚠️ {w}</div>))}
+                    <div className={styles.modelList}>
+                        <div
+                            className={`${styles.modelItem} ${selectedModel === null ? styles.active : ''}`}
+                            onClick={() => handleModelSelect(null)}
+                        >
+                            Todos os Modelos
                         </div>
-                    )}
-                </div>
-            </div>
-
-            <div className={styles.resultsSection}>
-                <h3>Resultados ({totalItems})</h3>
-
-                {viewMode === 'table' ? (
-                    <div className={styles.tableContainer}>
-                        <table className={styles.table}>
-                            <thead>
-                                <tr>
-                                    <th className={styles.tableHeader}>
-                                        <input
-                                            type="checkbox"
-                                            onChange={handleSelectAll}
-                                            checked={displayVehicles.length > 0 && selectedIds.length === displayVehicles.length}
-                                        />
-                                    </th>
-                                    <th className={styles.tableHeader} onClick={() => handleSort('dataEntrada')} style={{ cursor: 'pointer' }}>
-                                        DATA ENTRADA {sortConfig.key === 'dataEntrada' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                    </th>
-                                    <th className={styles.tableHeader} onClick={() => handleSort('modelo')} style={{ cursor: 'pointer' }}>
-                                        MODELO {sortConfig.key === 'modelo' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                    </th>
-                                    <th className={styles.tableHeader} onClick={() => handleSort('transmissao')} style={{ cursor: 'pointer' }}>
-                                        TRANSMISSÃO {sortConfig.key === 'transmissao' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                    </th>
-                                    <th className={styles.tableHeader} onClick={() => handleSort('combustivel')} style={{ cursor: 'pointer' }}>
-                                        COMBUSTÍVEL {sortConfig.key === 'combustivel' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                    </th>
-                                    <th className={styles.tableHeader} onClick={() => handleSort('cor')} style={{ cursor: 'pointer' }}>
-                                        COR {sortConfig.key === 'cor' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                    </th>
-                                    <th className={styles.tableHeader} onClick={() => handleSort('ano')} style={{ cursor: 'pointer' }}>
-                                        ANO {sortConfig.key === 'ano' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                    </th>
-                                    <th className={styles.tableHeader} onClick={() => handleSort('opcionais')} style={{ cursor: 'pointer' }}>
-                                        OPCIONAIS {sortConfig.key === 'opcionais' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                    </th>
-                                    <th className={styles.tableHeader} onClick={() => handleSort('preco')} style={{ cursor: 'pointer' }}>
-                                        VALOR (R$) {sortConfig.key === 'preco' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                    </th>
-                                    <th className={styles.tableHeader} onClick={() => handleSort('status')} style={{ cursor: 'pointer' }}>
-                                        STATUS {sortConfig.key === 'status' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                    </th>
-                                    <th className={styles.tableHeader} onClick={() => handleSort('observacoes')} style={{ cursor: 'pointer' }}>
-                                        OBSERVAÇÕES {sortConfig.key === 'observacoes' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                    </th>
-                                    <th className={styles.tableHeader} onClick={() => handleSort('cidade')} style={{ cursor: 'pointer' }}>
-                                        CIDADE {sortConfig.key === 'cidade' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                    </th>
-                                    <th className={styles.tableHeader} onClick={() => handleSort('estado')} style={{ cursor: 'pointer' }}>
-                                        ESTADO {sortConfig.key === 'estado' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                    </th>
-                                    <th className={styles.tableHeader} onClick={() => handleSort('concessionaria')} style={{ cursor: 'pointer' }}>
-                                        CONCESSIONÁRIA {sortConfig.key === 'concessionaria' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                    </th>
-                                    <th className={styles.tableHeader} onClick={() => handleSort('telefone')} style={{ cursor: 'pointer' }}>
-                                        TELEFONE {sortConfig.key === 'telefone' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                    </th>
-                                    <th className={styles.tableHeader} onClick={() => handleSort('nomeContato')} style={{ cursor: 'pointer' }}>
-                                        NOME DO CONTATO {sortConfig.key === 'nomeContato' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                    </th>
-                                    {role !== 'client' && (
-                                        <th className={styles.tableHeader} onClick={() => handleSort('operador')} style={{ cursor: 'pointer' }}>
-                                            OPERADOR {sortConfig.key === 'operador' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                        </th>
-                                    )}
-                                    <th className={styles.tableHeader}>AÇÕES</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {displayVehicles.map((vehicle) => (
-                                    <tr key={vehicle.id} className={styles.tableRow}>
-                                        <td className={styles.tableCell}>
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedIds.includes(vehicle.id || '')}
-                                                onChange={() => handleSelectOne(vehicle.id || '')}
-                                            />
-                                        </td>
-                                        <td className={styles.tableCell}><HighlightText text={formatDate(vehicle.dataEntrada)} searchTerm={pendingSearchTerm} /></td>
-                                        <td className={styles.tableCell}><HighlightText text={vehicle.modelo} searchTerm={pendingSearchTerm} /></td>
-                                        <td className={styles.tableCell}><HighlightText text={vehicle.transmissao} searchTerm={pendingSearchTerm} /></td>
-                                        <td className={styles.tableCell}><HighlightText text={vehicle.combustivel} searchTerm={pendingSearchTerm} /></td>
-                                        <td className={styles.tableCell}><HighlightText text={vehicle.cor} searchTerm={pendingSearchTerm} /></td>
-                                        <td className={styles.tableCell}><HighlightText text={vehicle.ano} searchTerm={pendingSearchTerm} /></td>
-                                        <td className={styles.tableCell}><HighlightText text={vehicle.opcionais} searchTerm={pendingSearchTerm} /></td>
-                                        <td className={styles.tableCell}>
-                                            R$ {calculatePriceWithMargin(vehicle.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                        </td>
-                                        <td className={styles.tableCell}>
-                                            <span className={`${styles.statusBadge} ${getStatusColor(vehicle.status)}`}>
-                                                {vehicle.status}
-                                            </span>
-                                        </td>
-                                        <td className={styles.tableCell}><HighlightText text={vehicle.observacoes} searchTerm={pendingSearchTerm} /></td>
-                                        <td className={styles.tableCell}><HighlightText text={vehicle.cidade} searchTerm={pendingSearchTerm} /></td>
-                                        <td className={styles.tableCell}><HighlightText text={vehicle.estado} searchTerm={pendingSearchTerm} /></td>
-                                        <td className={styles.tableCell}><HighlightText text={vehicle.concessionaria} searchTerm={pendingSearchTerm} /></td>
-                                        <td className={styles.tableCell}><HighlightText text={vehicle.telefone} searchTerm={pendingSearchTerm} /></td>
-                                        <td className={styles.tableCell}><HighlightText text={vehicle.nomeContato} searchTerm={pendingSearchTerm} /></td>
-                                        {role !== 'client' && (
-                                            <td className={styles.tableCell}><HighlightText text={vehicle.operador} searchTerm={pendingSearchTerm} /></td>
-                                        )}
-                                        <td className={styles.tableCell}>
-                                            <div className={styles.actionButtons}>
-                                                {role === 'client' ? (
-                                                    <button
-                                                        className={styles.whatsappButton}
-                                                        title="Contatar Vendedor via WhatsApp"
-                                                        onClick={() => handleWhatsAppClick(vehicle)}
-                                                        style={{ backgroundColor: '#25D366', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}
-                                                    >
-                                                        💬 WhatsApp
-                                                    </button>
-                                                ) : (
-                                                    <>
-                                                        <button className={styles.proposalButton} title="Criar Proposta">
-                                                            📋
-                                                        </button>
-                                                        <button className={styles.whatsappButton} title="WhatsApp">
-                                                            💬
-                                                        </button>
-                                                        <button
-                                                            className={styles.editButton}
-                                                            title="Editar"
-                                                            onClick={() => handleEditVehicle(vehicle)}
-                                                        >
-                                                            ✏️
-                                                        </button>
-                                                        <button
-                                                            className={styles.deleteButton}
-                                                            title="Excluir"
-                                                            onClick={() => handleDeleteVehicle(vehicle)}
-                                                        >
-                                                            🗑️
-                                                        </button>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                ) : (
-                    <div className={styles.gridContainer}>
-                        {displayVehicles.map((vehicle) => (
-                            <VehicleCard
-                                key={vehicle.id}
-                                vehicle={vehicle}
-                                margem={margem}
-                                onEdit={handleEditVehicle}
-                                onDelete={handleDeleteVehicle}
-                                onWhatsApp={handleWhatsAppClick}
-                                role={role}
-                            />
+                        {filteredModels.map(model => (
+                            <div
+                                key={model}
+                                className={`${styles.modelItem} ${selectedModel === model ? styles.active : ''}`}
+                                onClick={() => handleModelSelect(model)}
+                            >
+                                {model}
+                            </div>
                         ))}
                     </div>
-                )}
+                </div>
 
-                <div className={styles.paginationContainer} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', padding: '10px', borderTop: '1px solid #eee' }}>
-                    <div className={styles.itemsPerPage}>
-                        <label htmlFor="itemsPerPage">Itens por página: </label>
-                        <select
-                            id="itemsPerPage"
-                            value={itemsPerPage}
-                            onChange={handleItemsPerPageChange}
-                            style={{ marginLeft: '10px', padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
-                        >
-                            <option value={25}>25</option>
-                            <option value={50}>50</option>
-                            <option value={75}>75</option>
-                            <option value={100}>100</option>
-                            <option value={-1}>Todos</option>
-                        </select>
+                <div className={styles.mainContent}>
+                    <div className={styles.searchSection}>
+                        <div className={styles.searchContainer}>
+                            <input
+                                type="text"
+                                placeholder="Digite para pesquisar (ex: argo, combustivel:diesel, transmissao:manual, cor:preto, ano:2024)"
+                                value={pendingSearchTerm}
+                                onChange={(e) => {
+                                    const value = e.target.value;
+                                    setPendingSearchTerm(value);
+                                    if (value === '') {
+                                        setSearchTerm('');
+                                        setPrefixWarnings([]);
+                                    }
+                                }}
+                                className={styles.searchInput}
+                            />
+                        </div>
+
+                        <div className={styles.searchInfo}>
+                            <button onClick={clearFilters} className={styles.clearButton}>
+                                Limpar Busca
+                            </button>
+                            {/* Chips de filtros aplicados */}
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
+                                {searchTerm && (
+                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                        Busca: {searchTerm}
+                                        <button onClick={() => { setSearchTerm(''); setPendingSearchTerm(''); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                    </span>
+                                )}
+                                {filters.modelo && (
+                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                        Modelo: {filters.modelo}
+                                        <button onClick={() => { setFilters((prev) => ({ ...prev, modelo: '' })); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                    </span>
+                                )}
+                                {filters.combustivel && (
+                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                        Combustível: {filters.combustivel}
+                                        <button onClick={() => { setFilters({ ...filters, combustivel: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                    </span>
+                                )}
+                                {filters.transmissao && (
+                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                        Transmissão: {filters.transmissao}
+                                        <button onClick={() => { setFilters({ ...filters, transmissao: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                    </span>
+                                )}
+                                {filters.status && (
+                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                        Status: {filters.status}
+                                        <button onClick={() => { setFilters({ ...filters, status: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                    </span>
+                                )}
+                                {filters.ano && (
+                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                        Ano: {filters.ano}
+                                        <button onClick={() => { setFilters({ ...filters, ano: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                    </span>
+                                )}
+                                {filters.cor && (
+                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                        Cor: {filters.cor}
+                                        <button onClick={() => { setFilters({ ...filters, cor: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                    </span>
+                                )}
+                                {filters.opcionais && (
+                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                        Opcionais: {filters.opcionais}
+                                        <button onClick={() => { setFilters((prev) => ({ ...prev, opcionais: '' })); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                    </span>
+                                )}
+                            </div>
+                            {/* Warnings de prefixos */}
+                            {prefixWarnings.length > 0 && (
+                                <div style={{ marginTop: '6px', color: '#a66', fontSize: '0.85rem' }}>
+                                    {prefixWarnings.map((w, i) => (<div key={i}>⚠️ {w}</div>))}
+                                </div>
+                            )}
+                        </div>
                     </div>
 
-                    <div className={styles.paginationControls} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                        <button
-                            onClick={() => handlePageChange(currentPage - 1)}
-                            disabled={currentPage === 1}
-                            style={{
-                                padding: '5px 10px',
-                                cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-                                opacity: currentPage === 1 ? 0.5 : 1,
-                                border: '1px solid #ccc',
-                                borderRadius: '4px',
-                                background: '#fff'
-                            }}
-                        >
-                            Anterior
-                        </button>
-                        <span>
-                            Página {currentPage} de {totalPages}
-                        </span>
-                        <button
-                            onClick={() => handlePageChange(currentPage + 1)}
-                            disabled={currentPage === totalPages}
-                            style={{
-                                padding: '5px 10px',
-                                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-                                opacity: currentPage === totalPages ? 0.5 : 1,
-                                border: '1px solid #ccc',
-                                borderRadius: '4px',
-                                background: '#fff'
-                            }}
-                        >
-                            Próxima
-                        </button>
+                    <div className={styles.resultsSection}>
+                        <h3>Resultados ({totalItems})</h3>
+
+                        {viewMode === 'table' ? (
+                            <div className={styles.tableContainer}>
+                                <table className={styles.table}>
+                                    <thead>
+                                        <tr>
+                                            <th className={styles.tableHeader}>
+                                                <input
+                                                    type="checkbox"
+                                                    onChange={handleSelectAll}
+                                                    checked={displayVehicles.length > 0 && selectedIds.length === displayVehicles.length}
+                                                />
+                                            </th>
+                                            <th className={styles.tableHeader} onClick={() => handleSort('dataEntrada')} style={{ cursor: 'pointer' }}>
+                                                DATA ENTRADA {sortConfig.key === 'dataEntrada' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
+                                            {!selectedModel && (
+                                                <th className={styles.tableHeader} onClick={() => handleSort('modelo')} style={{ cursor: 'pointer' }}>
+                                                    MODELO {sortConfig.key === 'modelo' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                </th>
+                                            )}
+                                            <th className={styles.tableHeader} onClick={() => handleSort('transmissao')} style={{ cursor: 'pointer' }}>
+                                                TRANSMISSÃO {sortConfig.key === 'transmissao' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
+                                            <th className={styles.tableHeader} onClick={() => handleSort('combustivel')} style={{ cursor: 'pointer' }}>
+                                                COMBUSTÍVEL {sortConfig.key === 'combustivel' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
+                                            <th className={styles.tableHeader} onClick={() => handleSort('cor')} style={{ cursor: 'pointer' }}>
+                                                COR {sortConfig.key === 'cor' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
+                                            <th className={styles.tableHeader} onClick={() => handleSort('ano')} style={{ cursor: 'pointer' }}>
+                                                ANO {sortConfig.key === 'ano' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
+                                            <th className={styles.tableHeader} onClick={() => handleSort('opcionais')} style={{ cursor: 'pointer' }}>
+                                                OPCIONAIS {sortConfig.key === 'opcionais' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
+                                            <th className={styles.tableHeader} onClick={() => handleSort('preco')} style={{ cursor: 'pointer' }}>
+                                                VALOR (R$) {sortConfig.key === 'preco' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
+                                            <th className={styles.tableHeader} onClick={() => handleSort('status')} style={{ cursor: 'pointer' }}>
+                                                STATUS {sortConfig.key === 'status' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
+                                            <th className={styles.tableHeader} onClick={() => handleSort('observacoes')} style={{ cursor: 'pointer' }}>
+                                                OBSERVAÇÕES {sortConfig.key === 'observacoes' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
+                                            <th className={styles.tableHeader} onClick={() => handleSort('cidade')} style={{ cursor: 'pointer' }}>
+                                                CIDADE {sortConfig.key === 'cidade' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
+                                            <th className={styles.tableHeader} onClick={() => handleSort('estado')} style={{ cursor: 'pointer' }}>
+                                                ESTADO {sortConfig.key === 'estado' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
+                                            <th className={styles.tableHeader} onClick={() => handleSort('concessionaria')} style={{ cursor: 'pointer' }}>
+                                                CONCESSIONÁRIA {sortConfig.key === 'concessionaria' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
+                                            <th className={styles.tableHeader} onClick={() => handleSort('telefone')} style={{ cursor: 'pointer' }}>
+                                                TELEFONE {sortConfig.key === 'telefone' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
+                                            <th className={styles.tableHeader} onClick={() => handleSort('nomeContato')} style={{ cursor: 'pointer' }}>
+                                                NOME DO CONTATO {sortConfig.key === 'nomeContato' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
+                                            {role !== 'client' && (
+                                                <th className={styles.tableHeader} onClick={() => handleSort('operador')} style={{ cursor: 'pointer' }}>
+                                                    OPERADOR {sortConfig.key === 'operador' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                </th>
+                                            )}
+                                            <th className={styles.tableHeader}>AÇÕES</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {displayVehicles.map((vehicle) => (
+                                            <tr key={vehicle.id} className={styles.tableRow}>
+                                                <td className={styles.tableCell}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedIds.includes(vehicle.id || '')}
+                                                        onChange={() => handleSelectOne(vehicle.id || '')}
+                                                    />
+                                                </td>
+                                                <td className={styles.tableCell}><HighlightText text={formatDate(vehicle.dataEntrada)} searchTerm={pendingSearchTerm} /></td>
+                                                {!selectedModel && (
+                                                    <td className={styles.tableCell}><HighlightText text={vehicle.modelo} searchTerm={pendingSearchTerm} /></td>
+                                                )}
+                                                <td className={styles.tableCell}><HighlightText text={vehicle.transmissao} searchTerm={pendingSearchTerm} /></td>
+                                                <td className={styles.tableCell}><HighlightText text={vehicle.combustivel} searchTerm={pendingSearchTerm} /></td>
+                                                <td className={styles.tableCell}><HighlightText text={vehicle.cor} searchTerm={pendingSearchTerm} /></td>
+                                                <td className={styles.tableCell}><HighlightText text={vehicle.ano} searchTerm={pendingSearchTerm} /></td>
+                                                <td className={styles.tableCell}><HighlightText text={vehicle.opcionais} searchTerm={pendingSearchTerm} /></td>
+                                                <td className={styles.tableCell}>
+                                                    R$ {calculatePriceWithMargin(vehicle.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                </td>
+                                                <td className={styles.tableCell}>
+                                                    <span className={`${styles.statusBadge} ${getStatusColor(vehicle.status)}`}>
+                                                        {vehicle.status}
+                                                    </span>
+                                                </td>
+                                                <td className={styles.tableCell}><HighlightText text={vehicle.observacoes} searchTerm={pendingSearchTerm} /></td>
+                                                <td className={styles.tableCell}><HighlightText text={vehicle.cidade} searchTerm={pendingSearchTerm} /></td>
+                                                <td className={styles.tableCell}><HighlightText text={vehicle.estado} searchTerm={pendingSearchTerm} /></td>
+                                                <td className={styles.tableCell}><HighlightText text={vehicle.concessionaria} searchTerm={pendingSearchTerm} /></td>
+                                                <td className={styles.tableCell}><HighlightText text={vehicle.telefone} searchTerm={pendingSearchTerm} /></td>
+                                                <td className={styles.tableCell}><HighlightText text={vehicle.nomeContato} searchTerm={pendingSearchTerm} /></td>
+                                                {role !== 'client' && (
+                                                    <td className={styles.tableCell}><HighlightText text={vehicle.operador} searchTerm={pendingSearchTerm} /></td>
+                                                )}
+                                                <td className={styles.tableCell}>
+                                                    <div className={styles.actionButtons}>
+                                                        {role === 'client' ? (
+                                                            <button
+                                                                className={styles.whatsappButton}
+                                                                title="Contatar Vendedor via WhatsApp"
+                                                                onClick={() => handleWhatsAppClick(vehicle)}
+                                                                style={{ backgroundColor: '#25D366', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}
+                                                            >
+                                                                💬 WhatsApp
+                                                            </button>
+                                                        ) : (
+                                                            <>
+                                                                <button className={styles.proposalButton} title="Criar Proposta">
+                                                                    📋
+                                                                </button>
+                                                                <button className={styles.whatsappButton} title="WhatsApp">
+                                                                    💬
+                                                                </button>
+                                                                <button
+                                                                    className={styles.editButton}
+                                                                    title="Editar"
+                                                                    onClick={() => handleEditVehicle(vehicle)}
+                                                                >
+                                                                    ✏️
+                                                                </button>
+                                                                <button
+                                                                    className={styles.deleteButton}
+                                                                    title="Excluir"
+                                                                    onClick={() => handleDeleteVehicle(vehicle)}
+                                                                >
+                                                                    🗑️
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <div className={styles.gridContainer}>
+                                {displayVehicles.map((vehicle) => (
+                                    <VehicleCard
+                                        key={vehicle.id}
+                                        vehicle={vehicle}
+                                        margem={margem}
+                                        onEdit={handleEditVehicle}
+                                        onDelete={handleDeleteVehicle}
+                                        onWhatsApp={handleWhatsAppClick}
+                                        role={role}
+                                    />
+                                ))}
+                            </div>
+                        )}
+
+                        <div className={styles.paginationContainer} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', padding: '10px', borderTop: '1px solid #eee' }}>
+                            <div className={styles.itemsPerPage}>
+                                <label htmlFor="itemsPerPage">Itens por página: </label>
+                                <select
+                                    id="itemsPerPage"
+                                    value={itemsPerPage}
+                                    onChange={handleItemsPerPageChange}
+                                    style={{ marginLeft: '10px', padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                >
+                                    <option value={25}>25</option>
+                                    <option value={50}>50</option>
+                                    <option value={75}>75</option>
+                                    <option value={100}>100</option>
+                                    <option value={-1}>Todos</option>
+                                </select>
+                            </div>
+
+                            <div className={styles.paginationControls} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                <button
+                                    onClick={() => handlePageChange(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                    style={{
+                                        padding: '5px 10px',
+                                        cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                                        opacity: currentPage === 1 ? 0.5 : 1,
+                                        border: '1px solid #ccc',
+                                        borderRadius: '4px',
+                                        background: '#fff'
+                                    }}
+                                >
+                                    Anterior
+                                </button>
+                                <span>
+                                    Página {currentPage} de {totalPages}
+                                </span>
+                                <button
+                                    onClick={() => handlePageChange(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                    style={{
+                                        padding: '5px 10px',
+                                        cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                                        opacity: currentPage === totalPages ? 0.5 : 1,
+                                        border: '1px solid #ccc',
+                                        borderRadius: '4px',
+                                        background: '#fff'
+                                    }}
+                                >
+                                    Próxima
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
