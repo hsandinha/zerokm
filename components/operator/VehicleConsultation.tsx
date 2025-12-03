@@ -1037,6 +1037,9 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                             <th className={styles.tableHeader} onClick={() => handleSort('status')} style={{ cursor: 'pointer' }}>
                                                 STATUS {sortConfig.key === 'status' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                             </th>
+                                            <th className={styles.tableHeader} onClick={() => handleSort('estado')} style={{ cursor: 'pointer' }}>
+                                                UF {sortConfig.key === 'estado' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
                                             <th className={styles.tableHeader} onClick={() => handleSort('observacoes')} style={{ cursor: 'pointer' }}>
                                                 OBSERVAÇÕES {sortConfig.key === 'observacoes' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                             </th>
@@ -1075,6 +1078,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                                         {vehicle.status}
                                                     </span>
                                                 </td>
+                                                <td className={styles.tableCell}><HighlightText text={vehicle.estado} searchTerm={pendingSearchTerm} /></td>
                                                 <td className={styles.tableCell}><HighlightText text={vehicle.observacoes} searchTerm={pendingSearchTerm} /></td>
                                                 {role !== 'client' && (
                                                     <td className={styles.tableCell}><HighlightText text={vehicle.operador} searchTerm={pendingSearchTerm} /></td>
@@ -1486,6 +1490,10 @@ function VehicleCard({ vehicle, margem, onEdit, onDelete, onWhatsApp, onLocation
                 <div className={styles.cardRow}>
                     <span className={styles.cardLabel}>Ano:</span>
                     <span className={styles.cardValue}>{vehicle.ano}</span>
+                </div>
+                <div className={styles.cardRow}>
+                    <span className={styles.cardLabel}>UF:</span>
+                    <span className={styles.cardValue}>{vehicle.estado}</span>
                 </div>
                 <div className={styles.cardRow}>
                     <span className={styles.cardLabel}>Cor:</span>
