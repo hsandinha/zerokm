@@ -23,13 +23,7 @@ export async function GET(request: Request) {
         if (search) {
             const searchRegex = { $regex: search, $options: 'i' };
             query.$or = [
-                { nome: searchRegex },
-                { razaoSocial: searchRegex },
-                { cnpj: searchRegex },
-                { cidade: searchRegex },
-                { estado: searchRegex },
-                { nomeResponsavel: searchRegex },
-                { email: searchRegex }
+                { estado: searchRegex }
             ];
         }
 
@@ -37,7 +31,7 @@ export async function GET(request: Request) {
 
         const [data, total] = await Promise.all([
             Transportadora.find(query)
-                .sort({ nome: 1 })
+                .sort({ estado: 1 })
                 .skip(skip)
                 .limit(limit),
             Transportadora.countDocuments(query)

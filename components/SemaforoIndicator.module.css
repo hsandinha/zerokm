@@ -4,8 +4,8 @@
   gap: 1.25rem;
   padding: 1.5rem;
   border-radius: 1rem;
-  background: rgba(21, 37, 56, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--color-surface);
+  border: 1px solid var(--color-highlight);
 }
 
 .lights {
@@ -13,9 +13,9 @@
   flex-direction: column;
   gap: 0.6rem;
   padding: 0.5rem 0.8rem;
-  background: linear-gradient(180deg, #1b2d43, #101a2a);
+  background: var(--color-panel);
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--color-highlight);
 }
 
 .light {
@@ -39,17 +39,20 @@
 
 .on {
   opacity: 1;
-  box-shadow: 0 0 12px rgba(255, 255, 255, 0.35);
+  box-shadow: 0 0 12px currentColor;
 }
 
 .label {
   font-size: 1.1rem;
   font-weight: 600;
+  color: var(--color-text);
 }
 
 .detail {
-  margin: 0.25rem 0 0;
   color: var(--color-text-muted);
-  max-width: 24rem;
 }
 
+margin: 0.25rem 0 0;
+color: var(--color-text-muted);
+max-width: 24rem;
+}

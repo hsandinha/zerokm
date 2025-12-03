@@ -11,6 +11,7 @@ export function UsersTable() {
     const [loading, setLoading] = useState(true);
     const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
     const [selectedProfiles, setSelectedProfiles] = useState<UserProfile[]>([]);
+    const [canViewLocation, setCanViewLocation] = useState(false);
     const [dealerships, setDealerships] = useState<Concessionaria[]>([]);
 
     // Add User Modal State
@@ -20,7 +21,8 @@ export function UsersTable() {
         email: '',
         password: '',
         allowedProfiles: ['operador'] as UserProfile[],
-        dealershipId: ''
+        dealershipId: '',
+        canViewLocation: false
     });
     const [isCreating, setIsCreating] = useState(false);
 
@@ -60,7 +62,8 @@ export function UsersTable() {
                 password: newUser.password,
                 displayName: newUser.displayName,
                 allowedProfiles: newUser.allowedProfiles,
-                dealershipId: newUser.allowedProfiles.includes('concessionaria') ? newUser.dealershipId : undefined
+                dealershipId: newUser.allowedProfiles.includes('concessionaria') ? newUser.dealershipId : undefined,
+                canViewLocation: newUser.canViewLocation
             });
 
             if (result.success) {
@@ -70,7 +73,8 @@ export function UsersTable() {
                     email: '',
                     password: '',
                     allowedProfiles: ['operador'],
-                    dealershipId: ''
+                    dealershipId: '',
+                    canViewLocation: false
                 });
                 fetchUsers();
                 alert('Usuário criado com sucesso!');
@@ -109,6 +113,7 @@ export function UsersTable() {
         setEditingUser(user);
         setSelectedProfiles(user.allowedProfiles || []);
         setSelectedDealershipId(user.dealershipId || '');
+        setCanViewLocation(user.canViewLocation || false);
     };
 
     const handleToggleStatus = async (user: AdminUser) => {
@@ -129,7 +134,8 @@ export function UsersTable() {
             editingUser.uid,
             selectedProfiles,
             undefined,
-            selectedProfiles.includes('concessionaria') ? selectedDealershipId : undefined
+            selectedProfiles.includes('concessionaria') ? selectedDealershipId : undefined,
+            canViewLocation
         );
 
         if (result.success) {
@@ -281,6 +287,17 @@ export function UsersTable() {
                                 </div>
                             </div>
 
+                            <div className={styles.checkboxGroup} style={{ marginTop: '1rem', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
+                                <label className={styles.checkboxLabel}>
+                                    <input
+                                        type="checkbox"
+                                        checked={newUser.canViewLocation}
+                                        onChange={(e) => setNewUser({ ...newUser, canViewLocation: e.target.checked })}
+                                    />
+                                    Pode visualizar localização exata
+                                </label>
+                            </div>
+
                             {newUser.allowedProfiles.includes('concessionaria') && (
                                 <div className={styles.formGroup}>
                                     <label className={styles.label}>Vincular Concessionária</label>
@@ -362,6 +379,17 @@ export function UsersTable() {
                             </label>
                         </div>
 
+                        <div className={styles.checkboxGroup} style={{ marginTop: '1rem', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
+                            <label className={styles.checkboxLabel}>
+                                <input
+                                    type="checkbox"
+                                    checked={canViewLocation}
+                                    onChange={(e) => setCanViewLocation(e.target.checked)}
+                                />
+                                Pode visualizar localização exata
+                            </label>
+                        </div>
+
                         {selectedProfiles.includes('concessionaria') && (
                             <div className={styles.formGroup} style={{ marginTop: '1rem' }}>
                                 <label className={styles.label}>Vincular Concessionária</label>
@@ -386,9 +414,10 @@ export function UsersTable() {
                         </div>
                     </div>
                 </div>
-            )}
+            )
+            }
 
 
-        </div>
+        </div >
     );
 }

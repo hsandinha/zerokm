@@ -3,7 +3,7 @@ import { UserProfile } from '@/lib/types/auth';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 
-export async function getUserAllowedProfiles(email: string): Promise<{ profiles: UserProfile[], forcePasswordChange: boolean }> {
+export async function getUserAllowedProfiles(email: string): Promise<{ profiles: UserProfile[], forcePasswordChange: boolean, canViewLocation: boolean }> {
     try {
         await connectDB();
         const userRecord = await adminAuth.getUserByEmail(email);
@@ -11,6 +11,7 @@ export async function getUserAllowedProfiles(email: string): Promise<{ profiles:
 
         let profiles: UserProfile[] = ['operador'];
         let forcePasswordChange = false;
+        let canViewLocation = false;
 
         if (user) {
             if (user.allowedProfiles && Array.isArray(user.allowedProfiles)) {
@@ -19,6 +20,9 @@ export async function getUserAllowedProfiles(email: string): Promise<{ profiles:
             if (user.forcePasswordChange === true) {
                 forcePasswordChange = true;
             }
+            if (user.canViewLocation === true) {
+                canViewLocation = true;
+            }
         } else {
             // Fallback logic if no profiles in DB (Legacy/Hardcoded)
             if (email.includes('admin')) profiles = ['administrador'];
@@ -26,12 +30,12 @@ export async function getUserAllowedProfiles(email: string): Promise<{ profiles:
             else if (email.includes('client') || email.includes('cliente')) profiles = ['cliente'];
         }
 
-        return { profiles, forcePasswordChange };
+        return { profiles, forcePasswordChange, canViewLocation };
     } catch (error) {
         console.error('Error fetching user profiles:', error);
         // Fallback logic in case of DB error
         let profiles: UserProfile[] = ['operador'];
         if (email.includes('admin')) profiles = ['administrador'];
-        return { profiles, forcePasswordChange: false };
+        return { profiles, forcePasswordChange: false, canViewLocation: false };
     }
 }

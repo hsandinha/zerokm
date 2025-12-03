@@ -5,7 +5,7 @@
 
 .label {
     display: block;
-    color: #333;
+    color: var(--color-text);
     font-size: 0.9rem;
     font-weight: 600;
     margin-bottom: 0.5rem;
@@ -19,29 +19,30 @@
 .input {
     width: 100%;
     padding: 0.75rem;
-    border: 2px solid #000000;
+    border: 1px solid var(--color-highlight);
     border-radius: 8px;
     font-size: 0.9rem;
     outline: none;
     transition: border-color 0.2s ease;
-    background: #ffffff;
+    background: var(--color-bg);
+    color: var(--color-text);
     box-sizing: border-box;
 }
 
 .input:focus {
-    border-color: #007bff;
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .input:invalid {
-    border-color: #e5e5e5;
+    border-color: var(--color-highlight);
 }
 
 .input:disabled {
-    background-color: #f8f9fa;
-    color: #6c757d;
+    background-color: var(--color-panel);
+    color: var(--color-text-muted);
     cursor: not-allowed;
-    border-color: #dee2e6;
+    border-color: var(--color-highlight);
 }
 
 .loadingSpinner {
@@ -57,8 +58,8 @@
     top: 100%;
     left: 0;
     right: 0;
-    background: #ffffff;
-    border: 2px solid #000000;
+    background: var(--color-surface);
+    border: 1px solid var(--color-highlight);
     border-top: none;
     border-radius: 0 0 8px 8px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
@@ -70,10 +71,10 @@
 .option {
     padding: 0.75rem 1rem;
     cursor: pointer;
-    border-bottom: 1px solid #f3f4f6;
+    border-bottom: 1px solid var(--color-highlight);
     transition: background-color 0.15s ease;
     font-size: 0.875rem;
-    color: #374151;
+    color: var(--color-text);
 }
 
 .option:last-child {
@@ -82,12 +83,12 @@
 
 .option:hover,
 .option.highlighted {
-    background-color: #f3f4f6;
+    background-color: var(--color-highlight);
 }
 
 .option.highlighted {
-    background-color: #dbeafe;
-    color: #1d4ed8;
+    background-color: var(--color-highlight);
+    color: var(--color-accent);
 }
 
 /* Scrollbar personalizada */
@@ -96,14 +97,14 @@
 }
 
 .optionsList::-webkit-scrollbar-track {
-    background: #f1f5f9;
+    background: var(--color-panel);
 }
 
 .optionsList::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: var(--color-highlight);
     border-radius: 2px;
 }
 
 .optionsList::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+    background: var(--color-text-muted);
 }

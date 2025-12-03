@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { SessionProvider } from "@/components/providers/SessionProvider";
+import { ThemeProvider } from "@/lib/contexts/ThemeContext";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -19,7 +20,7 @@ export default function LoginLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" suppressHydrationWarning>
       <head>
         <style dangerouslySetInnerHTML={{
           __html: `
@@ -30,7 +31,9 @@ export default function LoginLayout({
       </head>
       <body suppressHydrationWarning={true}>
         <SessionProvider>
-          {children}
+          <ThemeProvider>
+            {children}
+          </ThemeProvider>
         </SessionProvider>
       </body>
     </html>

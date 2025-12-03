@@ -6,6 +6,7 @@ declare module "next-auth" {
             id: string
             profile?: string
             allowedProfiles?: string[]
+            canViewLocation?: boolean
         } & DefaultSession["user"]
     }
 
@@ -14,6 +15,7 @@ declare module "next-auth" {
         profile?: string
         allowedProfiles?: string[]
         selectedProfile?: string
+        canViewLocation?: boolean
     }
 }
 

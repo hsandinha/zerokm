@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { signOut, useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useTheme } from '@/lib/contexts/ThemeContext';
 import styles from './UserMenu.module.css';
 
 interface UserMenuProps {
@@ -17,6 +18,7 @@ export default function UserMenu({ name, email, role }: UserMenuProps) {
     const menuRef = useRef<HTMLDivElement>(null);
     const { data: session, update } = useSession();
     const router = useRouter();
+    const { theme, toggleTheme } = useTheme();
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -124,6 +126,16 @@ export default function UserMenu({ name, email, role }: UserMenuProps) {
                             ))}
                         </>
                     )}
+
+                    <div className={styles.divider} />
+
+                    <button
+                        onClick={toggleTheme}
+                        className={styles.menuItem}
+                    >
+                        <span className={styles.menuItemIcon}>{theme === 'dark' ? '☀️' : '🌙'}</span>
+                        {theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}
+                    </button>
 
                     <div className={styles.divider} />
 

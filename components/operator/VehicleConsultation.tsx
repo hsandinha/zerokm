@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useSession } from 'next-auth/react';
+import { FaMapMarkerAlt } from 'react-icons/fa';
 import { useConfig } from '../../lib/contexts/ConfigContext';
 import { useVehicleDatabase } from '../../lib/hooks/useVehicleDatabase';
 import { useTablesDatabase } from '../../lib/hooks/useTablesDatabase';
@@ -93,6 +95,7 @@ const areFiltersEqual = (a: FiltersState, b: FiltersState) => {
 };
 
 export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsultationProps) {
+    const { data: session } = useSession();
     const { margem } = useConfig();
     // Estado efetivo (aplicado) para busca e filtros
     const [searchTerm, setSearchTerm] = useState('');
@@ -134,14 +137,15 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
     });
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(50);
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [locationVehicle, setLocationVehicle] = useState<Vehicle | null>(null);
+    const percent = importProgress.total > 0
+        ? Math.max(0, Math.min(100, Math.round((importProgress.current / importProgress.total) * 100)))
+        : 0;
 
     // Usar o hook do banco de dados
     const { vehicles, totalItems, loading, error, refreshVehicles, updateVehicle, deleteVehicle, deleteVehicles, getVehiclesPaginated } = useVehicleDatabase();
     const { importVeiculosFromCSV } = useTablesDatabase();
-    const [selectedIds, setSelectedIds] = useState<string[]>([]);
-    const percent = importProgress.total > 0
-        ? Math.max(0, Math.min(100, Math.round((importProgress.current / importProgress.total) * 100)))
-        : 0;
 
     // Carregar cores conhecidas para detecção automática
     useEffect(() => {
@@ -1036,21 +1040,6 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                             <th className={styles.tableHeader} onClick={() => handleSort('observacoes')} style={{ cursor: 'pointer' }}>
                                                 OBSERVAÇÕES {sortConfig.key === 'observacoes' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                             </th>
-                                            <th className={styles.tableHeader} onClick={() => handleSort('cidade')} style={{ cursor: 'pointer' }}>
-                                                CIDADE {sortConfig.key === 'cidade' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                            </th>
-                                            <th className={styles.tableHeader} onClick={() => handleSort('estado')} style={{ cursor: 'pointer' }}>
-                                                ESTADO {sortConfig.key === 'estado' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                            </th>
-                                            <th className={styles.tableHeader} onClick={() => handleSort('concessionaria')} style={{ cursor: 'pointer' }}>
-                                                CONCESSIONÁRIA {sortConfig.key === 'concessionaria' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                            </th>
-                                            <th className={styles.tableHeader} onClick={() => handleSort('telefone')} style={{ cursor: 'pointer' }}>
-                                                TELEFONE {sortConfig.key === 'telefone' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                            </th>
-                                            <th className={styles.tableHeader} onClick={() => handleSort('nomeContato')} style={{ cursor: 'pointer' }}>
-                                                NOME DO CONTATO {sortConfig.key === 'nomeContato' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                            </th>
                                             {role !== 'client' && (
                                                 <th className={styles.tableHeader} onClick={() => handleSort('operador')} style={{ cursor: 'pointer' }}>
                                                     OPERADOR {sortConfig.key === 'operador' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
@@ -1087,16 +1076,28 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                                     </span>
                                                 </td>
                                                 <td className={styles.tableCell}><HighlightText text={vehicle.observacoes} searchTerm={pendingSearchTerm} /></td>
-                                                <td className={styles.tableCell}><HighlightText text={vehicle.cidade} searchTerm={pendingSearchTerm} /></td>
-                                                <td className={styles.tableCell}><HighlightText text={vehicle.estado} searchTerm={pendingSearchTerm} /></td>
-                                                <td className={styles.tableCell}><HighlightText text={vehicle.concessionaria} searchTerm={pendingSearchTerm} /></td>
-                                                <td className={styles.tableCell}><HighlightText text={vehicle.telefone} searchTerm={pendingSearchTerm} /></td>
-                                                <td className={styles.tableCell}><HighlightText text={vehicle.nomeContato} searchTerm={pendingSearchTerm} /></td>
                                                 {role !== 'client' && (
                                                     <td className={styles.tableCell}><HighlightText text={vehicle.operador} searchTerm={pendingSearchTerm} /></td>
                                                 )}
                                                 <td className={styles.tableCell}>
                                                     <div className={styles.actionButtons}>
+                                                        {(role === 'admin' || (session?.user as any)?.canViewLocation) && (
+                                                            <button
+                                                                onClick={() => setLocationVehicle(vehicle)}
+                                                                style={{
+                                                                    background: 'none',
+                                                                    border: 'none',
+                                                                    cursor: 'pointer',
+                                                                    color: '#2563eb',
+                                                                    fontSize: '1.2rem',
+                                                                    padding: '4px',
+                                                                    marginRight: '8px'
+                                                                }}
+                                                                title="Ver localização e contato"
+                                                            >
+                                                                <FaMapMarkerAlt />
+                                                            </button>
+                                                        )}
                                                         {role === 'client' ? (
                                                             <button
                                                                 className={styles.whatsappButton}
@@ -1108,12 +1109,6 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                                             </button>
                                                         ) : (
                                                             <>
-                                                                <button className={styles.proposalButton} title="Criar Proposta">
-                                                                    📋
-                                                                </button>
-                                                                <button className={styles.whatsappButton} title="WhatsApp">
-                                                                    💬
-                                                                </button>
                                                                 <button
                                                                     className={styles.editButton}
                                                                     title="Editar"
@@ -1147,7 +1142,9 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                         onEdit={handleEditVehicle}
                                         onDelete={handleDeleteVehicle}
                                         onWhatsApp={handleWhatsAppClick}
+                                        onLocationClick={setLocationVehicle}
                                         role={role}
+                                        canViewLocation={(session?.user as any)?.canViewLocation}
                                     />
                                 ))}
                             </div>
@@ -1336,6 +1333,109 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                     </div>
                 </div>
             )}
+
+            {locationVehicle && (
+                <div className={styles.modalOverlay} onClick={() => setLocationVehicle(null)}>
+                    <div
+                        style={{
+                            background: 'white',
+                            padding: '2rem',
+                            borderRadius: '12px',
+                            maxWidth: '500px',
+                            width: '90%',
+                            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                            position: 'relative'
+                        }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <button
+                            onClick={() => setLocationVehicle(null)}
+                            style={{
+                                position: 'absolute',
+                                top: '1rem',
+                                right: '1rem',
+                                background: 'none',
+                                border: 'none',
+                                fontSize: '1.5rem',
+                                cursor: 'pointer',
+                                color: '#64748b'
+                            }}
+                        >
+                            ✕
+                        </button>
+
+                        <h3 style={{ marginTop: 0, marginBottom: '1.5rem', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <FaMapMarkerAlt style={{ color: '#2563eb' }} />
+                            Localização e Contato
+                        </h3>
+
+                        <div style={{ display: 'grid', gap: '1rem' }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>Concessionária</label>
+                                <div style={{ fontSize: '1.1rem', fontWeight: 500, color: '#0f172a' }}>{locationVehicle.concessionaria}</div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>Cidade</label>
+                                    <div style={{ fontSize: '1rem', color: '#334155' }}>{locationVehicle.cidade}</div>
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>Estado</label>
+                                    <div style={{ fontSize: '1rem', color: '#334155' }}>{locationVehicle.estado}</div>
+                                </div>
+                            </div>
+
+                            <div style={{ borderTop: '1px solid #e2e8f0', margin: '0.5rem 0' }}></div>
+
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>Nome do Contato</label>
+                                <div style={{ fontSize: '1rem', color: '#334155' }}>{locationVehicle.nomeContato}</div>
+                            </div>
+
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>Telefone</label>
+                                <div style={{ fontSize: '1rem', color: '#334155', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    {locationVehicle.telefone}
+                                    <a
+                                        href={`https://wa.me/55${locationVehicle.telefone.replace(/\D/g, '')}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{
+                                            fontSize: '0.875rem',
+                                            color: '#25d366',
+                                            textDecoration: 'none',
+                                            background: '#dcfce7',
+                                            padding: '2px 8px',
+                                            borderRadius: '12px',
+                                            fontWeight: 500
+                                        }}
+                                    >
+                                        WhatsApp
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end' }}>
+                            <button
+                                onClick={() => setLocationVehicle(null)}
+                                style={{
+                                    padding: '0.5rem 1.5rem',
+                                    background: '#f1f5f9',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    color: '#475569',
+                                    fontWeight: 500,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Fechar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }// Função para determinar cor do status
@@ -1358,10 +1458,12 @@ interface VehicleCardProps {
     onEdit: (vehicle: Vehicle) => void;
     onDelete: (vehicle: Vehicle) => void;
     onWhatsApp: (vehicle: Vehicle) => void;
+    onLocationClick: (vehicle: Vehicle) => void;
     role?: 'admin' | 'operator' | 'client' | 'dealership';
+    canViewLocation?: boolean;
 }
 
-function VehicleCard({ vehicle, margem, onEdit, onDelete, onWhatsApp, role = 'operator' }: VehicleCardProps) {
+function VehicleCard({ vehicle, margem, onEdit, onDelete, onWhatsApp, onLocationClick, role = 'operator', canViewLocation = false }: VehicleCardProps) {
     // Função para calcular preço com margem
     const calculatePriceWithMargin = (basePrice: number) => {
         return basePrice * (1 + margem / 100);
@@ -1390,14 +1492,6 @@ function VehicleCard({ vehicle, margem, onEdit, onDelete, onWhatsApp, role = 'op
                     <span className={styles.cardValue}>{vehicle.cor}</span>
                 </div>
                 <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>Concessionária:</span>
-                    <span className={styles.cardValue}>{vehicle.concessionaria}</span>
-                </div>
-                <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>Cidade:</span>
-                    <span className={styles.cardValue}>{vehicle.cidade} - {vehicle.estado}</span>
-                </div>
-                <div className={styles.cardRow}>
                     <span className={styles.cardLabel}>Combustível:</span>
                     <span className={styles.cardValue}>{vehicle.combustivel}</span>
                 </div>
@@ -1406,12 +1500,29 @@ function VehicleCard({ vehicle, margem, onEdit, onDelete, onWhatsApp, role = 'op
                     <span className={styles.cardValue}>{vehicle.transmissao}</span>
                 </div>
                 <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>Contato:</span>
-                    <span className={styles.cardValue}>{vehicle.nomeContato}</span>
-                </div>
-                <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>Telefone:</span>
-                    <span className={styles.cardValue}>{vehicle.telefone}</span>
+                    <span className={styles.cardLabel}>Localização:</span>
+                    <span className={styles.cardValue}>
+                        {(role === 'admin' || canViewLocation) ? (
+                            <button
+                                onClick={() => onLocationClick(vehicle)}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    color: '#2563eb',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    padding: 0,
+                                    fontSize: '0.9rem'
+                                }}
+                            >
+                                <FaMapMarkerAlt /> Ver detalhes
+                            </button>
+                        ) : (
+                            <span style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Restrito</span>
+                        )}
+                    </span>
                 </div>
                 {role !== 'client' && vehicle.operador && (
                     <div className={styles.cardRow}>

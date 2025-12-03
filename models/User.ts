@@ -10,6 +10,7 @@ export interface IUser extends Document {
     defaultProfile?: string;
     dealershipId?: string;
     forcePasswordChange: boolean;
+    canViewLocation?: boolean;
     address?: {
         street: string;
         number: string;
@@ -33,6 +34,7 @@ const UserSchema: Schema = new Schema({
     defaultProfile: { type: String },
     dealershipId: { type: String },
     forcePasswordChange: { type: Boolean, default: false },
+    canViewLocation: { type: Boolean, default: false },
     address: {
         street: String,
         number: String,
@@ -46,7 +48,13 @@ const UserSchema: Schema = new Schema({
     timestamps: true
 });
 
-// Prevent model recompilation error in development
+// Force model recompilation in development to ensure schema updates are applied
+if (process.env.NODE_ENV === 'development') {
+    if (mongoose.models.User) {
+        delete mongoose.models.User;
+    }
+}
+
 const User: Model<IUser> = mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
 
 export default User;

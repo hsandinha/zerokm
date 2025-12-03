@@ -9,6 +9,7 @@ declare module "next-auth" {
             name?: string;
             image?: string;
             profile?: UserProfile;
+            canViewLocation?: boolean;
         }
     }
 }

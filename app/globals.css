@@ -10,6 +10,18 @@
   --color-text: #f5f7fa;
   --color-text-muted: #8390a3;
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --body-bg: linear-gradient(135deg, #070f16 0%, #102132 100%);
+}
+
+[data-theme='light'] {
+  --color-bg: #f8f9fa;
+  --color-surface: #ffffff;
+  --color-panel: #edf2f7;
+  --color-highlight: #e2e8f0;
+  --color-accent: #f59e0b;
+  --color-text: #1a202c;
+  --color-text-muted: #718096;
+  --body-bg: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
 
 *,
@@ -33,15 +45,11 @@ body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  background: var(--body-bg);
   min-height: 100vh;
-}
-
-body {
-  margin: 0;
-  font-family: var(--font-sans);
-  background: linear-gradient(135deg, #070f16 0%, #102132 100%);
   color: var(--color-text);
+  font-family: var(--font-sans);
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 a {

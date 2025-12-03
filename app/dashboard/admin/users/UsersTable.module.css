@@ -1,6 +1,6 @@
 .tableContainer {
     overflow-x: auto;
-    background: white;
+    background: var(--color-surface);
     border-radius: 0.5rem;
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
 }
@@ -12,18 +12,18 @@
 }
 
 .table th {
-    background-color: #f9fafb;
+    background-color: var(--color-panel);
     padding: 0.75rem 1.5rem;
     text-align: left;
     font-weight: 600;
-    color: #374151;
-    border-bottom: 1px solid #e5e7eb;
+    color: var(--color-text);
+    border-bottom: 1px solid var(--color-highlight);
 }
 
 .table td {
     padding: 1rem 1.5rem;
-    border-bottom: 1px solid #e5e7eb;
-    color: #111827;
+    border-bottom: 1px solid var(--color-highlight);
+    color: var(--color-text);
     vertical-align: middle;
 }
 
@@ -37,7 +37,7 @@
 }
 
 .userEmail {
-    color: #6b7280;
+    color: var(--color-text-muted);
     font-size: 0.75rem;
 }
 
@@ -105,22 +105,23 @@
 }
 
 .btnEdit {
-    background-color: #f3f4f6;
-    color: #374151;
-    border-color: #d1d5db;
+    background-color: var(--color-panel);
+    color: var(--color-text);
+    border-color: var(--color-highlight);
 }
 
 .btnEdit:hover {
-    background-color: #e5e7eb;
+    background-color: var(--color-highlight);
 }
 
 .btnToggle {
-    background-color: white;
-    border-color: #d1d5db;
+    background-color: var(--color-surface);
+    border-color: var(--color-highlight);
+    color: var(--color-text);
 }
 
 .btnToggle:hover {
-    background-color: #f9fafb;
+    background-color: var(--color-panel);
 }
 
 /* Header Actions */

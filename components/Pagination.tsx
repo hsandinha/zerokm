@@ -100,12 +100,12 @@ export function Pagination({
                     flex-direction: column;
                     gap: 1rem;
                     padding: 1rem 0;
-                    border-top: 1px solid #e5e7eb;
+                    border-top: 1px solid var(--color-highlight);
                     margin-top: 1rem;
                 }
 
                 .pagination-info {
-                    color: #6b7280;
+                    color: var(--color-text-muted);
                     font-size: 0.875rem;
                     text-align: center;
                 }
@@ -125,9 +125,9 @@ export function Pagination({
 
                 .pagination-button {
                     padding: 0.5rem 1rem;
-                    border: 1px solid #d1d5db;
-                    background: white;
-                    color: #374151;
+                    border: 1px solid var(--color-highlight);
+                    background: var(--color-surface);
+                    color: var(--color-text);
                     border-radius: 6px;
                     cursor: pointer;
                     transition: all 0.15s ease;
@@ -136,8 +136,8 @@ export function Pagination({
                 }
 
                 .pagination-button:hover:not(:disabled) {
-                    background: #f3f4f6;
-                    border-color: #9ca3af;
+                    background: var(--color-highlight);
+                    border-color: var(--color-text-muted);
                 }
 
                 .pagination-button:disabled {
@@ -151,9 +151,9 @@ export function Pagination({
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    border: 1px solid #d1d5db;
-                    background: white;
-                    color: #374151;
+                    border: 1px solid var(--color-highlight);
+                    background: var(--color-surface);
+                    color: var(--color-text);
                     border-radius: 6px;
                     cursor: pointer;
                     transition: all 0.15s ease;
@@ -162,14 +162,14 @@ export function Pagination({
                 }
 
                 .pagination-number:hover:not(:disabled):not(.dots) {
-                    background: #f3f4f6;
-                    border-color: #9ca3af;
+                    background: var(--color-highlight);
+                    border-color: var(--color-text-muted);
                 }
 
                 .pagination-number.active {
-                    background: #2563eb;
+                    background: var(--color-accent);
                     color: white;
-                    border-color: #2563eb;
+                    border-color: var(--color-accent);
                 }
 
                 .pagination-number.dots {

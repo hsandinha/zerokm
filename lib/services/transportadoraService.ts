@@ -1,25 +1,10 @@
 export interface Transportadora {
     id?: string;
-    nome: string;
-    cnpj: string;
-    razaoSocial: string;
-    inscricaoEstadual?: string;
-    telefone: string;
-    celular?: string;
-    email: string;
-    endereco: string;
-    numero: string;
-    complemento?: string;
-    bairro: string;
-    cidade: string;
     estado: string;
-    cep: string;
-    nomeResponsavel: string;
-    telefoneResponsavel: string;
-    emailResponsavel?: string;
-    observacoes?: string;
+    valor: number;
     ativo: boolean;
-    dataCreated: string;
+    createdAt?: string;
+    updatedAt?: string;
 }
 
 export class TransportadoraService {

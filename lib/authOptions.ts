@@ -19,7 +19,7 @@ export const authOptions: AuthOptions = {
                 if (token) {
                     try {
                         const decodedToken = await adminAuth.verifyIdToken(token);
-                        const { profiles } = await getUserAllowedProfiles(decodedToken.email || '');
+                        const { profiles, canViewLocation } = await getUserAllowedProfiles(decodedToken.email || '');
 
                         return {
                             id: decodedToken.uid,
@@ -27,7 +27,8 @@ export const authOptions: AuthOptions = {
                             name: decodedToken.name || decodedToken.email?.split('@')[0],
                             image: decodedToken.picture,
                             selectedProfile: selectedProfile, // Pass selected profile to user object
-                            allowedProfiles: profiles
+                            allowedProfiles: profiles,
+                            canViewLocation: canViewLocation
                         }
                     } catch (error) {
                         console.error('Erro ao verificar token:', error);
@@ -45,6 +46,7 @@ export const authOptions: AuthOptions = {
                 token.name = user.name;
                 token.image = user.image;
                 token.allowedProfiles = user.allowedProfiles;
+                token.canViewLocation = user.canViewLocation;
 
                 // Use the selected profile passed from authorize, or fallback to logic
                 if (user.selectedProfile) {
@@ -82,6 +84,7 @@ export const authOptions: AuthOptions = {
                 session.user.image = token.image as string;
                 session.user.profile = token.profile as string;
                 session.user.allowedProfiles = token.allowedProfiles as string[];
+                session.user.canViewLocation = token.canViewLocation as boolean;
             }
             return session
         }

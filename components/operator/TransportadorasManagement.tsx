@@ -154,7 +154,7 @@ export function TransportadorasManagement() {
                 <div className={styles.searchContainer}>
                     <input
                         type="text"
-                        placeholder="Buscar por nome, CNPJ, cidade, responsável... (min. 3 caracteres)"
+                        placeholder="Buscar por estado..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className={styles.searchInput}
@@ -177,12 +177,8 @@ export function TransportadorasManagement() {
                         <table className={styles.table}>
                             <thead>
                                 <tr>
-                                    <th className={styles.tableHeader}>NOME FANTASIA</th>
-                                    <th className={styles.tableHeader}>RAZÃO SOCIAL</th>
-                                    <th className={styles.tableHeader}>CNPJ</th>
-                                    <th className={styles.tableHeader}>TELEFONE</th>
-                                    <th className={styles.tableHeader}>CIDADE/UF</th>
-                                    <th className={styles.tableHeader}>RESPONSÁVEL</th>
+                                    <th className={styles.tableHeader}>ESTADO</th>
+                                    <th className={styles.tableHeader}>VALOR DO FRETE</th>
                                     <th className={styles.tableHeader}>STATUS</th>
                                     <th className={styles.tableHeader}>AÇÕES</th>
                                 </tr>
@@ -190,16 +186,9 @@ export function TransportadorasManagement() {
                             <tbody>
                                 {transportadoras.map((transportadora) => (
                                     <tr key={transportadora.id} className={styles.tableRow}>
-                                        <td className={styles.tableCell}>{transportadora.nome}</td>
-                                        <td className={styles.tableCell}>{transportadora.razaoSocial}</td>
-                                        <td className={styles.tableCell}>{transportadora.cnpj}</td>
-                                        <td className={styles.tableCell}>{transportadora.telefone}</td>
-                                        <td className={styles.tableCell}>{transportadora.cidade} - {transportadora.estado}</td>
+                                        <td className={styles.tableCell}>{transportadora.estado}</td>
                                         <td className={styles.tableCell}>
-                                            <div>
-                                                <div>{transportadora.nomeResponsavel}</div>
-                                                <small style={{ color: '#666' }}>{transportadora.telefoneResponsavel}</small>
-                                            </div>
+                                            {transportadora.valor?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </td>
                                         <td className={styles.tableCell}>
                                             <span className={`${styles.statusBadge} ${transportadora.ativo ? styles.statusActive : styles.statusInactive}`}>
@@ -241,7 +230,7 @@ export function TransportadorasManagement() {
                         {transportadoras.map((transportadora) => (
                             <div key={transportadora.id} className={styles.card}>
                                 <div className={styles.cardHeader}>
-                                    <h4 className={styles.cardTitle}>{transportadora.nome}</h4>
+                                    <h4 className={styles.cardTitle}>{transportadora.estado}</h4>
                                     <span className={`${styles.statusBadge} ${transportadora.ativo ? styles.statusActive : styles.statusInactive}`}>
                                         {transportadora.ativo ? 'Ativo' : 'Inativo'}
                                     </span>
@@ -249,29 +238,9 @@ export function TransportadorasManagement() {
 
                                 <div className={styles.cardBody}>
                                     <div className={styles.cardRow}>
-                                        <span className={styles.cardLabel}>Razão Social:</span>
-                                        <span className={styles.cardValue}>{transportadora.razaoSocial}</span>
-                                    </div>
-                                    <div className={styles.cardRow}>
-                                        <span className={styles.cardLabel}>CNPJ:</span>
-                                        <span className={styles.cardValue}>{transportadora.cnpj}</span>
-                                    </div>
-                                    <div className={styles.cardRow}>
-                                        <span className={styles.cardLabel}>Telefone:</span>
-                                        <span className={styles.cardValue}>{transportadora.telefone}</span>
-                                    </div>
-                                    <div className={styles.cardRow}>
-                                        <span className={styles.cardLabel}>E-mail:</span>
-                                        <span className={styles.cardValue}>{transportadora.email}</span>
-                                    </div>
-                                    <div className={styles.cardRow}>
-                                        <span className={styles.cardLabel}>Localização:</span>
-                                        <span className={styles.cardValue}>{transportadora.cidade} - {transportadora.estado}</span>
-                                    </div>
-                                    <div className={styles.cardRow}>
-                                        <span className={styles.cardLabel}>Responsável:</span>
+                                        <span className={styles.cardLabel}>Valor do Frete:</span>
                                         <span className={styles.cardValue}>
-                                            {transportadora.nomeResponsavel} - {transportadora.telefoneResponsavel}
+                                            {transportadora.valor?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </span>
                                     </div>
                                 </div>

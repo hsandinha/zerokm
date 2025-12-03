@@ -16,6 +16,7 @@ export interface AdminUser {
     allowedProfiles: UserProfile[];
     defaultProfile?: UserProfile;
     dealershipId?: string;
+    canViewLocation?: boolean;
 }
 
 export async function listAllUsers(): Promise<AdminUser[]> {
@@ -27,8 +28,8 @@ export async function listAllUsers(): Promise<AdminUser[]> {
         const users: AdminUser[] = [];
 
         // Fetch all users from MongoDB
-        const dbUsers = await User.find({ firebaseUid: { $in: listUsersResult.users.map(u => u.uid) } });
-        const dbUsersMap = new Map(dbUsers.map(u => [u.firebaseUid, u]));
+        const dbUsers = await User.find({ firebaseUid: { $in: listUsersResult.users.map(u => u.uid) } }).lean();
+        const dbUsersMap = new Map(dbUsers.map((u: any) => [u.firebaseUid, u]));
 
         for (const userRecord of listUsersResult.users) {
             // 2. Fetch additional data from MongoDB for each user
@@ -44,7 +45,8 @@ export async function listAllUsers(): Promise<AdminUser[]> {
                 creationTime: userRecord.metadata.creationTime,
                 allowedProfiles: (userData?.allowedProfiles as UserProfile[]) || [],
                 defaultProfile: userData?.defaultProfile as UserProfile,
-                dealershipId: userData?.dealershipId
+                dealershipId: userData?.dealershipId,
+                canViewLocation: userData?.canViewLocation ?? false // Ensure boolean
             });
         }
 
@@ -55,7 +57,7 @@ export async function listAllUsers(): Promise<AdminUser[]> {
     }
 }
 
-export async function updateUserProfiles(uid: string, allowedProfiles: UserProfile[], defaultProfile?: UserProfile, dealershipId?: string) {
+export async function updateUserProfiles(uid: string, allowedProfiles: UserProfile[], defaultProfile?: UserProfile, dealershipId?: string, canViewLocation?: boolean) {
     try {
         await connectDB();
         const updateData: any = {
@@ -66,6 +68,10 @@ export async function updateUserProfiles(uid: string, allowedProfiles: UserProfi
 
         if (dealershipId !== undefined) {
             updateData.dealershipId = dealershipId;
+        }
+
+        if (canViewLocation !== undefined) {
+            updateData.canViewLocation = canViewLocation;
         }
 
         await User.findOneAndUpdate(
@@ -100,6 +106,7 @@ export async function createUser(data: {
     displayName?: string;
     allowedProfiles: UserProfile[];
     dealershipId?: string;
+    canViewLocation?: boolean;
 }) {
     try {
         await connectDB();
@@ -120,6 +127,7 @@ export async function createUser(data: {
             allowedProfiles: data.allowedProfiles,
             defaultProfile: data.allowedProfiles[0],
             dealershipId: data.dealershipId || undefined,
+            canViewLocation: data.canViewLocation || false,
             forcePasswordChange: true, // Force password change on first login
             createdAt: new Date()
             // createdBy: 'admin' // Not in schema yet

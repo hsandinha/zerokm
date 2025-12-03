@@ -23,11 +23,11 @@
 
 .link:hover {
   color: var(--color-text);
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: var(--color-highlight);
 }
 
 .active {
   color: var(--color-text);
-  background-color: rgba(246, 183, 60, 0.22);
-  border: 1px solid rgba(246, 183, 60, 0.35);
+  background-color: var(--color-highlight);
+  border: 1px solid var(--color-accent);
 }
