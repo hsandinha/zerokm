@@ -83,7 +83,7 @@ export function AddTransportadoraModal({
                         <div className={styles.formGroup}>
                             <label>Estado</label>
                             <AutocompleteInput
-                                suggestions={estados}
+                                options={estados}
                                 value={formData.estado}
                                 onChange={(value) => setFormData({ ...formData, estado: value })}
                                 placeholder="Selecione o estado"
