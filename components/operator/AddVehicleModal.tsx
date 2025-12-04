@@ -378,6 +378,17 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                     </div>
 
                     <div className={styles.formGroup}>
+                        <CurrencyInput
+                            name="frete"
+                            label="Frete"
+                            value={formData.frete}
+                            onValueChange={(val) => setFormData(prev => ({ ...prev, frete: val }))}
+                            placeholder="R$ 0,00"
+                            required
+                        />
+                    </div>
+
+                    <div className={styles.formGroup}>
                         <label htmlFor="status">Status*</label>
                         <select
                             id="status"

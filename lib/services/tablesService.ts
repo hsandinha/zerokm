@@ -305,16 +305,17 @@ class TablesService {
 
                 const [
                     dataEntrada, modelo, transmissao, combustivel, cor, ano, opcionais, precoStr,
-                    status, observacoes, cidade, estado, concessionaria, telefone, nomeContato, operador
+                    status, observacoes, cidade, estado, freteStr, telefone, nomeContato, operador
                 ] = columns;
 
-                if (!modelo || !concessionaria || !cidade || !estado || !nomeContato || !telefone) {
+                if (!modelo || !cidade || !estado || !nomeContato || !telefone) {
                     results.errors.push({ line: i + 1, reason: 'Campos obrigatórios em branco', raw: line, columns });
                     continue;
                 }
 
                 try {
                     const preco = precoStr ? parseFloat(precoStr.replace(/[^\d.-]/g, '')) : 0;
+                    const frete = freteStr ? parseFloat(freteStr.replace(/[^\d.-]/g, '')) : 0;
 
                     // Normaliza e valida STATUS - gera erro se inválido
                     const normalizeStatus = (s?: string): 'A faturar' | 'Refaturamento' | 'Licenciado' => {
@@ -443,7 +444,7 @@ class TablesService {
                         observacoes: observacoes || `Importado via CSV em ${new Date().toLocaleDateString('pt-BR')}`,
                         cidade: cidade,
                         estado: estado,
-                        concessionaria: concessionaria,
+                        frete: frete,
                         telefone: telefone,
                         nomeContato: nomeContato,
                         operador: operador || ''

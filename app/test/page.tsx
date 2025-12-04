@@ -11,7 +11,7 @@ export default function TestPage() {
                 modelo: 'Corolla XEi',
                 opcionais: 'Ar condicionado, Direção hidráulica',
                 cor: 'Prata',
-                concessionaria: 'Toyota Center',
+                frete: 0,
                 preco: 85000,
                 ano: '2024',
                 status: 'A faturar' as const,
