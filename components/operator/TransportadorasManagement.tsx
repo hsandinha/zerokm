@@ -105,7 +105,7 @@ export function TransportadorasManagement() {
             <div className={styles.container}>
                 <div className={styles.loadingContainer}>
                     <div className={styles.spinner}></div>
-                    <p>Carregando transportadoras...</p>
+                    <p>Carregando tabela de fretes...</p>
                 </div>
             </div>
         );
@@ -114,10 +114,10 @@ export function TransportadorasManagement() {
     return (
         <div className={styles.container}>
             <div className={styles.header}>
-                <h2>Gestão de Transportadoras</h2>
+                <h2>Tabela de Fretes</h2>
                 <div className={styles.headerActions}>
                     <button className={styles.addButton} onClick={handleAddTransportadora}>
-                        {showForm ? 'Cancelar' : '+ Nova Transportadora'}
+                        {showForm ? 'Cancelar' : '+ Novo Frete'}
                     </button>
                     <div className={styles.viewToggle}>
                         <button
@@ -179,6 +179,7 @@ export function TransportadorasManagement() {
                                 <tr>
                                     <th className={styles.tableHeader}>ESTADO</th>
                                     <th className={styles.tableHeader}>VALOR DO FRETE</th>
+                                    <th className={styles.tableHeader}>OBSERVAÇÃO</th>
                                     <th className={styles.tableHeader}>STATUS</th>
                                     <th className={styles.tableHeader}>AÇÕES</th>
                                 </tr>
@@ -190,6 +191,7 @@ export function TransportadorasManagement() {
                                         <td className={styles.tableCell}>
                                             {transportadora.valor?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </td>
+                                        <td className={styles.tableCell}>{transportadora.observacao || '-'}</td>
                                         <td className={styles.tableCell}>
                                             <span className={`${styles.statusBadge} ${transportadora.ativo ? styles.statusActive : styles.statusInactive}`}>
                                                 {transportadora.ativo ? 'Ativo' : 'Inativo'}

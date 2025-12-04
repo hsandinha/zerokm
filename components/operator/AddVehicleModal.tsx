@@ -26,13 +26,11 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
     const [marcas, setMarcas] = useState<string[]>([]);
     const [modelos, setModelos] = useState<string[]>([]);
     const [cores, setCores] = useState<string[]>([]);
-    const [concessionarias, setConcessionarias] = useState<string[]>([]);
     const [estados] = useState<string[]>(getEstados());
     const [cidades, setCidades] = useState<string[]>([]);
     const [loadingMarcas, setLoadingMarcas] = useState(false);
     const [loadingModelos, setLoadingModelos] = useState(false);
     const [loadingCores, setLoadingCores] = useState(false);
-    const [loadingConcessionarias, setLoadingConcessionarias] = useState(false);
     const [formData, setFormData] = useState<Omit<Vehicle, 'id'>>({
         dataEntrada: new Date().toLocaleDateString('pt-BR'),
         modelo: '',
@@ -46,7 +44,7 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
         observacoes: '',
         cidade: '',
         estado: '',
-        concessionaria: '',
+        frete: 0,
         telefone: '',
         nomeContato: '',
         operador: ''
@@ -68,7 +66,7 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                 observacoes: editingVehicle.observacoes || '',
                 cidade: editingVehicle.cidade || '',
                 estado: editingVehicle.estado || '',
-                concessionaria: editingVehicle.concessionaria || '',
+                frete: editingVehicle.frete || 0,
                 telefone: editingVehicle.telefone || '',
                 nomeContato: editingVehicle.nomeContato || editingVehicle.vendedor || '',
                 operador: editingVehicle.operador || ''
@@ -88,7 +86,7 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                 observacoes: '',
                 cidade: '',
                 estado: '',
-                concessionaria: '',
+                frete: 0,
                 telefone: '',
                 nomeContato: '',
                 operador: ''
@@ -131,23 +129,7 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
         }
     };
 
-    // Função para carregar concessionárias
-    const loadConcessionarias = async () => {
-        if (concessionarias.length > 0) return; // Já carregadas
-
-        setLoadingConcessionarias(true);
-        try {
-            // Tentar popular concessionárias iniciais caso não existam
-            await tablesService.populateInitialConcessionarias();
-
-            const concessionariasData = await tablesService.getAllConcessionarias();
-            setConcessionarias(concessionariasData.map(conc => conc.nome));
-        } catch (error) {
-            console.error('Erro ao carregar concessionárias:', error);
-        } finally {
-            setLoadingConcessionarias(false);
-        }
-    };    // Handlers para os campos de autocomplete
+    // Handlers para os campos de autocomplete
     const handleModeloChange = (value: string) => {
         setFormData(prev => ({ ...prev, modelo: value }));
     };
@@ -156,12 +138,13 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
         setFormData(prev => ({ ...prev, cor: value }));
     };
 
-    const handleConcessionariaChange = (value: string) => {
-        setFormData(prev => ({ ...prev, concessionaria: value }));
-    };
-
     const handleEstadoChange = (value: string) => {
-        setFormData(prev => ({ ...prev, estado: value, cidade: '' })); // Limpar cidade ao mudar estado
+        setFormData(prev => ({
+            ...prev,
+            estado: value,
+            cidade: '', // Limpar cidade ao mudar estado
+            frete: 0
+        }));
     };
 
     // Função memoizada para filtrar cidades
@@ -205,11 +188,11 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
             // Validar campos obrigatórios
             const camposObrigatorios = {
                 modelo: formData.modelo,
-                concessionaria: formData.concessionaria,
                 cidade: formData.cidade,
                 estado: formData.estado,
                 nomeContato: formData.nomeContato,
-                telefone: formData.telefone
+                telefone: formData.telefone,
+                operador: formData.operador
             };
 
             console.log('Validando campos obrigatórios:', camposObrigatorios);
@@ -226,14 +209,23 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
             }
 
             console.log('Validação passou! Enviando...');
+
+            // Converter data para formato ISO se estiver em PT-BR
+            const dataToSend = { ...formData };
+            if (typeof dataToSend.dataEntrada === 'string' && dataToSend.dataEntrada.includes('/')) {
+                const [dia, mes, ano] = dataToSend.dataEntrada.split('/');
+                // Criar data UTC para evitar problemas de fuso horário
+                dataToSend.dataEntrada = new Date(`${ano}-${mes}-${dia}T12:00:00Z`).toISOString();
+            }
+
             let success;
             if (isEditing && editingVehicle?.id) {
                 console.log('Atualizando veículo ID:', editingVehicle.id);
-                success = await updateVehicle(editingVehicle.id, formData);
+                success = await updateVehicle(editingVehicle.id, dataToSend);
                 console.log('Resultado da atualização:', success);
             } else {
                 console.log('Adicionando novo veículo...');
-                success = await addVehicle(formData);
+                success = await addVehicle(dataToSend);
                 console.log('Resultado da adição:', success);
             }
 
@@ -395,8 +387,9 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                             required
                         >
                             <option value="A faturar">A faturar</option>
-                            <option value="Refaturamento">Refaturamento</option>
-                            <option value="Licenciado">Licenciado</option>
+                            <option value="Disponível">Disponível</option>
+                            <option value="Vendido">Vendido</option>
+                            <option value="Reservado">Reservado</option>
                         </select>
                     </div>
 
@@ -422,20 +415,6 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                             placeholder={formData.estado ? "Ex: São Paulo" : "Selecione um estado primeiro"}
                             required
                             disabled={!formData.estado}
-                        />
-                    </div>
-
-                    <div className={styles.formGroup}>
-                        <AutocompleteInput
-                            name="concessionaria"
-                            label="Concessionária"
-                            value={formData.concessionaria}
-                            onChange={handleConcessionariaChange}
-                            options={concessionarias}
-                            placeholder="Ex: Toyota Prime São Paulo"
-                            required
-                            onFocus={loadConcessionarias}
-                            loading={loadingConcessionarias}
                         />
                     </div>
 
@@ -466,7 +445,7 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                     </div>
 
                     <div className={styles.formGroup}>
-                        <label htmlFor="operador">Operador</label>
+                        <label htmlFor="operador">Operador*</label>
                         <input
                             type="text"
                             id="operador"
@@ -474,6 +453,7 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                             value={formData.operador}
                             onChange={handleInputChange}
                             placeholder="Ex: JOÃO"
+                            required
                         />
                     </div>
                 </div>

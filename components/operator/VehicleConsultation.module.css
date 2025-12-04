@@ -57,47 +57,76 @@
     background: var(--color-accent);
     color: white;
     border: none;
-    padding: 0.75rem 1.25rem;
+    padding: 0.6rem 1.25rem;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    height: 2.5rem;
+}
+
+.addButton:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.importButton {
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-highlight);
+    padding: 0.6rem 1.25rem;
     border-radius: 12px;
     font-weight: 500;
     font-size: 0.875rem;
     cursor: pointer;
     transition: all 0.15s ease;
-    box-shadow: 0 1px 3px rgba(37, 99, 235, 0.2);
-}
-
-.addButton:hover {
-    background: var(--color-accent);
-    opacity: 0.9;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(30, 58, 138, 0.2);
-}
-
-.importButton {
-    background: var(--color-accent);
-    color: white;
-    border: none;
-    padding: 0.75rem 1.25rem;
-    border-radius: 8px;
-    font-weight: 500;
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    box-shadow: 0 1px 3px rgba(8, 145, 178, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    height: 2.5rem;
 }
 
 .importButton:hover {
-    background: #0e7490;
+    background: var(--color-highlight);
     transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(8, 145, 178, 0.3);
+    border-color: var(--color-text-muted);
+}
+
+.bulkDeleteButton {
+    background: var(--color-negative);
+    color: white;
+    border: none;
+    padding: 0.6rem 1.25rem;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    height: 2.5rem;
+}
+
+.bulkDeleteButton:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .closeButton {
-    background: #ef4444;
+    background: var(--color-negative);
     color: white;
     border: none;
-    padding: 0.5rem;
-    border-radius: 0.375rem;
+    padding: 0;
+    border-radius: 8px;
     cursor: pointer;
     font-weight: bold;
     width: 2rem;
@@ -105,6 +134,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.closeButton:hover {
+    background: #dc2626;
+    transform: scale(1.05);
 }
 
 .searchSection {
@@ -139,24 +174,28 @@
 }
 
 .filterToggle {
-    background: var(--color-panel);
-    color: var(--color-text-muted);
+    background: var(--color-surface);
+    color: var(--color-text);
     border: 1px solid var(--color-highlight);
-    padding: 0.5rem 1rem;
-    border-radius: 0.375rem;
+    padding: 0 1rem;
+    border-radius: 12px;
     cursor: pointer;
     font-weight: 500;
     font-size: 0.875rem;
-    width: 120px;
-    height: auto;
+    width: auto;
+    min-width: 120px;
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 0.5rem;
     transition: all 0.15s ease;
+    height: 2.5rem;
+    /* Match other buttons */
 }
 
 .filterToggle:hover {
-    background: #1d4ed8;
+    background: var(--color-highlight);
+    border-color: var(--color-text-muted);
 }
 
 .searchInfo {
@@ -218,17 +257,19 @@
 }
 
 .filterInput {
-    padding: 0.5rem 0.75rem;
+    padding: 0.6rem 1rem;
     border: 1px solid var(--color-highlight);
-    border-radius: 0.25rem;
+    border-radius: 12px;
     font-size: 0.875rem;
     background: var(--color-bg);
     color: var(--color-text);
+    height: 2.5rem;
 }
 
 .filterInput:focus {
     outline: none;
     border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .filterActions {
@@ -237,33 +278,46 @@
 }
 
 .applyButton {
-    background: #3b82f6;
+    background: var(--color-accent);
     color: white;
     border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 0.375rem;
+    padding: 0 1.5rem;
+    border-radius: 12px;
     cursor: pointer;
-    font-weight: 500;
-}
-
-.applyButton:hover {
-    background: #2563eb;
-}
-
-.clearButton {
-    background: #6b7280;
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 0.375rem;
-    cursor: pointer;
-    font-weight: 500;
-    font-size: 0.875rem;
-    width: 120px;
+    font-weight: 600;
+    height: 2.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.15s ease;
+}
+
+.applyButton:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.clearButton {
+    background: var(--color-panel);
+    color: var(--color-text);
+    border: 1px solid var(--color-highlight);
+    padding: 0 1.5rem;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.875rem;
+    min-width: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    height: 2.5rem;
+}
+
+.clearButton:hover {
+    background: var(--color-highlight);
+    border-color: var(--color-text-muted);
 }
 
 .clearButton:hover {
@@ -542,39 +596,49 @@
     /* View Toggle Styles */
     .viewToggle {
         display: flex;
-        border: 1px solid var(--color-highlight);
+        background: var(--color-panel);
+        padding: 3px;
         border-radius: 12px;
-        overflow: hidden;
+        height: 2.5rem;
+        gap: 2px;
+        border: 1px solid var(--color-highlight);
+        align-items: center;
         margin-right: 1rem;
-        background: var(--color-surface);
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
     }
 
     .viewButton {
         background: transparent;
-        color: var(--color-text-muted);
         border: none;
-        padding: 0.5rem 0.875rem;
+        border-radius: 8px;
+        height: 100%;
+        padding: 0 10px;
+        color: var(--color-text-muted);
         cursor: pointer;
-        font-size: 0.875rem;
-        font-weight: 400;
-        transition: all 0.15s ease;
-        border-right: 1px solid var(--color-highlight);
-    }
-
-    .viewButton:last-child {
-        border-right: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        font-size: 1rem;
+        min-width: 2.5rem;
     }
 
     .viewButton:hover {
-        background: var(--color-highlight);
+        color: var(--color-text);
+        background: rgba(255, 255, 255, 0.05);
     }
 
     .viewButton.active {
-        background: var(--color-accent);
-        color: var(--color-text);
-        font-weight: 500;
+        background: var(--color-surface);
+        color: var(--color-accent);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        font-weight: 600;
     }
+
+    .viewButton:last-child {
+        /* border-right: none; - Removed as we are using gap */
+    }
+
+
 
     /* Grid Container Styles */
     .gridContainer {
@@ -583,7 +647,7 @@
         gap: 1.25rem;
         padding: 1.5rem;
         overflow-y: auto;
-        max-height: calc(100vh - 280px);
+        flex: 1;
         background: var(--color-bg);
     }
 

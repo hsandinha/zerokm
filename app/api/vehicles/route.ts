@@ -29,6 +29,9 @@ export async function GET(request: Request) {
         if (searchParams.get('ano')) filters.ano = searchParams.get('ano');
         if (searchParams.get('modelo')) filters.modelo = searchParams.get('modelo');
         if (searchParams.get('opcionais')) filters.opcionais = searchParams.get('opcionais');
+        if (searchParams.get('estado')) filters.estado = searchParams.get('estado');
+        if (searchParams.get('cidade')) filters.cidade = searchParams.get('cidade');
+        if (searchParams.get('operador')) filters.operador = searchParams.get('operador');
 
         // Build base query from filters, using regex for cor to allow partial matches
         let query: any = {};
@@ -38,6 +41,15 @@ export async function GET(request: Request) {
         if (filters.ano) query.ano = filters.ano;
         if (filters.modelo) {
             query.modelo = { $regex: escapeRegex(filters.modelo), $options: 'i' };
+        }
+        if (filters.estado) {
+            query.estado = { $regex: escapeRegex(filters.estado), $options: 'i' };
+        }
+        if (filters.cidade) {
+            query.cidade = { $regex: escapeRegex(filters.cidade), $options: 'i' };
+        }
+        if (filters.operador) {
+            query.operador = { $regex: escapeRegex(filters.operador), $options: 'i' };
         }
         const corParam = searchParams.get('cor');
         if (corParam) query.cor = { $regex: escapeRegex(corParam), $options: 'i' };
@@ -89,9 +101,7 @@ export async function GET(request: Request) {
                 { ano: searchRegex },
                 { opcionais: searchRegex },
                 { observacoes: searchRegex },
-                { cidade: searchRegex },
-                { estado: searchRegex },
-                { concessionaria: searchRegex }
+                { estado: searchRegex }
             ];
 
             // Only search in model if we are not already filtering by a specific model
@@ -137,9 +147,18 @@ export async function POST(request: Request) {
         const body = await request.json();
 
         // Ensure required fields are present or set defaults
+        let dataEntrada = body.dataEntrada;
+        if (!dataEntrada) {
+            dataEntrada = new Date();
+        } else if (typeof dataEntrada === 'string' && dataEntrada.includes('/')) {
+            // Handle DD/MM/YYYY format manually if it comes through
+            const [dia, mes, ano] = dataEntrada.split('/');
+            dataEntrada = new Date(`${ano}-${mes}-${dia}T12:00:00Z`);
+        }
+
         const vehicleData = {
             ...body,
-            dataEntrada: body.dataEntrada || new Date().toLocaleDateString('pt-BR'),
+            dataEntrada: dataEntrada,
             status: body.status || 'A faturar',
             transmissao: body.transmissao || 'Manual',
             combustivel: body.combustivel || 'Flex',

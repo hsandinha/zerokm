@@ -13,7 +13,7 @@ export interface Vehicle {
     observacoes: string;
     cidade: string;
     estado: string;
-    concessionaria: string;
+    frete: number;
     telefone: string;
     nomeContato: string;
     operador: string;
@@ -53,6 +53,9 @@ export interface VehiclePaginationOptions {
         ano?: string;
         modelo?: string;
         opcionais?: string;
+        estado?: string;
+        cidade?: string;
+        operador?: string;
     };
     sortConfig?: {
         key: string;
@@ -185,6 +188,9 @@ export class VehicleService {
             if (filters.ano) params.set('ano', filters.ano);
             if (filters.modelo) params.set('modelo', filters.modelo);
             if (filters.opcionais) params.set('opcionais', filters.opcionais);
+            if (filters.estado) params.set('estado', filters.estado);
+            if (filters.cidade) params.set('cidade', String(filters.cidade));
+            if (filters.operador) params.set('operador', filters.operador);
 
             const response = await fetch(`/api/vehicles?${params.toString()}`);
             if (!response.ok) {

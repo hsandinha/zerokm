@@ -75,7 +75,7 @@ export default function OperatorDashboard() {
         { id: 'veiculos', label: 'Veículos', icon: '🚗' },
         { id: 'tabelas', label: 'Características', icon: '📋' },
         { id: 'clientes', label: 'Concessionárias', icon: '🏢' },
-        { id: 'transportadoras', label: 'Transportadoras', icon: '🚚' },
+        { id: 'transportadoras', label: 'Frete', icon: '🚚' },
         { id: 'propostas', label: 'Propostas', icon: '📋' },
         { id: 'visao-geral', label: 'Visão Geral & Relatórios', icon: '📊' },
         { id: 'configuracoes', label: 'Configurações', icon: '⚙️' }

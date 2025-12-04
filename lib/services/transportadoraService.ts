@@ -2,6 +2,7 @@ export interface Transportadora {
     id?: string;
     estado: string;
     valor: number;
+    observacao?: string;
     ativo: boolean;
     createdAt?: string;
     updatedAt?: string;

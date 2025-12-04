@@ -27,6 +27,7 @@ export function AddTransportadoraModal({
     const [formData, setFormData] = useState<Omit<Transportadora, 'id'>>({
         estado: '',
         valor: 0,
+        observacao: '',
         ativo: true
     });
 
@@ -36,6 +37,7 @@ export function AddTransportadoraModal({
             setFormData({
                 estado: editingTransportadora.estado || '',
                 valor: editingTransportadora.valor || 0,
+                observacao: editingTransportadora.observacao || '',
                 ativo: editingTransportadora.ativo !== undefined ? editingTransportadora.ativo : true
             });
         } else if (!isEditing && isOpen) {
@@ -43,6 +45,7 @@ export function AddTransportadoraModal({
             setFormData({
                 estado: '',
                 valor: 0,
+                observacao: '',
                 ativo: true
             });
         }
@@ -99,9 +102,19 @@ export function AddTransportadoraModal({
                                 required
                             />
                         </div>
+
+                        <div className={styles.formGroupFull}>
+                            <label>Observação</label>
+                            <textarea
+                                value={formData.observacao}
+                                onChange={(e) => setFormData({ ...formData, observacao: e.target.value })}
+                                placeholder="Observações adicionais"
+                                rows={3}
+                            />
+                        </div>
                     </div>
 
-                    <div className={styles.footer}>
+                    <div className={styles.formActions}>
                         <button type="button" onClick={onClose} className={styles.cancelButton}>
                             Cancelar
                         </button>

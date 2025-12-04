@@ -13,7 +13,7 @@ export interface IVehicle extends Document {
     observacoes: string;
     cidade: string;
     estado: string;
-    concessionaria: string;
+    frete: number;
     telefone: string;
     nomeContato: string;
     operador: string;
@@ -48,7 +48,7 @@ const VehicleSchema: Schema = new Schema({
     observacoes: { type: String },
     cidade: { type: String, required: true },
     estado: { type: String, required: true },
-    concessionaria: { type: String, required: true },
+    frete: { type: Number, required: true },
     telefone: { type: String, required: true },
     nomeContato: { type: String, required: true },
     operador: { type: String, required: true },
@@ -66,7 +66,11 @@ const VehicleSchema: Schema = new Schema({
     timestamps: true
 });
 
-// Prevent model recompilation error in development
+// Delete existing model to prevent hot-reload issues with schema changes in development
+if (process.env.NODE_ENV === 'development' && mongoose.models.Vehicle) {
+    delete mongoose.models.Vehicle;
+}
+
 const Vehicle: Model<IVehicle> = mongoose.models.Vehicle || mongoose.model<IVehicle>('Vehicle', VehicleSchema);
 
 export default Vehicle;

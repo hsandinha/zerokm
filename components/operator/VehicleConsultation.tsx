@@ -7,6 +7,7 @@ import { useConfig } from '../../lib/contexts/ConfigContext';
 import { useVehicleDatabase } from '../../lib/hooks/useVehicleDatabase';
 import { useTablesDatabase } from '../../lib/hooks/useTablesDatabase';
 import { Vehicle } from '../../lib/services/vehicleService';
+import { TransportadoraService, Transportadora } from '../../lib/services/transportadoraService';
 import { AddVehicleModal } from './AddVehicleModal';
 import styles from './VehicleConsultation.module.css';
 import modalStyles from './TablesManagement.module.css';
@@ -43,6 +44,8 @@ const statusLookup: Record<string, string> = {
 
 const YEAR_REGEX = /^\d{4}$/;
 
+const BRAZIL_STATES = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
+
 const formatDate = (dateInput: string | Date | undefined) => {
     if (!dateInput) return '';
     try {
@@ -70,6 +73,8 @@ type FiltersState = {
     combustivel: string;
     transmissao: string;
     opcionais: string;
+    estado: string;
+    operador: string;
 };
 
 const INITIAL_FILTERS: FiltersState = {
@@ -79,7 +84,9 @@ const INITIAL_FILTERS: FiltersState = {
     status: '',
     combustivel: '',
     transmissao: '',
-    opcionais: ''
+    opcionais: '',
+    estado: '',
+    operador: ''
 };
 
 type FilterKey = keyof FiltersState;
@@ -139,6 +146,13 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
     const [itemsPerPage, setItemsPerPage] = useState(50);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [locationVehicle, setLocationVehicle] = useState<Vehicle | null>(null);
+    const [transportadoras, setTransportadoras] = useState<Transportadora[]>([]);
+    const [freteModal, setFreteModal] = useState<{ isOpen: boolean; items: Transportadora[]; estado: string }>({
+        isOpen: false,
+        items: [],
+        estado: ''
+    });
+
     const percent = importProgress.total > 0
         ? Math.max(0, Math.min(100, Math.round((importProgress.current / importProgress.total) * 100)))
         : 0;
@@ -191,6 +205,11 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         loadColors();
         loadModels();
 
+        // Carregar transportadoras
+        TransportadoraService.getAllTransportadoras()
+            .then(data => setTransportadoras(data.filter(t => t.ativo)))
+            .catch(err => console.error('Erro ao carregar transportadoras:', err));
+
         return () => abortController.abort();
     }, []);
 
@@ -221,6 +240,25 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         return () => clearTimeout(timeoutId);
     }, [currentPage, itemsPerPage, searchTerm, filters, sortConfig, getVehiclesPaginated]);
 
+    const getFreteInfo = (estado: string) => {
+        if (!estado) return { count: 0, items: [], value: 0 };
+        // Normalizar estado para comparação (pegar sigla se tiver "Nome - UF")
+        const uf = estado.includes('-') ? estado.split('-')[1].trim() : estado;
+
+        // Tentar encontrar por UF exata ou string completa
+        const items = transportadoras.filter(t =>
+            t.estado.toLowerCase() === uf.toLowerCase() ||
+            t.estado.toLowerCase() === estado.toLowerCase() ||
+            (t.estado.includes('-') && t.estado.split('-')[1].trim().toLowerCase() === uf.toLowerCase())
+        );
+
+        return {
+            count: items.length,
+            items,
+            value: items.length > 0 ? items[0].valor : 0
+        };
+    };
+
     const [prefixWarnings, setPrefixWarnings] = useState<string[]>([]);
 
     const processInput = useCallback(async (input: string, signal: AbortSignal) => {
@@ -235,7 +273,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         const warnings: string[] = [];
         const residualTokens: string[] = [];
 
-        const datasetOrder: FilterKey[] = ['transmissao', 'combustivel', 'status', 'cor', 'ano'];
+        const datasetOrder: FilterKey[] = ['transmissao', 'combustivel', 'status', 'cor', 'ano', 'estado', 'operador'];
 
         // If a model is already selected via sidebar, do not auto-detect model from search input
         // This prevents the search input from overriding the sidebar selection
@@ -250,7 +288,9 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
             status: (vehicle) => vehicle.status,
             combustivel: (vehicle) => vehicle.combustivel,
             transmissao: (vehicle) => vehicle.transmissao,
-            opcionais: (vehicle) => vehicle.opcionais
+            opcionais: (vehicle) => vehicle.opcionais,
+            estado: (vehicle) => vehicle.estado,
+            operador: (vehicle) => vehicle.operador
         };
 
         const applyFilterValue = (field: FilterKey, value: string) => {
@@ -306,7 +346,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                 continue;
             }
 
-            const prefixMatch = trimmed.match(/^(combustivel|transmissao|status|ano|preco|cor|modelo|opcionais):(.+)$/i);
+            const prefixMatch = trimmed.match(/^(combustivel|transmissao|status|ano|preco|cor|modelo|opcionais|estado|operador):(.+)$/i);
             if (prefixMatch) {
                 const [, key, rawValue] = prefixMatch;
                 const value = rawValue.trim();
@@ -348,6 +388,14 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                         applyFilterValue('opcionais', value);
                         break;
                     }
+                    case 'estado': {
+                        applyFilterValue('estado', value);
+                        break;
+                    }
+                    case 'operador': {
+                        applyFilterValue('operador', value);
+                        break;
+                    }
                     case 'preco': {
                         residualTokens.push(trimmed);
                         warnings.push('Prefixo preco não é aplicado na busca do servidor.');
@@ -377,6 +425,11 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
             }
             if (YEAR_REGEX.test(trimmed)) {
                 applyFilterValue('ano', trimmed);
+                continue;
+            }
+
+            if (BRAZIL_STATES.includes(trimmed.toUpperCase())) {
+                applyFilterValue('estado', trimmed.toUpperCase());
                 continue;
             }
 
@@ -412,7 +465,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                 return;
             }
             if (suggestions) {
-                const suggestionOrder: FilterKey[] = ['cor'];
+                const suggestionOrder: FilterKey[] = ['cor', 'modelo'];
 
                 // If model is selected, don't use model suggestions to override filter
                 if (selectedModel) {
@@ -817,10 +870,9 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                 <div className={styles.headerActions}>
                     {role !== 'client' && selectedIds.length > 0 && (
                         <button
-                            className={styles.deleteButton}
+                            className={styles.bulkDeleteButton}
                             onClick={handleBulkDelete}
                             title="Excluir Selecionados"
-                            style={{ marginRight: '10px', backgroundColor: '#dc3545', color: 'white' }}
                         >
                             🗑️ Excluir ({selectedIds.length})
                         </button>
@@ -983,6 +1035,18 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                         <button onClick={() => { setFilters((prev) => ({ ...prev, opcionais: '' })); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
                                     </span>
                                 )}
+                                {filters.estado && (
+                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                        Estado: {filters.estado}
+                                        <button onClick={() => { setFilters((prev) => ({ ...prev, estado: '' })); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                    </span>
+                                )}
+                                {filters.operador && (
+                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                        Operador: {filters.operador}
+                                        <button onClick={() => { setFilters((prev) => ({ ...prev, estado: '' })); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                    </span>
+                                )}
                             </div>
                             {/* Warnings de prefixos */}
                             {prefixWarnings.length > 0 && (
@@ -1043,6 +1107,9 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                             <th className={styles.tableHeader} onClick={() => handleSort('observacoes')} style={{ cursor: 'pointer' }}>
                                                 OBSERVAÇÕES {sortConfig.key === 'observacoes' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                             </th>
+                                            <th className={styles.tableHeader} onClick={() => handleSort('frete')} style={{ cursor: 'pointer' }}>
+                                                FRETE {sortConfig.key === 'frete' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
                                             {role !== 'client' && (
                                                 <th className={styles.tableHeader} onClick={() => handleSort('operador')} style={{ cursor: 'pointer' }}>
                                                     OPERADOR {sortConfig.key === 'operador' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
@@ -1080,6 +1147,31 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                                 </td>
                                                 <td className={styles.tableCell}><HighlightText text={vehicle.estado} searchTerm={pendingSearchTerm} /></td>
                                                 <td className={styles.tableCell}><HighlightText text={vehicle.observacoes} searchTerm={pendingSearchTerm} /></td>
+                                                <td className={styles.tableCell}>
+                                                    {(() => {
+                                                        const info = getFreteInfo(vehicle.estado);
+                                                        if (info.count === 0) return '-';
+                                                        if (info.count === 1) {
+                                                            return `R$ ${info.items[0].valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+                                                        }
+                                                        return (
+                                                            <button
+                                                                className={styles.linkButton}
+                                                                onClick={() => setFreteModal({ isOpen: true, items: info.items, estado: vehicle.estado })}
+                                                                style={{
+                                                                    background: 'none',
+                                                                    border: 'none',
+                                                                    color: '#2563eb',
+                                                                    textDecoration: 'underline',
+                                                                    cursor: 'pointer',
+                                                                    fontSize: 'inherit'
+                                                                }}
+                                                            >
+                                                                Ver opções ({info.count})
+                                                            </button>
+                                                        );
+                                                    })()}
+                                                </td>
                                                 {role !== 'client' && (
                                                     <td className={styles.tableCell}><HighlightText text={vehicle.operador} searchTerm={pendingSearchTerm} /></td>
                                                 )}
@@ -1338,6 +1430,54 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                 </div>
             )}
 
+            {/* Modal de Opções de Frete */}
+            {freteModal.isOpen && (
+                <div className={modalStyles.overlay}>
+                    <div className={modalStyles.modal} style={{ maxWidth: '500px' }}>
+                        <div className={modalStyles.modalHeader}>
+                            <h3>Opções de Frete - {freteModal.estado}</h3>
+                            <button
+                                className={modalStyles.closeButton}
+                                onClick={() => setFreteModal({ ...freteModal, isOpen: false })}
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div className={modalStyles.form}>
+                            <div className={styles.tableContainer} style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                                <table className={styles.table}>
+                                    <thead>
+                                        <tr>
+                                            <th className={styles.tableHeader}>Valor</th>
+                                            <th className={styles.tableHeader}>Observação</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {freteModal.items.map((item, idx) => (
+                                            <tr key={item.id || idx} className={styles.tableRow}>
+                                                <td className={styles.tableCell}>
+                                                    {item.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </td>
+                                                <td className={styles.tableCell}>{item.observacao || '-'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div className={modalStyles.modalActions}>
+                            <button
+                                type="button"
+                                className={modalStyles.cancelButton}
+                                onClick={() => setFreteModal({ ...freteModal, isOpen: false })}
+                            >
+                                Fechar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {locationVehicle && (
                 <div className={styles.modalOverlay} onClick={() => setLocationVehicle(null)}>
                     <div
@@ -1374,11 +1514,6 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                         </h3>
 
                         <div style={{ display: 'grid', gap: '1rem' }}>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>Concessionária</label>
-                                <div style={{ fontSize: '1.1rem', fontWeight: 500, color: '#0f172a' }}>{locationVehicle.concessionaria}</div>
-                            </div>
-
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                                 <div>
                                     <label style={{ display: 'block', fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>Cidade</label>
