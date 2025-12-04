@@ -17,6 +17,7 @@ export interface IVehicle extends Document {
     telefone: string;
     nomeContato: string;
     operador: string;
+    concessionaria?: string;
     fotos?: string[];
     marca?: string;
     versao?: string;
@@ -52,6 +53,7 @@ const VehicleSchema: Schema = new Schema({
     telefone: { type: String, required: true },
     nomeContato: { type: String, required: true },
     operador: { type: String, required: true },
+    concessionaria: { type: String },
     fotos: { type: [String] },
     marca: String,
     versao: String,

@@ -74,6 +74,9 @@ type FiltersState = {
     opcionais: string;
     estado: string;
     operador: string;
+    cidade: string;
+    concessionaria: string;
+    nomeContato: string;
 };
 
 const INITIAL_FILTERS: FiltersState = {
@@ -85,7 +88,10 @@ const INITIAL_FILTERS: FiltersState = {
     transmissao: '',
     opcionais: '',
     estado: '',
-    operador: ''
+    operador: '',
+    cidade: '',
+    concessionaria: '',
+    nomeContato: ''
 };
 
 type FilterKey = keyof FiltersState;
@@ -272,7 +278,15 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         const warnings: string[] = [];
         const residualTokens: string[] = [];
 
-        const datasetOrder: FilterKey[] = ['transmissao', 'combustivel', 'status', 'cor', 'ano', 'estado', 'operador'];
+        // Determine allowed fields based on role
+        const canViewContactInfo = role === 'admin' || (role === 'operator' && !(session?.user as any)?.canViewLocation);
+
+        let allowedFields: FilterKey[] = ['transmissao', 'combustivel', 'status', 'cor', 'ano', 'estado', 'opcionais'];
+        if (canViewContactInfo) {
+            allowedFields.push('operador', 'cidade', 'concessionaria', 'nomeContato');
+        }
+
+        const datasetOrder: FilterKey[] = allowedFields;
 
         // If a model is already selected via sidebar, do not auto-detect model from search input
         // This prevents the search input from overriding the sidebar selection
@@ -289,7 +303,10 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
             transmissao: (vehicle) => vehicle.transmissao,
             opcionais: (vehicle) => vehicle.opcionais,
             estado: (vehicle) => vehicle.estado,
-            operador: (vehicle) => vehicle.operador
+            operador: (vehicle) => vehicle.operador,
+            cidade: (vehicle) => vehicle.cidade,
+            concessionaria: (vehicle) => vehicle.concessionaria,
+            nomeContato: (vehicle) => vehicle.nomeContato
         };
 
         const applyFilterValue = (field: FilterKey, value: string) => {
@@ -315,7 +332,13 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                 return suggestionsCacheRef.current.get(cacheKey)!;
             }
             try {
-                const response = await fetch(`/api/vehicles/suggestions?fields=modelo,opcionais,cor&searchTerm=${encodeURIComponent(token)}&limit=20`, { signal });
+                // Construct fields list dynamically based on permissions
+                const suggestionFields = ['modelo', 'opcionais', 'cor'];
+                if (canViewContactInfo) {
+                    suggestionFields.push('concessionaria', 'nomeContato', 'cidade', 'operador');
+                }
+
+                const response = await fetch(`/api/vehicles/suggestions?fields=${suggestionFields.join(',')}&searchTerm=${encodeURIComponent(token)}&limit=20`, { signal });
                 if (!response.ok) {
                     return null;
                 }
@@ -345,7 +368,8 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                 continue;
             }
 
-            const prefixMatch = trimmed.match(/^(combustivel|transmissao|status|ano|preco|cor|modelo|opcionais|estado|operador):(.+)$/i);
+            const prefixPattern = new RegExp(`^(${allowedFields.join('|')}|modelo|preco):(.+)$`, 'i');
+            const prefixMatch = trimmed.match(prefixPattern);
             if (prefixMatch) {
                 const [, key, rawValue] = prefixMatch;
                 const value = rawValue.trim();
@@ -393,6 +417,18 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                     }
                     case 'operador': {
                         applyFilterValue('operador', value);
+                        break;
+                    }
+                    case 'cidade': {
+                        applyFilterValue('cidade', value);
+                        break;
+                    }
+                    case 'concessionaria': {
+                        applyFilterValue('concessionaria', value);
+                        break;
+                    }
+                    case 'nomecontato': {
+                        applyFilterValue('nomeContato', value);
                         break;
                     }
                     case 'preco': {
@@ -464,7 +500,12 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                 return;
             }
             if (suggestions) {
+                // Prioritize fields based on role
                 const suggestionOrder: FilterKey[] = ['cor', 'modelo'];
+                if (canViewContactInfo) {
+                    suggestionOrder.push('concessionaria', 'nomeContato', 'cidade', 'operador');
+                }
+                suggestionOrder.push('opcionais');
 
                 // If model is selected, don't use model suggestions to override filter
                 if (selectedModel) {
@@ -478,6 +519,10 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                         if (field === 'cor') {
                             const match = values.find((option) => normalizeString(option) === normalizedToken) || values[0];
                             applyFilterValue('cor', match || trimmed);
+                        } else if (field === 'concessionaria' || field === 'nomeContato' || field === 'cidade' || field === 'operador') {
+                            // For these fields, use the exact suggestion value if possible, or the trimmed token
+                            const match = values.find((option) => normalizeString(option).includes(normalizedToken)) || values[0];
+                            applyFilterValue(field, match || trimmed);
                         } else {
                             applyFilterValue(field, trimmed);
                         }
@@ -529,7 +574,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         if (filtersChanged || searchChanged) {
             setCurrentPage(1);
         }
-    }, [vehicles, normalizedColorMap, filters, selectedModel]);
+    }, [vehicles, normalizedColorMap, filters, selectedModel, role, session]);
 
     // Auto-aplicar busca com debounce quando usuário digita (detecta coluna automaticamente)
     useEffect(() => {
@@ -1010,6 +1055,60 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                         <button onClick={() => { setFilters({ ...filters, transmissao: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
                                     </span>
                                 )}
+                                {filters.cor && (
+                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                        Cor: {filters.cor}
+                                        <button onClick={() => { setFilters({ ...filters, cor: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                    </span>
+                                )}
+                                {filters.ano && (
+                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                        Ano: {filters.ano}
+                                        <button onClick={() => { setFilters({ ...filters, ano: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                    </span>
+                                )}
+                                {filters.status && (
+                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                        Status: {filters.status}
+                                        <button onClick={() => { setFilters({ ...filters, status: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                    </span>
+                                )}
+                                {filters.estado && (
+                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                        UF: {filters.estado}
+                                        <button onClick={() => { setFilters({ ...filters, estado: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                    </span>
+                                )}
+                                {filters.operador && (
+                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                        Operador: {filters.operador}
+                                        <button onClick={() => { setFilters({ ...filters, operador: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                    </span>
+                                )}
+                                {filters.cidade && (
+                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                        Cidade: {filters.cidade}
+                                        <button onClick={() => { setFilters({ ...filters, cidade: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                    </span>
+                                )}
+                                {filters.concessionaria && (
+                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                        Concessionária: {filters.concessionaria}
+                                        <button onClick={() => { setFilters({ ...filters, concessionaria: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                    </span>
+                                )}
+                                {filters.nomeContato && (
+                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                        Contato: {filters.nomeContato}
+                                        <button onClick={() => { setFilters({ ...filters, nomeContato: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                    </span>
+                                )}
+                                {filters.transmissao && (
+                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                        Transmissão: {filters.transmissao}
+                                        <button onClick={() => { setFilters({ ...filters, transmissao: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                    </span>
+                                )}
                                 {filters.status && (
                                     <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
                                         Status: {filters.status}
@@ -1114,7 +1213,9 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                                     OPERADOR {sortConfig.key === 'operador' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                                 </th>
                                             )}
-                                            <th className={styles.tableHeader}>AÇÕES</th>
+                                            {!(role === 'operator' && (session?.user as any)?.canViewLocation) && (
+                                                <th className={styles.tableHeader}>AÇÕES</th>
+                                            )}
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1174,53 +1275,45 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                                 {role !== 'client' && (
                                                     <td className={styles.tableCell}><HighlightText text={vehicle.operador} searchTerm={pendingSearchTerm} /></td>
                                                 )}
-                                                <td className={styles.tableCell}>
-                                                    <div className={styles.actionButtons}>
-                                                        {(role === 'admin' || (session?.user as any)?.canViewLocation) && (
-                                                            <span
-                                                                className={styles.locationButton}
-                                                                onClick={() => setLocationVehicle(vehicle)}
-                                                                title="Ver localização e contato"
-                                                                role="button"
-                                                                tabIndex={0}
-                                                            >
-                                                                📍
-                                                            </span>
-                                                        )}
-                                                        {role === 'client' ? (
-                                                            <span
-                                                                className={styles.whatsappButton}
-                                                                title="Contatar Vendedor via WhatsApp"
-                                                                onClick={() => handleWhatsAppClick(vehicle)}
-                                                                role="button"
-                                                                tabIndex={0}
-                                                            >
-                                                                💬
-                                                            </span>
-                                                        ) : (
-                                                            <>
+                                                {!(role === 'operator' && (session?.user as any)?.canViewLocation) && (
+                                                    <td className={styles.tableCell}>
+                                                        <div className={styles.actionButtons}>
+                                                            {(role === 'client' || role === 'admin' || (role === 'operator' && !(session?.user as any)?.canViewLocation)) && (
                                                                 <span
-                                                                    className={styles.editButton}
-                                                                    title="Editar"
-                                                                    onClick={() => handleEditVehicle(vehicle)}
+                                                                    className={styles.locationButton}
+                                                                    onClick={() => setLocationVehicle(vehicle)}
+                                                                    title="Ver localização e contato"
                                                                     role="button"
                                                                     tabIndex={0}
                                                                 >
-                                                                    ✏️
+                                                                    📍
                                                                 </span>
-                                                                <span
-                                                                    className={styles.deleteButton}
-                                                                    title="Excluir"
-                                                                    onClick={() => handleDeleteVehicle(vehicle)}
-                                                                    role="button"
-                                                                    tabIndex={0}
-                                                                >
-                                                                    🗑️
-                                                                </span>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </td>
+                                                            )}
+                                                            {(role === 'admin' || (role === 'operator' && !(session?.user as any)?.canViewLocation)) && (
+                                                                <>
+                                                                    <span
+                                                                        className={styles.editButton}
+                                                                        title="Editar"
+                                                                        onClick={() => handleEditVehicle(vehicle)}
+                                                                        role="button"
+                                                                        tabIndex={0}
+                                                                    >
+                                                                        ✏️
+                                                                    </span>
+                                                                    <span
+                                                                        className={styles.deleteButton}
+                                                                        title="Excluir"
+                                                                        onClick={() => handleDeleteVehicle(vehicle)}
+                                                                        role="button"
+                                                                        tabIndex={0}
+                                                                    >
+                                                                        🗑️
+                                                                    </span>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                )}
                                             </tr>
                                         ))}
                                     </tbody>
@@ -1525,6 +1618,13 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
 
                             <div style={{ borderTop: '1px solid #e2e8f0', margin: '0.5rem 0' }}></div>
 
+                            {locationVehicle.concessionaria && (
+                                <div style={{ marginBottom: '1rem' }}>
+                                    <label style={{ display: 'block', fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>Concessionária</label>
+                                    <div style={{ fontSize: '1rem', color: '#334155' }}>{locationVehicle.concessionaria}</div>
+                                </div>
+                            )}
+
                             <div>
                                 <label style={{ display: 'block', fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>Nome do Contato</label>
                                 <div style={{ fontSize: '1rem', color: '#334155' }}>{locationVehicle.nomeContato}</div>
@@ -1535,7 +1635,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                 <div style={{ fontSize: '1rem', color: '#334155', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                     {locationVehicle.telefone}
                                     <a
-                                        href={`https://wa.me/55${locationVehicle.telefone.replace(/\D/g, '')}`}
+                                        href={`https://wa.me/55${locationVehicle.telefone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, tenho interesse no veículo ${locationVehicle.modelo} ${locationVehicle.cor} ${locationVehicle.ano} (R$ ${calculatePriceWithMargin(locationVehicle.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })})`)}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         style={{

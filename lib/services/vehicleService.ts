@@ -17,6 +17,7 @@ export interface Vehicle {
     telefone: string;
     nomeContato: string;
     operador: string;
+    concessionaria?: string;
 
     // Campos opcionais mantidos por compatibilidade ou uso futuro
     fotos?: string[];
@@ -56,6 +57,8 @@ export interface VehiclePaginationOptions {
         estado?: string;
         cidade?: string;
         operador?: string;
+        concessionaria?: string;
+        nomeContato?: string;
     };
     sortConfig?: {
         key: string;
@@ -191,6 +194,8 @@ export class VehicleService {
             if (filters.estado) params.set('estado', filters.estado);
             if (filters.cidade) params.set('cidade', String(filters.cidade));
             if (filters.operador) params.set('operador', filters.operador);
+            if (filters.concessionaria) params.set('concessionaria', filters.concessionaria);
+            if (filters.nomeContato) params.set('nomeContato', filters.nomeContato);
 
             const response = await fetch(`/api/vehicles?${params.toString()}`);
             if (!response.ok) {

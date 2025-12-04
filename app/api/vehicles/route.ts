@@ -32,6 +32,8 @@ export async function GET(request: Request) {
         if (searchParams.get('estado')) filters.estado = searchParams.get('estado');
         if (searchParams.get('cidade')) filters.cidade = searchParams.get('cidade');
         if (searchParams.get('operador')) filters.operador = searchParams.get('operador');
+        if (searchParams.get('concessionaria')) filters.concessionaria = searchParams.get('concessionaria');
+        if (searchParams.get('nomeContato')) filters.nomeContato = searchParams.get('nomeContato');
 
         // Build base query from filters, using regex for cor to allow partial matches
         let query: any = {};
@@ -47,6 +49,12 @@ export async function GET(request: Request) {
         }
         if (filters.cidade) {
             query.cidade = { $regex: escapeRegex(filters.cidade), $options: 'i' };
+        }
+        if (filters.concessionaria) {
+            query.concessionaria = { $regex: escapeRegex(filters.concessionaria), $options: 'i' };
+        }
+        if (filters.nomeContato) {
+            query.nomeContato = { $regex: escapeRegex(filters.nomeContato), $options: 'i' };
         }
         if (filters.operador) {
             query.operador = { $regex: escapeRegex(filters.operador), $options: 'i' };

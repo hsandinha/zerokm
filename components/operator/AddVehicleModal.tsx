@@ -28,9 +28,11 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
     const [cores, setCores] = useState<string[]>([]);
     const [estados] = useState<string[]>(getEstados());
     const [cidades, setCidades] = useState<string[]>([]);
+    const [concessionarias, setConcessionarias] = useState<any[]>([]);
     const [loadingMarcas, setLoadingMarcas] = useState(false);
     const [loadingModelos, setLoadingModelos] = useState(false);
     const [loadingCores, setLoadingCores] = useState(false);
+    const [loadingConcessionarias, setLoadingConcessionarias] = useState(false);
     const [formData, setFormData] = useState<Omit<Vehicle, 'id'>>({
         dataEntrada: new Date().toLocaleDateString('pt-BR'),
         modelo: '',
@@ -47,7 +49,8 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
         frete: 0,
         telefone: '',
         nomeContato: '',
-        operador: ''
+        operador: '',
+        concessionaria: ''
     });
 
     // Preencher dados quando estiver editando
@@ -69,7 +72,8 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                 frete: editingVehicle.frete || 0,
                 telefone: editingVehicle.telefone || '',
                 nomeContato: editingVehicle.nomeContato || editingVehicle.vendedor || '',
-                operador: editingVehicle.operador || ''
+                operador: editingVehicle.operador || '',
+                concessionaria: editingVehicle.concessionaria || ''
             });
         } else if (!isEditing && isOpen) {
             // Reset form when not editing
@@ -89,10 +93,24 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                 frete: 0,
                 telefone: '',
                 nomeContato: '',
-                operador: ''
+                operador: '',
+                concessionaria: ''
             });
         }
     }, [isEditing, editingVehicle, isOpen]);
+
+    const loadConcessionarias = async () => {
+        if (concessionarias.length > 0) return;
+        setLoadingConcessionarias(true);
+        try {
+            const data = await tablesService.getAllConcessionarias();
+            setConcessionarias(data);
+        } catch (error) {
+            console.error('Erro ao carregar concessionarias:', error);
+        } finally {
+            setLoadingConcessionarias(false);
+        }
+    };
 
     // Função para carregar modelos (agora carrega todos, pois não há filtro de marca)
     const loadModelos = async () => {
@@ -167,7 +185,21 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
         setFormData(prev => ({ ...prev, preco: value ?? 0 }));
     };
 
+    const handleConcessionariaChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const selectedName = e.target.value;
+        const selectedConcessionaria = concessionarias.find(c => c.nome === selectedName);
 
+        setFormData(prev => ({
+            ...prev,
+            concessionaria: selectedName,
+            ...(selectedConcessionaria && {
+                cidade: selectedConcessionaria.cidade || prev.cidade,
+                estado: selectedConcessionaria.estado || prev.estado,
+                telefone: selectedConcessionaria.telefone || selectedConcessionaria.celular || prev.telefone,
+                nomeContato: selectedConcessionaria.contato || prev.nomeContato
+            })
+        }));
+    };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -377,16 +409,7 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                         />
                     </div>
 
-                    <div className={styles.formGroup}>
-                        <CurrencyInput
-                            name="frete"
-                            label="Frete"
-                            value={formData.frete}
-                            onValueChange={(val) => setFormData(prev => ({ ...prev, frete: val || 0 }))}
-                            placeholder="R$ 0,00"
-                            required
-                        />
-                    </div>
+
 
                     <div className={styles.formGroup}>
                         <label htmlFor="status">Status*</label>
@@ -401,6 +424,25 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                             <option value="Disponível">Disponível</option>
                             <option value="Vendido">Vendido</option>
                             <option value="Reservado">Reservado</option>
+                        </select>
+                    </div>
+
+                    <div className={styles.formGroup}>
+                        <label htmlFor="concessionaria">Concessionária</label>
+                        <select
+                            id="concessionaria"
+                            name="concessionaria"
+                            value={formData.concessionaria || ''}
+                            onChange={handleConcessionariaChange}
+                            onFocus={loadConcessionarias}
+                            disabled={loadingConcessionarias}
+                        >
+                            <option value="">Selecione...</option>
+                            {concessionarias.map((c) => (
+                                <option key={c.id} value={c.nome}>
+                                    {c.nome}
+                                </option>
+                            ))}
                         </select>
                     </div>
 

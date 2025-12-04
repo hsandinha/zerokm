@@ -274,28 +274,49 @@ export function UsersTable() {
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>Perfis de Acesso</label>
                                 <div className={styles.checkboxGroup}>
-                                    {['administrador', 'operador', 'concessionaria', 'cliente'].map((profile) => (
-                                        <label key={profile} className={styles.checkboxLabel}>
+                                    <label className={styles.checkboxLabel}>
+                                        <input
+                                            type="checkbox"
+                                            checked={newUser.allowedProfiles.includes('administrador')}
+                                            onChange={() => toggleNewUserProfile('administrador')}
+                                        />
+                                        Administrador
+                                    </label>
+                                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                                        <label className={styles.checkboxLabel}>
                                             <input
                                                 type="checkbox"
-                                                checked={newUser.allowedProfiles.includes(profile as UserProfile)}
-                                                onChange={() => toggleNewUserProfile(profile as UserProfile)}
+                                                checked={newUser.allowedProfiles.includes('operador')}
+                                                onChange={() => toggleNewUserProfile('operador')}
                                             />
-                                            {profile.charAt(0).toUpperCase() + profile.slice(1)}
+                                            Operador
                                         </label>
-                                    ))}
+                                        <label className={styles.checkboxLabel}>
+                                            <input
+                                                type="checkbox"
+                                                checked={newUser.canViewLocation}
+                                                onChange={(e) => setNewUser({ ...newUser, canViewLocation: e.target.checked })}
+                                            />
+                                            Vendedor
+                                        </label>
+                                    </div>
+                                    <label className={styles.checkboxLabel}>
+                                        <input
+                                            type="checkbox"
+                                            checked={newUser.allowedProfiles.includes('concessionaria')}
+                                            onChange={() => toggleNewUserProfile('concessionaria')}
+                                        />
+                                        Concessionária
+                                    </label>
+                                    <label className={styles.checkboxLabel}>
+                                        <input
+                                            type="checkbox"
+                                            checked={newUser.allowedProfiles.includes('cliente')}
+                                            onChange={() => toggleNewUserProfile('cliente')}
+                                        />
+                                        Cliente
+                                    </label>
                                 </div>
-                            </div>
-
-                            <div className={styles.checkboxGroup} style={{ marginTop: '1rem', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
-                                <label className={styles.checkboxLabel}>
-                                    <input
-                                        type="checkbox"
-                                        checked={newUser.canViewLocation}
-                                        onChange={(e) => setNewUser({ ...newUser, canViewLocation: e.target.checked })}
-                                    />
-                                    Pode visualizar localização exata
-                                </label>
                             </div>
 
                             {newUser.allowedProfiles.includes('concessionaria') && (
@@ -353,14 +374,24 @@ export function UsersTable() {
                                 />
                                 Administrador
                             </label>
-                            <label className={styles.checkboxLabel}>
-                                <input
-                                    type="checkbox"
-                                    checked={selectedProfiles.includes('operador')}
-                                    onChange={() => toggleProfile('operador')}
-                                />
-                                Operador
-                            </label>
+                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                                <label className={styles.checkboxLabel}>
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedProfiles.includes('operador')}
+                                        onChange={() => toggleProfile('operador')}
+                                    />
+                                    Operador
+                                </label>
+                                <label className={styles.checkboxLabel}>
+                                    <input
+                                        type="checkbox"
+                                        checked={canViewLocation}
+                                        onChange={(e) => setCanViewLocation(e.target.checked)}
+                                    />
+                                    Vendedor
+                                </label>
+                            </div>
                             <label className={styles.checkboxLabel}>
                                 <input
                                     type="checkbox"
@@ -376,17 +407,6 @@ export function UsersTable() {
                                     onChange={() => toggleProfile('cliente')}
                                 />
                                 Cliente
-                            </label>
-                        </div>
-
-                        <div className={styles.checkboxGroup} style={{ marginTop: '1rem', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
-                            <label className={styles.checkboxLabel}>
-                                <input
-                                    type="checkbox"
-                                    checked={canViewLocation}
-                                    onChange={(e) => setCanViewLocation(e.target.checked)}
-                                />
-                                Pode visualizar localização exata
                             </label>
                         </div>
 
