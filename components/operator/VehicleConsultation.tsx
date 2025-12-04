@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
-import { FaMapMarkerAlt } from 'react-icons/fa';
 import { useConfig } from '../../lib/contexts/ConfigContext';
 import { useVehicleDatabase } from '../../lib/hooks/useVehicleDatabase';
 import { useTablesDatabase } from '../../lib/hooks/useTablesDatabase';
@@ -1092,7 +1091,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                             <th className={styles.tableHeader} onClick={() => handleSort('ano')} style={{ cursor: 'pointer' }}>
                                                 ANO {sortConfig.key === 'ano' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                             </th>
-                                            <th className={styles.tableHeader} onClick={() => handleSort('opcionais')} style={{ cursor: 'pointer' }}>
+                                            <th className={`${styles.tableHeader} ${styles.colOpcionais}`} onClick={() => handleSort('opcionais')} style={{ cursor: 'pointer' }}>
                                                 OPCIONAIS {sortConfig.key === 'opcionais' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                             </th>
                                             <th className={styles.tableHeader} onClick={() => handleSort('preco')} style={{ cursor: 'pointer' }}>
@@ -1136,7 +1135,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                                 <td className={styles.tableCell}><HighlightText text={vehicle.combustivel} searchTerm={pendingSearchTerm} /></td>
                                                 <td className={styles.tableCell}><HighlightText text={vehicle.cor} searchTerm={pendingSearchTerm} /></td>
                                                 <td className={styles.tableCell}><HighlightText text={vehicle.ano} searchTerm={pendingSearchTerm} /></td>
-                                                <td className={styles.tableCell}><HighlightText text={vehicle.opcionais} searchTerm={pendingSearchTerm} /></td>
+                                                <td className={`${styles.tableCell} ${styles.colOpcionais}`}><HighlightText text={vehicle.opcionais} searchTerm={pendingSearchTerm} /></td>
                                                 <td className={styles.tableCell}>
                                                     R$ {calculatePriceWithMargin(vehicle.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                                 </td>
@@ -1178,47 +1177,46 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                                 <td className={styles.tableCell}>
                                                     <div className={styles.actionButtons}>
                                                         {(role === 'admin' || (session?.user as any)?.canViewLocation) && (
-                                                            <button
+                                                            <span
+                                                                className={styles.locationButton}
                                                                 onClick={() => setLocationVehicle(vehicle)}
-                                                                style={{
-                                                                    background: 'none',
-                                                                    border: 'none',
-                                                                    cursor: 'pointer',
-                                                                    color: '#2563eb',
-                                                                    fontSize: '1.2rem',
-                                                                    padding: '4px',
-                                                                    marginRight: '8px'
-                                                                }}
                                                                 title="Ver localização e contato"
+                                                                role="button"
+                                                                tabIndex={0}
                                                             >
-                                                                <FaMapMarkerAlt />
-                                                            </button>
+                                                                📍
+                                                            </span>
                                                         )}
                                                         {role === 'client' ? (
-                                                            <button
+                                                            <span
                                                                 className={styles.whatsappButton}
                                                                 title="Contatar Vendedor via WhatsApp"
                                                                 onClick={() => handleWhatsAppClick(vehicle)}
-                                                                style={{ backgroundColor: '#25D366', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}
+                                                                role="button"
+                                                                tabIndex={0}
                                                             >
-                                                                💬 WhatsApp
-                                                            </button>
+                                                                💬
+                                                            </span>
                                                         ) : (
                                                             <>
-                                                                <button
+                                                                <span
                                                                     className={styles.editButton}
                                                                     title="Editar"
                                                                     onClick={() => handleEditVehicle(vehicle)}
+                                                                    role="button"
+                                                                    tabIndex={0}
                                                                 >
                                                                     ✏️
-                                                                </button>
-                                                                <button
+                                                                </span>
+                                                                <span
                                                                     className={styles.deleteButton}
                                                                     title="Excluir"
                                                                     onClick={() => handleDeleteVehicle(vehicle)}
+                                                                    role="button"
+                                                                    tabIndex={0}
                                                                 >
                                                                     🗑️
-                                                                </button>
+                                                                </span>
                                                             </>
                                                         )}
                                                     </div>
@@ -1509,7 +1507,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                         </button>
 
                         <h3 style={{ marginTop: 0, marginBottom: '1.5rem', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <FaMapMarkerAlt style={{ color: '#2563eb' }} />
+                            📍
                             Localização e Contato
                         </h3>
 
@@ -1660,7 +1658,7 @@ function VehicleCard({ vehicle, margem, onEdit, onDelete, onWhatsApp, onLocation
                                     fontSize: '0.9rem'
                                 }}
                             >
-                                <FaMapMarkerAlt /> Ver detalhes
+                                📍 Ver detalhes
                             </button>
                         ) : (
                             <span style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Restrito</span>
@@ -1690,40 +1688,48 @@ function VehicleCard({ vehicle, margem, onEdit, onDelete, onWhatsApp, onLocation
                 </div>
                 <div className={styles.cardActions}>
                     {role === 'client' ? (
-                        <button
+                        <span
                             className={styles.whatsappButton}
                             title="Contatar Vendedor via WhatsApp"
                             onClick={() => onWhatsApp(vehicle)}
-                            style={{ backgroundColor: '#25D366', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', width: '100%' }}
+                            style={{ backgroundColor: '#25D366', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', width: '100%', display: 'inline-block', textAlign: 'center' }}
+                            role="button"
+                            tabIndex={0}
                         >
                             💬 WhatsApp
-                        </button>
+                        </span>
                     ) : (
                         <>
-                            <button className={styles.proposalButton} title="Criar Proposta">
+                            <span className={styles.proposalButton} title="Criar Proposta" role="button" tabIndex={0}>
                                 📋
-                            </button>
-                            <button
+                            </span>
+                            <span
                                 className={styles.whatsappButton}
                                 title="WhatsApp"
                                 onClick={() => onWhatsApp(vehicle)}
+                                role="button"
+                                tabIndex={0}
                             >
                                 💬
-                            </button>
-                            <button
+                            </span>
+                            <span
                                 className={styles.editButton}
                                 title="Editar"
                                 onClick={() => onEdit(vehicle)}
+                                role="button"
+                                tabIndex={0}
                             >
                                 ✏️
-                            </button>
-                            <button
+                            </span>
+                            <span
                                 className={styles.deleteButton}
                                 title="Excluir"
                                 onClick={() => onDelete(vehicle)}
+                                role="button"
+                                tabIndex={0}
                             >
                                 🗑️
-                            </button>
+                            </span>
                         </>
                     )}
                 </div>
