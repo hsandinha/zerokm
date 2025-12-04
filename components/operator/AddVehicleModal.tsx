@@ -382,7 +382,7 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                             name="frete"
                             label="Frete"
                             value={formData.frete}
-                            onValueChange={(val) => setFormData(prev => ({ ...prev, frete: val }))}
+                            onValueChange={(val) => setFormData(prev => ({ ...prev, frete: val || 0 }))}
                             placeholder="R$ 0,00"
                             required
                         />
