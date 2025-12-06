@@ -17,12 +17,12 @@ import UserMenu from '../../../components/UserMenu';
 import styles from './operator.module.css';
 import transportStyles from '../../../components/operator/VehicleConsultation.module.css';
 
-type TabType = 'visao-geral' | 'veiculos' | 'propostas' | 'clientes' | 'transportadoras' | 'tabelas' | 'configuracoes';
+type TabType = 'veiculos' | 'clientes' | 'transportadoras' | 'tabelas' | 'configuracoes';
 
 export default function OperatorDashboard() {
     const [activeTab, setActiveTab] = useState<TabType>('veiculos');
     const [margem, setMargem] = useState<number>(0);
-    const [userInfo, setUserInfo] = useState<{ name?: string | null; email?: string | null }>({});
+    const [userInfo, setUserInfo] = useState<{ name?: string | null; email?: string | null; canViewLocation?: boolean }>({});
     const router = useRouter();
     const userName = userInfo.name ?? 'Operador';
     const userEmail = userInfo.email ?? null;
@@ -57,6 +57,7 @@ export default function OperatorDashboard() {
                     setUserInfo({
                         name: session.user.name ?? 'Operador',
                         email: session.user.email ?? null,
+                        canViewLocation: session.user.canViewLocation
                     });
                 }
             })
@@ -76,19 +77,13 @@ export default function OperatorDashboard() {
         { id: 'tabelas', label: 'Características', icon: '📋' },
         { id: 'clientes', label: 'Concessionárias', icon: '🏢' },
         { id: 'transportadoras', label: 'Frete', icon: '🚚' },
-        { id: 'propostas', label: 'Propostas', icon: '📋' },
-        { id: 'visao-geral', label: 'Visão Geral & Relatórios', icon: '📊' },
-        { id: 'configuracoes', label: 'Configurações', icon: '⚙️' }
+        { id: 'configuracoes', label: 'Margem', icon: '💹' }
     ];
 
     const renderTabContent = () => {
         switch (activeTab) {
-            case 'visao-geral':
-                return <VisaoGeralERelatoriosTab />;
             case 'veiculos':
                 return <VehicleConsultation />;
-            case 'propostas':
-                return <PropostasTab />;
             case 'clientes':
                 return <ClientesTab />;
             case 'transportadoras':
@@ -98,7 +93,7 @@ export default function OperatorDashboard() {
             case 'configuracoes':
                 return <ConfiguracoesTab />;
             default:
-                return <VisaoGeralERelatoriosTab />;
+                return <VehicleConsultation />;
         }
     };
 
@@ -114,7 +109,7 @@ export default function OperatorDashboard() {
                         <UserMenu
                             name={userName}
                             email={userEmail}
-                            role="Operador"
+                            role={userInfo.canViewLocation ? 'Vendedor' : 'Operador'}
                         />
                     </div>
                 </div>
@@ -1393,15 +1388,15 @@ function TabelasTab() {
     return (
         <div className={styles.tabContentContainer}>
             <div className={styles.configHeader}>
-                <h2>Configurações do Sistema</h2>
-                <p>Configure parâmetros e preferências do sistema.</p>
+                <h2>Margem</h2>
+                <p>Defina a margem percentual aplicada ao preço dos veículos.</p>
             </div>
 
             <div className={styles.configSection}>
                 <div className={styles.configCard}>
                     <div className={styles.configCardHeader}>
                         <h3>Margem de Lucro dos Veículos</h3>
-                        <p>Configure a margem percentual que será aplicada aos preços dos veículos no grid de consulta.</p>
+                        <p>Configure a margem percentual aplicada aos preços exibidos.</p>
                     </div>
 
                     <div className={styles.configCardBody}>
@@ -1435,19 +1430,6 @@ function TabelasTab() {
                                 <span>Exemplo de Cálculo:</span>
                                 <span>Preço R$ 100.000 + {margem}% = R$ {(100000 * (1 + margem / 100)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                             </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className={styles.configCard}>
-                    <div className={styles.configCardHeader}>
-                        <h3>Outras Configurações</h3>
-                        <p>Configurações adicionais do sistema.</p>
-                    </div>
-
-                    <div className={styles.configCardBody}>
-                        <div className={styles.comingSoon}>
-                            🚧 Em desenvolvimento...
                         </div>
                     </div>
                 </div>

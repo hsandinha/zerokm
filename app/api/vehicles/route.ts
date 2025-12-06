@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Vehicle from '@/models/Vehicle';
+import User from '@/models/User';
+import Concessionaria from '@/models/Concessionaria';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 
@@ -15,6 +17,30 @@ export async function GET(request: Request) {
 
         await connectDB();
         const { searchParams } = new URL(request.url);
+
+        // Check for dealership restriction
+        let restrictedDealershipName: string | null = null;
+        // @ts-ignore
+        if (session.user?.profile === 'concessionaria') {
+            const user = await User.findOne({ email: session.user.email });
+            if (user && user.dealershipId) {
+                const dealership = await Concessionaria.findById(user.dealershipId);
+                if (dealership) {
+                    restrictedDealershipName = dealership.nome;
+                }
+            }
+
+            // If logged in as concessionaria but no dealership found/linked, return empty
+            if (!restrictedDealershipName) {
+                return NextResponse.json({
+                    data: [],
+                    total: 0,
+                    hasNextPage: false,
+                    page: 1,
+                    totalPages: 0
+                });
+            }
+        }
 
         const page = parseInt(searchParams.get('page') || '1');
         const limit = parseInt(searchParams.get('limit') || '50');
@@ -33,6 +59,12 @@ export async function GET(request: Request) {
         if (searchParams.get('cidade')) filters.cidade = searchParams.get('cidade');
         if (searchParams.get('operador')) filters.operador = searchParams.get('operador');
         if (searchParams.get('concessionaria')) filters.concessionaria = searchParams.get('concessionaria');
+
+        // Enforce restriction
+        if (restrictedDealershipName) {
+            filters.concessionaria = restrictedDealershipName;
+        }
+
         if (searchParams.get('nomeContato')) filters.nomeContato = searchParams.get('nomeContato');
 
         // Build base query from filters, using regex for cor to allow partial matches
@@ -151,6 +183,11 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     try {
+        const session = await getServerSession(authOptions);
+        if (!session) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         await connectDB();
         const body = await request.json();
 
@@ -172,6 +209,18 @@ export async function POST(request: Request) {
             combustivel: body.combustivel || 'Flex',
             preco: body.preco || 0
         };
+
+        // Enforce dealership for concessionaria profile
+        // @ts-ignore
+        if (session.user?.profile === 'concessionaria') {
+            const user = await User.findOne({ email: session.user.email });
+            if (user && user.dealershipId) {
+                const dealership = await Concessionaria.findById(user.dealershipId);
+                if (dealership) {
+                    vehicleData.concessionaria = dealership.nome;
+                }
+            }
+        }
 
         const newVehicle = await Vehicle.create(vehicleData);
         const doc = newVehicle as any;

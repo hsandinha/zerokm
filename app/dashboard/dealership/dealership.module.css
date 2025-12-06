@@ -505,3 +505,176 @@
         flex-direction: column;
     }
 }
+
+/* Chart & Traffic Light */
+.chartContainer {
+    background: white;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 2rem;
+}
+
+.chartSection {
+    display: flex;
+    flex-direction: column;
+}
+
+.chartHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.chartTitle {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.statusSection {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-left: 2rem;
+    border-left: 1px solid #e5e7eb;
+}
+
+.trafficLightContainer {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    background: #f9fafb;
+    border-radius: 1rem;
+    border: 1px solid #e5e7eb;
+}
+
+.trafficLight {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.trafficLight::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 50%;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.trafficLight.green {
+    background-color: #22c55e;
+    box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2);
+}
+
+.trafficLight.yellow {
+    background-color: #eab308;
+    box-shadow: 0 0 0 4px rgba(234, 179, 8, 0.2);
+}
+
+.trafficLight.red {
+    background-color: #ef4444;
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.2);
+}
+
+.updateInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.updateLabel {
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.updateValue {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.updateMessage {
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+}
+
+.msgGreen {
+    color: #16a34a;
+}
+
+.msgYellow {
+    color: #ca8a04;
+}
+
+.msgRed {
+    color: #dc2626;
+}
+
+.barChart {
+    display: flex;
+    align-items: flex-end;
+    gap: 1rem;
+    height: 200px;
+    padding-top: 1rem;
+}
+
+.barColumn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    position: relative;
+}
+
+.bar {
+    width: 100%;
+    background: #3b82f6;
+    border-radius: 4px 4px 0 0;
+    transition: height 0.5s ease;
+    min-height: 4px;
+    position: relative;
+}
+
+.bar:hover {
+    opacity: 0.9;
+}
+
+.barLabel {
+    font-size: 0.75rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.barValue {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 0.25rem;
+}
+
+@media (max-width: 768px) {
+    .chartContainer {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .statusSection {
+        padding-left: 0;
+        border-left: none;
+        border-top: 1px solid #e5e7eb;
+        padding-top: 1.5rem;
+    }
+}

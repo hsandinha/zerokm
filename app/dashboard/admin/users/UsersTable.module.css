@@ -71,6 +71,11 @@
     color: #92400e;
 }
 
+.badgeManager {
+    background-color: #f3e8ff;
+    color: #6b21a8;
+}
+
 .statusActive {
     color: #059669;
     background-color: #d1fae5;

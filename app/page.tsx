@@ -44,8 +44,10 @@ function LoginContent() {
     }, []);
 
     const redirectToDashboard = useCallback((profile: UserProfile) => {
+        console.log('Redirecting to dashboard for profile:', profile);
         switch (profile) {
             case 'administrador':
+            case 'gerente':
                 router.replace('/dashboard/admin');
                 break;
             case 'concessionaria':
@@ -103,6 +105,8 @@ function LoginContent() {
 
             // 4. Verificar perfis disponíveis para este usuário
             const { profiles, forcePasswordChange } = await getUserAllowedProfiles(email);
+
+            console.log('Profiles found:', profiles); // Debug log
 
             if (!profiles || profiles.length === 0) {
                 setError('Nenhum perfil associado a este usuário.');
@@ -282,23 +286,25 @@ function LoginContent() {
                         <p className={styles.modalSubtitle}>Como você deseja acessar o sistema?</p>
 
                         <div className={styles.profileList}>
-                            {availableProfiles.map((profile) => (
-                                <button
-                                    key={profile}
-                                    className={styles.profileButton}
-                                    onClick={() => handleProfileSelect(profile)}
-                                >
-                                    <span className={styles.profileIcon}>
-                                        {profile === 'administrador' && '🛡️'}
-                                        {profile === 'operador' && '👨‍💼'}
-                                        {profile === 'concessionaria' && '🏢'}
-                                        {profile === 'cliente' && '👤'}
-                                    </span>
-                                    <span className={styles.profileName}>
-                                        {profile.charAt(0).toUpperCase() + profile.slice(1)}
-                                    </span>
-                                </button>
-                            ))}
+                            {availableProfiles
+                                .filter(p => !(p === 'administrador' && availableProfiles.includes('gerente')))
+                                .map((profile) => (
+                                    <button
+                                        key={profile}
+                                        className={styles.profileButton}
+                                        onClick={() => handleProfileSelect(profile)}
+                                    >
+                                        <span className={styles.profileIcon}>
+                                            {(profile === 'administrador' || profile === 'gerente') && '🛡️'}
+                                            {profile === 'operador' && '👨‍💼'}
+                                            {profile === 'concessionaria' && '🏢'}
+                                            {profile === 'cliente' && '👤'}
+                                        </span>
+                                        <span className={styles.profileName}>
+                                            {profile === 'gerente' ? 'Administrador' : profile.charAt(0).toUpperCase() + profile.slice(1)}
+                                        </span>
+                                    </button>
+                                ))}
                         </div>
 
                         <button

@@ -194,7 +194,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
 
         const loadModels = async () => {
             try {
-                const res = await fetch('/api/vehicles/suggestions?fields=modelo&limit=1000', { signal: abortController.signal });
+                const res = await fetch('/api/vehicles/suggestions?fields=modelo&limit=1000&sortByCount=true', { signal: abortController.signal });
                 if (!res.ok) return;
                 const data = await res.json();
                 if (data.suggestions?.modelo) {
@@ -279,7 +279,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         const residualTokens: string[] = [];
 
         // Determine allowed fields based on role
-        const canViewContactInfo = role === 'admin' || (role === 'operator' && !(session?.user as any)?.canViewLocation);
+        const canViewContactInfo = role === 'admin' || role === 'dealership' || (role === 'operator' && !(session?.user as any)?.canViewLocation);
 
         let allowedFields: FilterKey[] = ['transmissao', 'combustivel', 'status', 'cor', 'ano', 'estado', 'opcionais'];
         if (canViewContactInfo) {
@@ -831,9 +831,16 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         setCurrentPage(1);
     };
 
-    const filteredModels = availableModels.filter(m =>
-        normalizeString(m).includes(normalizeString(modelSearch))
-    );
+    const filteredModels = useMemo(() => {
+        const filtered = availableModels.filter(m =>
+            normalizeString(m).includes(normalizeString(modelSearch))
+        );
+        // If no search, show top 25 (since availableModels is already sorted by count from backend)
+        if (!modelSearch) {
+            return filtered.slice(0, 25);
+        }
+        return filtered;
+    }, [availableModels, modelSearch]);
 
     // Sync filters.modelo with selectedModel in case it changes via search input
     useEffect(() => {
@@ -1023,129 +1030,134 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                 }}
                                 className={styles.searchInput}
                             />
+                            <button onClick={clearFilters} className={styles.clearButton}>
+                                Limpar filtros
+                            </button>
                         </div>
 
                         <div className={styles.searchInfo}>
-                            <button onClick={clearFilters} className={styles.clearButton}>
-                                Limpar Busca
-                            </button>
-                            {/* Chips de filtros aplicados */}
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
-                                {searchTerm && (
-                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                        Busca: {searchTerm}
-                                        <button onClick={() => { setSearchTerm(''); setPendingSearchTerm(''); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                                    </span>
-                                )}
-                                {filters.modelo && (
-                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                        Modelo: {filters.modelo}
-                                        <button onClick={() => { setFilters((prev) => ({ ...prev, modelo: '' })); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                                    </span>
-                                )}
-                                {filters.combustivel && (
-                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                        Combustível: {filters.combustivel}
-                                        <button onClick={() => { setFilters({ ...filters, combustivel: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                                    </span>
-                                )}
-                                {filters.transmissao && (
-                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                        Transmissão: {filters.transmissao}
-                                        <button onClick={() => { setFilters({ ...filters, transmissao: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                                    </span>
-                                )}
-                                {filters.cor && (
-                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                        Cor: {filters.cor}
-                                        <button onClick={() => { setFilters({ ...filters, cor: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                                    </span>
-                                )}
-                                {filters.ano && (
-                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                        Ano: {filters.ano}
-                                        <button onClick={() => { setFilters({ ...filters, ano: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                                    </span>
-                                )}
-                                {filters.status && (
-                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                        Status: {filters.status}
-                                        <button onClick={() => { setFilters({ ...filters, status: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                                    </span>
-                                )}
-                                {filters.estado && (
-                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                        UF: {filters.estado}
-                                        <button onClick={() => { setFilters({ ...filters, estado: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                                    </span>
-                                )}
-                                {filters.operador && (
-                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                        Operador: {filters.operador}
-                                        <button onClick={() => { setFilters({ ...filters, operador: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                                    </span>
-                                )}
-                                {filters.cidade && (
-                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                        Cidade: {filters.cidade}
-                                        <button onClick={() => { setFilters({ ...filters, cidade: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                                    </span>
-                                )}
-                                {filters.concessionaria && (
-                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                        Concessionária: {filters.concessionaria}
-                                        <button onClick={() => { setFilters({ ...filters, concessionaria: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                                    </span>
-                                )}
-                                {filters.nomeContato && (
-                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                        Contato: {filters.nomeContato}
-                                        <button onClick={() => { setFilters({ ...filters, nomeContato: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                                    </span>
-                                )}
-                                {filters.transmissao && (
-                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                        Transmissão: {filters.transmissao}
-                                        <button onClick={() => { setFilters({ ...filters, transmissao: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                                    </span>
-                                )}
-                                {filters.status && (
-                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                        Status: {filters.status}
-                                        <button onClick={() => { setFilters({ ...filters, status: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                                    </span>
-                                )}
-                                {filters.ano && (
-                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                        Ano: {filters.ano}
-                                        <button onClick={() => { setFilters({ ...filters, ano: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                                    </span>
-                                )}
-                                {filters.cor && (
-                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                        Cor: {filters.cor}
-                                        <button onClick={() => { setFilters({ ...filters, cor: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                                    </span>
-                                )}
-                                {filters.opcionais && (
-                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                        Opcionais: {filters.opcionais}
-                                        <button onClick={() => { setFilters((prev) => ({ ...prev, opcionais: '' })); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                                    </span>
-                                )}
-                                {filters.estado && (
-                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                        Estado: {filters.estado}
-                                        <button onClick={() => { setFilters((prev) => ({ ...prev, estado: '' })); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                                    </span>
-                                )}
-                                {filters.operador && (
-                                    <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
-                                        Operador: {filters.operador}
-                                        <button onClick={() => { setFilters((prev) => ({ ...prev, estado: '' })); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-                                    </span>
-                                )}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', width: '100%' }}>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
+                                    {searchTerm && (
+                                        <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                            Busca: {searchTerm}
+                                            <button onClick={() => { setSearchTerm(''); setPendingSearchTerm(''); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                        </span>
+                                    )}
+                                    {filters.modelo && (
+                                        <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                            Modelo: {filters.modelo}
+                                            <button onClick={() => { setFilters((prev) => ({ ...prev, modelo: '' })); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                        </span>
+                                    )}
+                                    {filters.combustivel && (
+                                        <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                            Combustível: {filters.combustivel}
+                                            <button onClick={() => { setFilters({ ...filters, combustivel: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                        </span>
+                                    )}
+                                    {filters.transmissao && (
+                                        <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                            Transmissão: {filters.transmissao}
+                                            <button onClick={() => { setFilters({ ...filters, transmissao: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                        </span>
+                                    )}
+                                    {filters.cor && (
+                                        <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                            Cor: {filters.cor}
+                                            <button onClick={() => { setFilters({ ...filters, cor: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                        </span>
+                                    )}
+                                    {filters.ano && (
+                                        <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                            Ano: {filters.ano}
+                                            <button onClick={() => { setFilters({ ...filters, ano: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                        </span>
+                                    )}
+                                    {filters.status && (
+                                        <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                            Status: {filters.status}
+                                            <button onClick={() => { setFilters({ ...filters, status: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                        </span>
+                                    )}
+                                    {filters.estado && (
+                                        <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                            UF: {filters.estado}
+                                            <button onClick={() => { setFilters({ ...filters, estado: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                        </span>
+                                    )}
+                                    {filters.operador && (
+                                        <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                            Operador: {filters.operador}
+                                            <button onClick={() => { setFilters({ ...filters, operador: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                        </span>
+                                    )}
+                                    {filters.cidade && (
+                                        <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                            Cidade: {filters.cidade}
+                                            <button onClick={() => { setFilters({ ...filters, cidade: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                        </span>
+                                    )}
+                                    {filters.concessionaria && (
+                                        <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                            Concessionária: {filters.concessionaria}
+                                            <button onClick={() => { setFilters({ ...filters, concessionaria: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                        </span>
+                                    )}
+                                    {filters.nomeContato && (
+                                        <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                            Contato: {filters.nomeContato}
+                                            <button onClick={() => { setFilters({ ...filters, nomeContato: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                        </span>
+                                    )}
+                                    {filters.transmissao && (
+                                        <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                            Transmissão: {filters.transmissao}
+                                            <button onClick={() => { setFilters({ ...filters, transmissao: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                        </span>
+                                    )}
+                                    {filters.status && (
+                                        <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                            Status: {filters.status}
+                                            <button onClick={() => { setFilters({ ...filters, status: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                        </span>
+                                    )}
+                                    {filters.ano && (
+                                        <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                            Ano: {filters.ano}
+                                            <button onClick={() => { setFilters({ ...filters, ano: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                        </span>
+                                    )}
+                                    {filters.cor && (
+                                        <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                            Cor: {filters.cor}
+                                            <button onClick={() => { setFilters({ ...filters, cor: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                        </span>
+                                    )}
+                                    {filters.opcionais && (
+                                        <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                            Opcionais: {filters.opcionais}
+                                            <button onClick={() => { setFilters((prev) => ({ ...prev, opcionais: '' })); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                        </span>
+                                    )}
+                                    {filters.estado && (
+                                        <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                            Estado: {filters.estado}
+                                            <button onClick={() => { setFilters((prev) => ({ ...prev, estado: '' })); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                        </span>
+                                    )}
+                                    {filters.operador && (
+                                        <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
+                                            Operador: {filters.operador}
+                                            <button onClick={() => { setFilters((prev) => ({ ...prev, estado: '' })); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
+                                        </span>
+                                    )}
+                                </div>
+
+                                <h3 style={{ margin: 0, marginLeft: 'auto' }}>Veículos Disponíveis ({totalItems})</h3>
                             </div>
+                            {/* Chips de filtros aplicados */}
+
                             {/* Warnings de prefixos */}
                             {prefixWarnings.length > 0 && (
                                 <div style={{ marginTop: '6px', color: '#a66', fontSize: '0.85rem' }}>
@@ -1156,8 +1168,6 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                     </div>
 
                     <div className={styles.resultsSection}>
-                        <h3>Resultados ({totalItems})</h3>
-
                         {viewMode === 'table' ? (
                             <div className={styles.tableContainer}>
                                 <table className={styles.table}>
@@ -1278,7 +1288,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                                 {!(role === 'operator' && (session?.user as any)?.canViewLocation) && (
                                                     <td className={styles.tableCell}>
                                                         <div className={styles.actionButtons}>
-                                                            {(role === 'client' || role === 'admin' || (role === 'operator' && !(session?.user as any)?.canViewLocation)) && (
+                                                            {(role === 'client' || role === 'admin' || role === 'dealership' || (role === 'operator' && !(session?.user as any)?.canViewLocation)) && (
                                                                 <span
                                                                     className={styles.locationButton}
                                                                     onClick={() => setLocationVehicle(vehicle)}
@@ -1289,7 +1299,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                                                     📍
                                                                 </span>
                                                             )}
-                                                            {(role === 'admin' || (role === 'operator' && !(session?.user as any)?.canViewLocation)) && (
+                                                            {(role === 'admin' || role === 'dealership' || (role === 'operator' && !(session?.user as any)?.canViewLocation)) && (
                                                                 <>
                                                                     <span
                                                                         className={styles.editButton}

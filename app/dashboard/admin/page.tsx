@@ -1,10 +1,13 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { signOut, getSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { getSession } from 'next-auth/react';
 import { UsersTable } from './users/UsersTable';
+import { ConcessionariasManagement } from '../../../components/admin/ConcessionariasManagement';
+import { TransportadorasManagement } from '../../../components/admin/TransportadorasManagement';
+import { TabelasManagement } from '../../../components/admin/TabelasManagement';
+import { MargemManagement } from '../../../components/admin/MargemManagement';
 import UserMenu from '../../../components/UserMenu';
 import styles from './admin.module.css';
 
@@ -22,12 +25,27 @@ const VehicleConsultation = dynamic(
     }
 );
 
-type TabType = 'visao-geral' | 'usuarios' | 'veiculos' | 'configuracoes';
+type TabType = 'visao-geral' | 'usuarios' | 'veiculos' | 'concessionarias' | 'transportadoras' | 'tabelas' | 'margem' | 'configuracoes';
+
+type MetricItem = {
+    nome: string;
+    total?: number;
+    dias?: number;
+    lastUpdated?: string | null;
+};
+
+interface AdminMetricsResponse {
+    byOperator: MetricItem[];
+    byConcessionaria: MetricItem[];
+    concessionariaStaleness: MetricItem[];
+}
 
 export default function AdminDashboard() {
-    const [activeTab, setActiveTab] = useState<TabType>('usuarios');
-    const [userInfo, setUserInfo] = useState<{ name?: string | null; email?: string | null }>({});
-    const router = useRouter();
+    const [activeTab, setActiveTab] = useState<TabType>('visao-geral');
+    const [userInfo, setUserInfo] = useState<{ name?: string | null; email?: string | null; profile?: string }>({});
+    const [metrics, setMetrics] = useState<AdminMetricsResponse>({ byOperator: [], byConcessionaria: [], concessionariaStaleness: [] });
+    const [loadingMetrics, setLoadingMetrics] = useState<boolean>(false);
+    const [metricsError, setMetricsError] = useState<string | null>(null);
 
     useEffect(() => {
         getSession()
@@ -36,6 +54,7 @@ export default function AdminDashboard() {
                     setUserInfo({
                         name: session.user.name ?? 'Administrador',
                         email: session.user.email ?? null,
+                        profile: session.user.profile,
                     });
                 }
             })
@@ -44,16 +63,43 @@ export default function AdminDashboard() {
             });
     }, []);
 
-    const handleLogout = async () => {
-        await signOut({ callbackUrl: '/' });
-    };
+    useEffect(() => {
+        const fetchMetrics = async () => {
+            setLoadingMetrics(true);
+            setMetricsError(null);
+            try {
+                const res = await fetch('/api/admin/metrics');
+                if (!res.ok) {
+                    throw new Error('Não foi possível carregar os dados de visão geral');
+                }
+                const data: AdminMetricsResponse = await res.json();
+                setMetrics(data);
+            } catch (error: any) {
+                console.error('Erro ao buscar métricas:', error);
+                setMetricsError(error?.message || 'Erro ao buscar métricas');
+            } finally {
+                setLoadingMetrics(false);
+            }
+        };
 
-    const tabs = [
+        fetchMetrics();
+    }, []);
+
+    const allTabs = [
         { id: 'visao-geral', label: 'Visão Geral', icon: '📊' },
         { id: 'usuarios', label: 'Usuários', icon: '👥' },
         { id: 'veiculos', label: 'Veículos', icon: '🚗' },
+        { id: 'concessionarias', label: 'Concessionárias', icon: '🏢' },
+        { id: 'transportadoras', label: 'Frete', icon: '🚚' },
+        { id: 'tabelas', label: 'Tabelas', icon: '📋' },
+        { id: 'margem', label: 'Margem', icon: '💹' },
         { id: 'configuracoes', label: 'Configurações', icon: '⚙️' }
     ];
+
+    const tabs = allTabs.filter(tab => {
+        if (userInfo.profile === 'gerente' && tab.id === 'usuarios') return false;
+        return true;
+    });
 
     const renderTabContent = () => {
         switch (activeTab) {
@@ -61,8 +107,63 @@ export default function AdminDashboard() {
                 return (
                     <div className={styles.contentArea}>
                         <h2 className={styles.title}>Visão Geral</h2>
-                        <p className={styles.subtitle}>Bem-vindo ao painel administrativo.</p>
-                        {/* TODO: Add charts and stats */}
+                        <p className={styles.subtitle}>Acompanhe rapidamente os principais indicadores de cadastro e atualização.</p>
+
+                        {metricsError && <div className={styles.errorBox}>{metricsError}</div>}
+
+                        {loadingMetrics ? (
+                            <p className={styles.subtitle}>Carregando métricas...</p>
+                        ) : (
+                            <div className={styles.dashboardGrid}>
+                                <div className={styles.dashboardCard}>
+                                    <div className={styles.cardHeader}>
+                                        <div className={styles.cardTitle}>Veículos por Operador</div>
+                                        <span className={styles.cardBadge}>Cadastro</span>
+                                    </div>
+                                    <ul className={styles.cardList}>
+                                        {metrics.byOperator.length === 0 && <li className={styles.cardListItem}>Sem dados</li>}
+                                        {metrics.byOperator.map((item) => (
+                                            <li key={item.nome} className={styles.cardListItem}>
+                                                <span>{item.nome}</span>
+                                                <strong>{item.total}</strong>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+
+                                <div className={styles.dashboardCard}>
+                                    <div className={styles.cardHeader}>
+                                        <div className={styles.cardTitle}>Veículos por Concessionária</div>
+                                        <span className={styles.cardBadge}>Inventário</span>
+                                    </div>
+                                    <ul className={styles.cardList}>
+                                        {metrics.byConcessionaria.length === 0 && <li className={styles.cardListItem}>Sem dados</li>}
+                                        {metrics.byConcessionaria.map((item) => (
+                                            <li key={item.nome} className={styles.cardListItem}>
+                                                <span>{item.nome}</span>
+                                                <strong>{item.total}</strong>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+
+                                <div className={styles.dashboardCard}>
+                                    <div className={styles.cardHeader}>
+                                        <div className={styles.cardTitle}>Dias sem Atualização</div>
+                                        <span className={styles.cardBadge}>Alertas</span>
+                                    </div>
+                                    <ul className={styles.cardList}>
+                                        {metrics.concessionariaStaleness.length === 0 && <li className={styles.cardListItem}>Sem dados</li>}
+                                        {metrics.concessionariaStaleness.map((item) => (
+                                            <li key={item.nome} className={styles.cardListItem}>
+                                                <span>{item.nome}</span>
+                                                <strong>{item.dias != null ? `${item.dias} dias` : '-'}</strong>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 );
             case 'usuarios':
@@ -77,6 +178,30 @@ export default function AdminDashboard() {
                 );
             case 'veiculos':
                 return <VehicleConsultation />;
+            case 'concessionarias':
+                return (
+                    <div className={styles.contentArea}>
+                        <ConcessionariasManagement />
+                    </div>
+                );
+            case 'transportadoras':
+                return (
+                    <div className={styles.contentArea}>
+                        <TransportadorasManagement />
+                    </div>
+                );
+            case 'tabelas':
+                return (
+                    <div className={styles.contentArea}>
+                        <TabelasManagement />
+                    </div>
+                );
+            case 'margem':
+                return (
+                    <div className={styles.contentArea}>
+                        <MargemManagement />
+                    </div>
+                );
             case 'configuracoes':
                 return (
                     <div className={styles.contentArea}>
@@ -100,7 +225,7 @@ export default function AdminDashboard() {
                     <UserMenu
                         name={userInfo.name || 'Administrador'}
                         email={userInfo.email}
-                        role="Administrador"
+                        role={userInfo.profile === 'gerente' ? 'Gerente' : 'Administrador'}
                     />
                 </div>
             </div>
@@ -120,9 +245,7 @@ export default function AdminDashboard() {
                 </div>
             </div>
 
-            <div className={styles.tabContent}>
-                {renderTabContent()}
-            </div>
+            <div className={styles.tabContent}>{renderTabContent()}</div>
         </div>
     );
 }

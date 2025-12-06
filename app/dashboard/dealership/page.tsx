@@ -10,11 +10,43 @@ import { ConfigContext, useConfig } from '../../../lib/contexts/ConfigContext';
 import UserMenu from '../../../components/UserMenu';
 import styles from './dealership.module.css';
 
+import { Concessionaria } from '../../../lib/services/concessionariaService';
+
 type TabType = 'visao-geral' | 'veiculos' | 'perfil';
+
+interface ChartItem {
+    label: string;
+    value: number;
+}
+
+interface DealershipMetrics {
+    veiculosCadastrados: number;
+    veiculosVendidos: number;
+    daysSinceUpdate: number;
+    chartData: ChartItem[];
+    propostas: {
+        total: number;
+        aprovadas: number;
+        pendentes: number;
+        rejeitadas: number;
+    };
+    faturamento: {
+        mensal: number;
+        total: number;
+    };
+    clientes: {
+        total: number;
+        novos: number;
+    };
+}
 
 export default function DealershipDashboard() {
     const [activeTab, setActiveTab] = useState<TabType>('visao-geral');
     const [margem, setMargem] = useState<number>(0);
+    const [metrics, setMetrics] = useState<DealershipMetrics | null>(null);
+    const [loadingMetrics, setLoadingMetrics] = useState(false);
+    const [profile, setProfile] = useState<Concessionaria | null>(null);
+    const [loadingProfile, setLoadingProfile] = useState(false);
     const router = useRouter();
 
     const handleLogout = async () => {
@@ -39,6 +71,50 @@ export default function DealershipDashboard() {
         }
     }, []);
 
+    // Fetch metrics
+    useEffect(() => {
+        const fetchMetrics = async () => {
+            setLoadingMetrics(true);
+            try {
+                const res = await fetch('/api/dealership/metrics');
+                if (res.ok) {
+                    const data = await res.json();
+                    setMetrics(data);
+                }
+            } catch (error) {
+                console.error('Erro ao buscar métricas:', error);
+            } finally {
+                setLoadingMetrics(false);
+            }
+        };
+
+        if (activeTab === 'visao-geral') {
+            fetchMetrics();
+        }
+    }, [activeTab]);
+
+    // Fetch profile
+    useEffect(() => {
+        const fetchProfile = async () => {
+            setLoadingProfile(true);
+            try {
+                const res = await fetch('/api/dealership/profile');
+                if (res.ok) {
+                    const data = await res.json();
+                    setProfile(data);
+                }
+            } catch (error) {
+                console.error('Erro ao buscar perfil:', error);
+            } finally {
+                setLoadingProfile(false);
+            }
+        };
+
+        if (activeTab === 'perfil' && !profile) {
+            fetchProfile();
+        }
+    }, [activeTab, profile]);
+
     const tabs = [
         { id: 'visao-geral', label: 'Visão Geral', icon: '📊' },
         { id: 'veiculos', label: 'Veículos', icon: '🚗' },
@@ -48,13 +124,13 @@ export default function DealershipDashboard() {
     const renderTabContent = () => {
         switch (activeTab) {
             case 'visao-geral':
-                return <VisaoGeralTab />;
+                return <VisaoGeralTab metrics={metrics} loading={loadingMetrics} />;
             case 'veiculos':
-                return <VehicleConsultation />;
+                return <VehicleConsultation role="dealership" />;
             case 'perfil':
-                return <PerfilTab />;
+                return <PerfilTab profile={profile} loading={loadingProfile} />;
             default:
-                return <VisaoGeralTab />;
+                return <VisaoGeralTab metrics={metrics} loading={loadingMetrics} />;
         }
     };
 
@@ -97,176 +173,70 @@ export default function DealershipDashboard() {
     );
 }
 
-// Dados mock para estatísticas da concessionária
-interface ConcessionariaStats {
-    veiculosCadastrados: number;
-    veiculosVendidos: number;
-    propostas: {
-        total: number;
-        aprovadas: number;
-        pendentes: number;
-        rejeitadas: number;
-    };
-    faturamento: {
-        mensal: number;
-        total: number;
-    };
-    clientes: {
-        total: number;
-        novos: number;
-    };
-}
+// Dados mock removidos
 
-const mockStats: ConcessionariaStats = {
-    veiculosCadastrados: 156,
-    veiculosVendidos: 34,
-    propostas: {
-        total: 67,
-        aprovadas: 28,
-        pendentes: 23,
-        rejeitadas: 16
-    },
-    faturamento: {
-        mensal: 2850000.00,
-        total: 15420000.00
-    },
-    clientes: {
-        total: 342,
-        novos: 18
+
+function StockOverview({ metrics }: { metrics: DealershipMetrics }) {
+    const chartData = metrics.chartData || [];
+    const maxValue = Math.max(...chartData.map(d => d.value), 10) * 1.2;
+    const daysSinceUpdate = metrics.daysSinceUpdate;
+
+    let statusColor = 'green';
+    let statusMessage = 'Estoque atualizado';
+    let statusClass = styles.msgGreen;
+
+    if (daysSinceUpdate > 1) {
+        statusColor = 'yellow';
+        statusMessage = 'Atenção: Atualize seu estoque';
+        statusClass = styles.msgYellow;
     }
-};
-
-const vendasRecentes = [
-    {
-        id: 1,
-        cliente: 'João Silva',
-        veiculo: 'Toyota Corolla 2024',
-        valor: 154920.00,
-        data: '18/11/2024',
-        vendedor: 'Carlos Santos'
-    },
-    {
-        id: 2,
-        cliente: 'Maria Costa',
-        veiculo: 'Honda Civic 2024',
-        valor: 142850.00,
-        data: '17/11/2024',
-        vendedor: 'Ana Paula'
-    },
-    {
-        id: 3,
-        cliente: 'Pedro Lima',
-        veiculo: 'Honda CR-V 2024',
-        valor: 178420.00,
-        data: '16/11/2024',
-        vendedor: 'Roberto Silva'
+    if (daysSinceUpdate > 3) {
+        statusColor = 'red';
+        statusMessage = 'Crítico: Estoque desatualizado';
+        statusClass = styles.msgRed;
     }
-];
 
-function VisaoGeralTab() {
     return (
-        <div className={styles.tabContentContainer}>
-            <div className={styles.visaoGeralHeader}>
-                <h2>Visão Geral da Concessionária</h2>
-                <p>Acompanhe o desempenho e estatísticas da sua concessionária.</p>
+        <div className={styles.chartContainer}>
+            <div className={styles.chartSection}>
+                <div className={styles.chartHeader}>
+                    <div className={styles.chartTitle}>Evolução do Estoque</div>
+                </div>
+                <div className={styles.barChart}>
+                    {chartData.length === 0 ? (
+                        <div style={{ width: '100%', textAlign: 'center', color: '#666' }}>Sem dados de histórico</div>
+                    ) : (
+                        chartData.map((item, index) => (
+                            <div key={index} className={styles.barColumn}>
+                                <div className={styles.barValue}>{item.value}</div>
+                                <div
+                                    className={styles.bar}
+                                    style={{ height: `${(item.value / maxValue) * 100}%` }}
+                                ></div>
+                                <div className={styles.barLabel}>{item.label}</div>
+                            </div>
+                        ))
+                    )}
+                </div>
             </div>
 
-            <div className={styles.statsGrid}>
+            <div className={styles.statusSection}>
+                <div className={styles.chartTitle} style={{ marginBottom: '1.5rem' }}>Status de Atualização</div>
+                <div className={styles.trafficLightContainer}>
+                    <div className={`${styles.trafficLight} ${styles[statusColor]}`}></div>
+                    <div className={styles.updateInfo}>
+                        <span className={styles.updateLabel}>Última atualização</span>
+                        <span className={styles.updateValue}>{daysSinceUpdate === 0 ? 'Hoje' : `${daysSinceUpdate} dia(s) atrás`}</span>
+                        <span className={`${styles.updateMessage} ${statusClass}`}>{statusMessage}</span>
+                    </div>
+
+                </div>
                 <div className={styles.statCard}>
                     <div className={styles.statIcon}>🚗</div>
                     <div className={styles.statContent}>
                         <h3>Veículos Cadastrados</h3>
-                        <div className={styles.statNumber}>{mockStats.veiculosCadastrados}</div>
-                        <div className={styles.statChange}>+12 este mês</div>
-                    </div>
-                </div>
-
-                <div className={styles.statCard}>
-                    <div className={styles.statIcon}>✅</div>
-                    <div className={styles.statContent}>
-                        <h3>Veículos Vendidos</h3>
-                        <div className={styles.statNumber}>{mockStats.veiculosVendidos}</div>
-                        <div className={styles.statChange}>+18% este mês</div>
-                    </div>
-                </div>
-
-                <div className={styles.statCard}>
-                    <div className={styles.statIcon}>📋</div>
-                    <div className={styles.statContent}>
-                        <h3>Propostas Recebidas</h3>
-                        <div className={styles.statNumber}>{mockStats.propostas.total}</div>
-                        <div className={styles.statChange}>+25% este mês</div>
-                    </div>
-                </div>
-
-                <div className={styles.statCard}>
-                    <div className={styles.statIcon}>💰</div>
-                    <div className={styles.statContent}>
-                        <h3>Faturamento Mensal</h3>
-                        <div className={styles.statNumber}>R$ {(mockStats.faturamento.mensal / 1000000).toFixed(1)}M</div>
-                        <div className={styles.statChange}>+15% este mês</div>
-                    </div>
-                </div>
-            </div>
-
-            <div className={styles.detailsSection}>
-                <div className={styles.proposalsDetail}>
-                    <h3>Detalhamento de Propostas</h3>
-                    <div className={styles.proposalStats}>
-                        <div className={styles.proposalStat}>
-                            <span className={styles.proposalLabel}>Aprovadas:</span>
-                            <span className={styles.proposalValue} style={{ color: '#16a34a' }}>{mockStats.propostas.aprovadas}</span>
-                        </div>
-                        <div className={styles.proposalStat}>
-                            <span className={styles.proposalLabel}>Pendentes:</span>
-                            <span className={styles.proposalValue} style={{ color: '#f59e0b' }}>{mockStats.propostas.pendentes}</span>
-                        </div>
-                        <div className={styles.proposalStat}>
-                            <span className={styles.proposalLabel}>Rejeitadas:</span>
-                            <span className={styles.proposalValue} style={{ color: '#dc2626' }}>{mockStats.propostas.rejeitadas}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div className={styles.salesDetail}>
-                    <h3>Vendas Recentes</h3>
-                    <div className={styles.salesList}>
-                        {vendasRecentes.map((venda) => (
-                            <div key={venda.id} className={styles.saleItem}>
-                                <div className={styles.saleInfo}>
-                                    <div className={styles.saleClient}>{venda.cliente}</div>
-                                    <div className={styles.saleVehicle}>{venda.veiculo}</div>
-                                </div>
-                                <div className={styles.saleDetails}>
-                                    <div className={styles.saleValue}>R$ {venda.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                                    <div className={styles.saleDate}>{venda.data}</div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-
-            <div className={styles.summarySection}>
-                <div className={styles.summaryCard}>
-                    <h3>Resumo Geral</h3>
-                    <div className={styles.summaryGrid}>
-                        <div className={styles.summaryItem}>
-                            <span>Total de Clientes:</span>
-                            <strong>{mockStats.clientes.total}</strong>
-                        </div>
-                        <div className={styles.summaryItem}>
-                            <span>Novos Clientes:</span>
-                            <strong>{mockStats.clientes.novos}</strong>
-                        </div>
-                        <div className={styles.summaryItem}>
-                            <span>Faturamento Total:</span>
-                            <strong>R$ {(mockStats.faturamento.total / 1000000).toFixed(1)}M</strong>
-                        </div>
-                        <div className={styles.summaryItem}>
-                            <span>Taxa de Conversão:</span>
-                            <strong>{Math.round((mockStats.propostas.aprovadas / mockStats.propostas.total) * 100)}%</strong>
-                        </div>
+                        <div className={styles.statNumber}>{metrics.veiculosCadastrados}</div>
+                        <div className={styles.statChange}>Total em estoque</div>
                     </div>
                 </div>
             </div>
@@ -274,7 +244,64 @@ function VisaoGeralTab() {
     );
 }
 
-function PerfilTab() {
+function VisaoGeralTab({ metrics, loading }: { metrics: DealershipMetrics | null, loading: boolean }) {
+    if (loading) {
+        return (
+            <div className={styles.tabContentContainer}>
+                <div className={styles.visaoGeralHeader}>
+                    <h2>Visão Geral da Concessionária</h2>
+                    <p>Carregando dados...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!metrics) {
+        return (
+            <div className={styles.tabContentContainer}>
+                <div className={styles.visaoGeralHeader}>
+                    <h2>Visão Geral da Concessionária</h2>
+                    <p>Não foi possível carregar os dados.</p>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className={styles.tabContentContainer}>
+            <div className={styles.visaoGeralHeader}>
+                <h2>Visão Geral da Concessionária</h2>
+                <p>Acompanhe o desempenho e estatísticas da sua concessionária.</p>
+            </div>
+
+            <StockOverview metrics={metrics} />
+        </div>
+    );
+}
+
+function PerfilTab({ profile, loading }: { profile: Concessionaria | null, loading: boolean }) {
+    if (loading) {
+        return (
+            <div className={styles.tabContentContainer}>
+                <div className={styles.perfilHeader}>
+                    <h2>Meu Perfil</h2>
+                    <p>Carregando informações...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!profile) {
+        return (
+            <div className={styles.tabContentContainer}>
+                <div className={styles.perfilHeader}>
+                    <h2>Meu Perfil</h2>
+                    <p>Não foi possível carregar as informações do perfil.</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className={styles.tabContentContainer}>
             <div className={styles.perfilHeader}>
@@ -287,31 +314,35 @@ function PerfilTab() {
                     <div className={styles.perfilCardHeader}>
                         <div className={styles.perfilAvatar}>🏭</div>
                         <div className={styles.perfilInfo}>
-                            <h3>Concessionária Premium Motors</h3>
-                            <p>Desde 2015 • São Paulo, SP</p>
+                            <h3>{profile.nome}</h3>
+                            <p>{profile.cidade}, {profile.uf}</p>
                         </div>
                     </div>
 
                     <div className={styles.perfilDetails}>
                         <div className={styles.perfilRow}>
+                            <span>Razão Social:</span>
+                            <span>{profile.razaoSocial}</span>
+                        </div>
+                        <div className={styles.perfilRow}>
                             <span>CNPJ:</span>
-                            <span>12.345.678/0001-90</span>
+                            <span>{profile.cnpj}</span>
                         </div>
                         <div className={styles.perfilRow}>
                             <span>Telefone:</span>
-                            <span>(11) 3456-7890</span>
+                            <span>{profile.telefone}</span>
                         </div>
                         <div className={styles.perfilRow}>
                             <span>Email:</span>
-                            <span>contato@premiummotors.com.br</span>
+                            <span>{profile.email}</span>
                         </div>
                         <div className={styles.perfilRow}>
                             <span>Endereço:</span>
-                            <span>Rua das Flores, 123 - São Paulo, SP</span>
+                            <span>{profile.endereco}, {profile.numero} {profile.complemento ? `- ${profile.complemento}` : ''} - {profile.bairro}</span>
                         </div>
                         <div className={styles.perfilRow}>
                             <span>Responsável:</span>
-                            <span>João Silva Santos</span>
+                            <span>{profile.nomeResponsavel}</span>
                         </div>
                     </div>
                 </div>

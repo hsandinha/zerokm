@@ -27,23 +27,23 @@ export interface IConcessionaria extends Document {
 }
 
 const ConcessionariaSchema: Schema = new Schema({
-    nome: { type: String, required: true },
-    razaoSocial: { type: String, required: true },
-    cnpj: { type: String, required: true, unique: true },
+    nome: { type: String },
+    razaoSocial: { type: String },
+    cnpj: { type: String, unique: true, sparse: true },
     inscricaoEstadual: { type: String },
-    telefone: { type: String, required: true },
+    telefone: { type: String },
     celular: { type: String },
-    contato: { type: String, required: true },
-    email: { type: String, required: true },
-    endereco: { type: String, required: true },
-    numero: { type: String, required: true },
+    contato: { type: String },
+    email: { type: String },
+    endereco: { type: String },
+    numero: { type: String },
     complemento: { type: String },
-    bairro: { type: String, required: true },
-    cidade: { type: String, required: true },
-    uf: { type: String, required: true },
-    cep: { type: String, required: true },
-    nomeResponsavel: { type: String, required: true },
-    telefoneResponsavel: { type: String, required: true },
+    bairro: { type: String },
+    cidade: { type: String },
+    uf: { type: String },
+    cep: { type: String },
+    nomeResponsavel: { type: String },
+    telefoneResponsavel: { type: String },
     emailResponsavel: { type: String },
     observacoes: { type: String },
     ativo: { type: Boolean, default: true },
@@ -52,7 +52,11 @@ const ConcessionariaSchema: Schema = new Schema({
     timestamps: true
 });
 
-// Prevent model recompilation error in development
+// Delete existing model to force re-compilation with new schema in development
+if (process.env.NODE_ENV === 'development' && mongoose.models.Concessionaria) {
+    delete mongoose.models.Concessionaria;
+}
+
 const Concessionaria: Model<IConcessionaria> = mongoose.models.Concessionaria || mongoose.model<IConcessionaria>('Concessionaria', ConcessionariaSchema);
 
 export default Concessionaria;

@@ -157,6 +157,7 @@ export function UsersTable() {
     const getProfileBadgeClass = (profile: string) => {
         switch (profile) {
             case 'administrador': return styles.badgeAdmin;
+            case 'gerente': return styles.badgeManager;
             case 'operador': return styles.badgeOperator;
             case 'concessionaria': return styles.badgeDealership;
             case 'cliente': return styles.badgeClient;
@@ -198,11 +199,14 @@ export function UsersTable() {
                             </td>
                             <td>
                                 {user.allowedProfiles && user.allowedProfiles.length > 0 ? (
-                                    user.allowedProfiles.map(p => (
-                                        <span key={p} className={`${styles.badge} ${getProfileBadgeClass(p)}`}>
-                                            {p}
-                                        </span>
-                                    ))
+                                    user.allowedProfiles.map(p => {
+                                        const displayProfile = (p === 'operador' && user.canViewLocation) ? 'vendedor' : p;
+                                        return (
+                                            <span key={p} className={`${styles.badge} ${getProfileBadgeClass(displayProfile)}`}>
+                                                {displayProfile}
+                                            </span>
+                                        );
+                                    })
                                 ) : (
                                     <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>Nenhum perfil</span>
                                 )}
@@ -282,6 +286,31 @@ export function UsersTable() {
                                         />
                                         Administrador
                                     </label>
+                                    <label className={styles.checkboxLabel}>
+                                        <input
+                                            type="checkbox"
+                                            checked={newUser.allowedProfiles.includes('gerente')}
+                                            onChange={() => {
+                                                const isChecked = !newUser.allowedProfiles.includes('gerente');
+                                                let newProfiles = [...newUser.allowedProfiles];
+
+                                                if (isChecked) {
+                                                    newProfiles.push('gerente');
+                                                    if (!newProfiles.includes('administrador')) {
+                                                        newProfiles.push('administrador');
+                                                    }
+                                                } else {
+                                                    newProfiles = newProfiles.filter(p => p !== 'gerente');
+                                                }
+
+                                                setNewUser({
+                                                    ...newUser,
+                                                    allowedProfiles: newProfiles
+                                                });
+                                            }}
+                                        />
+                                        Gerente
+                                    </label>
                                     <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                                         <label className={styles.checkboxLabel}>
                                             <input
@@ -295,7 +324,18 @@ export function UsersTable() {
                                             <input
                                                 type="checkbox"
                                                 checked={newUser.canViewLocation}
-                                                onChange={(e) => setNewUser({ ...newUser, canViewLocation: e.target.checked })}
+                                                onChange={(e) => {
+                                                    const isChecked = e.target.checked;
+                                                    const updatedProfiles = [...newUser.allowedProfiles];
+                                                    if (isChecked && !updatedProfiles.includes('operador')) {
+                                                        updatedProfiles.push('operador');
+                                                    }
+                                                    setNewUser({
+                                                        ...newUser,
+                                                        canViewLocation: isChecked,
+                                                        allowedProfiles: updatedProfiles
+                                                    });
+                                                }}
                                             />
                                             Vendedor
                                         </label>
@@ -374,6 +414,27 @@ export function UsersTable() {
                                 />
                                 Administrador
                             </label>
+                            <label className={styles.checkboxLabel}>
+                                <input
+                                    type="checkbox"
+                                    checked={selectedProfiles.includes('gerente')}
+                                    onChange={() => {
+                                        const isChecked = !selectedProfiles.includes('gerente');
+                                        let newProfiles = [...selectedProfiles];
+
+                                        if (isChecked) {
+                                            newProfiles.push('gerente');
+                                            if (!newProfiles.includes('administrador')) {
+                                                newProfiles.push('administrador');
+                                            }
+                                        } else {
+                                            newProfiles = newProfiles.filter(p => p !== 'gerente');
+                                        }
+                                        setSelectedProfiles(newProfiles);
+                                    }}
+                                />
+                                Gerente
+                            </label>
                             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                                 <label className={styles.checkboxLabel}>
                                     <input
@@ -387,7 +448,13 @@ export function UsersTable() {
                                     <input
                                         type="checkbox"
                                         checked={canViewLocation}
-                                        onChange={(e) => setCanViewLocation(e.target.checked)}
+                                        onChange={(e) => {
+                                            const isChecked = e.target.checked;
+                                            setCanViewLocation(isChecked);
+                                            if (isChecked && !selectedProfiles.includes('operador')) {
+                                                setSelectedProfiles([...selectedProfiles, 'operador']);
+                                            }
+                                        }}
                                     />
                                     Vendedor
                                 </label>

@@ -13,7 +13,9 @@ export default withAuth(
     // Função auxiliar para obter a URL correta do dashboard baseada no perfil
     const getDashboardUrl = (p: string) => {
       switch (p) {
-        case 'administrador': return '/dashboard/admin';
+        case 'administrador':
+        case 'gerente':
+          return '/dashboard/admin';
         case 'concessionaria': return '/dashboard/dealership';
         case 'operador': return '/dashboard/operator';
         case 'cliente': return '/dashboard/cliente';
@@ -23,8 +25,8 @@ export default withAuth(
 
     // Regras de Proteção de Rotas (RBAC)
 
-    // 1. Admin Dashboard: Apenas Administradores
-    if (path.startsWith('/dashboard/admin') && profile !== 'administrador') {
+    // 1. Admin Dashboard: Apenas Administradores e Gerentes
+    if (path.startsWith('/dashboard/admin') && profile !== 'administrador' && profile !== 'gerente') {
       return NextResponse.redirect(new URL(getDashboardUrl(profile), req.url));
     }
 

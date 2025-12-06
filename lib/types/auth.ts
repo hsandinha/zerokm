@@ -1,4 +1,4 @@
-export type UserProfile = 'concessionaria' | 'operador' | 'administrador' | 'cliente' | 'operator' | 'dealership' | 'admin';
+export type UserProfile = 'concessionaria' | 'operador' | 'administrador' | 'cliente' | 'operator' | 'dealership' | 'admin' | 'gerente';
 
 // NextAuth session extension
 declare module "next-auth" {

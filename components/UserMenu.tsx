@@ -37,12 +37,29 @@ export default function UserMenu({ name, email, role }: UserMenuProps) {
         await signOut({ callbackUrl: '/' });
     };
 
+    const allowedProfiles = (session?.user as any)?.allowedProfiles || [];
+    const currentProfile = (session?.user as any)?.profile;
+
+    // Filter profiles to hide 'gerente' from the list (we use 'administrador' as the visible option)
+    const visibleProfiles = allowedProfiles.filter((p: string) => {
+        if (p === 'gerente') return false;
+        return true;
+    });
+
     const handleSwitchProfile = async (newProfile: string) => {
-        await update({ profile: newProfile });
+        let targetProfile = newProfile;
+
+        // If user selects 'administrador' but is a 'gerente', force 'gerente' profile
+        if (newProfile === 'administrador' && allowedProfiles.includes('gerente')) {
+            targetProfile = 'gerente';
+        }
+
+        await update({ profile: targetProfile });
 
         // Redirect based on new profile
-        switch (newProfile) {
+        switch (targetProfile) {
             case 'administrador':
+            case 'gerente':
                 router.push('/dashboard/admin');
                 break;
             case 'concessionaria':
@@ -67,12 +84,10 @@ export default function UserMenu({ name, email, role }: UserMenuProps) {
             .toUpperCase();
     };
 
-    const allowedProfiles = (session?.user as any)?.allowedProfiles || [];
-    const currentProfile = (session?.user as any)?.profile;
-
     const formatProfileName = (profile: string) => {
         switch (profile) {
             case 'administrador': return 'Administrador';
+            case 'gerente': return 'Administrador';
             case 'concessionaria': return 'Concessionária';
             case 'operador': return 'Operador';
             case 'cliente': return 'Cliente';
@@ -108,11 +123,11 @@ export default function UserMenu({ name, email, role }: UserMenuProps) {
                         Meu Perfil
                     </Link>
 
-                    {allowedProfiles.length > 1 && (
+                    {visibleProfiles.length > 1 && (
                         <>
                             <div className={styles.divider} />
                             <div className={styles.menuLabel}>Trocar Perfil</div>
-                            {allowedProfiles.map((profile: string) => (
+                            {visibleProfiles.map((profile: string) => (
                                 profile !== currentProfile && (
                                     <button
                                         key={profile}

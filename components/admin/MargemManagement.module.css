@@ -1,0 +1,151 @@
+.configHeader {
+    margin-bottom: 2rem;
+}
+
+.configHeader h2 {
+    margin: 0 0 0.5rem 0;
+    color: var(--color-text);
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.configHeader p {
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.configSection {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.configCard {
+    background: var(--color-surface);
+    border: 1px solid var(--color-highlight);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.configCardHeader {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--color-highlight);
+    background: var(--color-panel);
+}
+
+.configCardHeader h3 {
+    margin: 0 0 0.5rem 0;
+    color: var(--color-text);
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+.configCardHeader p {
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.configCardBody {
+    padding: 1.5rem;
+}
+
+.margemInputGroup {
+    margin-bottom: 1.5rem;
+}
+
+.margemInputGroup label {
+    display: block;
+    color: var(--color-text);
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.inputWithButton {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.margemInput {
+    flex: 1;
+    max-width: 200px;
+    padding: 0.875rem 1rem;
+    border: 1px solid var(--color-highlight);
+    border-radius: 8px;
+    font-size: 0.875rem;
+    outline: none;
+    transition: all 0.15s ease;
+    text-align: right;
+    background: var(--color-bg);
+    color: var(--color-text);
+}
+
+.margemInput:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.05);
+}
+
+.percentSymbol {
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-left: -2.5rem;
+    margin-right: 1rem;
+    pointer-events: none;
+}
+
+.saveButton {
+    padding: 0.875rem 1.5rem;
+    background: var(--color-positive);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.saveButton:hover {
+    background: var(--color-positive);
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(22, 163, 74, 0.3);
+}
+
+.margemInfo {
+    background: var(--color-panel);
+    border: 1px solid var(--color-highlight);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.infoRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.infoRow:last-child {
+    margin-bottom: 0;
+}
+
+.infoRow span:first-child {
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+}
+
+.infoRow span:last-child,
+.infoRow strong {
+    color: var(--color-text);
+    font-size: 0.875rem;
+    font-weight: 500;
+}

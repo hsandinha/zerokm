@@ -1,22 +1,22 @@
 export interface Concessionaria {
     id?: string;
-    nome: string;
-    razaoSocial: string;
-    cnpj: string;
+    nome?: string;
+    razaoSocial?: string;
+    cnpj?: string;
     inscricaoEstadual?: string;
-    telefone: string;
+    telefone?: string;
     celular?: string;
-    contato: string;
-    email: string;
-    endereco: string;
-    numero: string;
+    contato?: string;
+    email?: string;
+    endereco?: string;
+    numero?: string;
     complemento?: string;
-    bairro: string;
-    cidade: string;
-    uf: string;
-    cep: string;
-    nomeResponsavel: string;
-    telefoneResponsavel: string;
+    bairro?: string;
+    cidade?: string;
+    uf?: string;
+    cep?: string;
+    nomeResponsavel?: string;
+    telefoneResponsavel?: string;
     emailResponsavel?: string;
     observacoes?: string;
     ativo: boolean;
@@ -35,7 +35,11 @@ export class ConcessionariaService {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(concessionaria)
             });
-            if (!response.ok) throw new Error('Failed to add concessionaria');
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.error('Server error details:', errorData);
+                throw new Error(errorData.error || 'Failed to add concessionaria');
+            }
             return true;
         } catch (error) {
             console.error('Erro ao adicionar concessionária:', error);
