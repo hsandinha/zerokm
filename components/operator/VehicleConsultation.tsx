@@ -1347,14 +1347,13 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                             </div>
                         )}
 
-                        <div className={styles.paginationContainer} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', padding: '10px', borderTop: '1px solid #eee' }}>
+                        <div className={styles.paginationContainer}>
                             <div className={styles.itemsPerPage}>
                                 <label htmlFor="itemsPerPage">Itens por página: </label>
                                 <select
                                     id="itemsPerPage"
                                     value={itemsPerPage}
                                     onChange={handleItemsPerPageChange}
-                                    style={{ marginLeft: '10px', padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
                                 >
                                     <option value={25}>25</option>
                                     <option value={50}>50</option>
@@ -1364,18 +1363,11 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                 </select>
                             </div>
 
-                            <div className={styles.paginationControls} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                            <div className={styles.paginationControls}>
                                 <button
                                     onClick={() => handlePageChange(currentPage - 1)}
                                     disabled={currentPage === 1}
-                                    style={{
-                                        padding: '5px 10px',
-                                        cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-                                        opacity: currentPage === 1 ? 0.5 : 1,
-                                        border: '1px solid #ccc',
-                                        borderRadius: '4px',
-                                        background: '#fff'
-                                    }}
+                                    className={styles.paginationButton}
                                 >
                                     Anterior
                                 </button>
@@ -1385,14 +1377,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                 <button
                                     onClick={() => handlePageChange(currentPage + 1)}
                                     disabled={currentPage === totalPages}
-                                    style={{
-                                        padding: '5px 10px',
-                                        cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-                                        opacity: currentPage === totalPages ? 0.5 : 1,
-                                        border: '1px solid #ccc',
-                                        borderRadius: '4px',
-                                        background: '#fff'
-                                    }}
+                                    className={styles.paginationButton}
                                 >
                                     Próxima
                                 </button>
