@@ -14,7 +14,7 @@
     "firebase-admin": "^13.6.0",
     "mongodb": "^7.0.0",
     "mongoose": "^9.0.0",
-    "next": "^16.0.5",
+    "next": "^16.0.7",
     "next-auth": "^4.24.13",
     "react": "^19.2.0",
     "react-currency-input-field": "^4.0.3",
