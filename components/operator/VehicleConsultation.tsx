@@ -106,6 +106,85 @@ const areFiltersEqual = (a: FiltersState, b: FiltersState) => {
     return true;
 };
 
+interface EditableCurrencyCellProps {
+    value?: number;
+    onSave: (newValue: number | undefined) => void;
+}
+
+function EditableCurrencyCell({ value, onSave }: EditableCurrencyCellProps) {
+    const [isEditing, setIsEditing] = useState(false);
+    const [localValue, setLocalValue] = useState<string>('');
+
+    useEffect(() => {
+        if (value !== undefined) {
+            setLocalValue((value * 100).toFixed(0));
+        } else {
+            setLocalValue('');
+        }
+    }, [value]);
+
+    const formatDisplay = (val?: number) => {
+        if (val === undefined || val === null) return '-';
+        return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const digits = e.target.value.replace(/\D/g, '');
+        setLocalValue(digits);
+    };
+
+    const handleBlur = () => {
+        setIsEditing(false);
+        if (!localValue) {
+            onSave(undefined);
+            return;
+        }
+        const num = parseInt(localValue, 10) / 100;
+        if (num !== value) {
+            onSave(num);
+        }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handleBlur();
+        }
+    };
+
+    if (isEditing) {
+        const display = localValue
+            ? (parseInt(localValue, 10) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+            : '0,00';
+            
+        return (
+            <input
+                autoFocus
+                type="text"
+                value={display}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                onKeyDown={handleKeyDown}
+                onClick={(e) => e.stopPropagation()}
+                style={{ width: '100px', padding: '4px', borderRadius: '4px', border: '1px solid #ccc', color: '#000' }}
+            />
+        );
+    }
+
+    return (
+        <div
+            onClick={(e) => {
+                e.stopPropagation();
+                setLocalValue(value ? (value * 100).toFixed(0) : '');
+                setIsEditing(true);
+            }}
+            style={{ cursor: 'pointer', minHeight: '20px', minWidth: '50px', borderBottom: '1px dashed #ccc' }}
+            title="Clique para editar"
+        >
+            {formatDisplay(value)}
+        </div>
+    );
+}
+
 export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsultationProps) {
     const { data: session } = useSession();
     const { margem } = useConfig();
@@ -157,6 +236,95 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         items: [],
         estado: ''
     });
+    const [isExporting, setIsExporting] = useState(false);
+    const [showExportMenu, setShowExportMenu] = useState(false);
+
+    const handleExport = async (format: 'csv' | 'json') => {
+        try {
+            setIsExporting(true);
+            setShowExportMenu(false);
+            
+            // Fetch all data with current filters
+            // Using a large limit to get all matching records
+            const result = await getVehiclesPaginated({
+                page: 1,
+                itemsPerPage: 100000, 
+                searchTerm: searchTerm,
+                filters: filters,
+                sortConfig: sortConfig.key ? sortConfig : undefined
+            });
+            
+            const dataToExport = result.data;
+            
+            if (format === 'json') {
+                const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `veiculos_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } else if (format === 'csv') {
+                // Generate CSV
+                const headers = [
+                    'Modelo', 'Transmissão', 'Combustível', 'Cor', 'Ano', 
+                    'Opcionais', 'Preço Compra', 'Preço Venda', 'Status', 
+                    'Data Entrada', 'Cidade', 'Estado', 'Concessionária', 
+                    'Operador', 'Contato', 'Observações'
+                ];
+                
+                const csvContent = [
+                    headers.join(','),
+                    ...dataToExport.map(v => {
+                        const escapeCsv = (field: any) => {
+                            if (field === null || field === undefined) return '';
+                            const stringValue = String(field);
+                            if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+                                return `"${stringValue.replace(/"/g, '""')}"`;
+                            }
+                            return stringValue;
+                        };
+
+                        return [
+                            escapeCsv(v.modelo),
+                            escapeCsv(v.transmissao),
+                            escapeCsv(v.combustivel),
+                            escapeCsv(v.cor),
+                            escapeCsv(v.ano),
+                            escapeCsv(v.opcionais),
+                            escapeCsv((v.preco || 0).toFixed(2)),
+                            escapeCsv((v.valorVenda || 0).toFixed(2)),
+                            escapeCsv(v.status),
+                            escapeCsv(v.dataEntrada ? new Date(v.dataEntrada).toLocaleDateString('pt-BR') : ''),
+                            escapeCsv(v.cidade),
+                            escapeCsv(v.estado),
+                            escapeCsv(v.concessionaria),
+                            escapeCsv(v.operador),
+                            escapeCsv(v.nomeContato),
+                            escapeCsv(v.observacoes)
+                        ].join(',');
+                    })
+                ].join('\n');
+                
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `veiculos_${new Date().toISOString().split('T')[0]}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            }
+        } catch (error) {
+            console.error('Erro ao exportar:', error);
+            alert('Erro ao exportar dados.');
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     const percent = importProgress.total > 0
         ? Math.max(0, Math.min(100, Math.round((importProgress.current / importProgress.total) * 100)))
@@ -262,6 +430,16 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
             items,
             value: items.length > 0 ? items[0].valor : 0
         };
+    };
+
+    const handleUpdateValorVenda = async (vehicle: Vehicle, newValue: number | undefined) => {
+        try {
+            if (!vehicle.id) return;
+            await updateVehicle(vehicle.id, { ...vehicle, valorVenda: newValue });
+        } catch (error) {
+            console.error('Erro ao atualizar valor de venda:', error);
+            alert('Erro ao atualizar valor de venda');
+        }
     };
 
     const [prefixWarnings, setPrefixWarnings] = useState<string[]>([]);
@@ -930,6 +1108,45 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                     )}
                     {role !== 'client' && (
                         <>
+                            <div className={styles.exportWrapper} style={{ position: 'relative', display: 'inline-block' }}>
+                                <button
+                                    className={styles.importButton}
+                                    onClick={() => setShowExportMenu(!showExportMenu)}
+                                    title="Exportar Veículos"
+                                    disabled={isExporting}
+                                    style={{ marginRight: '8px' }}
+                                >
+                                    {isExporting ? 'Exportando...' : '📤 Exportar'}
+                                </button>
+                                {showExportMenu && (
+                                    <div className={styles.exportMenu} style={{
+                                        position: 'absolute',
+                                        top: '100%',
+                                        left: 0,
+                                        zIndex: 10,
+                                        background: 'white',
+                                        border: '1px solid #ccc',
+                                        borderRadius: '4px',
+                                        boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        minWidth: '120px'
+                                    }}>
+                                        <button 
+                                            onClick={() => handleExport('csv')}
+                                            style={{ padding: '8px 12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', borderBottom: '1px solid #eee', color: '#333' }}
+                                        >
+                                            CSV (.csv)
+                                        </button>
+                                        <button 
+                                            onClick={() => handleExport('json')}
+                                            style={{ padding: '8px 12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', color: '#333' }}
+                                        >
+                                            JSON (.json)
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                             <button
                                 className={styles.importButton}
                                 onClick={() => setShowImportModal(true)}
@@ -1204,7 +1421,10 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                                 OPCIONAIS {sortConfig.key === 'opcionais' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                             </th>
                                             <th className={styles.tableHeader} onClick={() => handleSort('preco')} style={{ cursor: 'pointer' }}>
-                                                VALOR (R$) {sortConfig.key === 'preco' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                COMPRA (R$) {sortConfig.key === 'preco' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
+                                            <th className={styles.tableHeader} onClick={() => handleSort('valorVenda')} style={{ cursor: 'pointer' }}>
+                                                VENDA (R$) {sortConfig.key === 'valorVenda' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                             </th>
                                             <th className={styles.tableHeader} onClick={() => handleSort('status')} style={{ cursor: 'pointer' }}>
                                                 STATUS {sortConfig.key === 'status' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
@@ -1249,6 +1469,12 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                                 <td className={`${styles.tableCell} ${styles.colOpcionais}`}><HighlightText text={vehicle.opcionais} searchTerm={pendingSearchTerm} /></td>
                                                 <td className={styles.tableCell}>
                                                     R$ {calculatePriceWithMargin(vehicle.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                </td>
+                                                <td className={styles.tableCell}>
+                                                    <EditableCurrencyCell
+                                                        value={vehicle.valorVenda}
+                                                        onSave={(newValue) => handleUpdateValorVenda(vehicle, newValue)}
+                                                    />
                                                 </td>
                                                 <td className={styles.tableCell}>
                                                     <span className={`${styles.statusBadge} ${getStatusColor(vehicle.status)}`}>

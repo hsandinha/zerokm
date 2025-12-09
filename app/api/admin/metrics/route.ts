@@ -53,9 +53,6 @@ export async function GET(request: NextRequest) {
                 $sort: { total: -1 }
             },
             {
-                $limit: 10
-            },
-            {
                 $project: {
                     _id: 0,
                     nome: '$_id',
@@ -104,9 +101,6 @@ export async function GET(request: NextRequest) {
             },
             {
                 $sort: { dias: -1 }
-            },
-            {
-                $limit: 10
             }
         ]);
 

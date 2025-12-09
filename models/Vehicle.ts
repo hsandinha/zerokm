@@ -9,6 +9,7 @@ export interface IVehicle extends Document {
     ano: string;
     opcionais: string;
     preco: number;
+    valorVenda?: number;
     status: 'A faturar' | 'Refaturamento' | 'Licenciado';
     observacoes: string;
     cidade: string;
@@ -41,6 +42,7 @@ const VehicleSchema: Schema = new Schema({
     ano: { type: String, required: true },
     opcionais: { type: String },
     preco: { type: Number, required: true },
+    valorVenda: { type: Number },
     status: {
         type: String,
         enum: ['A faturar', 'Refaturamento', 'Licenciado'],
