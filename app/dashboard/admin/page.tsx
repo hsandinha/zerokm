@@ -243,47 +243,52 @@ export default function AdminDashboard() {
                             </div>
                         </div>
 
-                        {!showFilters && activeFiltersCount > 0 && (
-                            <div className={styles.activeFiltersBar}>
-                                <span className={styles.activeFiltersLabel}>Filtros ativos:</span>
-                                {Object.entries(filters).map(([key, value]) => {
-                                    if (!value) return null;
+                        {!showFilters && activeFiltersCount > 0 && (() => {
+                            const activeFilters = Object.entries(filters).filter(([_, value]) => value !== '');
+                            console.log('Active Filters:', activeFilters);
 
-                                    const filterLabels: Record<string, string> = {
-                                        operador: 'Operador',
-                                        concessionaria: 'Concessionária',
-                                        responsavel: 'Responsável',
-                                        diasDesde: 'Dias sem Atualização'
-                                    };
-
-                                    const label = filterLabels[key] || key;
-                                    let displayValue = value;
-
-                                    if (key === 'diasDesde') {
-                                        const diasLabels: Record<string, string> = {
-                                            '0-1': '0-1 (Verde)',
-                                            '2-3': '2-3 (Amarelo)',
-                                            '4+': '4+ (Vermelho)',
-                                            '7+': '7+ (Crítico)',
-                                            '15+': '15+ (Urgente)'
+                            return (
+                                <div className={styles.activeFiltersBar}>
+                                    <span className={styles.activeFiltersLabel}>Filtros ativos:</span>
+                                    {activeFilters.map(([key, value]) => {
+                                        const filterLabels: Record<string, string> = {
+                                            operador: 'Operador',
+                                            concessionaria: 'Concessionária',
+                                            responsavel: 'Responsável',
+                                            diasDesde: 'Dias sem Atualização'
                                         };
-                                        displayValue = diasLabels[value] || value;
-                                    }
 
-                                    return (
-                                        <span key={key} className={styles.activeFilterTag}>
-                                            {label}: {displayValue}
-                                            <button
-                                                onClick={() => handleFilterChange(key as keyof FiltersState, '')}
-                                                className={styles.removeFilterButton}
-                                            >
-                                                ×
-                                            </button>
-                                        </span>
-                                    );
-                                })}
-                            </div>
-                        )}
+                                        const label = filterLabels[key] || key;
+                                        let displayValue = value;
+
+                                        if (key === 'diasDesde') {
+                                            const diasLabels: Record<string, string> = {
+                                                '0-1': '0-1 (Verde)',
+                                                '2-3': '2-3 (Amarelo)',
+                                                '4+': '4+ (Vermelho)',
+                                                '7+': '7+ (Crítico)',
+                                                '15+': '15+ (Urgente)'
+                                            };
+                                            displayValue = diasLabels[value] || value;
+                                        }
+
+                                        console.log(`Rendering filter: ${key} = ${value}`);
+
+                                        return (
+                                            <span key={key} className={styles.activeFilterTag}>
+                                                {label}: {displayValue}
+                                                <button
+                                                    onClick={() => handleFilterChange(key as keyof FiltersState, '')}
+                                                    className={styles.removeFilterButton}
+                                                >
+                                                    ×
+                                                </button>
+                                            </span>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })()}
 
                         {showFilters && (
                             <div className={styles.filtersPanel}>
