@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useConfig } from '../../lib/contexts/ConfigContext';
 import { useVehicleDatabase } from '../../lib/hooks/useVehicleDatabase';
 import { useTablesDatabase } from '../../lib/hooks/useTablesDatabase';
-import { Vehicle } from '../../lib/services/vehicleService';
+import { Vehicle, VehicleService } from '../../lib/services/vehicleService';
 import { TransportadoraService, Transportadora } from '../../lib/services/transportadoraService';
 import { AddVehicleModal } from './AddVehicleModal';
 import styles from './VehicleConsultation.module.css';
@@ -59,9 +59,24 @@ const formatDate = (dateInput: string | Date | undefined) => {
     }
 };
 
+const calculateDaysSinceUpdate = (updatedAt: string | Date | undefined): number => {
+    if (!updatedAt) return 0;
+    const now = new Date();
+    const updateDate = new Date(updatedAt);
+    const diffTime = Math.abs(now.getTime() - updateDate.getTime());
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+};
+
+const getUpdateStatusColor = (days: number): string => {
+    if (days <= 1) return '#10b981'; // Verde
+    if (days <= 3) return '#f59e0b'; // Amarelo
+    return '#ef4444'; // Vermelho
+};
+
 interface VehicleConsultationProps {
     onClose?: () => void;
-    role?: 'admin' | 'operator' | 'client' | 'dealership';
+    role?: 'admin' | 'administrador' | 'operator' | 'operador' | 'client' | 'dealership' | 'vendedor' | 'operator/vendedor' | 'gerente';
 }
 
 type FiltersState = {
@@ -187,7 +202,53 @@ function EditableCurrencyCell({ value, onSave }: EditableCurrencyCellProps) {
 
 export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsultationProps) {
     const { data: session } = useSession();
-    const { margem } = useConfig();
+    const { margem, setMargem } = useConfig();
+    const [showMargemModal, setShowMargemModal] = useState(false);
+    const [inputMargem, setInputMargem] = useState<string>(margem.toString());
+    const [forceUpdate, setForceUpdate] = useState(false);
+
+    useEffect(() => {
+        setInputMargem(margem.toString());
+    }, [margem]);
+
+    const handleSaveMargem = async () => {
+        const newMargem = parseFloat(inputMargem) || 0;
+        setMargem(newMargem);
+
+        if (forceUpdate) {
+            try {
+                const res = await fetch('/api/vehicles', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'reset_sales_price' })
+                });
+
+                if (res.ok) {
+                    alert(`Margem de ${newMargem}% salva e aplicada a todos os veículos!`);
+                    // Recarregar lista para refletir mudanças
+                    const effectiveSearch = searchTerm && searchTerm.length < 3 ? '' : searchTerm;
+                    await getVehiclesPaginated({
+                        page: currentPage,
+                        itemsPerPage: itemsPerPage === -1 ? 1000 : itemsPerPage,
+                        searchTerm: effectiveSearch,
+                        filters,
+                        sortConfig: sortConfig.key ? sortConfig : undefined
+                    });
+                } else {
+                    alert('Margem salva, mas erro ao atualizar veículos.');
+                }
+            } catch (error) {
+                console.error('Erro ao resetar preços:', error);
+                alert('Margem salva, mas erro ao atualizar veículos.');
+            }
+        } else {
+            alert(`Margem de ${newMargem}% salva com sucesso!`);
+        }
+
+        setShowMargemModal(false);
+        setForceUpdate(false);
+    };
+
     // Estado efetivo (aplicado) para busca e filtros
     const [searchTerm, setSearchTerm] = useState('');
     // Estado pendente (digitando) para evitar disparar requisições a cada tecla
@@ -435,7 +496,19 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
     const handleUpdateValorVenda = async (vehicle: Vehicle, newValue: number | undefined) => {
         try {
             if (!vehicle.id) return;
-            await updateVehicle(vehicle.id, { ...vehicle, valorVenda: newValue });
+
+            // Usar o serviço diretamente para evitar que o hook resete a ordenação/paginação
+            await VehicleService.updateVehicle(vehicle.id, { ...vehicle, valorVenda: newValue });
+
+            // Recarregar mantendo o estado atual
+            const effectiveSearch = searchTerm && searchTerm.length < 3 ? '' : searchTerm;
+            await getVehiclesPaginated({
+                page: currentPage,
+                itemsPerPage: itemsPerPage === -1 ? 1000 : itemsPerPage,
+                searchTerm: effectiveSearch,
+                filters,
+                sortConfig: sortConfig.key ? sortConfig : undefined
+            });
         } catch (error) {
             console.error('Erro ao atualizar valor de venda:', error);
             alert('Erro ao atualizar valor de venda');
@@ -457,7 +530,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         const residualTokens: string[] = [];
 
         // Determine allowed fields based on role
-        const canViewContactInfo = role === 'admin' || role === 'dealership' || (role === 'operator' && !(session?.user as any)?.canViewLocation);
+        const canViewContactInfo = ['admin', 'administrador', 'gerente', 'dealership'].includes(role) || (role === 'operator' && !(session?.user as any)?.canViewLocation);
 
         let allowedFields: FilterKey[] = ['transmissao', 'combustivel', 'status', 'cor', 'ano', 'estado', 'opcionais'];
         if (canViewContactInfo) {
@@ -1154,6 +1227,16 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                             >
                                 📂 Importar CSV
                             </button>
+                            {['admin', 'administrador', 'gerente', 'operator', 'operador'].includes(role) && (
+                                <button
+                                    className={styles.importButton}
+                                    onClick={() => setShowMargemModal(true)}
+                                    title="Configurar Margem"
+                                    style={{ marginRight: '8px' }}
+                                >
+                                    💹 Margem
+                                </button>
+                            )}
                             <button
                                 className={styles.addButton}
                                 onClick={handleNewVehicleClick}
@@ -1420,12 +1503,16 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                             <th className={`${styles.tableHeader} ${styles.colOpcionais}`} onClick={() => handleSort('opcionais')} style={{ cursor: 'pointer' }}>
                                                 OPCIONAIS {sortConfig.key === 'opcionais' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                             </th>
-                                            <th className={styles.tableHeader} onClick={() => handleSort('preco')} style={{ cursor: 'pointer' }}>
-                                                COMPRA (R$) {sortConfig.key === 'preco' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                            </th>
-                                            <th className={styles.tableHeader} onClick={() => handleSort('valorVenda')} style={{ cursor: 'pointer' }}>
-                                                VENDA (R$) {sortConfig.key === 'valorVenda' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                            </th>
+                                            {['admin', 'administrador', 'operator', 'operador', 'gerente', 'dealership'].includes(role) && (
+                                                <th className={styles.tableHeader} onClick={() => handleSort('preco')} style={{ cursor: 'pointer' }}>
+                                                    COMPRA (R$) {sortConfig.key === 'preco' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                </th>
+                                            )}
+                                            {role !== 'dealership' && (
+                                                <th className={styles.tableHeader} onClick={() => handleSort('valorVenda')} style={{ cursor: 'pointer' }}>
+                                                    VENDA (R$) {sortConfig.key === 'valorVenda' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                </th>
+                                            )}
                                             <th className={styles.tableHeader} onClick={() => handleSort('status')} style={{ cursor: 'pointer' }}>
                                                 STATUS {sortConfig.key === 'status' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                             </th>
@@ -1443,7 +1530,10 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                                     OPERADOR {sortConfig.key === 'operador' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                                 </th>
                                             )}
-                                            {!(role === 'operator' && (session?.user as any)?.canViewLocation) && (
+                                            <th className={styles.tableHeader} onClick={() => handleSort('updatedAt')} style={{ cursor: 'pointer' }}>
+                                                ÚLTIMA ATUALIZAÇÃO {sortConfig.key === 'updatedAt' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
+                                            {!['vendedor', 'operator/vendedor'].includes(role) && ['admin', 'administrador', 'gerente', 'operator', 'operador', 'dealership', 'client'].includes(role) && (
                                                 <th className={styles.tableHeader}>AÇÕES</th>
                                             )}
                                         </tr>
@@ -1467,15 +1557,23 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                                 <td className={styles.tableCell}><HighlightText text={vehicle.cor} searchTerm={pendingSearchTerm} /></td>
                                                 <td className={styles.tableCell}><HighlightText text={vehicle.ano} searchTerm={pendingSearchTerm} /></td>
                                                 <td className={`${styles.tableCell} ${styles.colOpcionais}`}><HighlightText text={vehicle.opcionais} searchTerm={pendingSearchTerm} /></td>
-                                                <td className={styles.tableCell}>
-                                                    R$ {calculatePriceWithMargin(vehicle.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                                </td>
-                                                <td className={styles.tableCell}>
-                                                    <EditableCurrencyCell
-                                                        value={vehicle.valorVenda}
-                                                        onSave={(newValue) => handleUpdateValorVenda(vehicle, newValue)}
-                                                    />
-                                                </td>
+                                                {['admin', 'administrador', 'operator', 'operador', 'gerente', 'dealership'].includes(role) && (
+                                                    <td className={styles.tableCell}>
+                                                        R$ {(vehicle.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                    </td>
+                                                )}
+                                                {role !== 'dealership' && (
+                                                    <td className={styles.tableCell}>
+                                                        {['vendedor', 'operator/vendedor', 'client'].includes(role) ? (
+                                                            `R$ ${(vehicle.valorVenda || calculatePriceWithMargin(vehicle.preco || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                                                        ) : (
+                                                            <EditableCurrencyCell
+                                                                value={vehicle.valorVenda || calculatePriceWithMargin(vehicle.preco || 0)}
+                                                                onSave={(newValue) => handleUpdateValorVenda(vehicle, newValue)}
+                                                            />
+                                                        )}
+                                                    </td>
+                                                )}
                                                 <td className={styles.tableCell}>
                                                     <span className={`${styles.statusBadge} ${getStatusColor(vehicle.status)}`}>
                                                         {vehicle.status}
@@ -1511,21 +1609,40 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                                 {role !== 'client' && (
                                                     <td className={styles.tableCell}><HighlightText text={vehicle.operador} searchTerm={pendingSearchTerm} /></td>
                                                 )}
-                                                {!(role === 'operator' && (session?.user as any)?.canViewLocation) && (
+                                                <td className={styles.tableCell}>
+                                                    {(() => {
+                                                        const days = calculateDaysSinceUpdate(vehicle.updatedAt);
+                                                        const color = getUpdateStatusColor(days);
+                                                        return (
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                <span
+                                                                    style={{
+                                                                        display: 'inline-block',
+                                                                        width: '10px',
+                                                                        height: '10px',
+                                                                        borderRadius: '50%',
+                                                                        backgroundColor: color
+                                                                    }}
+                                                                />
+                                                                <span>{formatDate(vehicle.updatedAt)}</span>
+                                                                <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>({days}d)</span>
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </td>
+                                                {!['vendedor', 'operator/vendedor'].includes(role) && ['admin', 'administrador', 'gerente', 'operator', 'operador', 'dealership', 'client'].includes(role) && (
                                                     <td className={styles.tableCell}>
                                                         <div className={styles.actionButtons}>
-                                                            {(role === 'client' || role === 'admin' || role === 'dealership' || (role === 'operator' && !(session?.user as any)?.canViewLocation)) && (
-                                                                <span
-                                                                    className={styles.locationButton}
-                                                                    onClick={() => setLocationVehicle(vehicle)}
-                                                                    title="Ver localização e contato"
-                                                                    role="button"
-                                                                    tabIndex={0}
-                                                                >
-                                                                    📍
-                                                                </span>
-                                                            )}
-                                                            {(role === 'admin' || role === 'dealership' || (role === 'operator' && !(session?.user as any)?.canViewLocation)) && (
+                                                            <span
+                                                                className={styles.locationButton}
+                                                                onClick={() => setLocationVehicle(vehicle)}
+                                                                title="Ver localização e contato"
+                                                                role="button"
+                                                                tabIndex={0}
+                                                            >
+                                                                📍
+                                                            </span>
+                                                            {!['dealership', 'client'].includes(role) && (
                                                                 <>
                                                                     <span
                                                                         className={styles.editButton}
@@ -1790,6 +1907,84 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                 </div>
             )}
 
+            {/* Modal de Margem */}
+            {showMargemModal && (
+                <div className={modalStyles.overlay}>
+                    <div className={modalStyles.modal} style={{ maxWidth: '500px' }}>
+                        <div className={modalStyles.modalHeader}>
+                            <h3>Configurar Margem</h3>
+                            <button
+                                className={modalStyles.closeButton}
+                                onClick={() => setShowMargemModal(false)}
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div className={modalStyles.form}>
+                            <div className={styles.configSection}>
+                                <p>Defina a margem percentual aplicada ao preço de compra para calcular o preço de venda sugerido.</p>
+                                <div className={styles.margemInputGroup} style={{ marginTop: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <label htmlFor="margemInput">Margem (%):</label>
+                                    <input
+                                        id="margemInput"
+                                        type="text"
+                                        value={inputMargem}
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+                                            if (/^\d*\.?\d*$/.test(value)) {
+                                                setInputMargem(value);
+                                            }
+                                        }}
+                                        className={styles.searchInput}
+                                        style={{ width: '100px' }}
+                                    />
+                                </div>
+                                <div className={styles.margemInfo} style={{ marginTop: '20px', padding: '15px', background: '#f5f5f5', borderRadius: '8px' }}>
+                                    <div style={{ marginBottom: '10px' }}>
+                                        <span>Margem Atual: </span>
+                                        <strong>{margem}%</strong>
+                                    </div>
+                                    <div>
+                                        <span>Exemplo: </span>
+                                        <span>R$ 100.000 + {inputMargem || 0}% = R$ {(100000 * (1 + (parseFloat(inputMargem) || 0) / 100)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                    </div>
+                                </div>
+                                <div style={{ marginTop: '15px' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={forceUpdate}
+                                            onChange={(e) => setForceUpdate(e.target.checked)}
+                                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                                        />
+                                        <span style={{ fontWeight: 500 }}>Forçar atualização em todos os veículos</span>
+                                    </label>
+                                    <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '4px', marginLeft: '24px' }}>
+                                        ⚠️ Isso irá sobrescrever quaisquer preços de venda definidos manualmente, aplicando a nova margem a todos os veículos.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className={modalStyles.modalActions}>
+                            <button
+                                type="button"
+                                className={modalStyles.cancelButton}
+                                onClick={() => setShowMargemModal(false)}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                className={modalStyles.submitButton}
+                                onClick={handleSaveMargem}
+                            >
+                                Salvar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {locationVehicle && (
                 <div className={styles.modalOverlay} onClick={() => setLocationVehicle(null)}>
                     <div
@@ -1917,7 +2112,7 @@ interface VehicleCardProps {
     onDelete: (vehicle: Vehicle) => void;
     onWhatsApp: (vehicle: Vehicle) => void;
     onLocationClick: (vehicle: Vehicle) => void;
-    role?: 'admin' | 'operator' | 'client' | 'dealership';
+    role?: 'admin' | 'administrador' | 'operator' | 'operador' | 'client' | 'dealership' | 'vendedor' | 'operator/vendedor' | 'gerente';
     canViewLocation?: boolean;
 }
 
@@ -1964,7 +2159,7 @@ function VehicleCard({ vehicle, margem, onEdit, onDelete, onWhatsApp, onLocation
                 <div className={styles.cardRow}>
                     <span className={styles.cardLabel}>Localização:</span>
                     <span className={styles.cardValue}>
-                        {(role === 'admin' || canViewLocation) ? (
+                        {(['admin', 'administrador', 'gerente', 'dealership'].includes(role) || canViewLocation) ? (
                             <button
                                 onClick={() => onLocationClick(vehicle)}
                                 style={{
@@ -1992,6 +2187,30 @@ function VehicleCard({ vehicle, margem, onEdit, onDelete, onWhatsApp, onLocation
                         <span className={styles.cardValue}>{vehicle.operador}</span>
                     </div>
                 )}
+                <div className={styles.cardRow}>
+                    <span className={styles.cardLabel}>Última Atualização:</span>
+                    <span className={styles.cardValue}>
+                        {(() => {
+                            const days = calculateDaysSinceUpdate(vehicle.updatedAt);
+                            const color = getUpdateStatusColor(days);
+                            return (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <span
+                                        style={{
+                                            display: 'inline-block',
+                                            width: '8px',
+                                            height: '8px',
+                                            borderRadius: '50%',
+                                            backgroundColor: color
+                                        }}
+                                    />
+                                    <span>{formatDate(vehicle.updatedAt)}</span>
+                                    <span style={{ color: '#6b7280', fontSize: '0.85rem' }}>({days}d)</span>
+                                </div>
+                            );
+                        })()}
+                    </span>
+                </div>
                 {vehicle.observacoes && (
                     <div className={styles.cardRow}>
                         <span className={styles.cardLabel}>Observações:</span>
@@ -2001,11 +2220,23 @@ function VehicleCard({ vehicle, margem, onEdit, onDelete, onWhatsApp, onLocation
             </div>
 
             <div className={styles.cardFooter}>
-                <div className={styles.priceSection}>
-                    <span className={styles.priceLabel}>Preço:</span>
-                    <span className={styles.priceValue}>
-                        R$ {calculatePriceWithMargin(vehicle.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </span>
+                <div className={styles.priceSection} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+                    {['admin', 'administrador', 'operator', 'operador', 'gerente', 'dealership'].includes(role) && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                            <span className={styles.priceLabel} style={{ fontSize: '0.8rem' }}>Compra:</span>
+                            <span className={styles.priceValue} style={{ fontSize: '0.9rem' }}>
+                                R$ {(vehicle.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </span>
+                        </div>
+                    )}
+                    {role !== 'dealership' && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                            <span className={styles.priceLabel} style={{ fontSize: '0.8rem' }}>Venda:</span>
+                            <span className={styles.priceValue} style={{ fontSize: '0.9rem' }}>
+                                R$ {(vehicle.valorVenda || calculatePriceWithMargin(vehicle.preco || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </span>
+                        </div>
+                    )}
                 </div>
                 <div className={styles.cardActions}>
                     {role === 'client' ? (
@@ -2033,24 +2264,28 @@ function VehicleCard({ vehicle, margem, onEdit, onDelete, onWhatsApp, onLocation
                             >
                                 💬
                             </span>
-                            <span
-                                className={styles.editButton}
-                                title="Editar"
-                                onClick={() => onEdit(vehicle)}
-                                role="button"
-                                tabIndex={0}
-                            >
-                                ✏️
-                            </span>
-                            <span
-                                className={styles.deleteButton}
-                                title="Excluir"
-                                onClick={() => onDelete(vehicle)}
-                                role="button"
-                                tabIndex={0}
-                            >
-                                🗑️
-                            </span>
+                            {!['vendedor', 'operator/vendedor'].includes(role) && (
+                                <>
+                                    <span
+                                        className={styles.editButton}
+                                        title="Editar"
+                                        onClick={() => onEdit(vehicle)}
+                                        role="button"
+                                        tabIndex={0}
+                                    >
+                                        ✏️
+                                    </span>
+                                    <span
+                                        className={styles.deleteButton}
+                                        title="Excluir"
+                                        onClick={() => onDelete(vehicle)}
+                                        role="button"
+                                        tabIndex={0}
+                                    >
+                                        🗑️
+                                    </span>
+                                </>
+                            )}
                         </>
                     )}
                 </div>

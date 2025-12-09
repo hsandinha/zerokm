@@ -22,6 +22,8 @@ export interface Vehicle {
 
     // Campos opcionais mantidos por compatibilidade ou uso futuro
     fotos?: string[];
+    createdAt?: Date | string;
+    updatedAt?: Date | string;
 
     // Campos removidos (mantidos como opcionais para não quebrar código legado imediatamente, mas não serão usados)
     marca?: string;

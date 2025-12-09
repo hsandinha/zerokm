@@ -235,3 +235,25 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
+
+export async function PATCH(request: Request) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        await connectDB();
+        const body = await request.json();
+
+        if (body.action === 'reset_sales_price') {
+            await Vehicle.updateMany({}, { $unset: { valorVenda: "" } });
+            return NextResponse.json({ message: 'Preços de venda resetados com sucesso' });
+        }
+
+        return NextResponse.json({ error: 'Ação inválida' }, { status: 400 });
+    } catch (error: any) {
+        console.error('Erro na atualização em massa:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}

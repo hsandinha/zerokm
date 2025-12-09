@@ -22,7 +22,7 @@ type TabType = 'veiculos' | 'clientes' | 'transportadoras' | 'tabelas' | 'config
 export default function OperatorDashboard() {
     const [activeTab, setActiveTab] = useState<TabType>('veiculos');
     const [margem, setMargem] = useState<number>(0);
-    const [userInfo, setUserInfo] = useState<{ name?: string | null; email?: string | null; canViewLocation?: boolean }>({});
+    const [userInfo, setUserInfo] = useState<{ name?: string | null; email?: string | null; canViewLocation?: boolean; profile?: string }>({});
     const router = useRouter();
     const userName = userInfo.name ?? 'Operador';
     const userEmail = userInfo.email ?? null;
@@ -57,7 +57,8 @@ export default function OperatorDashboard() {
                     setUserInfo({
                         name: session.user.name ?? 'Operador',
                         email: session.user.email ?? null,
-                        canViewLocation: session.user.canViewLocation
+                        canViewLocation: session.user.canViewLocation,
+                        profile: session.user.profile
                     });
                 }
             })
@@ -76,24 +77,29 @@ export default function OperatorDashboard() {
         { id: 'veiculos', label: 'Veículos', icon: '🚗' },
         { id: 'tabelas', label: 'Características', icon: '📋' },
         { id: 'clientes', label: 'Concessionárias', icon: '🏢' },
-        { id: 'transportadoras', label: 'Frete', icon: '🚚' },
-        { id: 'configuracoes', label: 'Margem', icon: '💹' }
+        { id: 'transportadoras', label: 'Frete', icon: '🚚' }
     ];
 
     const renderTabContent = () => {
+        const userProfile = userInfo.profile as string || 'operator';
+        // Only override role to 'vendedor' if the user is an operator and has location view permission
+        // This prevents admins/managers from being downgraded to vendor status
+        const effectiveRole: 'admin' | 'administrador' | 'operator' | 'operador' | 'client' | 'dealership' | 'vendedor' | 'operator/vendedor' | 'gerente' = 
+            (['operator', 'operador'].includes(userProfile) && userInfo.canViewLocation)
+                ? 'vendedor'
+                : userProfile as any;
+
         switch (activeTab) {
             case 'veiculos':
-                return <VehicleConsultation />;
+                return <VehicleConsultation role={effectiveRole} />;
             case 'clientes':
                 return <ClientesTab />;
             case 'transportadoras':
                 return <TransportadorasManagement />;
             case 'tabelas':
                 return <TabelasTab />;
-            case 'configuracoes':
-                return <ConfiguracoesTab />;
             default:
-                return <VehicleConsultation />;
+                return <VehicleConsultation role={effectiveRole} />;
         }
     };
 
@@ -1358,81 +1364,6 @@ function TabelasTab() {
                 {activeTable === 'marcas' && <MarcasTable />}
                 {activeTable === 'modelos' && <ModelosTable />}
                 {activeTable === 'cores' && <CoresTable />}
-            </div>
-        </div>
-    );
-} function ConfiguracoesTab() {
-    const { margem, setMargem } = useConfig();
-    const [inputMargem, setInputMargem] = useState<string>(margem.toString());
-
-    // Sincronizar inputMargem quando margem mudar
-    useEffect(() => {
-        setInputMargem(margem.toString());
-    }, [margem]);
-
-    const handleSaveMargem = () => {
-        const newMargem = parseFloat(inputMargem) || 0;
-        setMargem(newMargem);
-        localStorage.setItem('vehicleMargem', newMargem.toString());
-        alert(`Margem de ${newMargem}% salva com sucesso!`);
-    };
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value;
-        // Permite apenas números e ponto decimal
-        if (/^\d*\.?\d*$/.test(value)) {
-            setInputMargem(value);
-        }
-    };
-
-    return (
-        <div className={styles.tabContentContainer}>
-            <div className={styles.configHeader}>
-                <h2>Margem</h2>
-                <p>Defina a margem percentual aplicada ao preço dos veículos.</p>
-            </div>
-
-            <div className={styles.configSection}>
-                <div className={styles.configCard}>
-                    <div className={styles.configCardHeader}>
-                        <h3>Margem de Lucro dos Veículos</h3>
-                        <p>Configure a margem percentual aplicada aos preços exibidos.</p>
-                    </div>
-
-                    <div className={styles.configCardBody}>
-                        <div className={styles.margemInputGroup}>
-                            <label htmlFor="margem">Margem (%):</label>
-                            <div className={styles.inputWithButton}>
-                                <input
-                                    id="margem"
-                                    type="text"
-                                    value={inputMargem}
-                                    onChange={handleInputChange}
-                                    placeholder=""
-                                    className={styles.margemInput}
-                                />
-                                <span className={styles.percentSymbol}></span>
-                                <button
-                                    onClick={handleSaveMargem}
-                                    className={styles.saveButton}
-                                >
-                                    Salvar
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className={styles.margemInfo}>
-                            <div className={styles.infoRow}>
-                                <span>Margem Atual:</span>
-                                <strong>{margem}%</strong>
-                            </div>
-                            <div className={styles.infoRow}>
-                                <span>Exemplo de Cálculo:</span>
-                                <span>Preço R$ 100.000 + {margem}% = R$ {(100000 * (1 + margem / 100)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     );

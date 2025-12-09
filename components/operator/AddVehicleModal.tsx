@@ -29,10 +29,12 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
     const [estados] = useState<string[]>(getEstados());
     const [cidades, setCidades] = useState<string[]>([]);
     const [concessionarias, setConcessionarias] = useState<any[]>([]);
+    const [operadores, setOperadores] = useState<any[]>([]);
     const [loadingMarcas, setLoadingMarcas] = useState(false);
     const [loadingModelos, setLoadingModelos] = useState(false);
     const [loadingCores, setLoadingCores] = useState(false);
     const [loadingConcessionarias, setLoadingConcessionarias] = useState(false);
+    const [loadingOperadores, setLoadingOperadores] = useState(false);
     const [formData, setFormData] = useState<Omit<Vehicle, 'id'>>({
         dataEntrada: new Date().toLocaleDateString('pt-BR'),
         modelo: '',
@@ -99,6 +101,13 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
         }
     }, [isEditing, editingVehicle, isOpen]);
 
+    // Carregar operadores quando o modal abrir
+    useEffect(() => {
+        if (isOpen) {
+            loadOperadores();
+        }
+    }, [isOpen]);
+
     const loadConcessionarias = async () => {
         if (concessionarias.length > 0) return;
         setLoadingConcessionarias(true);
@@ -109,6 +118,23 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
             console.error('Erro ao carregar concessionarias:', error);
         } finally {
             setLoadingConcessionarias(false);
+        }
+    };
+
+    // Função para carregar operadores (usuários com perfil operador, sem vendedor)
+    const loadOperadores = async () => {
+        if (operadores.length > 0) return;
+        setLoadingOperadores(true);
+        try {
+            const response = await fetch('/api/admin/users');
+            if (response.ok) {
+                const users = await response.json();
+                setOperadores(users);
+            }
+        } catch (error) {
+            console.error('Erro ao carregar operadores:', error);
+        } finally {
+            setLoadingOperadores(false);
         }
     };
 
@@ -421,9 +447,8 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                             required
                         >
                             <option value="A faturar">A faturar</option>
-                            <option value="Disponível">Disponível</option>
-                            <option value="Vendido">Vendido</option>
-                            <option value="Reservado">Reservado</option>
+                            <option value="Refaturamento">Refaturamento</option>
+                            <option value="Licenciado">Licenciado</option>
                         </select>
                     </div>
 
@@ -499,15 +524,23 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
 
                     <div className={styles.formGroup}>
                         <label htmlFor="operador">Operador*</label>
-                        <input
-                            type="text"
+                        <select
                             id="operador"
                             name="operador"
                             value={formData.operador}
                             onChange={handleInputChange}
-                            placeholder="Ex: JOÃO"
                             required
-                        />
+                            disabled={loadingOperadores}
+                        >
+                            <option value="">
+                                {loadingOperadores ? 'Carregando operadores...' : 'Selecione um operador'}
+                            </option>
+                            {operadores.map((op) => (
+                                <option key={op._id} value={op.displayName || op.email}>
+                                    {op.displayName || op.email}
+                                </option>
+                            ))}
+                        </select>
                     </div>
                 </div>
 
