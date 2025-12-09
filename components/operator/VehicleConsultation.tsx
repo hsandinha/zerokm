@@ -155,7 +155,7 @@ function EditableCurrencyCell({ value, onSave }: EditableCurrencyCellProps) {
         const display = localValue
             ? (parseInt(localValue, 10) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })
             : '0,00';
-            
+
         return (
             <input
                 autoFocus
@@ -243,19 +243,19 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         try {
             setIsExporting(true);
             setShowExportMenu(false);
-            
+
             // Fetch all data with current filters
             // Using a large limit to get all matching records
             const result = await getVehiclesPaginated({
                 page: 1,
-                itemsPerPage: 100000, 
+                itemsPerPage: 100000,
                 searchTerm: searchTerm,
                 filters: filters,
                 sortConfig: sortConfig.key ? sortConfig : undefined
             });
-            
+
             const dataToExport = result.data;
-            
+
             if (format === 'json') {
                 const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
                 const url = window.URL.createObjectURL(blob);
@@ -269,12 +269,12 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
             } else if (format === 'csv') {
                 // Generate CSV
                 const headers = [
-                    'Modelo', 'Transmissão', 'Combustível', 'Cor', 'Ano', 
-                    'Opcionais', 'Preço Compra', 'Preço Venda', 'Status', 
-                    'Data Entrada', 'Cidade', 'Estado', 'Concessionária', 
+                    'Modelo', 'Transmissão', 'Combustível', 'Cor', 'Ano',
+                    'Opcionais', 'Preço Compra', 'Preço Venda', 'Status',
+                    'Data Entrada', 'Cidade', 'Estado', 'Concessionária',
                     'Operador', 'Contato', 'Observações'
                 ];
-                
+
                 const csvContent = [
                     headers.join(','),
                     ...dataToExport.map(v => {
@@ -307,7 +307,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                         ].join(',');
                     })
                 ].join('\n');
-                
+
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -1132,13 +1132,13 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                         flexDirection: 'column',
                                         minWidth: '120px'
                                     }}>
-                                        <button 
+                                        <button
                                             onClick={() => handleExport('csv')}
                                             style={{ padding: '8px 12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', borderBottom: '1px solid #eee', color: '#333' }}
                                         >
                                             CSV (.csv)
                                         </button>
-                                        <button 
+                                        <button
                                             onClick={() => handleExport('json')}
                                             style={{ padding: '8px 12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', color: '#333' }}
                                         >
