@@ -1719,11 +1719,11 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
 
                         <div className={modalStyles.form}>
                             <div className={modalStyles.importInstructions}>
-                                <h4>📋 Formato do arquivo CSV (16 colunas):</h4>
+                                <h4>📋 Formato do arquivo CSV (17 colunas):</h4>
                                 <ul>
-                                    <li>Primeira linha deve conter os cabeçalhos: <strong>dataEntrada,modelo,transmissao,combustivel,cor,ano,opcionais,preco,status,observacoes,cidade,estado,frete,telefone,nomeContato,operador</strong></li>
+                                    <li>Primeira linha deve conter os cabeçalhos: <strong>dataEntrada,modelo,transmissao,combustivel,cor,ano,opcionais,preco,status,observacoes,cidade,estado,frete,telefone,concessionaria,nomeContato,operador</strong></li>
                                     <li>As linhas seguintes devem conter os dados separados por vírgula</li>
-                                    <li><strong>Campos obrigatórios:</strong> modelo, transmissao, combustivel, ano, preco, status, cidade, estado, frete, telefone, nomeContato</li>
+                                    <li><strong>Campos obrigatórios:</strong> modelo, transmissao, combustivel, ano, preco, status, cidade, estado, frete, telefone, concessionaria, nomeContato</li>
                                     <li><strong>Campos opcionais:</strong> dataEntrada, cor, opcionais, observacoes, operador</li>
                                     <li><strong>Status válidos:</strong> A faturar, Refaturamento, Licenciado</li>
                                     <li><strong>Combustível válido:</strong> Flex, Gasolina, Etanol, Diesel, Elétrico, Híbrido</li>
@@ -1731,7 +1731,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                     <li>Exemplo (role horizontalmente):</li>
                                 </ul>
                                 <pre className={modalStyles.csvExample} style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}>
-                                    dataEntrada,modelo,transmissao,combustivel,cor,ano,opcionais,preco,status,observacoes,cidade,estado,frete,telefone,nomeContato,operador{"\n"}20/11/2025,COROLLA ALTIS 2.0,Automático,Flex,BRANCO POLAR,2024,AR CONDICIONADO,154920,A faturar,Veículo novo,São Paulo,SP,1500,11999991001,CARLOS SILVA,JOÃO
+                                    dataEntrada,modelo,transmissao,combustivel,cor,ano,opcionais,preco,status,observacoes,cidade,estado,frete,telefone,concessionaria,nomeContato,operador{"\n"}20/11/2025,COROLLA ALTIS 2.0,Automático,Flex,BRANCO POLAR,2024,AR CONDICIONADO,154920,A faturar,Veículo novo,São Paulo,SP,1500,11999991001,RENAULT ANDRETA,CARLOS SILVA,JOÃO
                                 </pre>
                             </div>
 

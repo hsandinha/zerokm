@@ -47,6 +47,7 @@ export async function GET(request: Request) {
         const search = searchParams.get('search') || '';
         const sortKey = searchParams.get('sortKey') || 'dataEntrada';
         const sortDir = searchParams.get('sortDir') === 'asc' ? 1 : -1;
+        const semConcessionaria = searchParams.get('semConcessionaria') === 'true';
 
         const filters: any = {};
         if (searchParams.get('status')) filters.status = searchParams.get('status');
@@ -59,6 +60,11 @@ export async function GET(request: Request) {
         if (searchParams.get('cidade')) filters.cidade = searchParams.get('cidade');
         if (searchParams.get('operador')) filters.operador = searchParams.get('operador');
         if (searchParams.get('concessionaria')) filters.concessionaria = searchParams.get('concessionaria');
+
+        // Filtro para veículos sem concessionária
+        if (semConcessionaria) {
+            filters.semConcessionaria = true;
+        }
 
         // Enforce restriction
         if (restrictedDealershipName) {
@@ -82,9 +88,19 @@ export async function GET(request: Request) {
         if (filters.cidade) {
             query.cidade = { $regex: escapeRegex(filters.cidade), $options: 'i' };
         }
-        if (filters.concessionaria) {
+
+        // Filtro para veículos sem concessionária - tem prioridade sobre filtro de concessionária
+        if (filters.semConcessionaria) {
+            query.$or = [
+                { concessionaria: { $exists: false } },
+                { concessionaria: null },
+                { concessionaria: '' }
+            ];
+        } else if (filters.concessionaria) {
+            // Só aplica filtro de concessionária se NÃO estiver buscando sem concessionária
             query.concessionaria = { $regex: escapeRegex(filters.concessionaria), $options: 'i' };
         }
+
         if (filters.nomeContato) {
             query.nomeContato = { $regex: escapeRegex(filters.nomeContato), $options: 'i' };
         }

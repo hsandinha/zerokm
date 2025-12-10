@@ -94,6 +94,11 @@ export function ConcessionariasManagement() {
     const [isFetchingCep, setIsFetchingCep] = useState(false);
     const [cepError, setCepError] = useState<string | null>(null);
     const lastCepRef = useRef<string>('');
+    const [showAssociateModal, setShowAssociateModal] = useState(false);
+    const [selectedConcessionariaForAssociate, setSelectedConcessionariaForAssociate] = useState<ClienteData | null>(null);
+    const [vehiclesWithoutConcessionaria, setVehiclesWithoutConcessionaria] = useState<any[]>([]);
+    const [loadingVehicles, setLoadingVehicles] = useState(false);
+    const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
 
     const getStatusColor = (dateString?: string | null) => {
         if (!dateString) return 'red';
@@ -121,6 +126,72 @@ export function ConcessionariasManagement() {
         setCepError(null);
         setIsFetchingCep(false);
         lastCepRef.current = '';
+    };
+
+    const fetchVehiclesWithoutConcessionaria = async () => {
+        setLoadingVehicles(true);
+        try {
+            const response = await fetch('/api/vehicles?semConcessionaria=true&limit=1000');
+            if (response.ok) {
+                const data = await response.json();
+                console.log('Veículos sem concessionária:', data);
+                setVehiclesWithoutConcessionaria(data.vehicles || data.data || []);
+            } else {
+                console.error('Erro na resposta:', response.status);
+            }
+        } catch (error) {
+            console.error('Erro ao carregar veículos:', error);
+        } finally {
+            setLoadingVehicles(false);
+        }
+    };
+
+    const handleOpenAssociateModal = (cliente: ClienteData) => {
+        setSelectedConcessionariaForAssociate(cliente);
+        setShowAssociateModal(true);
+        setSelectedVehicles([]);
+        fetchVehiclesWithoutConcessionaria();
+    };
+
+    const handleCloseAssociateModal = () => {
+        setShowAssociateModal(false);
+        setSelectedConcessionariaForAssociate(null);
+        setSelectedVehicles([]);
+        setVehiclesWithoutConcessionaria([]);
+    };
+
+    const handleToggleVehicle = (vehicleId: string) => {
+        setSelectedVehicles(prev =>
+            prev.includes(vehicleId)
+                ? prev.filter(id => id !== vehicleId)
+                : [...prev, vehicleId]
+        );
+    };
+
+    const handleAssociateVehicles = async () => {
+        if (!selectedConcessionariaForAssociate || selectedVehicles.length === 0) return;
+
+        try {
+            const response = await fetch('/api/vehicles/associate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    concessionaria: selectedConcessionariaForAssociate.nome,
+                    vehicleIds: selectedVehicles
+                })
+            });
+
+            if (response.ok) {
+                alert(`${selectedVehicles.length} veículo(s) associado(s) com sucesso!`);
+                handleCloseAssociateModal();
+                fetchClientes();
+            } else {
+                alert('Erro ao associar veículos');
+            }
+        } catch (error) {
+            console.error('Erro ao associar veículos:', error);
+            alert('Erro ao associar veículos');
+        }
     };
 
     const fetchClientes = useCallback(async () => {
@@ -745,6 +816,13 @@ export function ConcessionariasManagement() {
                                                         ✏️
                                                     </button>
                                                     <button
+                                                        className={styles.associateButton}
+                                                        onClick={() => handleOpenAssociateModal(cliente)}
+                                                        title="Associar Veículos"
+                                                    >
+                                                        🔗
+                                                    </button>
+                                                    <button
                                                         className={styles.deleteButton}
                                                         onClick={() => handleDelete(cliente.id)}
                                                         title="Excluir"
@@ -761,6 +839,110 @@ export function ConcessionariasManagement() {
                     </div>
                 )}
             </div>
+
+            {/* Modal de Associação de Veículos */}
+            {showAssociateModal && selectedConcessionariaForAssociate && (
+                <div className={styles.modalOverlay} onClick={handleCloseAssociateModal}>
+                    <div className={styles.modalContent} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px', maxHeight: '80vh', overflow: 'auto' }}>
+                        <div className={styles.modalHeader}>
+                            <h2>🔗 Associar Veículos</h2>
+                            <button className={styles.closeButton} onClick={handleCloseAssociateModal}>×</button>
+                        </div>
+                        <div className={styles.modalBody}>
+                            <p style={{ marginBottom: '1rem', fontSize: '1.1rem' }}>
+                                <strong>Concessionária:</strong> {selectedConcessionariaForAssociate.nome}
+                            </p>
+                            <p style={{ marginBottom: '1rem', color: '#666' }}>
+                                Selecione os veículos sem concessionária para associar:
+                            </p>
+
+                            {loadingVehicles ? (
+                                <p>Carregando veículos...</p>
+                            ) : vehiclesWithoutConcessionaria.length === 0 ? (
+                                <p style={{ textAlign: 'center', color: '#999', padding: '2rem' }}>
+                                    Não há veículos sem concessionária associada.
+                                </p>
+                            ) : (
+                                <>
+                                    <div style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                                        <button
+                                            onClick={() => setSelectedVehicles(vehiclesWithoutConcessionaria.map(v => v.id))}
+                                            className={styles.selectAllButton}
+                                        >
+                                            ✓ Selecionar Todos
+                                        </button>
+                                        <button
+                                            onClick={() => setSelectedVehicles([])}
+                                            className={styles.clearSelectionButton}
+                                        >
+                                            ✕ Limpar Seleção
+                                        </button>
+                                        <span style={{ marginLeft: 'auto', fontWeight: 'bold', color: 'var(--color-text)' }}>
+                                            {selectedVehicles.length} selecionado(s)
+                                        </span>
+                                    </div>
+
+                                    <table className={styles.table} style={{ fontSize: '0.9rem' }}>
+                                        <thead>
+                                            <tr>
+                                                <th style={{ width: '50px' }}>✓</th>
+                                                <th>MODELO</th>
+                                                <th>ANO</th>
+                                                <th>COR</th>
+                                                <th>COMBUSTÍVEL</th>
+                                                <th>CIDADE</th>
+                                                <th>CONTATO</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {vehiclesWithoutConcessionaria.map((vehicle) => (
+                                                <tr key={vehicle.id} className={styles.tableRow}>
+                                                    <td className={styles.tableCell} style={{ textAlign: 'center' }}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedVehicles.includes(vehicle.id)}
+                                                            onChange={() => handleToggleVehicle(vehicle.id)}
+                                                        />
+                                                    </td>
+                                                    <td className={styles.tableCell}>{vehicle.modelo}</td>
+                                                    <td className={styles.tableCell}>{vehicle.ano}</td>
+                                                    <td className={styles.tableCell}>{vehicle.cor}</td>
+                                                    <td className={styles.tableCell}>{vehicle.combustivel}</td>
+                                                    <td className={styles.tableCell}>{vehicle.cidade} - {vehicle.estado}</td>
+                                                    <td className={styles.tableCell}>
+                                                        <div>{vehicle.nomeContato}</div>
+                                                        {vehicle.telefone && (
+                                                            <div style={{ fontSize: '0.85rem', color: '#666' }}>{vehicle.telefone}</div>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </>
+                            )}
+                        </div>
+                        <div className={styles.modalFooter}>
+                            <button
+                                type="button"
+                                onClick={handleCloseAssociateModal}
+                                className={styles.cancelButton}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleAssociateVehicles}
+                                className={styles.submitButton}
+                                disabled={selectedVehicles.length === 0}
+                                style={{ opacity: selectedVehicles.length === 0 ? 0.5 : 1 }}
+                            >
+                                Associar {selectedVehicles.length > 0 && `(${selectedVehicles.length})`}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

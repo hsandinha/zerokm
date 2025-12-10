@@ -298,17 +298,17 @@ class TablesService {
 
                 const columns = line.split(separator).map(item => item.trim().replace(/"/g, ''));
 
-                if (columns.length < 16) {
-                    results.errors.push({ line: i + 1, reason: `Dados insuficientes - esperado 16 colunas, encontradas ${columns.length}`, raw: line, columns });
+                if (columns.length < 17) {
+                    results.errors.push({ line: i + 1, reason: `Dados insuficientes - esperado 17 colunas, encontradas ${columns.length}`, raw: line, columns });
                     continue;
                 }
 
                 const [
                     dataEntrada, modelo, transmissao, combustivel, cor, ano, opcionais, precoStr,
-                    status, observacoes, cidade, estado, freteStr, telefone, nomeContato, operador
+                    status, observacoes, cidade, estado, freteStr, telefone, concessionaria, nomeContato, operador
                 ] = columns;
 
-                if (!modelo || !cidade || !estado || !nomeContato || !telefone) {
+                if (!modelo || !cidade || !estado || !concessionaria || !nomeContato || !telefone) {
                     results.errors.push({ line: i + 1, reason: 'Campos obrigatórios em branco', raw: line, columns });
                     continue;
                 }
@@ -446,6 +446,7 @@ class TablesService {
                         estado: estado,
                         frete: frete,
                         telefone: telefone,
+                        concessionaria: concessionaria,
                         nomeContato: nomeContato,
                         operador: operador || ''
                     };
