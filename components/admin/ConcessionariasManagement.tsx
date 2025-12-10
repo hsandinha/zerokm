@@ -100,6 +100,8 @@ export function ConcessionariasManagement() {
     const [loadingVehicles, setLoadingVehicles] = useState(false);
     const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
     const [vehicleFilter, setVehicleFilter] = useState('');
+    const [sortColumn, setSortColumn] = useState<string | null>(null);
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
     const getStatusColor = (dateString?: string | null) => {
         if (!dateString) return 'red';
@@ -147,9 +149,20 @@ export function ConcessionariasManagement() {
         }
     };
 
+    const handleSort = (column: string) => {
+        if (sortColumn === column) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortColumn(column);
+            setSortDirection('asc');
+        }
+    };
+
     const handleOpenAssociateModal = (cliente: ClienteData) => {
         setSelectedConcessionariaForAssociate(cliente);
         setVehicleFilter('');
+        setSortColumn(null);
+        setSortDirection('asc');
         setShowAssociateModal(true);
         setSelectedVehicles([]);
         fetchVehiclesWithoutConcessionaria();
@@ -908,12 +921,24 @@ export function ConcessionariasManagement() {
                                         <thead>
                                             <tr>
                                                 <th style={{ width: '50px' }}>✓</th>
-                                                <th>MODELO</th>
-                                                <th>ANO</th>
-                                                <th>COR</th>
-                                                <th>COMBUSTÍVEL</th>
-                                                <th>CIDADE</th>
-                                                <th>CONTATO</th>
+                                                <th onClick={() => handleSort('modelo')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                                    MODELO {sortColumn === 'modelo' && (sortDirection === 'asc' ? '↑' : '↓')}
+                                                </th>
+                                                <th onClick={() => handleSort('ano')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                                    ANO {sortColumn === 'ano' && (sortDirection === 'asc' ? '↑' : '↓')}
+                                                </th>
+                                                <th onClick={() => handleSort('cor')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                                    COR {sortColumn === 'cor' && (sortDirection === 'asc' ? '↑' : '↓')}
+                                                </th>
+                                                <th onClick={() => handleSort('combustivel')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                                    COMBUSTÍVEL {sortColumn === 'combustivel' && (sortDirection === 'asc' ? '↑' : '↓')}
+                                                </th>
+                                                <th onClick={() => handleSort('cidade')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                                    CIDADE {sortColumn === 'cidade' && (sortDirection === 'asc' ? '↑' : '↓')}
+                                                </th>
+                                                <th onClick={() => handleSort('nomeContato')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                                    CONTATO {sortColumn === 'nomeContato' && (sortDirection === 'asc' ? '↑' : '↓')}
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -921,31 +946,38 @@ export function ConcessionariasManagement() {
                                                 .filter(vehicle => {
                                                     if (!vehicleFilter) return true;
                                                     const searchTerm = vehicleFilter.toLowerCase();
-                                                    return vehicle.modelo?.toLowerCase().includes(searchTerm) || 
-                                                           vehicle.nomeContato?.toLowerCase().includes(searchTerm);
+                                                    return vehicle.modelo?.toLowerCase().includes(searchTerm) ||
+                                                        vehicle.nomeContato?.toLowerCase().includes(searchTerm);
+                                                })
+                                                .sort((a, b) => {
+                                                    if (!sortColumn) return 0;
+                                                    const aValue = a[sortColumn] || '';
+                                                    const bValue = b[sortColumn] || '';
+                                                    const comparison = aValue.toString().localeCompare(bValue.toString(), 'pt-BR', { numeric: true });
+                                                    return sortDirection === 'asc' ? comparison : -comparison;
                                                 })
                                                 .map((vehicle) => (
-                                                <tr key={vehicle.id} className={styles.tableRow}>
-                                                    <td className={styles.tableCell} style={{ textAlign: 'center' }}>
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={selectedVehicles.includes(vehicle.id)}
-                                                            onChange={() => handleToggleVehicle(vehicle.id)}
-                                                        />
-                                                    </td>
-                                                    <td className={styles.tableCell}>{vehicle.modelo}</td>
-                                                    <td className={styles.tableCell}>{vehicle.ano}</td>
-                                                    <td className={styles.tableCell}>{vehicle.cor}</td>
-                                                    <td className={styles.tableCell}>{vehicle.combustivel}</td>
-                                                    <td className={styles.tableCell}>{vehicle.cidade} - {vehicle.estado}</td>
-                                                    <td className={styles.tableCell}>
-                                                        <div>{vehicle.nomeContato}</div>
-                                                        {vehicle.telefone && (
-                                                            <div style={{ fontSize: '0.85rem', color: '#666' }}>{vehicle.telefone}</div>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                                    <tr key={vehicle.id} className={styles.tableRow}>
+                                                        <td className={styles.tableCell} style={{ textAlign: 'center' }}>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedVehicles.includes(vehicle.id)}
+                                                                onChange={() => handleToggleVehicle(vehicle.id)}
+                                                            />
+                                                        </td>
+                                                        <td className={styles.tableCell}>{vehicle.modelo}</td>
+                                                        <td className={styles.tableCell}>{vehicle.ano}</td>
+                                                        <td className={styles.tableCell}>{vehicle.cor}</td>
+                                                        <td className={styles.tableCell}>{vehicle.combustivel}</td>
+                                                        <td className={styles.tableCell}>{vehicle.cidade} - {vehicle.estado}</td>
+                                                        <td className={styles.tableCell}>
+                                                            <div>{vehicle.nomeContato}</div>
+                                                            {vehicle.telefone && (
+                                                                <div style={{ fontSize: '0.85rem', color: '#666' }}>{vehicle.telefone}</div>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
                                         </tbody>
                                     </table>
                                 </>
