@@ -532,7 +532,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
         const residualTokens: string[] = [];
 
         // Determine allowed fields based on role
-        const canViewContactInfo = ['admin', 'administrador', 'gerente', 'dealership'].includes(role) || (role === 'operator' && !(session?.user as any)?.canViewLocation);
+        const canViewContactInfo = ['admin', 'administrador', 'gerente', 'dealership', 'operator', 'operador'].includes(role);
 
         let allowedFields: FilterKey[] = ['transmissao', 'combustivel', 'status', 'cor', 'ano', 'estado', 'opcionais'];
         if (canViewContactInfo) {
