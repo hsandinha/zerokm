@@ -1445,7 +1445,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                                 />
                                             </th>
                                             <th className={styles.tableHeader} onClick={() => handleSort('dataEntrada')} style={{ cursor: 'pointer' }}>
-                                                DATA ENTRADA {sortConfig.key === 'dataEntrada' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                DT ENT/ATUALIZ. {sortConfig.key === 'dataEntrada' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                             </th>
                                             {!selectedModel && (
                                                 <th className={styles.tableHeader} onClick={() => handleSort('modelo')} style={{ cursor: 'pointer' }}>
@@ -1498,9 +1498,6 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                                     OPERADOR {sortConfig.key === 'operador' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                                 </th>
                                             )}
-                                            <th className={styles.tableHeader} onClick={() => handleSort('updatedAt')} style={{ cursor: 'pointer' }}>
-                                                ÚLTIMA ATUALIZAÇÃO {sortConfig.key === 'updatedAt' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                            </th>
                                             {!['vendedor', 'operator/vendedor'].includes(role) && ['admin', 'administrador', 'gerente', 'operator', 'operador', 'dealership', 'client'].includes(role) && (
                                                 <th className={styles.tableHeader}>AÇÕES</th>
                                             )}
@@ -1516,7 +1513,35 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                                         onChange={() => handleSelectOne(vehicle.id || '')}
                                                     />
                                                 </td>
-                                                <td className={styles.tableCell}><HighlightText text={formatDate(vehicle.dataEntrada)} searchTerm={pendingSearchTerm} /></td>
+                                                <td className={styles.tableCell}>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                            <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>E:</span>
+                                                            <HighlightText text={formatDate(vehicle.dataEntrada)} searchTerm={pendingSearchTerm} />
+                                                        </div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                            {(() => {
+                                                                const days = calculateDaysSinceUpdate(vehicle.updatedAt);
+                                                                const color = getUpdateStatusColor(days);
+                                                                return (
+                                                                    <>
+                                                                        <span
+                                                                            style={{
+                                                                                display: 'inline-block',
+                                                                                width: '8px',
+                                                                                height: '8px',
+                                                                                borderRadius: '50%',
+                                                                                backgroundColor: color
+                                                                            }}
+                                                                        />
+                                                                        <span style={{ fontSize: '0.875rem' }}>{formatDate(vehicle.updatedAt)}</span>
+                                                                        <span style={{ color: '#6b7280', fontSize: '0.75rem' }}>({days}d)</span>
+                                                                    </>
+                                                                );
+                                                            })()}
+                                                        </div>
+                                                    </div>
+                                                </td>
                                                 {!selectedModel && (
                                                     <td className={styles.tableCell}><HighlightText text={vehicle.modelo} searchTerm={pendingSearchTerm} /></td>
                                                 )}
@@ -1581,27 +1606,6 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                                 {role !== 'client' && (
                                                     <td className={styles.tableCell}><HighlightText text={vehicle.operador} searchTerm={pendingSearchTerm} /></td>
                                                 )}
-                                                <td className={styles.tableCell}>
-                                                    {(() => {
-                                                        const days = calculateDaysSinceUpdate(vehicle.updatedAt);
-                                                        const color = getUpdateStatusColor(days);
-                                                        return (
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                                <span
-                                                                    style={{
-                                                                        display: 'inline-block',
-                                                                        width: '10px',
-                                                                        height: '10px',
-                                                                        borderRadius: '50%',
-                                                                        backgroundColor: color
-                                                                    }}
-                                                                />
-                                                                <span>{formatDate(vehicle.updatedAt)}</span>
-                                                                <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>({days}d)</span>
-                                                            </div>
-                                                        );
-                                                    })()}
-                                                </td>
                                                 {!['vendedor', 'operator/vendedor'].includes(role) && ['admin', 'administrador', 'gerente', 'operator', 'operador', 'dealership', 'client'].includes(role) && (
                                                     <td className={styles.tableCell}>
                                                         <div className={styles.actionButtons}>
