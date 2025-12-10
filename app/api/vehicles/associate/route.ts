@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '../../../../lib/mongodb';
+import dbConnect from '../../../../lib/mongodb';
 import Vehicle from '../../../../models/Vehicle';
 
 export async function POST(request: NextRequest) {
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        await connectToDatabase();
+        await dbConnect();
 
         // Atualizar todos os veículos selecionados
         const result = await Vehicle.updateMany(
