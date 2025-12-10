@@ -1480,15 +1480,19 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                             <th className={styles.tableHeader} onClick={() => handleSort('status')} style={{ cursor: 'pointer' }}>
                                                 STATUS {sortConfig.key === 'status' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                             </th>
-                                            <th className={styles.tableHeader} onClick={() => handleSort('estado')} style={{ cursor: 'pointer' }}>
-                                                UF {sortConfig.key === 'estado' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                            </th>
+                                            {!['vendedor', 'operator/vendedor'].includes(role) && (
+                                                <th className={styles.tableHeader} onClick={() => handleSort('estado')} style={{ cursor: 'pointer' }}>
+                                                    UF {sortConfig.key === 'estado' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                </th>
+                                            )}
                                             <th className={styles.tableHeader} onClick={() => handleSort('observacoes')} style={{ cursor: 'pointer' }}>
                                                 OBSERVAÇÕES {sortConfig.key === 'observacoes' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                             </th>
-                                            <th className={styles.tableHeader} onClick={() => handleSort('frete')} style={{ cursor: 'pointer' }}>
-                                                FRETE {sortConfig.key === 'frete' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                            </th>
+                                            {!['vendedor', 'operator/vendedor'].includes(role) && (
+                                                <th className={styles.tableHeader} onClick={() => handleSort('frete')} style={{ cursor: 'pointer' }}>
+                                                    FRETE {sortConfig.key === 'frete' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                </th>
+                                            )}
                                             {role !== 'client' && (
                                                 <th className={styles.tableHeader} onClick={() => handleSort('operador')} style={{ cursor: 'pointer' }}>
                                                     OPERADOR {sortConfig.key === 'operador' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
@@ -1543,33 +1547,37 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                                         {vehicle.status}
                                                     </span>
                                                 </td>
-                                                <td className={styles.tableCell}><HighlightText text={vehicle.estado} searchTerm={pendingSearchTerm} /></td>
+                                                {!['vendedor', 'operator/vendedor'].includes(role) && (
+                                                    <td className={styles.tableCell}><HighlightText text={vehicle.estado} searchTerm={pendingSearchTerm} /></td>
+                                                )}
                                                 <td className={styles.tableCell}><HighlightText text={vehicle.observacoes} searchTerm={pendingSearchTerm} /></td>
-                                                <td className={styles.tableCell}>
-                                                    {(() => {
-                                                        const info = getFreteInfo(vehicle.estado);
-                                                        if (info.count === 0) return '-';
-                                                        if (info.count === 1) {
-                                                            return `R$ ${info.items[0].valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
-                                                        }
-                                                        return (
-                                                            <button
-                                                                className={styles.linkButton}
-                                                                onClick={() => setFreteModal({ isOpen: true, items: info.items, estado: vehicle.estado })}
-                                                                style={{
-                                                                    background: 'none',
-                                                                    border: 'none',
-                                                                    color: '#2563eb',
-                                                                    textDecoration: 'underline',
-                                                                    cursor: 'pointer',
-                                                                    fontSize: 'inherit'
-                                                                }}
-                                                            >
-                                                                Ver opções ({info.count})
-                                                            </button>
-                                                        );
-                                                    })()}
-                                                </td>
+                                                {!['vendedor', 'operator/vendedor'].includes(role) && (
+                                                    <td className={styles.tableCell}>
+                                                        {(() => {
+                                                            const info = getFreteInfo(vehicle.estado);
+                                                            if (info.count === 0) return '-';
+                                                            if (info.count === 1) {
+                                                                return `R$ ${info.items[0].valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+                                                            }
+                                                            return (
+                                                                <button
+                                                                    className={styles.linkButton}
+                                                                    onClick={() => setFreteModal({ isOpen: true, items: info.items, estado: vehicle.estado })}
+                                                                    style={{
+                                                                        background: 'none',
+                                                                        border: 'none',
+                                                                        color: '#2563eb',
+                                                                        textDecoration: 'underline',
+                                                                        cursor: 'pointer',
+                                                                        fontSize: 'inherit'
+                                                                    }}
+                                                                >
+                                                                    Ver opções ({info.count})
+                                                                </button>
+                                                            );
+                                                        })()}
+                                                    </td>
+                                                )}
                                                 {role !== 'client' && (
                                                     <td className={styles.tableCell}><HighlightText text={vehicle.operador} searchTerm={pendingSearchTerm} /></td>
                                                 )}
