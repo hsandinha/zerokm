@@ -99,6 +99,7 @@ export function ConcessionariasManagement() {
     const [vehiclesWithoutConcessionaria, setVehiclesWithoutConcessionaria] = useState<any[]>([]);
     const [loadingVehicles, setLoadingVehicles] = useState(false);
     const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
+    const [vehicleFilter, setVehicleFilter] = useState('');
 
     const getStatusColor = (dateString?: string | null) => {
         if (!dateString) return 'red';
@@ -148,6 +149,7 @@ export function ConcessionariasManagement() {
 
     const handleOpenAssociateModal = (cliente: ClienteData) => {
         setSelectedConcessionariaForAssociate(cliente);
+        setVehicleFilter('');
         setShowAssociateModal(true);
         setSelectedVehicles([]);
         fetchVehiclesWithoutConcessionaria();
@@ -864,9 +866,29 @@ export function ConcessionariasManagement() {
                                 </p>
                             ) : (
                                 <>
+                                    <div style={{ marginBottom: '1rem' }}>
+                                        <input
+                                            type="text"
+                                            placeholder="Filtrar por modelo ou contato..."
+                                            value={vehicleFilter}
+                                            onChange={(e) => setVehicleFilter(e.target.value)}
+                                            className={styles.filterInput}
+                                            style={{
+                                                width: '100%',
+                                                padding: '0.75rem',
+                                                border: '1px solid var(--color-highlight)',
+                                                borderRadius: '8px',
+                                                fontSize: '0.95rem',
+                                                marginBottom: '1rem'
+                                            }}
+                                        />
+                                    </div>
                                     <div style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
                                         <button
-                                            onClick={() => setSelectedVehicles(vehiclesWithoutConcessionaria.map(v => v.id))}
+                                            onClick={() => setSelectedVehicles(vehiclesWithoutConcessionaria.filter(v => {
+                                                const searchTerm = vehicleFilter.toLowerCase();
+                                                return v.modelo?.toLowerCase().includes(searchTerm) || v.nomeContato?.toLowerCase().includes(searchTerm);
+                                            }).map(v => v.id))}
                                             className={styles.selectAllButton}
                                         >
                                             ✓ Selecionar Todos
@@ -895,7 +917,14 @@ export function ConcessionariasManagement() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {vehiclesWithoutConcessionaria.map((vehicle) => (
+                                            {vehiclesWithoutConcessionaria
+                                                .filter(vehicle => {
+                                                    if (!vehicleFilter) return true;
+                                                    const searchTerm = vehicleFilter.toLowerCase();
+                                                    return vehicle.modelo?.toLowerCase().includes(searchTerm) || 
+                                                           vehicle.nomeContato?.toLowerCase().includes(searchTerm);
+                                                })
+                                                .map((vehicle) => (
                                                 <tr key={vehicle.id} className={styles.tableRow}>
                                                     <td className={styles.tableCell} style={{ textAlign: 'center' }}>
                                                         <input
