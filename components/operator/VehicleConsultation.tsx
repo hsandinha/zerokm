@@ -62,9 +62,11 @@ const formatDate = (dateInput: string | Date | undefined) => {
 const calculateDaysSinceUpdate = (updatedAt: string | Date | undefined): number => {
     if (!updatedAt) return 0;
     const now = new Date();
+    now.setHours(0, 0, 0, 0); // Zera horas para comparar apenas datas
     const updateDate = new Date(updatedAt);
+    updateDate.setHours(0, 0, 0, 0); // Zera horas para comparar apenas datas
     const diffTime = Math.abs(now.getTime() - updateDate.getTime());
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
 };
 
