@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { AdminUser, listAllUsers, updateUserProfiles, toggleUserStatus, createUser } from './actions';
+import { AdminUser, listAllUsers, updateUserProfiles, toggleUserStatus, createUser, deleteUser } from './actions';
 import { UserProfile } from '@/lib/types/auth';
 import { ConcessionariaService, Concessionaria } from '@/lib/services/concessionariaService';
 import styles from './UsersTable.module.css';
@@ -127,6 +127,18 @@ export function UsersTable() {
         }
     };
 
+    const handleDeleteUser = async (user: AdminUser) => {
+        if (!confirm(`ATENÇÃO: Tem certeza que deseja EXCLUIR permanentemente o usuário "${user.displayName || user.email}"?\n\nEsta ação não pode ser desfeita!`)) return;
+
+        const result = await deleteUser(user.uid);
+        if (result.success) {
+            alert('Usuário excluído com sucesso!');
+            fetchUsers();
+        } else {
+            alert('Erro ao excluir usuário: ' + result.error);
+        }
+    };
+
     const handleSaveProfiles = async () => {
         if (!editingUser) return;
 
@@ -224,6 +236,9 @@ export function UsersTable() {
                                     </button>
                                     <button className={`${styles.button} ${styles.btnToggle}`} onClick={() => handleToggleStatus(user)}>
                                         {user.disabled ? 'Ativar' : 'Desativar'}
+                                    </button>
+                                    <button className={`${styles.button} ${styles.btnDelete}`} onClick={() => handleDeleteUser(user)}>
+                                        Excluir
                                     </button>
                                 </div>
                             </td>

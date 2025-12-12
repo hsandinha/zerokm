@@ -129,6 +129,17 @@
     background-color: var(--color-panel);
 }
 
+.btnDelete {
+    background-color: #fee2e2;
+    border-color: #dc2626;
+    color: #dc2626;
+}
+
+.btnDelete:hover {
+    background-color: #dc2626;
+    color: white;
+}
+
 /* Header Actions */
 .headerActions {
     display: flex;
