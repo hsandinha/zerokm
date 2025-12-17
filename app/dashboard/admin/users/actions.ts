@@ -143,13 +143,13 @@ export async function createUser(data: {
 export async function deleteUser(uid: string) {
     try {
         await connectDB();
-        
+
         // 1. Delete user from Firebase Auth
         await adminAuth.deleteUser(uid);
-        
+
         // 2. Delete user from MongoDB
         await User.findOneAndDelete({ firebaseUid: uid });
-        
+
         return { success: true };
     } catch (error: any) {
         console.error('Error deleting user:', error);

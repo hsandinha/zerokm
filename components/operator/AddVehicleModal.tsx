@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useSession } from 'next-auth/react';
 import { Vehicle } from '../../lib/services/vehicleService';
 import { useVehicleDatabase } from '../../lib/hooks/useVehicleDatabase';
 import { tablesService } from '../../lib/services/tablesService';
@@ -16,9 +17,11 @@ interface AddVehicleModalProps {
     onVehicleAdded: () => void;
     editingVehicle?: Vehicle | null;
     isEditing?: boolean;
+    role?: 'admin' | 'administrador' | 'operator' | 'operador' | 'client' | 'dealership' | 'vendedor' | 'operator/vendedor' | 'gerente';
 }
 
-export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicle, isEditing = false }: AddVehicleModalProps) {
+export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicle, isEditing = false, role = 'operator' }: AddVehicleModalProps) {
+    const { data: session } = useSession();
     const { addVehicle, updateVehicle } = useVehicleDatabase();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -35,6 +38,8 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
     const [loadingCores, setLoadingCores] = useState(false);
     const [loadingConcessionarias, setLoadingConcessionarias] = useState(false);
     const [loadingOperadores, setLoadingOperadores] = useState(false);
+    const [dealershipProfile, setDealershipProfile] = useState<any>(null);
+    const [loadingDealershipProfile, setLoadingDealershipProfile] = useState(false);
     const [formData, setFormData] = useState<Omit<Vehicle, 'id'>>({
         dataEntrada: new Date().toLocaleDateString('pt-BR'),
         modelo: '',
@@ -107,6 +112,37 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
             loadOperadores();
         }
     }, [isOpen]);
+
+    // Carregar dados da concessionária quando for perfil dealership
+    useEffect(() => {
+        const loadDealershipProfile = async () => {
+            if (role === 'dealership' && isOpen && !dealershipProfile) {
+                setLoadingDealershipProfile(true);
+                try {
+                    const response = await fetch('/api/dealership/profile');
+                    if (response.ok) {
+                        const data = await response.json();
+                        setDealershipProfile(data);
+                        // Preencher automaticamente os dados do formulário
+                        setFormData(prev => ({
+                            ...prev,
+                            concessionaria: data.nome || '',
+                            cidade: data.cidade || prev.cidade,
+                            estado: data.uf || prev.estado,
+                            telefone: data.telefone || data.celular || prev.telefone,
+                            nomeContato: data.contato || prev.nomeContato
+                        }));
+                    }
+                } catch (error) {
+                    console.error('Erro ao carregar perfil da concessionária:', error);
+                } finally {
+                    setLoadingDealershipProfile(false);
+                }
+            }
+        };
+
+        loadDealershipProfile();
+    }, [role, isOpen, dealershipProfile]);
 
     const loadConcessionarias = async () => {
         if (concessionarias.length > 0) return;
@@ -452,62 +488,70 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                         </select>
                     </div>
 
-                    <div className={styles.formGroup}>
-                        <label htmlFor="concessionaria">Concessionária</label>
-                        <select
-                            id="concessionaria"
-                            name="concessionaria"
-                            value={formData.concessionaria || ''}
-                            onChange={handleConcessionariaChange}
-                            onFocus={loadConcessionarias}
-                            disabled={loadingConcessionarias}
-                        >
-                            <option value="">Selecione...</option>
-                            {concessionarias.map((c) => (
-                                <option key={c.id} value={c.nome}>
-                                    {c.nome}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    {role !== 'dealership' && (
+                        <div className={styles.formGroup}>
+                            <label htmlFor="concessionaria">Concessionária</label>
+                            <select
+                                id="concessionaria"
+                                name="concessionaria"
+                                value={formData.concessionaria || ''}
+                                onChange={handleConcessionariaChange}
+                                onFocus={loadConcessionarias}
+                                disabled={loadingConcessionarias}
+                            >
+                                <option value="">Selecione...</option>
+                                {concessionarias.map((c) => (
+                                    <option key={c.id} value={c.nome}>
+                                        {c.nome}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
 
-                    <div className={styles.formGroup}>
-                        <AutocompleteInput
-                            name="estado"
-                            label="Estado"
-                            value={formData.estado}
-                            onChange={handleEstadoChange}
-                            options={estados}
-                            placeholder="Ex: São Paulo - SP"
-                            required
-                        />
-                    </div>
+                    {role !== 'dealership' && (
+                        <div className={styles.formGroup}>
+                            <AutocompleteInput
+                                name="estado"
+                                label="Estado"
+                                value={formData.estado}
+                                onChange={handleEstadoChange}
+                                options={estados}
+                                placeholder="Ex: São Paulo - SP"
+                                required
+                            />
+                        </div>
+                    )}
 
-                    <div className={styles.formGroup}>
-                        <AutocompleteInput
-                            name="cidade"
-                            label="Cidade"
-                            value={formData.cidade}
-                            onChange={handleCidadeChange}
-                            getSuggestions={getCidadesSuggestions}
-                            placeholder={formData.estado ? "Ex: São Paulo" : "Selecione um estado primeiro"}
-                            required
-                            disabled={!formData.estado}
-                        />
-                    </div>
+                    {role !== 'dealership' && (
+                        <div className={styles.formGroup}>
+                            <AutocompleteInput
+                                name="cidade"
+                                label="Cidade"
+                                value={formData.cidade}
+                                onChange={handleCidadeChange}
+                                getSuggestions={getCidadesSuggestions}
+                                placeholder={formData.estado ? "Ex: São Paulo" : "Selecione um estado primeiro"}
+                                required
+                                disabled={!formData.estado}
+                            />
+                        </div>
+                    )}
 
-                    <div className={styles.formGroup}>
-                        <MaskedInput
-                            name="telefone"
-                            label="Telefone"
-                            value={formData.telefone}
-                            onChange={handleTelefoneChange}
-                            mask="phone"
-                            placeholder="(11)99999-1001"
-                            required
-                            maxLength={15}
-                        />
-                    </div>
+                    {role !== 'dealership' && (
+                        <div className={styles.formGroup}>
+                            <MaskedInput
+                                name="telefone"
+                                label="Telefone"
+                                value={formData.telefone}
+                                onChange={handleTelefoneChange}
+                                mask="phone"
+                                placeholder="(11)99999-1001"
+                                required
+                                maxLength={15}
+                            />
+                        </div>
+                    )}
 
                     <div className={styles.formGroup}>
                         <label htmlFor="nomeContato">Nome do Contato*</label>

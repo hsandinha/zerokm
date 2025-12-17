@@ -1280,6 +1280,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                         onVehicleAdded={refreshVehicles}
                         editingVehicle={editingVehicle ?? undefined}
                         isEditing={Boolean(editingVehicle)}
+                        role={role}
                     />
                 </div>
             )}
@@ -1482,7 +1483,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                             <th className={styles.tableHeader} onClick={() => handleSort('status')} style={{ cursor: 'pointer' }}>
                                                 STATUS {sortConfig.key === 'status' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                             </th>
-                                            {!['vendedor', 'operator/vendedor'].includes(role) && (
+                                            {!['vendedor', 'operator/vendedor', 'dealership'].includes(role) && (
                                                 <th className={styles.tableHeader} onClick={() => handleSort('estado')} style={{ cursor: 'pointer' }}>
                                                     UF {sortConfig.key === 'estado' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                                 </th>
@@ -1490,7 +1491,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                             <th className={styles.tableHeader} onClick={() => handleSort('observacoes')} style={{ cursor: 'pointer' }}>
                                                 OBSERVAÇÕES {sortConfig.key === 'observacoes' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                             </th>
-                                            {!['vendedor', 'operator/vendedor'].includes(role) && (
+                                            {!['vendedor', 'operator/vendedor', 'dealership'].includes(role) && (
                                                 <th className={styles.tableHeader} onClick={() => handleSort('frete')} style={{ cursor: 'pointer' }}>
                                                     FRETE {sortConfig.key === 'frete' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                                 </th>
@@ -1574,11 +1575,11 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                                         {vehicle.status}
                                                     </span>
                                                 </td>
-                                                {!['vendedor', 'operator/vendedor'].includes(role) && (
+                                                {!['vendedor', 'operator/vendedor', 'dealership'].includes(role) && (
                                                     <td className={styles.tableCell}><HighlightText text={vehicle.estado} searchTerm={pendingSearchTerm} /></td>
                                                 )}
                                                 <td className={styles.tableCell}><HighlightText text={vehicle.observacoes} searchTerm={pendingSearchTerm} /></td>
-                                                {!['vendedor', 'operator/vendedor'].includes(role) && (
+                                                {!['vendedor', 'operator/vendedor', 'dealership'].includes(role) && (
                                                     <td className={styles.tableCell}>
                                                         {(() => {
                                                             const info = getFreteInfo(vehicle.estado);
