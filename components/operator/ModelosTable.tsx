@@ -45,21 +45,29 @@ export function ModelosTable() {
     });
     const [searchTerm, setSearchTerm] = useState('');
 
-    const loadModelos = useCallback(async (page: number = 1) => {
+    const loadModelos = useCallback(async (page: number = 1, search: string = '') => {
         try {
             setLoading(true);
             setError(null);
 
-            const result: PaginationResult<Modelo> = await tablesService.getModelosPaginated({
-                page,
-                itemsPerPage,
-                lastDoc: page === currentPageRef.current + 1 ? lastDocRef.current : undefined
+            // Montar URL com parâmetros de busca
+            const params = new URLSearchParams({
+                page: page.toString(),
+                limit: itemsPerPage.toString()
             });
+            
+            if (search.trim()) {
+                params.append('search', search.trim());
+            }
 
-            setModelos(result.data);
-            setTotalItems(result.total);
-            setHasNextPage(result.hasNextPage);
-            lastDocRef.current = result.lastDoc;
+            const response = await fetch(`/api/tables/modelos?${params.toString()}`);
+            if (!response.ok) throw new Error('Failed to fetch modelos');
+            
+            const result = await response.json();
+
+            setModelos(result.data || []);
+            setTotalItems(result.total || 0);
+            setHasNextPage(result.hasNextPage || false);
             currentPageRef.current = page;
             setCurrentPage(page);
 
@@ -135,13 +143,25 @@ export function ModelosTable() {
 
     // Funções de paginação com fallback
     const handlePageChange = (page: number) => {
-        loadModelos(page);
+        loadModelos(page, searchTerm);
     };
 
     // Carregar modelos na inicialização
     useEffect(() => {
-        loadModelos(1);
-    }, [loadModelos]);
+        loadModelos(1, searchTerm);
+    }, [loadModelos, searchTerm]);
+
+    // Debounce da busca
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            if (currentPage !== 1) {
+                setCurrentPage(1);
+            }
+            loadModelos(1, searchTerm);
+        }, 300);
+
+        return () => clearTimeout(timeoutId);
+    }, [searchTerm]);
 
     const closeForm = () => {
         setShowForm(false);
@@ -158,15 +178,6 @@ export function ModelosTable() {
         setFormData({ nome: '', marca: '' });
         setShowForm(true);
     };
-
-    const normalizedSearch = searchTerm.trim().toLowerCase();
-    const filteredModelos = normalizedSearch
-        ? modelos.filter((modelo) => {
-            const nomeMatch = modelo.nome.toLowerCase().includes(normalizedSearch);
-            const marcaMatch = modelo.marca.toLowerCase().includes(normalizedSearch);
-            return nomeMatch || marcaMatch;
-        })
-        : modelos;
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -319,12 +330,14 @@ export function ModelosTable() {
                         </tr>
                     </thead>
                     <tbody>
-                        {filteredModelos.length === 0 ? (
+                        {modelos.length === 0 ? (
                             <tr>
-                                <td colSpan={4} className={styles.emptyMessage}>Nenhum modelo encontrado.</td>
+                                <td colSpan={4} className={styles.emptyMessage}>
+                                    {loading ? 'Carregando...' : searchTerm ? 'Nenhum modelo encontrado para esta busca.' : 'Nenhum modelo encontrado.'}
+                                </td>
                             </tr>
                         ) : (
-                            filteredModelos.map(modelo => (
+                            modelos.map(modelo => (
                                 <tr key={modelo.id}>
                                     <td className={styles.modeloName}>{modelo.nome}</td>
                                     <td className={styles.marcaName}>{modelo.marca}</td>

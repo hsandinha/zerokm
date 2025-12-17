@@ -3,6 +3,7 @@ import connectDB from '@/lib/mongodb';
 import Vehicle from '@/models/Vehicle';
 import User from '@/models/User';
 import Concessionaria from '@/models/Concessionaria';
+import Modelo from '@/models/Modelo';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 
@@ -172,17 +173,27 @@ export async function GET(request: Request) {
 
         const [data, total] = await Promise.all([
             Vehicle.find(query)
+                .populate('modeloId', 'nome marca') // Popula dados do modelo
                 .sort({ [sortKey]: sortDir })
                 .skip(skip)
                 .limit(limit),
             Vehicle.countDocuments(query)
         ]);
 
-        const serializedData = data.map(doc => ({
-            ...doc.toObject(),
-            id: doc._id.toString(),
-            _id: undefined
-        }));
+        const serializedData = data.map(doc => {
+            const obj = doc.toObject();
+            const modeloPopulado = obj.modeloId as any;
+            
+            return {
+                ...obj,
+                id: obj._id.toString(),
+                _id: undefined,
+                // Se o modelo foi populado, usar o nome atualizado
+                modelo: modeloPopulado?.nome || obj.modelo,
+                marca: modeloPopulado?.marca || obj.marca,
+                modeloId: modeloPopulado?._id?.toString() || obj.modeloId?.toString()
+            };
+        });
 
         return NextResponse.json({
             data: serializedData,
@@ -207,6 +218,21 @@ export async function POST(request: Request) {
         await connectDB();
         const body = await request.json();
 
+        // Buscar o modelo pelo nome para obter o ID
+        let modeloId = body.modeloId;
+        if (!modeloId && body.modelo) {
+            const modeloDoc = await Modelo.findOne({ 
+                nome: { $regex: new RegExp(`^${body.modelo.trim()}$`, 'i') }
+            });
+            if (modeloDoc) {
+                modeloId = modeloDoc._id;
+                // Também atualizar a marca se o modelo foi encontrado e não foi informada
+                if (!body.marca && modeloDoc.marca) {
+                    body.marca = modeloDoc.marca;
+                }
+            }
+        }
+
         // Ensure required fields are present or set defaults
         let dataEntrada = body.dataEntrada;
         if (!dataEntrada) {
@@ -220,6 +246,7 @@ export async function POST(request: Request) {
         const vehicleData = {
             ...body,
             dataEntrada: dataEntrada,
+            modeloId: modeloId, // Salvar referência ao modelo
             status: body.status || 'A faturar',
             transmissao: body.transmissao || 'Manual',
             combustivel: body.combustivel || 'Flex',

@@ -3,6 +3,7 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 export interface IVehicle extends Document {
     dataEntrada: Date;
     modelo: string;
+    modeloId?: mongoose.Types.ObjectId; // Referência ao modelo na tabela Modelo
     transmissao: 'Manual' | 'Automática' | 'CVT';
     combustivel: 'Flex' | 'Gasolina' | 'Etanol' | 'Diesel' | 'Elétrico' | 'Híbrido';
     cor: string;
@@ -36,6 +37,7 @@ export interface IVehicle extends Document {
 const VehicleSchema: Schema = new Schema({
     dataEntrada: { type: Date, required: true },
     modelo: { type: String, required: true },
+    modeloId: { type: Schema.Types.ObjectId, ref: 'Modelo' }, // Referência ao modelo
     transmissao: { type: String, required: true },
     combustivel: { type: String, required: true },
     cor: { type: String, required: true },
