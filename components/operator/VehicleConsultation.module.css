@@ -320,10 +320,6 @@
     border-color: var(--color-text-muted);
 }
 
-.clearButton:hover {
-    background: #4b5563;
-}
-
 .resultsSection {
     flex: 1;
     padding: 1.5rem 2rem;
@@ -382,9 +378,9 @@
     flex: 1;
     width: 100%;
     max-width: 100%;
-    border: 1px solid rgba(0, 0, 0, 0.06);
+    border: 1px solid var(--color-highlight);
     border-radius: 14px;
-    background: linear-gradient(135deg, rgba(241, 245, 249, 0.95), rgba(226, 232, 240, 0.85));
+    background: var(--color-panel);
     box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
     -webkit-overflow-scrolling: touch;
 }
@@ -395,7 +391,7 @@
     border-collapse: separate;
     border-spacing: 0;
     font-size: 0.85rem;
-    border: 1px solid rgba(15, 23, 42, 0.06);
+    border: 1px solid var(--color-highlight);
     border-radius: 12px;
     overflow: hidden;
     flex-shrink: 0;
