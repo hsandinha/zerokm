@@ -41,26 +41,22 @@ export function AutocompleteInput({
 
     // Filtrar opções baseado no valor digitado
     useEffect(() => {
-        if (value.length === 0) {
-            setFilteredOptions([]);
-            setIsOpen(false);
-            return;
-        }
-
         let filtered: string[] = [];
 
-        if (getSuggestions) {
+        if (value.length === 0) {
+            // Se vazio, mostrar todas as opções (limitado a 50 para performance)
+            filtered = options.slice(0, 50);
+        } else if (getSuggestions) {
             // Usar função de sugestões dinâmicas
             filtered = getSuggestions(value);
         } else {
-            // Usar lista estática de opções
+            // Usar lista estática de opções e filtrar
             filtered = options.filter(option =>
                 option.toLowerCase().includes(value.toLowerCase())
-            ).slice(0, 10); // Limitar a 10 resultados
+            ).slice(0, 50); // Limitar a 50 resultados
         }
 
         setFilteredOptions(filtered);
-        setIsOpen(value.length > 0);
         setHighlightedIndex(-1);
     }, [value, options, getSuggestions]);
 
@@ -131,9 +127,8 @@ export function AutocompleteInput({
         if (onFocus) {
             onFocus();
         }
-        if (value.length > 0) {
-            setIsOpen(true);
-        }
+        // Abrir dropdown sempre que o campo receber foco
+        setIsOpen(true);
     };
 
     const handleInputBlur = () => {
