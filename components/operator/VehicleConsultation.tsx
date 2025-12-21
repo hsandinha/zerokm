@@ -425,11 +425,15 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
 
         const loadModels = async () => {
             try {
-                const res = await fetch('/api/vehicles/suggestions?fields=modelo&limit=1000&sortByCount=true', { signal: abortController.signal });
+                const res = await fetch('/api/vehicles/suggestions?fields=modelo&limit=1000', { signal: abortController.signal });
                 if (!res.ok) return;
                 const data = await res.json();
                 if (data.suggestions?.modelo) {
-                    setAvailableModels(data.suggestions.modelo);
+                    // Ordena alfabeticamente (A-Z)
+                    const sortedModels = [...data.suggestions.modelo].sort((a, b) =>
+                        a.localeCompare(b, 'pt-BR', { sensitivity: 'base' })
+                    );
+                    setAvailableModels(sortedModels);
                 }
             } catch (error: any) {
                 if (error?.name !== 'AbortError') {
@@ -1181,7 +1185,7 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                             🗑️ Excluir ({selectedIds.length})
                         </button>
                     )}
-                    {role !== 'client' && (
+                    {role !== 'client' && role !== 'dealership' && (
                         <>
                             <div className={styles.exportWrapper} style={{ position: 'relative', display: 'inline-block' }}>
                                 <button
@@ -1239,14 +1243,16 @@ export function VehicleConsultation({ onClose, role = 'operator' }: VehicleConsu
                                     💹 Margem
                                 </button>
                             )}
-                            <button
-                                className={styles.addButton}
-                                onClick={handleNewVehicleClick}
-                                title={showVehicleForm ? 'Fechar formulário' : 'Cadastrar Novo Veículo'}
-                            >
-                                {showVehicleForm ? 'Cancelar' : '+ Novo Veículo'}
-                            </button>
                         </>
+                    )}
+                    {role !== 'client' && (
+                        <button
+                            className={styles.addButton}
+                            onClick={handleNewVehicleClick}
+                            title={showVehicleForm ? 'Fechar formulário' : 'Cadastrar Novo Veículo'}
+                        >
+                            {showVehicleForm ? 'Cancelar' : '+ Novo Veículo'}
+                        </button>
                     )}
                     <div className={styles.viewToggle}>
                         <button

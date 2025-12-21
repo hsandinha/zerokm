@@ -134,11 +134,14 @@ class TablesService {
         }
     }
 
-    async getAllModelos(): Promise<Modelo[]> {
+    async getAllModelos(): Promise<any> {
         try {
             const response = await fetch('/api/tables/modelos');
             if (!response.ok) throw new Error('Failed to fetch modelos');
-            return await response.json();
+            const data = await response.json();
+            // A API retorna { data: [], total, page, hasNextPage }
+            // Retornar o array diretamente para compatibilidade
+            return data.data || data;
         } catch (error) {
             console.error('Erro ao buscar modelos:', error);
             throw error;

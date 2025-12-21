@@ -184,7 +184,8 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
             // Idealmente, o backend filtraria ou paginaria, mas aqui carregamos tudo.
             // Podemos concatenar Marca + Modelo para ficar mais claro na lista se desejado,
             // mas o requisito pediu para remover Marca. Vamos listar apenas os nomes dos modelos.
-            const modelosNomes = modelosData.map(modelo => modelo.nome);
+            const modelosArray = Array.isArray(modelosData) ? modelosData : (modelosData.data || []);
+            const modelosNomes = modelosArray.map(modelo => modelo.nome);
             // Remover duplicatas se houver
             setModelos([...new Set(modelosNomes)]);
         } catch (error) {
