@@ -180,16 +180,26 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
         setLoadingModelos(true);
         try {
             const modelosData = await tablesService.getAllModelos();
+            console.log('🔍 Dados brutos dos modelos:', modelosData);
+
             // Como não temos marca, mostramos todos os modelos. 
             // Idealmente, o backend filtraria ou paginaria, mas aqui carregamos tudo.
             // Podemos concatenar Marca + Modelo para ficar mais claro na lista se desejado,
             // mas o requisito pediu para remover Marca. Vamos listar apenas os nomes dos modelos.
             const modelosArray = Array.isArray(modelosData) ? modelosData : (modelosData.data || []);
+            console.log('📋 Array de modelos:', modelosArray);
+            console.log('📊 Total de modelos:', modelosArray.length);
+
             const modelosNomes: string[] = modelosArray.map((modelo: any) => modelo.nome);
+            console.log('📝 Nomes extraídos:', modelosNomes);
+
             // Remover duplicatas se houver
-            setModelos([...new Set(modelosNomes)]);
+            const modelosUnicos = [...new Set(modelosNomes)];
+            console.log('✅ Modelos únicos (total: ' + modelosUnicos.length + '):', modelosUnicos);
+
+            setModelos(modelosUnicos);
         } catch (error) {
-            console.error('Erro ao carregar modelos:', error);
+            console.error('❌ Erro ao carregar modelos:', error);
         } finally {
             setLoadingModelos(false);
         }

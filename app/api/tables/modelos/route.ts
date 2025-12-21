@@ -16,14 +16,14 @@ export async function GET(request: Request) {
         const marca = searchParams.get('marca');
         const search = searchParams.get('search');
         const page = parseInt(searchParams.get('page') || '1');
-        const limit = parseInt(searchParams.get('limit') || '1000');
+        const limit = parseInt(searchParams.get('limit') || '10000');
 
         let query: any = {};
-        
+
         if (marca) {
             query.marca = marca;
         }
-        
+
         // Adicionar busca por nome ou marca
         if (search) {
             const searchRegex = { $regex: search.trim(), $options: 'i' };
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
         }
 
         const skip = (page - 1) * limit;
-        
+
         const [modelos, total] = await Promise.all([
             Modelo.find(query).sort({ nome: 1 }).skip(skip).limit(limit),
             Modelo.countDocuments(query)
@@ -45,7 +45,7 @@ export async function GET(request: Request) {
             id: doc._id.toString(),
             _id: undefined
         }));
-        
+
         return NextResponse.json({
             data: serialized,
             total,
