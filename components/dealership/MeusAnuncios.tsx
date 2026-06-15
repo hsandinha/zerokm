@@ -66,6 +66,11 @@ export function MeusAnuncios() {
         const file = e.target.files?.[0];
         if (!file) return;
 
+        if (!file.type.startsWith('image/')) {
+            setFeedback({ type: 'error', msg: 'Apenas arquivos de imagem (JPEG, PNG, etc) são permitidos.' });
+            return;
+        }
+
         if (file.size > 2 * 1024 * 1024) { // 2MB limit
             setFeedback({ type: 'error', msg: 'A imagem deve ter no máximo 2MB.' });
             return;
