@@ -51,11 +51,18 @@ export function BannerCarousel() {
             {banners.map((banner, index) => {
                 const isActive = index === currentIndex;
                 const content = (
-                    <img 
-                        src={banner.imageUrl} 
-                        alt={banner.title} 
-                        className={styles.bannerImage} 
-                    />
+                    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '0.5rem 0 0 0', background: 'var(--color-surface)' }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.5rem', textAlign: 'center', color: 'var(--color-text)' }}>
+                            {banner.title}
+                        </div>
+                        <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+                            <img 
+                                src={banner.imageUrl} 
+                                alt={banner.title} 
+                                className={styles.bannerImage} 
+                            />
+                        </div>
+                    </div>
                 );
 
                 return (

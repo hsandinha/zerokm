@@ -1968,6 +1968,11 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
             <div className={styles.splitLayout}>
                 <div className={styles.sidebar}>
                     <div className={styles.sidebarHeader}>
+                        {['client', 'gratis'].includes(role) && (
+                            <div style={{ marginBottom: '1rem', width: '100%' }}>
+                                <BannerCarousel />
+                            </div>
+                        )}
                         <input
                             type="text"
                             placeholder="Filtrar modelos..."
@@ -1976,11 +1981,6 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                             onChange={(e) => setModelSearch(e.target.value)}
                             onKeyDown={handleModelSearchKeyDown}
                         />
-                        {['client', 'gratis'].includes(role) && (
-                            <div style={{ marginTop: '1rem', marginBottom: '0.5rem', width: '100%' }}>
-                                <BannerCarousel />
-                            </div>
-                        )}
                     </div>
                     <div className={styles.modelList} ref={modelListRef}>
                         <div
