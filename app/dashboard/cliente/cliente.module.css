@@ -49,10 +49,10 @@
     flex: 1;
     background: var(--color-bg);
     overflow: auto;
-    padding: 0 2rem 2rem 2rem;
+    padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 0;
 }
 
 /* Responsividade */
