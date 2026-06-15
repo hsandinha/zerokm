@@ -339,7 +339,16 @@ export function BannersManagement() {
                                 type="text"
                                 placeholder="Ex: R$ 142.000,00"
                                 value={newBanner.price}
-                                onChange={e => setNewBanner({...newBanner, price: e.target.value})}
+                                onChange={(e) => {
+                                    let value = e.target.value.replace(/\D/g, '');
+                                    if (!value) {
+                                        setNewBanner({...newBanner, price: ''});
+                                        return;
+                                    }
+                                    const numValue = (parseInt(value, 10) / 100).toFixed(2);
+                                    const formattedValue = `R$ ${numValue.replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
+                                    setNewBanner({...newBanner, price: formattedValue});
+                                }}
                                 className={styles.input}
                             />
                         </div>
