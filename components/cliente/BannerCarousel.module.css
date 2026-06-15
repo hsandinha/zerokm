@@ -1,13 +1,12 @@
 .carouselContainer {
     width: 100%;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
     border-radius: 12px;
     overflow: hidden;
     position: relative;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    /* Manter proporção amigável para banners */
-    aspect-ratio: 1200 / 300;
-    max-height: 300px;
+    height: 120px;
+    max-height: 120px;
     background: var(--color-surface);
 }
 
