@@ -356,9 +356,18 @@ export function BannersManagement() {
                             <label>Subtítulo do Preço</label>
                             <input 
                                 type="text"
-                                placeholder="Ex: PREÇO SEM O FRETE"
+                                placeholder="Ex: R$ 150.000,00"
                                 value={newBanner.priceSubtitle}
-                                onChange={e => setNewBanner({...newBanner, priceSubtitle: e.target.value})}
+                                onChange={(e) => {
+                                    let value = e.target.value.replace(/\D/g, '');
+                                    if (!value) {
+                                        setNewBanner({...newBanner, priceSubtitle: ''});
+                                        return;
+                                    }
+                                    const numValue = (parseInt(value, 10) / 100).toFixed(2);
+                                    const formattedValue = `R$ ${numValue.replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
+                                    setNewBanner({...newBanner, priceSubtitle: formattedValue});
+                                }}
                                 className={styles.input}
                             />
                         </div>
