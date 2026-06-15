@@ -414,16 +414,7 @@ export function BannersManagement() {
                                 className={styles.input}
                             />
                         </div>
-                        <div className={styles.formGroup}>
-                            <label>Texto do Botão (CTA)</label>
-                            <input 
-                                type="text"
-                                placeholder="Ex: Tenho Interesse"
-                                value={newBanner.ctaText}
-                                onChange={e => setNewBanner({...newBanner, ctaText: e.target.value})}
-                                className={styles.input}
-                            />
-                        </div>
+
                         <div className={styles.formGroupFull}>
                             <label>Imagem do Banner (Recomendado: 1200x300, máx 2MB)</label>
                             <input 

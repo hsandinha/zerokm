@@ -41,7 +41,18 @@ export async function POST(req: Request) {
             linkUrl: body.linkUrl,
             isActive: body.isActive !== undefined ? body.isActive : true,
             order: body.order ?? nextOrder,
-            dealershipId: body.dealershipId || null
+            dealershipId: body.dealershipId || null,
+            badge: body.badge,
+            price: body.price,
+            priceSubtitle: body.priceSubtitle,
+            vehicleModel: body.vehicleModel,
+            storeName: body.storeName,
+            year: body.year,
+            color: body.color,
+            fuel: body.fuel,
+            delivery: body.delivery,
+            statusCondition: body.statusCondition,
+            ctaText: body.ctaText
         });
 
         return NextResponse.json(newBanner);
