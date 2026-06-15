@@ -1,14 +1,25 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { MdChevronLeft, MdChevronRight } from 'react-icons/md';
+import { MdChevronLeft, MdChevronRight, MdLocalGasStation, MdColorLens, MdDateRange, MdLocalShipping, MdInfo } from 'react-icons/md';
 import styles from './BannerCarousel.module.css';
 
 interface Banner {
     _id: string;
     title: string;
     imageUrl: string;
-    linkUrl: string;
+    linkUrl?: string;
+    badge?: string;
+    price?: string;
+    priceSubtitle?: string;
+    vehicleModel?: string;
+    storeName?: string;
+    year?: string;
+    color?: string;
+    fuel?: string;
+    delivery?: string;
+    statusCondition?: string;
+    ctaText?: string;
 }
 
 export function BannerCarousel() {
@@ -56,20 +67,86 @@ export function BannerCarousel() {
     if (banners.length === 0) return null; // Não exibe o container se não houver banners
 
     return (
-        <div className={styles.carouselContainer} style={{ position: 'relative' }}>
+        <div className={styles.carouselContainer}>
             {banners.map((banner, index) => {
                 const isActive = index === currentIndex;
+                const transformValue = `translateX(${(index - currentIndex) * 100}%)`;
+
                 const content = (
-                    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '0.5rem 0 0 0', background: 'var(--color-surface)' }}>
-                        <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.5rem', textAlign: 'center', color: 'var(--color-text)' }}>
-                            {banner.title}
-                        </div>
-                        <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+                    <div className={styles.slideInner}>
+                        <div className={styles.imageWrapper}>
+                            {banner.badge && <div className={styles.badge}>{banner.badge}</div>}
                             <img 
                                 src={banner.imageUrl} 
-                                alt={banner.title} 
+                                alt={banner.vehicleModel || banner.title} 
                                 className={styles.bannerImage} 
                             />
+                        </div>
+
+                        <div className={styles.contentWrapper}>
+                            {(banner.price || banner.priceSubtitle) && (
+                                <div className={styles.priceGroup}>
+                                    {banner.price && <div className={styles.price}>{banner.price}</div>}
+                                    {banner.priceSubtitle && <div className={styles.priceSubtitle}>{banner.priceSubtitle}</div>}
+                                </div>
+                            )}
+
+                            {banner.vehicleModel && <div className={styles.vehicleModel}>{banner.vehicleModel}</div>}
+                            {banner.storeName && <div className={styles.storeName}>{banner.storeName}</div>}
+
+                            {/* Specifications Grid */}
+                            <div className={styles.specsGrid}>
+                                {banner.year && (
+                                    <div className={styles.specItem}>
+                                        <MdDateRange className={styles.specIcon} />
+                                        <div className={styles.specTextGroup}>
+                                            <span className={styles.specValue}>{banner.year}</span>
+                                            <span className={styles.specLabel}>Ano</span>
+                                        </div>
+                                    </div>
+                                )}
+                                {banner.color && (
+                                    <div className={styles.specItem}>
+                                        <MdColorLens className={styles.specIcon} />
+                                        <div className={styles.specTextGroup}>
+                                            <span className={styles.specValue}>{banner.color}</span>
+                                            <span className={styles.specLabel}>Cor</span>
+                                        </div>
+                                    </div>
+                                )}
+                                {banner.fuel && (
+                                    <div className={styles.specItem}>
+                                        <MdLocalGasStation className={styles.specIcon} />
+                                        <div className={styles.specTextGroup}>
+                                            <span className={styles.specValue}>{banner.fuel}</span>
+                                            <span className={styles.specLabel}>Combustível</span>
+                                        </div>
+                                    </div>
+                                )}
+                                {banner.delivery && (
+                                    <div className={styles.specItem}>
+                                        <MdLocalShipping className={styles.specIcon} />
+                                        <div className={styles.specTextGroup}>
+                                            <span className={styles.specValue}>{banner.delivery}</span>
+                                            <span className={styles.specLabel}>Prazo</span>
+                                        </div>
+                                    </div>
+                                )}
+                                {banner.statusCondition && (
+                                    <div className={styles.specItem}>
+                                        <MdInfo className={styles.specIcon} />
+                                        <div className={styles.specTextGroup}>
+                                            <span className={styles.specValue}>{banner.statusCondition}</span>
+                                            <span className={styles.specLabel}>Situação</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Call to Action Button */}
+                            <button className={styles.ctaButton}>
+                                {banner.ctaText || 'Tenho Interesse'}
+                            </button>
                         </div>
                     </div>
                 );
@@ -77,14 +154,17 @@ export function BannerCarousel() {
                 return (
                     <div 
                         key={banner._id} 
-                        className={`${styles.slide} ${isActive ? styles.slideActive : ''}`}
+                        className={styles.slide}
+                        style={{ transform: transformValue, position: isActive ? 'relative' : 'absolute' }}
                     >
                         {banner.linkUrl ? (
                             <a href={banner.linkUrl} target="_blank" rel="noopener noreferrer" className={styles.bannerLink}>
                                 {content}
                             </a>
                         ) : (
-                            content
+                            <div className={styles.bannerLink}>
+                                {content}
+                            </div>
                         )}
                     </div>
                 );
@@ -94,27 +174,17 @@ export function BannerCarousel() {
                 <>
                     <button 
                         onClick={handlePrev} 
-                        style={{
-                            position: 'absolute', left: '0.2rem', top: '50%', transform: 'translateY(-50%)',
-                            background: 'rgba(255, 255, 255, 0.7)', border: 'none', borderRadius: '50%',
-                            width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            cursor: 'pointer', zIndex: 10, boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
-                        }}
-                        aria-label="Banner anterior"
+                        className={`${styles.navButton} ${styles.navButtonLeft}`}
+                        aria-label="Anterior"
                     >
-                        <MdChevronLeft size={20} color="#333" />
+                        <MdChevronLeft size={20} />
                     </button>
                     <button 
                         onClick={handleNext} 
-                        style={{
-                            position: 'absolute', right: '0.2rem', top: '50%', transform: 'translateY(-50%)',
-                            background: 'rgba(255, 255, 255, 0.7)', border: 'none', borderRadius: '50%',
-                            width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            cursor: 'pointer', zIndex: 10, boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
-                        }}
-                        aria-label="Próximo banner"
+                        className={`${styles.navButton} ${styles.navButtonRight}`}
+                        aria-label="Próximo"
                     >
-                        <MdChevronRight size={20} color="#333" />
+                        <MdChevronRight size={20} />
                     </button>
 
                     <div className={styles.dotsContainer}>
@@ -123,7 +193,7 @@ export function BannerCarousel() {
                                 key={index}
                                 className={`${styles.dot} ${index === currentIndex ? styles.dotActive : ''}`}
                                 onClick={() => setCurrentIndex(index)}
-                                aria-label={`Ir para o banner ${index + 1}`}
+                                aria-label={`Banner ${index + 1}`}
                             />
                         ))}
                     </div>

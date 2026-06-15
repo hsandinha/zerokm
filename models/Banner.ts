@@ -10,6 +10,17 @@ export interface IBanner extends Document {
     status?: 'active' | 'pending' | 'rejected' | 'awaiting_payment';
     expiresAt?: Date;
     paymentId?: string;
+    badge?: string;
+    price?: string;
+    priceSubtitle?: string;
+    vehicleModel?: string;
+    storeName?: string;
+    year?: string;
+    color?: string;
+    fuel?: string;
+    delivery?: string;
+    statusCondition?: string;
+    ctaText?: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -24,6 +35,17 @@ const BannerSchema: Schema = new Schema({
     status: { type: String, enum: ['active', 'pending', 'rejected', 'awaiting_payment'], default: 'active' },
     expiresAt: { type: Date },
     paymentId: { type: String },
+    badge: { type: String },
+    price: { type: String },
+    priceSubtitle: { type: String },
+    vehicleModel: { type: String },
+    storeName: { type: String },
+    year: { type: String },
+    color: { type: String },
+    fuel: { type: String },
+    delivery: { type: String },
+    statusCondition: { type: String },
+    ctaText: { type: String },
 }, { timestamps: true });
 
 export default mongoose.models.Banner || mongoose.model<IBanner>('Banner', BannerSchema);

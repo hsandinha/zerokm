@@ -24,13 +24,28 @@ export function BannersManagement() {
     const [newBanner, setNewBanner] = useState({
         title: '',
         linkUrl: '',
-        imageBase64: ''
+        imageBase64: '',
+        badge: '',
+        price: '',
+        priceSubtitle: '',
+        vehicleModel: '',
+        storeName: '',
+        year: '',
+        color: '',
+        fuel: '',
+        delivery: '',
+        statusCondition: '',
+        ctaText: ''
     });
     const [editingId, setEditingId] = useState<string | null>(null);
 
     const handleCancelEdit = () => {
         setEditingId(null);
-        setNewBanner({ title: '', linkUrl: '', imageBase64: '' });
+        setNewBanner({ 
+            title: '', linkUrl: '', imageBase64: '', 
+            badge: '', price: '', priceSubtitle: '', vehicleModel: '', storeName: '', 
+            year: '', color: '', fuel: '', delivery: '', statusCondition: '', ctaText: '' 
+        });
     };
 
     useEffect(() => {
@@ -91,7 +106,18 @@ export function BannersManagement() {
                 body: JSON.stringify({
                     title: newBanner.title,
                     imageUrl: newBanner.imageBase64,
-                    linkUrl: newBanner.linkUrl
+                    linkUrl: newBanner.linkUrl,
+                    badge: newBanner.badge,
+                    price: newBanner.price,
+                    priceSubtitle: newBanner.priceSubtitle,
+                    vehicleModel: newBanner.vehicleModel,
+                    storeName: newBanner.storeName,
+                    year: newBanner.year,
+                    color: newBanner.color,
+                    fuel: newBanner.fuel,
+                    delivery: newBanner.delivery,
+                    statusCondition: newBanner.statusCondition,
+                    ctaText: newBanner.ctaText
                 })
             });
 
@@ -184,9 +210,20 @@ export function BannersManagement() {
     const handleEditClick = (banner: any) => {
         setEditingId(banner._id);
         setNewBanner({
-            title: banner.title,
+            title: banner.title || '',
             linkUrl: banner.linkUrl || '',
-            imageBase64: banner.imageUrl
+            imageBase64: banner.imageUrl || '',
+            badge: banner.badge || '',
+            price: banner.price || '',
+            priceSubtitle: banner.priceSubtitle || '',
+            vehicleModel: banner.vehicleModel || '',
+            storeName: banner.storeName || '',
+            year: banner.year || '',
+            color: banner.color || '',
+            fuel: banner.fuel || '',
+            delivery: banner.delivery || '',
+            statusCondition: banner.statusCondition || '',
+            ctaText: banner.ctaText || ''
         });
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -231,6 +268,117 @@ export function BannersManagement() {
                                 placeholder="https://..."
                                 value={newBanner.linkUrl}
                                 onChange={e => setNewBanner({...newBanner, linkUrl: e.target.value})}
+                                className={styles.input}
+                            />
+                        </div>
+                        
+                        <div className={styles.formGroup}>
+                            <label>Veículo (Modelo)</label>
+                            <input 
+                                type="text"
+                                placeholder="Ex: TIGGO 5X PRO MAX"
+                                value={newBanner.vehicleModel}
+                                onChange={e => setNewBanner({...newBanner, vehicleModel: e.target.value})}
+                                className={styles.input}
+                            />
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Preço</label>
+                            <input 
+                                type="text"
+                                placeholder="Ex: R$ 142.000,00"
+                                value={newBanner.price}
+                                onChange={e => setNewBanner({...newBanner, price: e.target.value})}
+                                className={styles.input}
+                            />
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Subtítulo do Preço</label>
+                            <input 
+                                type="text"
+                                placeholder="Ex: PREÇO SEM O FRETE"
+                                value={newBanner.priceSubtitle}
+                                onChange={e => setNewBanner({...newBanner, priceSubtitle: e.target.value})}
+                                className={styles.input}
+                            />
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Nome da Loja</label>
+                            <input 
+                                type="text"
+                                placeholder="Ex: LOJA ZEROKILOMETRO"
+                                value={newBanner.storeName}
+                                onChange={e => setNewBanner({...newBanner, storeName: e.target.value})}
+                                className={styles.input}
+                            />
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Ano (FAB/MOD)</label>
+                            <input 
+                                type="text"
+                                placeholder="Ex: 26/27"
+                                value={newBanner.year}
+                                onChange={e => setNewBanner({...newBanner, year: e.target.value})}
+                                className={styles.input}
+                            />
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Cor</label>
+                            <input 
+                                type="text"
+                                placeholder="Ex: PRETO"
+                                value={newBanner.color}
+                                onChange={e => setNewBanner({...newBanner, color: e.target.value})}
+                                className={styles.input}
+                            />
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Combustível</label>
+                            <input 
+                                type="text"
+                                placeholder="Ex: FLEX"
+                                value={newBanner.fuel}
+                                onChange={e => setNewBanner({...newBanner, fuel: e.target.value})}
+                                className={styles.input}
+                            />
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Prazo de Entrega</label>
+                            <input 
+                                type="text"
+                                placeholder="Ex: PRONTA ENTREGA"
+                                value={newBanner.delivery}
+                                onChange={e => setNewBanner({...newBanner, delivery: e.target.value})}
+                                className={styles.input}
+                            />
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Situação/Status</label>
+                            <input 
+                                type="text"
+                                placeholder="Ex: ATPV-E"
+                                value={newBanner.statusCondition}
+                                onChange={e => setNewBanner({...newBanner, statusCondition: e.target.value})}
+                                className={styles.input}
+                            />
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Badge (Tag Laranja)</label>
+                            <input 
+                                type="text"
+                                placeholder="Ex: OPORTUNIDADE"
+                                value={newBanner.badge}
+                                onChange={e => setNewBanner({...newBanner, badge: e.target.value})}
+                                className={styles.input}
+                            />
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Texto do Botão (CTA)</label>
+                            <input 
+                                type="text"
+                                placeholder="Ex: Tenho Interesse"
+                                value={newBanner.ctaText}
+                                onChange={e => setNewBanner({...newBanner, ctaText: e.target.value})}
                                 className={styles.input}
                             />
                         </div>
