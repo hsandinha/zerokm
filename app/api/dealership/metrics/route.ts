@@ -39,7 +39,7 @@ export async function GET(request: Request) {
         // 2. Sold Vehicles (assuming 'Vendido' status is used, even if not in strict schema enum yet)
         const veiculosVendidos = await Vehicle.countDocuments({
             concessionaria: dealershipName,
-            status: 'Vendido'
+            status: 'Vendido' as any
         });
 
         // 3. Last Update

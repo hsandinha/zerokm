@@ -19,7 +19,7 @@ import { FarolVencimentos } from './FarolVencimentos';
 import styles from './operator.module.css';
 import transportStyles from '../../../components/operator/VehicleConsultation.module.css';
 
-type TabType = 'veiculos' | 'clientes' | 'transportadoras' | 'tabelas' | 'configuracoes';
+type TabType = 'veiculos' | 'clientes' | 'prospects' | 'transportadoras' | 'tabelas' | 'configuracoes';
 
 export default function VendedorDashboard() {
     const [activeTab, setActiveTab] = useState<TabType | 'visao-geral'>('visao-geral');

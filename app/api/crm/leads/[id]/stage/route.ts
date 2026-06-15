@@ -5,17 +5,18 @@ import User from '@/models/User';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const session = await getServerSession(authOptions);
         if (!session) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        const { id } = await params;
         await connectDB();
         const body = await request.json();
 
-        let concessionariaId = null;
+        let concessionariaId: string | undefined = undefined;
         // @ts-ignore
         if (session.user?.profile === 'admin' || session.user?.profile === 'administrador' || session.user?.profile === 'marketing') {
             // Admins and Marketing
@@ -36,7 +37,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
             return NextResponse.json({ error: 'Nova fase é obrigatória' }, { status: 400 });
         }
 
-        const lead = await Lead.findOne({ _id: params.id, concessionariaId });
+        const lead = await Lead.findOne({ _id: id, concessionariaId });
         if (!lead) {
              return NextResponse.json({ error: 'Lead não encontrado' }, { status: 404 });
         }

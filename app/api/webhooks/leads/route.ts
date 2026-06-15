@@ -24,17 +24,17 @@ export async function POST(req: Request) {
         }
 
         // Find by webhookSecret (could be a Dealership or an Admin User)
-        let concessionariaId: string | null = null;
+        let concessionariaId: string | undefined = undefined;
         let ownerFound = false;
 
         const concessionaria = await Concessionaria.findOne({ webhookSecret: token });
         if (concessionaria) {
-            concessionariaId = concessionaria._id;
+            concessionariaId = concessionaria._id.toString();
             ownerFound = true;
         } else {
-            const user = await User.findOne({ webhookSecret: token });
+            const user: any = await User.findOne({ webhookSecret: token });
             if (user && (user.profile === 'admin' || user.profile === 'administrador' || user.profile === 'marketing')) {
-                concessionariaId = null; // Global pipeline
+                concessionariaId = undefined; // Global pipeline
                 ownerFound = true;
             }
         }

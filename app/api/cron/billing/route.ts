@@ -14,7 +14,7 @@ export const maxDuration = 60;
 
 type BillingType = 'monthly' | 'annual';
 
-const PENDING_PAYMENT_STATUSES = ['pending', 'in_process', 'authorized'];
+const PENDING_PAYMENT_STATUSES: Array<'pending' | 'in_process'> = ['pending', 'in_process'];
 const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
 
 function asBillingType(value: unknown): BillingType | undefined {
@@ -496,6 +496,7 @@ export async function GET(request: Request) {
 
                 successCount++;
             } else if (payRes.ok && (mpStatus === 'in_process' || mpStatus === 'pending' || mpStatus === 'authorized')) {
+                const finalStatus = mpStatus === 'authorized' ? 'pending' : mpStatus;
                 await Payment.findOneAndUpdate(
                     { mpPaymentId: paymentRecordId },
                     {
@@ -505,7 +506,7 @@ export async function GET(request: Request) {
                             mpPaymentId: paymentRecordId,
                             externalReference,
                             method: 'credit_card',
-                            status: mpStatus,
+                            status: finalStatus,
                             statusDetail: mpStatusDetail,
                             amount: totalAmount,
                             currency: 'BRL',

@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/authOptions';
 import connectDB from '@/lib/mongodb';
 import Banner from '@/models/Banner';
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const session = await getServerSession(authOptions);
         // @ts-ignore
@@ -14,9 +14,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
         const body = await req.json();
         await connectDB();
+        
+        const { id } = await params;
 
         const updatedBanner = await Banner.findByIdAndUpdate(
-            params.id,
+            id,
             { $set: body },
             { new: true }
         );
@@ -31,7 +33,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const session = await getServerSession(authOptions);
         // @ts-ignore
@@ -40,8 +42,10 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
         }
 
         await connectDB();
+        
+        const { id } = await params;
 
-        const deletedBanner = await Banner.findByIdAndDelete(params.id);
+        const deletedBanner = await Banner.findByIdAndDelete(id);
 
         if (!deletedBanner) {
             return NextResponse.json({ error: 'Banner not found' }, { status: 404 });

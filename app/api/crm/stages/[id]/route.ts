@@ -5,17 +5,18 @@ import User from '@/models/User';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const session = await getServerSession(authOptions);
         if (!session) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        const { id } = await params;
         await connectDB();
         const body = await request.json();
 
-        let concessionariaId = null;
+        let concessionariaId: string | undefined = undefined;
         // @ts-ignore
         if (session.user?.profile === 'admin' || session.user?.profile === 'administrador' || session.user?.profile === 'marketing') {
             // Admins and Marketing
@@ -32,7 +33,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
         const { name, order, color } = body;
         
-        const stage = await LeadStage.findOne({ _id: params.id, concessionariaId });
+        const stage = await LeadStage.findOne({ _id: id, concessionariaId });
         if (!stage) {
              return NextResponse.json({ error: 'Fase não encontrada' }, { status: 404 });
         }
@@ -55,16 +56,17 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     }
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const session = await getServerSession(authOptions);
         if (!session) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        const { id } = await params;
         await connectDB();
 
-        let concessionariaId = null;
+        let concessionariaId: string | undefined = undefined;
         // @ts-ignore
         if (session.user?.profile === 'admin' || session.user?.profile === 'administrador' || session.user?.profile === 'marketing') {
             // Admins and Marketing
@@ -79,7 +81,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
              return NextResponse.json({ error: 'Acesso negado ao CRM' }, { status: 403 });
         }
 
-        const stage = await LeadStage.findOneAndDelete({ _id: params.id, concessionariaId });
+        const stage = await LeadStage.findOneAndDelete({ _id: id, concessionariaId });
         if (!stage) {
              return NextResponse.json({ error: 'Fase não encontrada' }, { status: 404 });
         }

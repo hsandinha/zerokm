@@ -14,7 +14,7 @@ export async function GET(request: Request) {
 
         await connectDB();
         
-        let concessionariaId: string | null = null;
+        let concessionariaId: string | undefined = undefined;
         // @ts-ignore
         if (session.user?.profile === 'admin' || session.user?.profile === 'administrador' || session.user?.profile === 'marketing') {
             // Admins and Marketing have access to the global pipeline (concessionariaId = null)
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
         await connectDB();
         const body = await request.json();
 
-        let concessionariaId: string | null = null;
+        let concessionariaId: string | undefined = undefined;
         // @ts-ignore
         if (session.user?.profile === 'admin' || session.user?.profile === 'administrador' || session.user?.profile === 'marketing') {
             // Admins and Marketing create stages for the global pipeline
