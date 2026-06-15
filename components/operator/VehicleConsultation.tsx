@@ -13,6 +13,7 @@ import modalStyles from './TablesManagement.module.css';
 import { HighlightText } from '../HighlightText';
 import { UpgradeModal } from './UpgradeModal';
 import { BannerCarousel } from '../cliente/BannerCarousel';
+import { BannerCarouselHorizontal } from '../cliente/BannerCarouselHorizontal';
 
 const normalizeString = (value: string) => value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 
@@ -1815,7 +1816,15 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                 </div>
             )}
             <div className={styles.header}>
-                <h2>Consulta de Veículos</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+                    <h2>Consulta de Veículos</h2>
+                    
+                    {['client', 'gratis'].includes(role) && (
+                        <div style={{ width: '400px', maxWidth: '500px', height: '160px' }}>
+                            <BannerCarouselHorizontal />
+                        </div>
+                    )}
+                </div>
                 {role === 'gratis' && (
                     <div style={{
                         display: 'flex', alignItems: 'center', gap: '8px',
