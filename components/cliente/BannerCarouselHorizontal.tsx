@@ -85,16 +85,17 @@ export function BannerCarouselHorizontal() {
                         </div>
 
                         <div className={styles.contentWrapper}>
-                            <div>
-                                {banner.vehicleModel && <div className={styles.vehicleModel}>{banner.vehicleModel}</div>}
-                                <div className={styles.storeRow}>
-                                    {banner.storeName && <div className={styles.storeName}>{banner.storeName}</div>}
+                            <div className={styles.titleContainer}>
+                                <div className={styles.titleRow}>
+                                    {banner.vehicleModel && <div className={styles.vehicleModel}>{banner.vehicleModel}</div>}
                                     {banner.linkUrl && (
-                                        <div className={styles.whatsappButton}>
-                                            <FaWhatsapp size={16} />
-                                            <span>WhatsApp</span>
+                                        <div className={styles.whatsappIconOnly}>
+                                            <FaWhatsapp size={20} />
                                         </div>
                                     )}
+                                </div>
+                                <div className={styles.storeRow}>
+                                    {banner.storeName && <div className={styles.storeName}>{banner.storeName}</div>}
                                 </div>
                             </div>
                             
