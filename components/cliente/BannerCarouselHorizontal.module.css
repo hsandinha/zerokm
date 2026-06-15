@@ -77,11 +77,30 @@
     font-size: 0.7rem;
 }
 
-.headerRow {
+.priceRow {
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
+    align-items: center;
     margin-bottom: 0.3rem;
+    margin-top: 0.3rem;
+}
+
+.whatsappButton {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    background-color: #25D366;
+    color: white;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.8rem;
+    transition: background-color 0.2s;
+}
+
+.whatsappButton:hover {
+    background-color: #1ebe57;
 }
 
 .vehicleModel {

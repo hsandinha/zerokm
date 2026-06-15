@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { MdChevronLeft, MdChevronRight, MdLocalGasStation, MdColorLens, MdDateRange, MdLocalShipping, MdInfo } from 'react-icons/md';
+import { FaWhatsapp } from 'react-icons/fa';
 import styles from './BannerCarouselHorizontal.module.css';
 
 interface Banner {
@@ -67,7 +68,7 @@ export function BannerCarouselHorizontal() {
     if (banners.length === 0) return null; // Não exibe o container se não houver banners
 
     return (
-        <div className={styles.carouselContainer}>
+        <div className={styles.carouselContainer} style={{ marginTop: '-8px' }}>
             {banners.map((banner, index) => {
                 const isActive = index === currentIndex;
                 const transformValue = `translateX(${(index - currentIndex) * 100}%)`;
@@ -84,16 +85,23 @@ export function BannerCarouselHorizontal() {
                         </div>
 
                         <div className={styles.contentWrapper}>
-                            <div className={styles.headerRow}>
-                                <div>
-                                    {banner.vehicleModel && <div className={styles.vehicleModel}>{banner.vehicleModel}</div>}
-                                    {banner.storeName && <div className={styles.storeName}>{banner.storeName}</div>}
-                                </div>
+                            <div>
+                                {banner.vehicleModel && <div className={styles.vehicleModel}>{banner.vehicleModel}</div>}
+                                {banner.storeName && <div className={styles.storeName}>{banner.storeName}</div>}
+                            </div>
+                            
+                            <div className={styles.priceRow}>
                                 {(banner.price || banner.priceSubtitle) && (
                                     <div className={styles.priceGroup}>
                                         {banner.price && <div className={styles.price}>{banner.price}</div>}
                                         {banner.priceSubtitle && <div className={styles.priceSubtitle}>{banner.priceSubtitle}</div>}
                                     </div>
+                                )}
+                                {banner.linkUrl && (
+                                    <a href={banner.linkUrl} target="_blank" rel="noopener noreferrer" className={styles.whatsappButton}>
+                                        <FaWhatsapp size={20} />
+                                        <span>Falar</span>
+                                    </a>
                                 )}
                             </div>
 
