@@ -51,4 +51,31 @@
     flex: 1;
     background: var(--color-bg);
     overflow: auto;
+    padding: 2rem;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 2rem;
+    align-items: start;
+}
+
+.mainColumn {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    min-width: 0; /* Evita transbordamento em CSS Grid */
+}
+
+.sidebarColumn {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Responsividade */
+@media (max-width: 1024px) {
+    .content {
+        grid-template-columns: 1fr;
+        padding: 1rem;
+        gap: 1.5rem;
+    }
 }

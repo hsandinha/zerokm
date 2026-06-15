@@ -1,12 +1,11 @@
 .carouselContainer {
     width: 100%;
-    margin-bottom: 1.5rem;
+    margin-bottom: 0;
     border-radius: 12px;
     overflow: hidden;
     position: relative;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    height: 120px;
-    max-height: 120px;
+    aspect-ratio: 1 / 1;
     background: var(--color-surface);
 }
 
