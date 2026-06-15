@@ -38,7 +38,7 @@ export function BannerCarousel() {
 
         const interval = setInterval(() => {
             setCurrentIndex((prev) => (prev + 1) % banners.length);
-        }, 5000); // Rotação a cada 5 segundos
+        }, 10000); // Rotação a cada 10 segundos
 
         return () => clearInterval(interval);
     }, [banners]);
