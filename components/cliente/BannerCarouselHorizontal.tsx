@@ -87,21 +87,23 @@ export function BannerCarouselHorizontal() {
                         <div className={styles.contentWrapper}>
                             <div>
                                 {banner.vehicleModel && <div className={styles.vehicleModel}>{banner.vehicleModel}</div>}
-                                {banner.storeName && <div className={styles.storeName}>{banner.storeName}</div>}
+                                <div className={styles.storeRow}>
+                                    {banner.storeName && <div className={styles.storeName}>{banner.storeName}</div>}
+                                    {banner.linkUrl && (
+                                        <a href={banner.linkUrl} target="_blank" rel="noopener noreferrer" className={styles.whatsappButton}>
+                                            <FaWhatsapp size={16} />
+                                            <span>WhatsApp</span>
+                                        </a>
+                                    )}
+                                </div>
                             </div>
                             
                             <div className={styles.priceRow}>
                                 {(banner.price || banner.priceSubtitle) && (
                                     <div className={styles.priceGroup}>
-                                        {banner.price && <div className={styles.price}>{banner.price}</div>}
                                         {banner.priceSubtitle && <div className={styles.priceSubtitle}>{banner.priceSubtitle}</div>}
+                                        {banner.price && <div className={styles.price}>{banner.price}</div>}
                                     </div>
-                                )}
-                                {banner.linkUrl && (
-                                    <a href={banner.linkUrl} target="_blank" rel="noopener noreferrer" className={styles.whatsappButton}>
-                                        <FaWhatsapp size={20} />
-                                        <span>Falar</span>
-                                    </a>
                                 )}
                             </div>
 

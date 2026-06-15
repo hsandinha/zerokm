@@ -73,8 +73,9 @@
 }
 
 .priceSubtitle {
-    color: #666;
+    color: #999;
     font-size: 0.7rem;
+    text-decoration: line-through;
 }
 
 .priceRow {
@@ -85,17 +86,23 @@
     margin-top: 0.3rem;
 }
 
+.storeRow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 .whatsappButton {
     display: flex;
     align-items: center;
     gap: 0.3rem;
     background-color: #25D366;
     color: white;
-    padding: 0.3rem 0.8rem;
-    border-radius: 20px;
+    padding: 0.2rem 0.5rem;
+    border-radius: 15px;
     text-decoration: none;
     font-weight: 700;
-    font-size: 0.8rem;
+    font-size: 0.6rem;
     transition: background-color 0.2s;
 }
 

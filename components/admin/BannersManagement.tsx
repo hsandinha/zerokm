@@ -17,6 +17,7 @@ interface Banner {
 
 export function BannersManagement() {
     const [banners, setBanners] = useState<Banner[]>([]);
+    const [dealerships, setDealerships] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
@@ -50,6 +51,7 @@ export function BannersManagement() {
 
     useEffect(() => {
         carregarBanners();
+        carregarConcessionarias();
     }, []);
 
     const carregarBanners = async () => {
@@ -64,6 +66,18 @@ export function BannersManagement() {
             console.error('Erro ao buscar banners:', error);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const carregarConcessionarias = async () => {
+        try {
+            const res = await fetch('/api/concessionarias');
+            if (res.ok) {
+                const data = await res.json();
+                setDealerships(data);
+            }
+        } catch (error) {
+            console.error('Erro ao buscar concessionárias', error);
         }
     };
 
@@ -261,8 +275,45 @@ export function BannersManagement() {
                                 className={styles.input}
                             />
                         </div>
+                        <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
+                            <label style={{ color: '#ff6b00' }}>Preencher dados a partir de uma Concessionária</label>
+                            <select 
+                                className={styles.input}
+                                onChange={(e) => {
+                                    const dId = e.target.value;
+                                    const d = dealerships.find(x => x.id === dId);
+                                    if (d) {
+                                        const phone = d.celular || d.telefone || d.telefoneResponsavel || '';
+                                        const cleanPhone = phone.replace(/\D/g, '');
+                                        const waLink = cleanPhone ? `https://wa.me/55${cleanPhone}` : '';
+                                        setNewBanner(prev => ({
+                                            ...prev,
+                                            storeName: d.nome || '',
+                                            linkUrl: waLink
+                                        }));
+                                    }
+                                }}
+                            >
+                                <option value="">-- Escolha uma concessionária para preencher Nome e Link --</option>
+                                {dealerships.map(d => (
+                                    <option key={d.id} value={d.id}>{d.nome}</option>
+                                ))}
+                            </select>
+                            <span style={{ fontSize: '0.75rem', color: '#666' }}>Isto irá preencher automaticamente os campos "Nome da Loja" e "Link de Destino" abaixo.</span>
+                        </div>
+                        
                         <div className={styles.formGroup}>
-                            <label>Link de Destino (Opcional)</label>
+                            <label>Nome da Loja</label>
+                            <input 
+                                type="text"
+                                placeholder="Ex: CNV Veículos"
+                                value={newBanner.storeName}
+                                onChange={e => setNewBanner({...newBanner, storeName: e.target.value})}
+                                className={styles.input}
+                            />
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label>Link de Destino / WhatsApp (Opcional)</label>
                             <input 
                                 type="url"
                                 placeholder="https://..."
