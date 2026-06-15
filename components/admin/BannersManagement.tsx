@@ -353,16 +353,7 @@ export function BannersManagement() {
                                 className={styles.input}
                             />
                         </div>
-                        <div className={styles.formGroup}>
-                            <label>Nome da Loja</label>
-                            <input 
-                                type="text"
-                                placeholder="Ex: LOJA ZEROKILOMETRO"
-                                value={newBanner.storeName}
-                                onChange={e => setNewBanner({...newBanner, storeName: e.target.value})}
-                                className={styles.input}
-                            />
-                        </div>
+
                         <div className={styles.formGroup}>
                             <label>Ano (FAB/MOD)</label>
                             <input 
