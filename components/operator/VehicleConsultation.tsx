@@ -1815,16 +1815,18 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                     <div className={styles.loadingOverlayMessage}>Atualizando resultados...</div>
                 </div>
             )}
-            <div className={styles.header}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-                    <h2>Consulta de Veículos</h2>
-                    
-                    {['client', 'gratis'].includes(role) && (
-                        <div style={{ width: '400px', maxWidth: '500px', height: '160px' }}>
-                            <BannerCarouselHorizontal />
-                        </div>
-                    )}
+            
+            {/* Horizontal Banner Test - Centered above everything */}
+            {['client', 'gratis'].includes(role) && (
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem', width: '100%' }}>
+                    <div style={{ width: '100%', maxWidth: '800px', height: '220px' }}>
+                        <BannerCarouselHorizontal />
+                    </div>
                 </div>
+            )}
+
+            <div className={styles.header}>
+                <h2>Consulta de Veículos</h2>
                 {role === 'gratis' && (
                     <div style={{
                         display: 'flex', alignItems: 'center', gap: '8px',
