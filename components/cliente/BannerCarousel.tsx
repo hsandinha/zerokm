@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { MdChevronLeft, MdChevronRight } from 'react-icons/md';
 import styles from './BannerCarousel.module.css';
 
 interface Banner {
@@ -43,11 +44,19 @@ export function BannerCarousel() {
         return () => clearInterval(interval);
     }, [banners]);
 
+    const handlePrev = () => {
+        setCurrentIndex((prev) => (prev - 1 + banners.length) % banners.length);
+    };
+
+    const handleNext = () => {
+        setCurrentIndex((prev) => (prev + 1) % banners.length);
+    };
+
     if (isLoading) return null; // Não exibe nada enquanto carrega
     if (banners.length === 0) return null; // Não exibe o container se não houver banners
 
     return (
-        <div className={styles.carouselContainer}>
+        <div className={styles.carouselContainer} style={{ position: 'relative' }}>
             {banners.map((banner, index) => {
                 const isActive = index === currentIndex;
                 const content = (
@@ -82,16 +91,43 @@ export function BannerCarousel() {
             })}
 
             {banners.length > 1 && (
-                <div className={styles.dotsContainer}>
-                    {banners.map((_, index) => (
-                        <button
-                            key={index}
-                            className={`${styles.dot} ${index === currentIndex ? styles.dotActive : ''}`}
-                            onClick={() => setCurrentIndex(index)}
-                            aria-label={`Ir para o banner ${index + 1}`}
-                        />
-                    ))}
-                </div>
+                <>
+                    <button 
+                        onClick={handlePrev} 
+                        style={{
+                            position: 'absolute', left: '0.2rem', top: '50%', transform: 'translateY(-50%)',
+                            background: 'rgba(255, 255, 255, 0.7)', border: 'none', borderRadius: '50%',
+                            width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'pointer', zIndex: 10, boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+                        }}
+                        aria-label="Banner anterior"
+                    >
+                        <MdChevronLeft size={20} color="#333" />
+                    </button>
+                    <button 
+                        onClick={handleNext} 
+                        style={{
+                            position: 'absolute', right: '0.2rem', top: '50%', transform: 'translateY(-50%)',
+                            background: 'rgba(255, 255, 255, 0.7)', border: 'none', borderRadius: '50%',
+                            width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'pointer', zIndex: 10, boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+                        }}
+                        aria-label="Próximo banner"
+                    >
+                        <MdChevronRight size={20} color="#333" />
+                    </button>
+
+                    <div className={styles.dotsContainer}>
+                        {banners.map((_, index) => (
+                            <button
+                                key={index}
+                                className={`${styles.dot} ${index === currentIndex ? styles.dotActive : ''}`}
+                                onClick={() => setCurrentIndex(index)}
+                                aria-label={`Ir para o banner ${index + 1}`}
+                            />
+                        ))}
+                    </div>
+                </>
             )}
         </div>
     );
