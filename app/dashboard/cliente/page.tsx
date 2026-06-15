@@ -188,7 +188,7 @@ export default function ClientDashboard() {
                     </div>
                     
                     <div style={{ flex: 1, display: 'flex', justifyContent: 'center', padding: '0 1rem' }}>
-                        <div style={{ width: '100%', maxWidth: '750px', height: '80px', marginTop: '-15px' }}>
+                        <div style={{ width: '100%', maxWidth: '750px', height: '80px', marginTop: '-25px' }}>
                             <BannerCarouselHorizontal />
                         </div>
                     </div>

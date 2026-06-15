@@ -90,10 +90,10 @@ export function BannerCarouselHorizontal() {
                                 <div className={styles.storeRow}>
                                     {banner.storeName && <div className={styles.storeName}>{banner.storeName}</div>}
                                     {banner.linkUrl && (
-                                        <a href={banner.linkUrl} target="_blank" rel="noopener noreferrer" className={styles.whatsappButton}>
+                                        <div className={styles.whatsappButton}>
                                             <FaWhatsapp size={16} />
                                             <span>WhatsApp</span>
-                                        </a>
+                                        </div>
                                     )}
                                 </div>
                             </div>
