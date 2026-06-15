@@ -95,58 +95,57 @@ export function BannerCarousel() {
                             {banner.storeName && <div className={styles.storeName}>{banner.storeName}</div>}
 
                             {/* Specifications Grid */}
-                            <div className={styles.specsGrid}>
-                                {banner.year && (
-                                    <div className={styles.specItem}>
-                                        <MdDateRange className={styles.specIcon} />
-                                        <div className={styles.specTextGroup}>
-                                            <span className={styles.specValue}>{banner.year}</span>
-                                            <span className={styles.specLabel}>Ano</span>
+                            <div className={styles.specsContainer}>
+                                <div className={styles.specsRow3}>
+                                    {banner.year && (
+                                        <div className={styles.specItem}>
+                                            <MdDateRange className={styles.specIcon} />
+                                            <div className={styles.specTextGroup}>
+                                                <span className={styles.specValue}>{banner.year}</span>
+                                                <span className={styles.specLabel}>Ano</span>
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-                                {banner.color && (
-                                    <div className={styles.specItem}>
-                                        <MdColorLens className={styles.specIcon} />
-                                        <div className={styles.specTextGroup}>
-                                            <span className={styles.specValue}>{banner.color}</span>
-                                            <span className={styles.specLabel}>Cor</span>
+                                    )}
+                                    {banner.color && (
+                                        <div className={styles.specItem}>
+                                            <MdColorLens className={styles.specIcon} />
+                                            <div className={styles.specTextGroup}>
+                                                <span className={styles.specValue}>{banner.color}</span>
+                                                <span className={styles.specLabel}>Cor</span>
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-                                {banner.fuel && (
-                                    <div className={styles.specItem}>
-                                        <MdLocalGasStation className={styles.specIcon} />
-                                        <div className={styles.specTextGroup}>
-                                            <span className={styles.specValue}>{banner.fuel}</span>
-                                            <span className={styles.specLabel}>Combustível</span>
+                                    )}
+                                    {banner.fuel && (
+                                        <div className={styles.specItem}>
+                                            <MdLocalGasStation className={styles.specIcon} />
+                                            <div className={styles.specTextGroup}>
+                                                <span className={styles.specValue}>{banner.fuel}</span>
+                                                <span className={styles.specLabel}>Combustível</span>
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-                                {banner.delivery && (
-                                    <div className={styles.specItem}>
-                                        <MdLocalShipping className={styles.specIcon} />
-                                        <div className={styles.specTextGroup}>
-                                            <span className={styles.specValue}>{banner.delivery}</span>
-                                            <span className={styles.specLabel}>Prazo</span>
+                                    )}
+                                </div>
+                                <div className={styles.specsRow2}>
+                                    {banner.delivery && (
+                                        <div className={styles.specItem}>
+                                            <MdLocalShipping className={styles.specIcon} />
+                                            <div className={styles.specTextGroup}>
+                                                <span className={styles.specValue}>{banner.delivery}</span>
+                                                <span className={styles.specLabel}>Prazo</span>
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-                                {banner.statusCondition && (
-                                    <div className={styles.specItem}>
-                                        <MdInfo className={styles.specIcon} />
-                                        <div className={styles.specTextGroup}>
-                                            <span className={styles.specValue}>{banner.statusCondition}</span>
-                                            <span className={styles.specLabel}>Situação</span>
+                                    )}
+                                    {banner.statusCondition && (
+                                        <div className={styles.specItem}>
+                                            <MdInfo className={styles.specIcon} />
+                                            <div className={styles.specTextGroup}>
+                                                <span className={styles.specValue}>{banner.statusCondition}</span>
+                                                <span className={styles.specLabel}>Situação</span>
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
-
-                            {/* Call to Action Button */}
-                            <button className={styles.ctaButton}>
-                                {banner.ctaText || 'Tenho Interesse'}
-                            </button>
                         </div>
                     </div>
                 );

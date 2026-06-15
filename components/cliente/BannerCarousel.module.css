@@ -89,22 +89,35 @@
     margin-bottom: 1rem;
 }
 
-.specsGrid {
+.specsContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    margin-bottom: 0.5rem;
+}
+
+.specsRow3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.4rem;
+}
+
+.specsRow2 {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 0.8rem;
-    margin-bottom: 1.2rem;
+    gap: 0.4rem;
 }
 
 .specItem {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: 0.3rem;
 }
 
 .specIcon {
     color: #555;
     font-size: 1.1rem;
+    flex-shrink: 0;
 }
 
 .specTextGroup {
@@ -113,34 +126,16 @@
 }
 
 .specValue {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: #333;
     line-height: 1.1;
+    word-break: break-word;
 }
 
 .specLabel {
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     color: #888;
-}
-
-.ctaButton {
-    background-color: #00d284;
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    padding: 0.8rem;
-    font-weight: 700;
-    font-size: 0.9rem;
-    cursor: pointer;
-    text-align: center;
-    transition: background-color 0.2s;
-    width: 100%;
-    margin-top: auto;
-}
-
-.ctaButton:hover {
-    background-color: #00b571;
 }
 
 .bannerLink {
