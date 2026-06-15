@@ -1,0 +1,194 @@
+.panel {
+    background: var(--color-surface);
+    border-radius: 16px;
+    border: 1px solid var(--color-highlight);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+    overflow: hidden;
+}
+
+.header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid var(--color-highlight);
+    background: var(--color-panel);
+}
+
+.header h2 {
+    margin: 0;
+    color: var(--color-text);
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.header p {
+    margin: 0.25rem 0 0;
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+}
+
+.closeButton {
+    background: var(--color-surface);
+    border: 1px solid var(--color-highlight);
+    border-radius: 999px;
+    padding: 0.4rem 0.9rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.closeButton:hover {
+    background: var(--color-highlight);
+    color: var(--color-text);
+}
+
+.form {
+    padding: 2rem;
+}
+
+.formGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.formGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.formGroupFull {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.formGroupDual {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.dualInputContainer {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.dualInput {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.dualInput label {
+    font-weight: 600;
+    color: var(--color-text);
+    font-size: 0.9rem;
+}
+
+.dualInput input {
+    padding: 0.75rem;
+    border: 2px solid var(--color-highlight);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    transition: border-color 0.2s ease;
+    background: var(--color-bg);
+    color: var(--color-text);
+}
+
+.dualInput input:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.formGroup label,
+.formGroupFull label {
+    font-weight: 600;
+    color: var(--color-text);
+    font-size: 0.9rem;
+}
+
+.formGroup input,
+.formGroup select,
+.formGroupFull textarea {
+    padding: 0.75rem;
+    border: 1px solid var(--color-highlight);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    transition: border-color 0.2s ease;
+    background: var(--color-bg);
+    color: var(--color-text);
+}
+
+.formGroup input:focus,
+.formGroup select:focus,
+.formGroupFull textarea:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.formGroup input:invalid,
+.formGroup select:invalid,
+.formGroupFull textarea:invalid,
+.dualInput input:invalid {
+    border-color: var(--color-highlight);
+    box-shadow: none;
+}
+
+.formActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--color-highlight);
+}
+
+.cancelButton,
+.submitButton {
+    padding: 0.75rem 2rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+}
+
+.cancelButton {
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    border-color: var(--color-highlight);
+}
+
+.cancelButton:hover {
+    background: var(--color-highlight);
+    color: var(--color-text);
+}
+
+.submitButton {
+    background: var(--color-accent);
+    color: white;
+    border-color: var(--color-accent);
+}
+
+.submitButton:hover:not(:disabled) {
+    background: var(--color-accent);
+    opacity: 0.9;
+    border-color: var(--color-accent);
+}
+
+.submitButton:disabled {
+    background: var(--color-panel);
+    border-color: var(--color-highlight);
+    color: var(--color-text-muted);
+    cursor: not-allowed;
+}

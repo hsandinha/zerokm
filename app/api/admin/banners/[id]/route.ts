@@ -1,0 +1,54 @@
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
+import connectDB from '@/lib/mongodb';
+import Banner from '@/models/Banner';
+
+export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+    try {
+        const session = await getServerSession(authOptions);
+        // @ts-ignore
+        if (!session?.user || (session.user.profile !== 'admin' && session.user.profile !== 'administrador')) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const body = await req.json();
+        await connectDB();
+
+        const updatedBanner = await Banner.findByIdAndUpdate(
+            params.id,
+            { $set: body },
+            { new: true }
+        );
+
+        if (!updatedBanner) {
+            return NextResponse.json({ error: 'Banner not found' }, { status: 404 });
+        }
+
+        return NextResponse.json(updatedBanner);
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
+
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+    try {
+        const session = await getServerSession(authOptions);
+        // @ts-ignore
+        if (!session?.user || (session.user.profile !== 'admin' && session.user.profile !== 'administrador')) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        await connectDB();
+
+        const deletedBanner = await Banner.findByIdAndDelete(params.id);
+
+        if (!deletedBanner) {
+            return NextResponse.json({ error: 'Banner not found' }, { status: 404 });
+        }
+
+        return NextResponse.json({ success: true });
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}

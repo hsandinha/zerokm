@@ -1,0 +1,246 @@
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 1rem;
+}
+
+.modal {
+    background: var(--color-surface);
+    border: 1px solid var(--color-highlight);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 560px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    overflow: hidden;
+}
+
+/* Header */
+.header {
+    background: var(--color-accent);
+    padding: 1.5rem 2rem;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.headerTitle {
+    margin: 0 2rem 0 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #fff;
+}
+
+.headerSubtitle {
+    margin: 0.4rem 0 0;
+    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.closeBtn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    color: white;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    transition: background 0.15s;
+}
+
+.closeBtn:hover {
+    background: rgba(255, 255, 255, 0.35);
+}
+
+/* Body */
+.body {
+    padding: 1.5rem 2rem 2rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.loading,
+.empty {
+    text-align: center;
+    color: var(--color-text-muted);
+    padding: 2rem 0;
+    font-size: 0.9rem;
+}
+
+.error {
+    background: rgba(231, 76, 60, 0.1);
+    border: 1px solid rgba(231, 76, 60, 0.3);
+    color: var(--color-negative, #e74c3c);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+}
+
+/* Section labels */
+.sectionLabel {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin: 0 0 0.75rem;
+}
+
+/* Monthly plan card */
+.monthlyCard {
+    border: 2px solid var(--color-accent);
+    border-radius: 12px;
+    padding: 1.1rem 1.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(37, 99, 235, 0.07);
+    transition: background 0.15s;
+}
+
+.monthlyCard:hover {
+    background: rgba(37, 99, 235, 0.12);
+}
+
+.planName {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--color-text);
+    margin-bottom: 2px;
+}
+
+.planDesc {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    margin-bottom: 4px;
+}
+
+.planPerks {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--color-positive, #2ecc71);
+}
+
+.planPriceBlock {
+    text-align: right;
+    flex-shrink: 0;
+    margin-left: 1rem;
+}
+
+.planPrice {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--color-accent);
+    display: block;
+    line-height: 1;
+    margin-bottom: 8px;
+}
+
+.btnPrimary {
+    background: var(--color-accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.15s;
+}
+
+.btnPrimary:hover:not(:disabled) {
+    opacity: 0.88;
+}
+
+.btnPrimary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Credit packs grid */
+.creditsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.75rem;
+}
+
+.creditCard {
+    border: 1px solid var(--color-highlight);
+    border-radius: 12px;
+    padding: 1rem;
+    text-align: center;
+    background: var(--color-bg);
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.creditCard:hover {
+    border-color: var(--color-accent);
+    background: rgba(37, 99, 235, 0.05);
+}
+
+.creditQty {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--color-accent);
+    line-height: 1;
+}
+
+.creditUnit {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    margin-bottom: 0.5rem;
+}
+
+.creditDesc {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    margin-bottom: 0.4rem;
+}
+
+.creditPrice {
+    font-weight: 700;
+    color: var(--color-text);
+    font-size: 0.95rem;
+    margin-bottom: 0.75rem;
+}
+
+.btnSecondary {
+    width: 100%;
+    background: var(--color-highlight);
+    color: var(--color-text);
+    border: 1px solid var(--color-highlight);
+    border-radius: 8px;
+    padding: 0.45rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.btnSecondary:hover:not(:disabled) {
+    background: var(--color-accent);
+    color: #fff;
+    border-color: var(--color-accent);
+}
+
+.btnSecondary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

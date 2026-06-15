@@ -1,0 +1,11 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Badge Component > should match snapshot 1`] = `
+<div>
+  <span
+    class="badge success"
+  >
+    Ativo
+  </span>
+</div>
+`;

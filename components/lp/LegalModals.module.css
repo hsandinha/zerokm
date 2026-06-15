@@ -1,0 +1,88 @@
+.legalBody {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.legalHeader {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding-bottom: 1.5rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(246, 183, 60, 0.15);
+}
+
+.legalTitle {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #f0f4f8;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.legalMeta {
+    font-size: 0.78rem;
+    color: rgba(240, 244, 248, 0.35);
+    margin: 0;
+}
+
+.section {
+    padding: 1rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.section:last-child {
+    border-bottom: none;
+}
+
+.section p {
+    font-size: 0.875rem;
+    color: rgba(240, 244, 248, 0.65);
+    line-height: 1.75;
+    margin: 0 0 0.6rem;
+}
+
+.section p:last-child {
+    margin-bottom: 0;
+}
+
+.sectionTitle {
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #f6b73c;
+    margin: 0 0 0.65rem;
+}
+
+.list {
+    margin: 0.25rem 0 0.6rem 1.2rem;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.list li {
+    font-size: 0.875rem;
+    color: rgba(240, 244, 248, 0.65);
+    line-height: 1.7;
+}
+
+.list li strong {
+    color: rgba(240, 244, 248, 0.85);
+    font-weight: 600;
+}
+
+.link {
+    color: #f6b73c;
+    text-decoration: none;
+    transition: color 0.15s;
+}
+
+.link:hover {
+    color: #fcd37a;
+    text-decoration: underline;
+}

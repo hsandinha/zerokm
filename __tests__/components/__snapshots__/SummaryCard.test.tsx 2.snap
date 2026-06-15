@@ -1,0 +1,35 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`SummaryCard Component > should match snapshot with all props 1`] = `
+<div>
+  <article
+    class="card success"
+  >
+    <header
+      class="header"
+    >
+      <span
+        class="icon"
+      >
+        🚗
+      </span>
+      Veículos
+    </header>
+    <strong
+      class="value"
+    >
+      1.234
+    </strong>
+    <div
+      class="change up"
+    >
+      +12%
+    </div>
+    <p
+      class="subtitle"
+    >
+      No estoque
+    </p>
+  </article>
+</div>
+`;

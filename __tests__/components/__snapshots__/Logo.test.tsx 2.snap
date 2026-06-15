@@ -1,0 +1,17 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Logo Component > should match snapshot 1`] = `
+<div>
+  <div
+    class="logo"
+  >
+    <img
+      alt="Logomarca CNV"
+      class="logoImage"
+      height="80"
+      src="/images/logo.png"
+      width="240"
+    />
+  </div>
+</div>
+`;

@@ -1,0 +1,87 @@
+.toggleWrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-bottom: 2.5rem;
+}
+
+.toggleLabel {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: rgba(240, 244, 248, 0.38);
+    transition: color 0.2s;
+    user-select: none;
+}
+
+.toggleLabelActive {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #f0f4f8;
+    transition: color 0.2s;
+    user-select: none;
+}
+
+.toggle {
+    position: relative;
+    width: 48px;
+    height: 26px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1.5px solid rgba(255, 255, 255, 0.15);
+    border-radius: 100px;
+    cursor: pointer;
+    transition: background 0.25s, border-color 0.25s;
+    padding: 0;
+    outline: none;
+    flex-shrink: 0;
+}
+
+.toggle:focus-visible {
+    box-shadow: 0 0 0 3px rgba(246, 183, 60, 0.4);
+}
+
+.toggleOn {
+    background: rgba(246, 183, 60, 0.18);
+    border-color: rgba(246, 183, 60, 0.5);
+}
+
+.toggleThumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    background: rgba(240, 244, 248, 0.45);
+    border-radius: 50%;
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.25s;
+}
+
+.toggleOn .toggleThumb {
+    transform: translateX(22px);
+    background: #f6b73c;
+}
+
+.toggleSaveBadge {
+    padding: 0.2rem 0.65rem;
+    background: rgba(74, 222, 128, 0.12);
+    border: 1px solid rgba(74, 222, 128, 0.3);
+    color: #4ade80;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    border-radius: 100px;
+    white-space: nowrap;
+}
+
+.planDiscountBadge {
+    margin-left: 0.5rem;
+    padding: 0.18rem 0.55rem;
+    background: rgba(74, 222, 128, 0.15);
+    border: 1px solid rgba(74, 222, 128, 0.35);
+    color: #4ade80;
+    font-size: 0.75rem;
+    font-weight: 800;
+    border-radius: 100px;
+    white-space: nowrap;
+    align-self: center;
+}

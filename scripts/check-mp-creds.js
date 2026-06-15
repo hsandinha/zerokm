@@ -1,0 +1,10 @@
+require('dotenv').config({ path: '.env.local' });
+const t = process.env.MP_ACCESS_TOKEN || '';
+const pk = process.env.MP_PUBLIC_KEY || '';
+console.log('MP_ACCESS_TOKEN prefixo:', t ? t.slice(0, 10) + '...' : '(VAZIO)');
+console.log('  -> TEST (sandbox)?  ', t.startsWith('TEST-'));
+console.log('  -> APP_USR (prod)?  ', t.startsWith('APP_USR-'));
+console.log('MP_PUBLIC_KEY prefixo: ', pk ? pk.slice(0, 10) + '...' : '(VAZIO)');
+console.log('  -> TEST (sandbox)?  ', pk.startsWith('TEST-'));
+console.log('  -> APP_USR (prod)?  ', pk.startsWith('APP_USR-'));
+console.log('NEXTAUTH_URL:          ', process.env.NEXTAUTH_URL || '(VAZIO)');

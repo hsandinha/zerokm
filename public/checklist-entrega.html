@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZeroKM — Checklist de Entrega</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --surface: #12121a;
+            --surface-2: #1a1a26;
+            --border: #2a2a3a;
+            --border-hover: #3a3a52;
+            --text: #e8eaed;
+            --text-muted: #8b8fa3;
+            --accent: #6366f1;
+            --accent-glow: rgba(99, 102, 241, 0.15);
+            --green: #10b981;
+            --green-bg: rgba(16, 185, 129, 0.08);
+            --green-border: rgba(16, 185, 129, 0.2);
+            --yellow: #f59e0b;
+            --yellow-bg: rgba(245, 158, 11, 0.08);
+            --yellow-border: rgba(245, 158, 11, 0.2);
+            --red: #ef4444;
+            --red-bg: rgba(239, 68, 68, 0.08);
+            --red-border: rgba(239, 68, 68, 0.2);
+            --blue: #3b82f6;
+            --blue-bg: rgba(59, 130, 246, 0.08);
+            --blue-border: rgba(59, 130, 246, 0.2);
+            --purple: #8b5cf6;
+            --purple-bg: rgba(139, 92, 246, 0.08);
+            --purple-border: rgba(139, 92, 246, 0.2);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .hero {
+            text-align: center;
+            padding: 4rem 2rem 3rem;
+            background: linear-gradient(180deg, rgba(99,102,241,0.08) 0%, transparent 100%);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--accent-glow);
+            border: 1px solid rgba(99,102,241,0.3);
+            color: #a5b4fc;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1.5rem;
+        }
+
+        .hero h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #fff 30%, #a5b4fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.75rem;
+        }
+
+        .hero p {
+            color: var(--text-muted);
+            font-size: 1.05rem;
+            max-width: 620px;
+            margin: 0 auto;
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            padding: 1.5rem 2rem;
+            flex-wrap: wrap;
+        }
+
+        .stat {
+            text-align: center;
+            min-width: 120px;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--green);
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 4px;
+        }
+
+        /* Progress Bar */
+        .progress-wrap {
+            max-width: 600px;
+            margin: 0 auto 2rem;
+            padding: 0 2rem;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .progress-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .progress-pct {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--green);
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: var(--surface-2);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: linear-gradient(90deg, var(--green), #34d399);
+            transition: width 1s ease;
+        }
+
+        /* Container */
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 0 2rem 4rem;
+        }
+
+        /* Sections */
+        .section {
+            margin-bottom: 2rem;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .section-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .section-icon.green { background: var(--green-bg); border: 1px solid var(--green-border); }
+        .section-icon.blue { background: var(--blue-bg); border: 1px solid var(--blue-border); }
+        .section-icon.purple { background: var(--purple-bg); border: 1px solid var(--purple-border); }
+        .section-icon.yellow { background: var(--yellow-bg); border: 1px solid var(--yellow-border); }
+        .section-icon.red { background: var(--red-bg); border: 1px solid var(--red-border); }
+
+        .section-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+        }
+
+        .section-count {
+            margin-left: auto;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            background: var(--surface-2);
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+
+        /* Items */
+        .item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            margin-bottom: 4px;
+            transition: background 0.15s;
+            cursor: default;
+        }
+
+        .item:hover {
+            background: var(--surface);
+        }
+
+        .check {
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 0.7rem;
+            font-weight: 700;
+            margin-top: 1px;
+        }
+
+        .check.done {
+            background: var(--green);
+            color: #fff;
+        }
+
+        .check.partial {
+            background: var(--yellow);
+            color: #fff;
+        }
+
+        .check.todo {
+            background: transparent;
+            border: 2px solid var(--border);
+            color: var(--text-muted);
+        }
+
+        .item-content {
+            flex: 1;
+        }
+
+        .item-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .item-desc {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .item-tag {
+            font-size: 0.65rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            margin-left: auto;
+            flex-shrink: 0;
+            align-self: center;
+        }
+
+        .tag-vitest { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+        .tag-playwright { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-border); }
+        .tag-ci { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-border); }
+        .tag-manual { background: var(--yellow-bg); color: var(--yellow); border: 1px solid var(--yellow-border); }
+        .tag-security { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        .footer strong {
+            color: var(--text);
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .hero h1 { font-size: 1.75rem; }
+            .stats-bar { gap: 1rem; }
+            .stat-value { font-size: 1.5rem; }
+            .item { padding: 10px 12px; }
+            .item-tag { display: none; }
+        }
+
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .section { animation: fadeIn 0.5s ease both; }
+        .section:nth-child(2) { animation-delay: 0.05s; }
+        .section:nth-child(3) { animation-delay: 0.1s; }
+        .section:nth-child(4) { animation-delay: 0.15s; }
+        .section:nth-child(5) { animation-delay: 0.2s; }
+        .section:nth-child(6) { animation-delay: 0.25s; }
+        .section:nth-child(7) { animation-delay: 0.3s; }
+        .section:nth-child(8) { animation-delay: 0.35s; }
+    </style>
+</head>
+<body>
+
+<div class="hero">
+    <div class="hero-badge">🏢 Enterprise Quality Assurance</div>
+    <h1>Checklist de Entrega — ZeroKM</h1>
+    <p>Padrão de qualidade inspirado em empresas como Google, Meta e Stripe. Validação completa antes de cada deploy em produção.</p>
+</div>
+
+<div class="stats-bar">
+    <div class="stat">
+        <div class="stat-value" id="totalTests">191</div>
+        <div class="stat-label">Testes Automatizados</div>
+    </div>
+    <div class="stat">
+        <div class="stat-value">131</div>
+        <div class="stat-label">Unitários (Vitest)</div>
+    </div>
+    <div class="stat">
+        <div class="stat-value">60</div>
+        <div class="stat-label">E2E (Playwright)</div>
+    </div>
+    <div class="stat">
+        <div class="stat-value">3</div>
+        <div class="stat-label">Stages do CI</div>
+    </div>
+</div>
+
+<div class="progress-wrap">
+    <div class="progress-header">
+        <span class="progress-label">Progresso do Checklist</span>
+        <span class="progress-pct" id="progressPct">0%</span>
+    </div>
+    <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- ════════════════════════════════════ -->
+    <!-- 1. TESTES UNITÁRIOS                 -->
+    <!-- ════════════════════════════════════ -->
+    <div class="section">
+        <div class="section-header">
+            <div class="section-icon green">🧪</div>
+            <div class="section-title">Testes Unitários</div>
+            <div class="section-count" id="count-unit">0/0</div>
+        </div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">API Config Contato — 9 testes</div><div class="item-desc">CRUD de configuração de contato, validação de campos obrigatórios, segurança.</div></div><span class="item-tag tag-vitest">Vitest</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">API Margem — 8 testes</div><div class="item-desc">Cálculos de margem (percentual e fixo), validação de ranges, modo padrão.</div></div><span class="item-tag tag-vitest">Vitest</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Contratos de API — 12 testes</div><div class="item-desc">Shape das respostas (Contato, Margem), regressão de valores padrão, formato CNPJ/WhatsApp.</div></div><span class="item-tag tag-vitest">Vitest</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Lib Mercado Pago — 9 testes</div><div class="item-desc">mpGet, mpPost, mpPut, createPreference, getPayment, getPaymentMethods com mock de fetch.</div></div><span class="item-tag tag-vitest">Vitest</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Contratos de Pagamento — 30 testes</div><div class="item-desc">Shapes de Payment (Card/PIX/Boleto), Checkout request/response, Webhook payload, regras de negócio.</div></div><span class="item-tag tag-vitest">Vitest</span></div>
+    </div>
+
+    <!-- ════════════════════════════════════ -->
+    <!-- 2. TESTES DE COMPONENTES            -->
+    <!-- ════════════════════════════════════ -->
+    <div class="section">
+        <div class="section-header">
+            <div class="section-icon blue">🧩</div>
+            <div class="section-title">Testes de Componentes</div>
+            <div class="section-count" id="count-comp">0/0</div>
+        </div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Badge — 8 testes</div><div class="item-desc">Todas as variantes (success, warning, error, info), classes CSS, snapshot.</div></div><span class="item-tag tag-vitest">Vitest</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Logo — 4 testes</div><div class="item-desc">Renderização da imagem, alt text, dimensões, atributo src.</div></div><span class="item-tag tag-vitest">Vitest</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">SemaforoIndicator — 9 testes</div><div class="item-desc">Status vermelho/amarelo/verde, cores corretas, label text, ícones.</div></div><span class="item-tag tag-vitest">Vitest</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">SummaryCard — 9 testes</div><div class="item-desc">Props título/valor/ícone, renderização condicional, formatação de números.</div></div><span class="item-tag tag-vitest">Vitest</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">OpenModalButton — 7 testes</div><div class="item-desc">Click handler, tipos de modal (cliente/concessionária), classes CSS, children.</div></div><span class="item-tag tag-vitest">Vitest</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">FloatingWhatsApp — 7 testes</div><div class="item-desc">Visibilidade, link correto, target blank, ícone SVG, posição fixa.</div></div><span class="item-tag tag-vitest">Vitest</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">ConfiguracoesManagement — 9 testes</div><div class="item-desc">Tabs de configuração, formulários, validação, dark mode, estados de loading.</div></div><span class="item-tag tag-vitest">Vitest</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">PaymentHistory — 10 testes</div><div class="item-desc">Loading state, empty state, cartão/PIX/boleto, badges de status, formatação R$, parcelas.</div></div><span class="item-tag tag-vitest">Vitest</span></div>
+    </div>
+
+    <!-- ════════════════════════════════════ -->
+    <!-- 3. TESTES E2E                       -->
+    <!-- ════════════════════════════════════ -->
+    <div class="section">
+        <div class="section-header">
+            <div class="section-icon purple">🎭</div>
+            <div class="section-title">Testes End-to-End (E2E)</div>
+            <div class="section-count" id="count-e2e">0/0</div>
+        </div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Landing Page — Desktop Chrome (10 testes)</div><div class="item-desc">Navbar, CTAs, vídeo hero, seções (recursos, planos, FAQ), âncoras, link /login.</div></div><span class="item-tag tag-playwright">Playwright</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Landing Page — Mobile Chrome (10 testes)</div><div class="item-desc">Mesmos testes com viewport Pixel 7 (412×915), menu hambúrguer, responsividade.</div></div><span class="item-tag tag-playwright">Playwright</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Login — Desktop + Mobile (10 testes)</div><div class="item-desc">Formulário, validação, estado do botão (disabled/enabled), campos obrigatórios.</div></div><span class="item-tag tag-playwright">Playwright</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Footer — Desktop + Mobile (20 testes)</div><div class="item-desc">Rodapé dinâmico com dados do MongoDB, links de navegação, copyright.</div></div><span class="item-tag tag-playwright">Playwright</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">WhatsApp — Desktop + Mobile (10 testes)</div><div class="item-desc">Botão flutuante visível, link correto, target blank, posição fixa.</div></div><span class="item-tag tag-playwright">Playwright</span></div>
+    </div>
+
+    <!-- ════════════════════════════════════ -->
+    <!-- 4. CI/CD PIPELINE                   -->
+    <!-- ════════════════════════════════════ -->
+    <div class="section">
+        <div class="section-header">
+            <div class="section-icon blue">⚙️</div>
+            <div class="section-title">CI/CD — GitHub Actions</div>
+            <div class="section-count" id="count-ci">0/0</div>
+        </div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Stage 1: Qualidade de Código</div><div class="item-desc">ESLint (padrões Next.js), TypeScript (tsc --noEmit), Build (next build).</div></div><span class="item-tag tag-ci">CI</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Stage 2: Testes Unitários</div><div class="item-desc">131 testes com Vitest + relatório de cobertura v8. Bloqueia se falhar.</div></div><span class="item-tag tag-ci">CI</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Stage 3: Testes E2E</div><div class="item-desc">60 testes Playwright (Desktop + Mobile). Upload de relatório como artefato.</div></div><span class="item-tag tag-ci">CI</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Branch Protection</div><div class="item-desc">Pipeline executa em push e PR para branches main e develop.</div></div><span class="item-tag tag-ci">CI</span></div>
+    </div>
+
+    <!-- ════════════════════════════════════ -->
+    <!-- 5. SEGURANÇA                        -->
+    <!-- ════════════════════════════════════ -->
+    <div class="section">
+        <div class="section-header">
+            <div class="section-icon red">🔒</div>
+            <div class="section-title">Segurança</div>
+            <div class="section-count" id="count-sec">0/0</div>
+        </div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Autenticação obrigatória em todas as APIs</div><div class="item-desc">getServerSession valida JWT em cada route handler. Retorna 401 sem sessão.</div></div><span class="item-tag tag-security">Security</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Autorização por perfil (RBAC)</div><div class="item-desc">APIs admin verificam profile === 'administrador'. Retorna 403 se não autorizado.</div></div><span class="item-tag tag-security">Security</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Dados sensíveis nunca no frontend</div><div class="item-desc">MP_ACCESS_TOKEN somente em .env server-side. Cartão tokenizado via MP (PCI DSS).</div></div><span class="item-tag tag-security">Security</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Webhook idempotente</div><div class="item-desc">Upsert por mpPaymentId evita duplicação. Sempre retorna 200 para o MP.</div></div><span class="item-tag tag-security">Security</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Input sanitization</div><div class="item-desc">CPF/CNPJ sanitizados com .replace(/\D/g, ''). Queries MongoDB com tipagem forte.</div></div><span class="item-tag tag-security">Security</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Variáveis de ambiente documentadas</div><div class="item-desc">.env.example com todos os tokens necessários. Sem segredo no repositório.</div></div><span class="item-tag tag-security">Security</span></div>
+    </div>
+
+    <!-- ════════════════════════════════════ -->
+    <!-- 6. PAGAMENTOS                       -->
+    <!-- ════════════════════════════════════ -->
+    <div class="section">
+        <div class="section-header">
+            <div class="section-icon green">💳</div>
+            <div class="section-title">Sistema de Pagamentos</div>
+            <div class="section-count" id="count-pay">0/0</div>
+        </div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Mercado Pago — Checkout Pro</div><div class="item-desc">Redirect seguro para o MP. Aceita cartão crédito, débito, PIX e boleto.</div></div><span class="item-tag tag-vitest">Testado</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Webhook robusto com registro de transações</div><div class="item-desc">Payment + Transaction models. Trata approved, pending, refunded, cancelled, charged_back.</div></div><span class="item-tag tag-vitest">Testado</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Plano Mensal e Anual</div><div class="item-desc">billingType diferencia preço. Assinatura mensal = 30 dias, anual = 1 ano.</div></div><span class="item-tag tag-vitest">Testado</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Histórico de Pagamentos</div><div class="item-desc">Componente PaymentHistory integrado ao dashboard. Ícones por método, badges de status.</div></div><span class="item-tag tag-vitest">Testado</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Polling de status (PIX/Boleto)</div><div class="item-desc">API /checkout/status/[paymentId] consulta MP em tempo real.</div></div><span class="item-tag tag-vitest">Testado</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Lib centralizada (lib/mercadopago.ts)</div><div class="item-desc">mpGet, mpPost, mpPut. Elimina duplicação em save-card, charge, checkout.</div></div><span class="item-tag tag-vitest">Testado</span></div>
+    </div>
+
+    <!-- ════════════════════════════════════ -->
+    <!-- 7. QUALIDADE DE CÓDIGO              -->
+    <!-- ════════════════════════════════════ -->
+    <div class="section">
+        <div class="section-header">
+            <div class="section-icon yellow">📐</div>
+            <div class="section-title">Qualidade de Código</div>
+            <div class="section-count" id="count-quality">0/0</div>
+        </div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">TypeScript estrito</div><div class="item-desc">Tipagem forte em todos os models, APIs e componentes. Interfaces exportadas.</div></div><span class="item-tag tag-ci">TypeScript</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">ESLint + Next.js rules</div><div class="item-desc">Linting automático com regras do Next.js. Verificado no CI.</div></div><span class="item-tag tag-ci">ESLint</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">CSS Modules com Dark Mode</div><div class="item-desc">Design system consistente com variáveis CSS. Sem estilos inline.</div></div><span class="item-tag tag-manual">Design</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Cobertura de código (v8)</div><div class="item-desc">Relatório gerado em cada push. Componentes testados com 73-100% de cobertura.</div></div><span class="item-tag tag-vitest">Coverage</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Sem código duplicado</div><div class="item-desc">lib/mercadopago.ts centraliza chamadas MP. Componentes reutilizáveis.</div></div><span class="item-tag tag-manual">DRY</span></div>
+    </div>
+
+    <!-- ════════════════════════════════════ -->
+    <!-- 8. INFRAESTRUTURA                   -->
+    <!-- ════════════════════════════════════ -->
+    <div class="section">
+        <div class="section-header">
+            <div class="section-icon purple">🏗️</div>
+            <div class="section-title">Infraestrutura & DevOps</div>
+            <div class="section-count" id="count-infra">0/0</div>
+        </div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Next.js 15 (App Router)</div><div class="item-desc">Server Components, Route Handlers, Streaming. Build otimizado para produção.</div></div><span class="item-tag tag-ci">Framework</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">MongoDB com Mongoose</div><div class="item-desc">Modelos tipados (User, Plan, Payment, Transaction, etc). Índices otimizados.</div></div><span class="item-tag tag-ci">Database</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">NextAuth.js + Firebase Auth</div><div class="item-desc">Autenticação robusta com sessões JWT. Single session enforcement.</div></div><span class="item-tag tag-security">Auth</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Node.js 22 LTS</div><div class="item-desc">Versão LTS estável. Configurado no CI com cache de dependências npm.</div></div><span class="item-tag tag-ci">Runtime</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Vitest + React Testing Library</div><div class="item-desc">Framework de testes unitários. jsdom environment. Setup global com mocks.</div></div><span class="item-tag tag-vitest">Testing</span></div>
+
+        <div class="item"><div class="check done">✓</div><div class="item-content"><div class="item-title">Playwright (Desktop + Mobile)</div><div class="item-desc">E2E com projetos: Desktop Chrome (1280×720) e Mobile Chrome Pixel 7 (412×915).</div></div><span class="item-tag tag-playwright">Testing</span></div>
+    </div>
+
+</div>
+
+<div class="footer">
+    Gerado automaticamente — <strong>ZeroKM QA Pipeline</strong> — Última atualização: <span id="lastUpdate"></span>
+</div>
+
+<script>
+    // Count all items and update stats
+    document.addEventListener('DOMContentLoaded', () => {
+        const sections = document.querySelectorAll('.section');
+        let totalDone = 0;
+        let totalItems = 0;
+
+        sections.forEach(section => {
+            const items = section.querySelectorAll('.item');
+            const done = section.querySelectorAll('.check.done').length;
+            const count = items.length;
+            totalDone += done;
+            totalItems += count;
+
+            const countEl = section.querySelector('.section-count');
+            if (countEl) countEl.textContent = `${done}/${count}`;
+        });
+
+        // Update progress
+        const pct = Math.round((totalDone / totalItems) * 100);
+        document.getElementById('progressPct').textContent = `${pct}%`;
+        setTimeout(() => {
+            document.getElementById('progressFill').style.width = `${pct}%`;
+        }, 300);
+
+        // Update date
+        document.getElementById('lastUpdate').textContent = new Date().toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,139 @@
+.container {
+    padding: 0;
+}
+
+.header {
+    margin-bottom: 2rem;
+    border-bottom: 1px solid var(--color-highlight);
+    padding-bottom: 1rem;
+}
+
+.title {
+    font-size: 1.5rem;
+    color: var(--color-text);
+    margin: 0;
+    font-weight: 600;
+}
+
+.subtitle {
+    margin: 0.5rem 0 0;
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+}
+
+.loading {
+    padding: 2rem;
+    text-align: center;
+    color: var(--color-text-muted);
+    font-weight: 500;
+}
+
+.feedback {
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+.feedbackSuccess {
+    background-color: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.feedbackError {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.formGroupPanel {
+    background: var(--color-surface);
+    border: 1px solid var(--color-highlight);
+    border-radius: 12px;
+    padding: 1.5rem;
+}
+
+.groupTitle {
+    margin: 0 0 1.25rem;
+    font-size: 1.1rem;
+    color: var(--color-text);
+    font-weight: 600;
+}
+
+.grid2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.formGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.formGroup label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+}
+
+.formGroup small {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    opacity: 0.7;
+}
+
+.input {
+    padding: 0.75rem;
+    border: 1px solid var(--color-highlight);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    color: var(--color-text);
+    background: var(--color-bg);
+    transition: all 0.2s;
+}
+
+.input:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.formActions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--color-highlight);
+}
+
+.btnSave {
+    padding: 0.75rem 1.5rem;
+    background-color: var(--color-accent);
+    color: #fff;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btnSave:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btnSave:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}

@@ -1,0 +1,36 @@
+.reveal {
+    opacity: 0;
+    will-change: transform, opacity;
+    transition: opacity 0.75s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reveal.up {
+    transform: translateY(calc(56px + var(--parallax-y, 0px))) scale(0.96);
+}
+
+.reveal.down {
+    transform: translateY(calc(-56px + var(--parallax-y, 0px))) scale(0.96);
+}
+
+.reveal.left {
+    transform: translate(56px, var(--parallax-y, 0px)) scale(0.96);
+}
+
+.reveal.right {
+    transform: translate(-56px, var(--parallax-y, 0px)) scale(0.96);
+}
+
+/* Visible: entrance done, only parallax-y keeps moving */
+.reveal.visible {
+    opacity: 1;
+    transform: translateY(var(--parallax-y, 0px)) scale(1);
+    /* fast transition for rAF parallax updates, slower for entrance */
+    transition: opacity 0.75s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Once entrance is complete, parallax should track scroll smoothly */
+.reveal.visible.parallaxing {
+    transition: transform 0.08s linear;
+}

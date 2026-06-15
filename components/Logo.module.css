@@ -1,0 +1,12 @@
+.logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+}
+
+.logoImage {
+  width: 210px;
+  height: auto;
+  object-fit: contain;
+}

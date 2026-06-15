@@ -1,0 +1,187 @@
+.container {
+    width: 100%;
+}
+
+.title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--color-text, #e8eaed);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.emptyState {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--color-text-muted, #9aa0a6);
+    font-size: 0.9rem;
+}
+
+.emptyIcon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.card {
+    background: var(--color-surface, #292a2d);
+    border: 1px solid var(--color-border, #3c4043);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: border-color 0.2s;
+}
+
+.card:hover {
+    border-color: var(--color-highlight, #8ab4f8);
+}
+
+.methodIcon {
+    font-size: 1.5rem;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-bg, #202124);
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+
+.info {
+    flex: 1;
+    min-width: 0;
+}
+
+.planName {
+    font-weight: 600;
+    color: var(--color-text, #e8eaed);
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.methodLabel {
+    font-size: 0.8rem;
+    color: var(--color-text-muted, #9aa0a6);
+    margin-top: 2px;
+}
+
+.right {
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.amount {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--color-text, #e8eaed);
+}
+
+.date {
+    font-size: 0.75rem;
+    color: var(--color-text-muted, #9aa0a6);
+    margin-top: 2px;
+}
+
+/* Status Badges */
+.badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-top: 4px;
+}
+
+.badgeApproved {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+}
+
+.badgePending {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+}
+
+.badgeRejected {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+}
+
+.badgeCancelled {
+    background: rgba(107, 114, 128, 0.15);
+    color: #9ca3af;
+}
+
+.badgeRefunded {
+    background: rgba(139, 92, 246, 0.15);
+    color: #a78bfa;
+}
+
+/* Action links (boleto, PIX) */
+.actionLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75rem;
+    color: var(--color-highlight, #8ab4f8);
+    text-decoration: none;
+    margin-top: 4px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.actionLink:hover {
+    opacity: 0.8;
+    text-decoration: underline;
+}
+
+/* Loading */
+.loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--color-text-muted, #9aa0a6);
+    font-size: 0.85rem;
+}
+
+.spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid var(--color-border, #3c4043);
+    border-top-color: var(--color-highlight, #8ab4f8);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 0.5rem;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .card {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .right {
+        width: 100%;
+        text-align: left;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+}

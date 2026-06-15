@@ -1,0 +1,108 @@
+name: CI — ZeroKM QA Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # ═══════════════════════════════════════
+  # JOB 1: Lint + TypeScript + Build
+  # ═══════════════════════════════════════
+  quality:
+    name: 🔍 Qualidade de Código
+    runs-on: ubuntu-latest
+
+    env:
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ci-test-secret-key
+      MP_ACCESS_TOKEN: TEST-fake-token-for-ci
+      MONGODB_URI: mongodb://localhost:27017/zerokm-test
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: TypeScript (verificação de tipos)
+        run: npx tsc --noEmit
+
+      - name: Build (compilação Next.js)
+        run: npm run build
+
+  # ═══════════════════════════════════════
+  # JOB 2: Testes Unitários (Vitest)
+  # ═══════════════════════════════════════
+  unit-tests:
+    name: 🧪 Testes Unitários
+    runs-on: ubuntu-latest
+    needs: quality  # Só roda se lint/build passarem
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Rodar testes unitários
+        run: npm run test
+
+      - name: Rodar cobertura de código
+        run: npm run test:coverage
+
+  # ═══════════════════════════════════════
+  # JOB 3: Testes E2E (Playwright)
+  # ═══════════════════════════════════════
+  e2e-tests:
+    name: 🎭 Testes E2E
+    runs-on: ubuntu-latest
+    needs: unit-tests  # Só roda se unitários passarem
+
+    env:
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ci-test-secret-key
+      MP_ACCESS_TOKEN: TEST-fake-token-for-ci
+      MONGODB_URI: mongodb://localhost:27017/zerokm-test
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Instalar browsers do Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Rodar testes E2E
+        run: npm run test:e2e
+
+      - name: Upload relatório do Playwright
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

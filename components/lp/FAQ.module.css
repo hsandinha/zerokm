@@ -1,0 +1,52 @@
+.faq {
+    max-width: 680px;
+    margin: 0 auto;
+    text-align: left;
+}
+
+.item {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.item:first-child {
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.btn {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.3rem 0;
+    background: none;
+    border: none;
+    color: #f0f4f8;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    gap: 1.5rem;
+    transition: color 0.2s;
+    font-family: inherit;
+}
+
+.btn:hover {
+    color: #f6b73c;
+}
+
+.chevron {
+    flex-shrink: 0;
+    color: #f6b73c;
+    transition: transform 0.25s;
+}
+
+.open .chevron {
+    transform: rotate(180deg);
+}
+
+.answer {
+    padding: 0 0 1.3rem;
+    color: rgba(240, 244, 248, 0.62);
+    font-size: 0.95rem;
+    line-height: 1.7;
+}

@@ -1,0 +1,381 @@
+.page {
+    min-height: 100vh;
+    background: #07101a;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 3rem 1rem 5rem;
+    background-image:
+        radial-gradient(ellipse 60% 40% at 20% 10%, rgba(246, 183, 60, 0.06) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 50% at 80% 80%, rgba(246, 183, 60, 0.04) 0%, transparent 60%);
+}
+
+.card {
+    background: rgba(11, 22, 32, 0.9);
+    border: 1px solid rgba(246, 183, 60, 0.15);
+    border-radius: 24px;
+    padding: 2.5rem 2.5rem 2rem;
+    width: 100%;
+    max-width: 680px;
+    box-shadow:
+        0 0 80px rgba(246, 183, 60, 0.06),
+        0 32px 80px rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+}
+
+.cardHeader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #f0f4f8;
+    margin: 0;
+    letter-spacing: -0.02em;
+}
+
+.subtitle {
+    font-size: 0.9rem;
+    color: rgba(240, 244, 248, 0.45);
+    margin: 0;
+}
+
+/* ── Stepper ── */
+.stepper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 2.5rem;
+}
+
+.stepperItem {
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+
+.stepperDot {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(240, 244, 248, 0.35);
+    font-size: 0.8rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s;
+    flex-shrink: 0;
+}
+
+.stepperActive {
+    border-color: #f6b73c;
+    background: rgba(246, 183, 60, 0.12);
+    color: #f6b73c;
+    box-shadow: 0 0 16px rgba(246, 183, 60, 0.35);
+}
+
+.stepperDone {
+    border-color: #4ade80;
+    background: rgba(74, 222, 128, 0.1);
+    color: #4ade80;
+}
+
+.stepperLabel {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: rgba(240, 244, 248, 0.3);
+    margin-left: 0.5rem;
+    letter-spacing: 0.04em;
+    transition: color 0.25s;
+}
+
+.stepperLabelActive {
+    color: #f6b73c;
+}
+
+.stepperLine {
+    width: 60px;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.08);
+    margin: 0 0.5rem;
+    transition: background 0.25s;
+    flex-shrink: 0;
+}
+
+.stepperLineDone {
+    background: rgba(74, 222, 128, 0.4);
+}
+
+/* ── Form ── */
+.form {
+    display: flex;
+    flex-direction: column;
+}
+
+.stepContent {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.stepTitle {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #f0f4f8;
+    margin: 0 0 0.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.fieldSmall {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    flex: 0 0 120px;
+}
+
+.label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: rgba(240, 244, 248, 0.6);
+    letter-spacing: 0.02em;
+}
+
+.required {
+    color: #f6b73c;
+}
+
+.input {
+    padding: 0.7rem 1rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    color: #f0f4f8;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+    width: 100%;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.input::placeholder {
+    color: rgba(240, 244, 248, 0.22);
+}
+
+.input:focus {
+    border-color: rgba(246, 183, 60, 0.5);
+    background: rgba(246, 183, 60, 0.04);
+}
+
+.input option {
+    background: #0b1620;
+    color: #f0f4f8;
+}
+
+.inputWithIcon {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.inputWithIcon .input {
+    padding-right: 2.5rem;
+}
+
+.cepSpinner {
+    position: absolute;
+    right: 0.85rem;
+    color: #f6b73c;
+    font-size: 1rem;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.06);
+    margin: 0.25rem 0;
+}
+
+.errorMsg {
+    font-size: 0.85rem;
+    color: #f87171;
+    background: rgba(248, 113, 113, 0.08);
+    border: 1px solid rgba(248, 113, 113, 0.2);
+    border-radius: 8px;
+    padding: 0.6rem 1rem;
+    margin: 0;
+}
+
+/* ── Buttons ── */
+.btnRow {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    margin-top: 0.5rem;
+}
+
+.btnPrimary {
+    flex: 1;
+    padding: 0.85rem 1.75rem;
+    background: #f6b73c;
+    color: #07101a;
+    border: none;
+    border-radius: 11px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 20px rgba(246, 183, 60, 0.3);
+}
+
+.btnPrimary:hover:not(:disabled) {
+    background: #fbbf24;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 28px rgba(246, 183, 60, 0.4);
+}
+
+.btnPrimary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btnBack {
+    padding: 0.85rem 1.25rem;
+    background: transparent;
+    border: 1.5px solid rgba(255, 255, 255, 0.14);
+    color: rgba(240, 244, 248, 0.55);
+    border-radius: 11px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.btnBack:hover {
+    border-color: rgba(255, 255, 255, 0.28);
+    color: rgba(240, 244, 248, 0.85);
+}
+
+/* ── Login hint ── */
+.loginHint {
+    text-align: center;
+    font-size: 0.85rem;
+    color: rgba(240, 244, 248, 0.35);
+    margin: 1.75rem 0 0;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.loginHintLink {
+    color: #f6b73c;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.loginHintLink:hover {
+    text-decoration: underline;
+}
+
+/* ── Success state ── */
+.successCard {
+    background: rgba(11, 22, 32, 0.9);
+    border: 1px solid rgba(74, 222, 128, 0.25);
+    border-radius: 24px;
+    padding: 4rem 2.5rem;
+    width: 100%;
+    max-width: 480px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+    box-shadow: 0 0 60px rgba(74, 222, 128, 0.1);
+}
+
+.successIcon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(74, 222, 128, 0.15);
+    border: 2px solid rgba(74, 222, 128, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    color: #4ade80;
+}
+
+.successTitle {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #f0f4f8;
+    margin: 0;
+}
+
+.successMsg {
+    font-size: 0.95rem;
+    color: rgba(240, 244, 248, 0.52);
+    line-height: 1.65;
+    margin: 0;
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+    .card {
+        padding: 1.75rem 1.25rem 1.5rem;
+        border-radius: 16px;
+    }
+
+    .row {
+        grid-template-columns: 1fr;
+    }
+
+    .stepperLine {
+        width: 32px;
+    }
+
+    .btnRow {
+        flex-direction: column-reverse;
+    }
+
+    .btnBack {
+        width: 100%;
+    }
+}

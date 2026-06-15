@@ -1,0 +1,377 @@
+/* CardPaymentForm — premium compact card capture UI (theme-aware) */
+
+.container {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    width: 100%;
+    max-width: 420px;
+    margin: 0 auto;
+}
+
+.errorBanner {
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    border-radius: 10px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    color: #dc2626;
+    font-size: 0.8rem;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+/* ── Card preview (compact) ── */
+.cardWrap {
+    perspective: 1200px;
+    margin-bottom: 14px;
+}
+
+.cardInner {
+    position: relative;
+    width: 100%;
+    height: 140px;
+    transform-style: preserve-3d;
+    transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cardFace {
+    position: absolute;
+    inset: 0;
+    border-radius: 14px;
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    backface-visibility: hidden;
+    box-shadow:
+        0 16px 32px -8px rgba(0, 0, 0, 0.32),
+        0 4px 10px -2px rgba(0, 0, 0, 0.16),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    overflow: hidden;
+}
+
+/* Subtle metallic shine overlay */
+.cardFace::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(circle at 20% 0%, rgba(255, 255, 255, 0.22) 0%, transparent 50%),
+        radial-gradient(circle at 80% 100%, rgba(255, 255, 255, 0.06) 0%, transparent 50%);
+    pointer-events: none;
+}
+
+.cardTopRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    z-index: 1;
+}
+
+.chip {
+    width: 32px;
+    height: 24px;
+    border-radius: 5px;
+    background: linear-gradient(135deg, #d4a94b 0%, #f5d37c 30%, #c9922f 60%, #8b6914 100%);
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    position: relative;
+}
+
+.chip::after {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border-radius: 2px;
+    background-image:
+        linear-gradient(0deg, transparent 24%, rgba(0, 0, 0, 0.15) 25%, rgba(0, 0, 0, 0.15) 26%, transparent 27%, transparent 74%, rgba(0, 0, 0, 0.15) 75%, rgba(0, 0, 0, 0.15) 76%, transparent 77%),
+        linear-gradient(90deg, transparent 24%, rgba(0, 0, 0, 0.15) 25%, rgba(0, 0, 0, 0.15) 26%, transparent 27%, transparent 74%, rgba(0, 0, 0, 0.15) 75%, rgba(0, 0, 0, 0.15) 76%, transparent 77%);
+}
+
+.cardNumber {
+    font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+    font-size: 1.05rem;
+    letter-spacing: 2.4px;
+    color: rgba(255, 255, 255, 0.96);
+    font-weight: 600;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
+    z-index: 1;
+}
+
+.cardBottomRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    z-index: 1;
+}
+
+.cardLabel {
+    font-size: 0.55rem;
+    color: rgba(255, 255, 255, 0.55);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 2px;
+    font-weight: 600;
+}
+
+.cardValue {
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.92);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* ── Card back (CVV side) ── */
+.cardBack {
+    transform: rotateY(180deg);
+    padding: 0 !important;
+    justify-content: flex-start !important;
+}
+
+.magStripe {
+    width: 100%;
+    height: 32px;
+    margin-top: 18px;
+    background: linear-gradient(180deg, #0a0a0a 0%, #1a1a1a 100%);
+    z-index: 2;
+}
+
+.cvvRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    z-index: 2;
+}
+
+.cvvStrip {
+    flex: 1;
+    height: 26px;
+    background: repeating-linear-gradient(45deg,
+            rgba(255, 255, 255, 0.92),
+            rgba(255, 255, 255, 0.92) 4px,
+            rgba(230, 230, 230, 0.92) 4px,
+            rgba(230, 230, 230, 0.92) 8px);
+    border-radius: 3px;
+}
+
+.cvvBox {
+    width: 56px;
+    height: 26px;
+    background: rgba(255, 255, 255, 0.95);
+    color: #111;
+    font-family: 'SF Mono', 'Monaco', monospace;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+}
+
+/* ── Segmented toggle Crédito/Débito (compact) ── */
+.segmented {
+    display: flex;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 3px;
+    margin-bottom: 14px;
+    position: relative;
+}
+
+.segOption {
+    flex: 1;
+    padding: 7px 10px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    transition: color 0.18s ease, background 0.18s ease, transform 0.12s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+.segOption:hover {
+    color: var(--color-text);
+}
+
+.segOptionActive {
+    color: var(--color-text);
+    background: var(--color-surface);
+    box-shadow:
+        0 2px 4px rgba(0, 0, 0, 0.06),
+        0 0 0 1px var(--color-border);
+}
+
+/* ── Holder name field (compact) ── */
+.fieldGroup {
+    margin-bottom: 12px;
+}
+
+.fieldLabel {
+    display: block;
+    font-size: 0.66rem;
+    color: var(--color-text-muted);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.fieldInput {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1.5px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-size: 0.88rem;
+    font-weight: 500;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    outline: none;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    box-sizing: border-box;
+}
+
+.fieldInput:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.fieldInput.invalid {
+    border-color: #dc2626;
+}
+
+.fieldError {
+    color: #dc2626;
+    font-size: 0.72rem;
+    margin: 4px 0 0 2px;
+    font-weight: 500;
+}
+
+/* ── Submit (compact) ── */
+.submitBtn {
+    width: 100%;
+    padding: 12px 0;
+    border-radius: 12px;
+    border: none;
+    font-weight: 700;
+    font-size: 0.94rem;
+    letter-spacing: 0.2px;
+    color: #fff;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    box-shadow:
+        0 6px 16px rgba(16, 185, 129, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.submitBtn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow:
+        0 10px 22px rgba(16, 185, 129, 0.38),
+        inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.submitBtn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.submitBtn:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+    box-shadow: none;
+}
+
+.amountTag {
+    font-size: 0.74rem;
+    opacity: 0.85;
+    font-weight: 500;
+}
+
+.spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.backBtn {
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    margin-top: 6px;
+    padding: 4px 0;
+    font-weight: 500;
+    transition: color 0.15s ease;
+}
+
+.backBtn:hover {
+    color: var(--color-text);
+}
+
+/* ── Trust strip (compact) ── */
+.trustStrip {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.trustItem {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.68rem;
+    color: var(--color-text-muted);
+    font-weight: 500;
+}
+
+.brandList {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.tokenError {
+    color: #dc2626;
+    font-size: 0.78rem;
+    margin-bottom: 8px;
+    text-align: center;
+    font-weight: 500;
+}

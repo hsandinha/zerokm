@@ -1,0 +1,226 @@
+// Interface para os veículos atualizada
+export interface Vehicle {
+    id?: string;
+    dataEntrada: Date | string;
+    modelo: string;
+    transmissao: 'Manual' | 'Automático' | 'CVT';
+    combustivel: 'Flex' | 'Gasolina' | 'Etanol' | 'Diesel' | 'Elétrico' | 'Híbrido';
+    cor: string;
+    ano: string;
+    opcionais: string;
+    preco: number;
+    status: 'A faturar' | 'Refaturamento' | 'Licenciado' | 'Pedido de fábrica';
+    observacoes: string;
+    cidade: string;
+    estado: string;
+    frete: number;
+    telefone: string;
+    nomeContato: string;
+    operador: string;
+    concessionaria?: string;
+    valorVenda?: number;
+
+    // Campos opcionais mantidos por compatibilidade ou uso futuro
+    fotos?: string[];
+    createdAt?: Date | string;
+    updatedAt?: Date | string;
+
+    // Campos removidos (mantidos como opcionais para não quebrar código legado imediatamente, mas não serão usados)
+    marca?: string;
+    versao?: string;
+    anoModelo?: string;
+    chassi?: string;
+    motor?: string;
+    vendedor?: string; // Substituído por nomeContato
+    quilometragem?: number;
+    categoria?: string;
+    descricao?: string;
+}
+
+export interface VehiclePaginationResult {
+    data: Vehicle[];
+    total: number;
+    hasNextPage: boolean;
+    lastDoc?: any; // Changed from QueryDocumentSnapshot to any as we don't use Firestore docs anymore
+}
+
+export interface VehiclePaginationOptions {
+    page?: number;
+    itemsPerPage?: number;
+    lastDoc?: any;
+    accessProfile?: string;
+    searchTerm?: string;
+    filters?: {
+        status?: string;
+        cor?: string;
+        combustivel?: string;
+        transmissao?: string;
+        ano?: string;
+        modelo?: string;
+        opcionais?: string;
+        estado?: string;
+        cidade?: string;
+        operador?: string;
+        concessionaria?: string;
+        nomeContato?: string;
+    };
+    sortConfig?: {
+        key: string;
+        direction: 'asc' | 'desc';
+    };
+}
+
+// Coleção de veículos
+const VEHICLES_COLLECTION = 'vehicles';
+
+export class VehicleService {
+    // Adicionar um novo veículo
+    static async addVehicle(vehicle: Omit<Vehicle, 'id'>): Promise<string> {
+        try {
+            const response = await fetch('/api/vehicles', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(vehicle)
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to add vehicle');
+            }
+
+            const newVehicle = await response.json();
+            return newVehicle.id;
+        } catch (error) {
+            console.error('Erro ao adicionar veículo:', error);
+            throw error;
+        }
+    }
+
+    // Buscar todos os veículos
+    static async getAllVehicles(accessProfile?: string): Promise<Vehicle[]> {
+        try {
+            const params = new URLSearchParams({ limit: '1000' });
+            if (accessProfile) params.set('accessProfile', accessProfile);
+            const response = await fetch(`/api/vehicles?${params.toString()}`);
+            if (!response.ok) throw new Error('Failed to fetch vehicles');
+            const result = await response.json();
+            return result.data;
+        } catch (error) {
+            console.error('Erro ao buscar veículos:', error);
+            throw error;
+        }
+    }
+
+    // Atualizar um veículo
+    static async updateVehicle(id: string, updates: Partial<Vehicle>): Promise<void> {
+        try {
+            const response = await fetch(`/api/vehicles/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+            if (!response.ok) throw new Error('Failed to update vehicle');
+        } catch (error) {
+            console.error('Erro ao atualizar veículo:', error);
+            throw error;
+        }
+    }
+
+    // Deletar um veículo
+    static async deleteVehicle(id: string): Promise<void> {
+        try {
+            const response = await fetch(`/api/vehicles/${id}`, {
+                method: 'DELETE'
+            });
+            if (!response.ok) throw new Error('Failed to delete vehicle');
+        } catch (error) {
+            console.error('Erro ao deletar veículo:', error);
+            throw error;
+        }
+    }
+
+    // Deletar múltiplos veículos
+    static async deleteVehicles(ids: string[]): Promise<void> {
+        try {
+            const deletePromises = ids.map(id => this.deleteVehicle(id));
+            await Promise.all(deletePromises);
+        } catch (error) {
+            console.error('Erro ao deletar veículos em massa:', error);
+            throw error;
+        }
+    }
+
+    // Limpar banco e reinserir dados
+    static async clearAndResetDatabase(): Promise<void> {
+        try {
+            console.log('Iniciando limpeza do banco...');
+            const allVehicles = await this.getAllVehicles();
+            await this.deleteVehicles(allVehicles.map(v => v.id!));
+            console.log('Banco limpo com sucesso!');
+        } catch (error) {
+            console.error('Erro ao limpar e resetar banco:', error);
+            throw error;
+        }
+    }
+
+    // Buscar por termo geral
+    static async searchVehicles(term: string): Promise<Vehicle[]> {
+        try {
+            const response = await fetch(`/api/vehicles?search=${encodeURIComponent(term)}`);
+            if (!response.ok) throw new Error('Failed to search vehicles');
+            const result = await response.json();
+            return result.data;
+        } catch (error) {
+            console.error('Erro ao buscar veículos:', error);
+            throw error;
+        }
+    }
+
+    // MÉTODOS DE PAGINAÇÃO
+    static async getVehiclesPaginated(options: VehiclePaginationOptions = {}): Promise<VehiclePaginationResult> {
+        const { page = 1, itemsPerPage = 50, accessProfile, searchTerm, filters = {}, sortConfig = { key: 'dataEntrada', direction: 'desc' } } = options;
+
+        try {
+            const params = new URLSearchParams();
+            params.set('page', page.toString());
+            params.set('limit', itemsPerPage.toString());
+            if (accessProfile) params.set('accessProfile', accessProfile);
+            if (searchTerm) params.set('search', searchTerm);
+            if (sortConfig) {
+                params.set('sortKey', sortConfig.key);
+                params.set('sortDir', sortConfig.direction);
+            }
+
+            if (filters.status) params.set('status', filters.status);
+            if (filters.cor) params.set('cor', filters.cor);
+            if (filters.combustivel) params.set('combustivel', filters.combustivel);
+            if (filters.transmissao) params.set('transmissao', filters.transmissao);
+            if (filters.ano) params.set('ano', filters.ano);
+            if (filters.modelo) params.set('modelo', filters.modelo);
+            if (filters.opcionais) params.set('opcionais', filters.opcionais);
+            if (filters.estado) params.set('estado', filters.estado);
+            if (filters.cidade) params.set('cidade', String(filters.cidade));
+            if (filters.operador) params.set('operador', filters.operador);
+            if (filters.concessionaria) params.set('concessionaria', filters.concessionaria);
+            if (filters.nomeContato) params.set('nomeContato', filters.nomeContato);
+
+            const response = await fetch(`/api/vehicles?${params.toString()}`);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || 'Failed to fetch paginated vehicles');
+            }
+
+            const result = await response.json();
+
+            return {
+                data: result.data,
+                total: result.total,
+                hasNextPage: result.hasNextPage,
+                lastDoc: null // Not used with API pagination
+            };
+        } catch (error) {
+            console.error('Erro ao buscar veículos paginados:', error);
+            throw error;
+        }
+    }
+}

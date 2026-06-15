@@ -1,0 +1,167 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ConfiguracoesManagement > should match snapshot after loading 1`] = `
+<div>
+  <div
+    class="container"
+  >
+    <div
+      class="header"
+    >
+      <h2
+        class="title"
+      >
+        Painel de Contatos e Rodapé Global
+      </h2>
+      <p
+        class="subtitle"
+      >
+        Estes dados alimentam o rodapé (Footer) global do portal, e o número de WhatsApp principal é o destino do botão flutuante.
+      </p>
+    </div>
+    <form
+      class="form"
+    >
+      <div
+        class="formGroupPanel"
+      >
+        <h3
+          class="groupTitle"
+        >
+          Comunicação
+        </h3>
+        <div
+          class="grid2"
+        >
+          <div
+            class="formGroup"
+          >
+            <label>
+              WhatsApp (Link Flutuante e Rodapé)
+            </label>
+            <input
+              class="input"
+              placeholder="Ex: 5511999999999 (Apenas números com DDI)"
+              type="text"
+              value="5511926384826"
+            />
+            <small>
+              Digitar DDI + DDD + Número. Ex: 5511926384826.
+            </small>
+          </div>
+        </div>
+      </div>
+      <div
+        class="formGroupPanel"
+      >
+        <h3
+          class="groupTitle"
+        >
+          E-mails (Rodapé)
+        </h3>
+        <div
+          class="grid2"
+        >
+          <div
+            class="formGroup"
+          >
+            <label>
+              E-mail Geral / Principal
+            </label>
+            <input
+              class="input"
+              type="email"
+              value="geral@test.com"
+            />
+          </div>
+          <div
+            class="formGroup"
+          >
+            <label>
+              E-mail de Suporte
+            </label>
+            <input
+              class="input"
+              type="email"
+              value="suporte@test.com"
+            />
+          </div>
+          <div
+            class="formGroup"
+          >
+            <label>
+              E-mail de Vendas (Comercial)
+            </label>
+            <input
+              class="input"
+              type="email"
+              value="vendas@test.com"
+            />
+          </div>
+        </div>
+      </div>
+      <div
+        class="formGroupPanel"
+      >
+        <h3
+          class="groupTitle"
+        >
+          Dados Jurídicos e Localização
+        </h3>
+        <div
+          class="grid2"
+        >
+          <div
+            class="formGroup"
+          >
+            <label>
+              Horário de Funcionamento
+            </label>
+            <input
+              class="input"
+              placeholder="Seg–Sex: 09:00–18:00"
+              type="text"
+              value="Seg-Sex: 09-18"
+            />
+          </div>
+          <div
+            class="formGroup"
+          >
+            <label>
+              Localização (Cidade/Estado)
+            </label>
+            <input
+              class="input"
+              placeholder="São Paulo, SP"
+              type="text"
+              value="São Paulo, SP"
+            />
+          </div>
+          <div
+            class="formGroup"
+          >
+            <label>
+              CNPJ Comercial
+            </label>
+            <input
+              class="input"
+              type="text"
+              value="12.345.678/0001-90"
+            />
+          </div>
+        </div>
+      </div>
+      <div
+        class="formActions"
+      >
+        <button
+          class="btnSave"
+          type="submit"
+        >
+          Salvar Alterações Globais
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+`;

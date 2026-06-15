@@ -1,0 +1,35 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`SemaforoIndicator Component > should match snapshot 1`] = `
+<div>
+  <div
+    class="wrapper"
+  >
+    <div
+      class="lights"
+    >
+      <span
+        class="light on amarelo"
+      />
+      <span
+        class="light on amarelo"
+      />
+      <span
+        class="light  vermelho"
+      />
+    </div>
+    <div>
+      <strong
+        class="label"
+      >
+        Atenção
+      </strong>
+      <p
+        class="detail"
+      >
+        CPU em 85%
+      </p>
+    </div>
+  </div>
+</div>
+`;
