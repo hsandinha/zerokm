@@ -26,6 +26,12 @@ export function BannersManagement() {
         linkUrl: '',
         imageBase64: ''
     });
+    const [editingId, setEditingId] = useState<string | null>(null);
+
+    const handleCancelEdit = () => {
+        setEditingId(null);
+        setNewBanner({ title: '', linkUrl: '', imageBase64: '' });
+    };
 
     useEffect(() => {
         carregarBanners();
@@ -74,12 +80,13 @@ export function BannersManagement() {
             return;
         }
 
-        setFeedback(null);
-        setIsSaving(true);
-
         try {
-            const res = await fetch('/api/admin/banners', {
-                method: 'POST',
+            setIsSaving(true);
+            const url = editingId ? `/api/admin/banners/${editingId}` : '/api/admin/banners';
+            const method = editingId ? 'PATCH' : 'POST';
+            
+            const res = await fetch(url, {
+                method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     title: newBanner.title,
@@ -89,16 +96,15 @@ export function BannersManagement() {
             });
 
             if (res.ok) {
-                setFeedback({ type: 'success', msg: 'Banner criado com sucesso!' });
-                setNewBanner({ title: '', linkUrl: '', imageBase64: '' });
+                setFeedback({ type: 'success', msg: editingId ? 'Banner atualizado com sucesso!' : 'Banner criado com sucesso!' });
+                handleCancelEdit();
                 carregarBanners();
-                setTimeout(() => setFeedback(null), 4000);
+                setTimeout(() => setFeedback(null), 3000);
             } else {
-                const err = await res.json();
-                setFeedback({ type: 'error', msg: err?.error || 'Erro ao criar banner.' });
+                setFeedback({ type: 'error', msg: 'Erro ao salvar banner.' });
             }
         } catch (error) {
-            setFeedback({ type: 'error', msg: 'Erro de conexão ao criar banner.' });
+            setFeedback({ type: 'error', msg: 'Erro de conexão ao salvar banner.' });
         } finally {
             setIsSaving(false);
         }
@@ -175,6 +181,16 @@ export function BannersManagement() {
         }
     };
 
+    const handleEditClick = (banner: any) => {
+        setEditingId(banner._id);
+        setNewBanner({
+            title: banner.title,
+            linkUrl: banner.linkUrl || '',
+            imageBase64: banner.imageUrl
+        });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
     if (isLoading) {
         return <div className={styles.loading}>Carregando banners...</div>;
     }
@@ -184,7 +200,7 @@ export function BannersManagement() {
             <div className={styles.header}>
                 <h2 className={styles.title}>Gerenciador de Banners</h2>
                 <p className={styles.subtitle}>
-                    Adicione banners que aparecerão em um carrossel rotativo na tela principal dos Clientes.
+                    Adicione ou edite banners que aparecerão em um carrossel rotativo na tela principal dos Clientes.
                 </p>
             </div>
 
@@ -196,7 +212,7 @@ export function BannersManagement() {
 
             <form onSubmit={handleCreateBanner} className={styles.form}>
                 <div className={styles.formGroupPanel}>
-                    <h3 className={styles.groupTitle}>Adicionar Novo Banner</h3>
+                    <h3 className={styles.groupTitle}>{editingId ? 'Editar Banner' : 'Adicionar Novo Banner'}</h3>
                     <div className={styles.grid2}>
                         <div className={styles.formGroup}>
                             <label>Título (Uso Interno)</label>
@@ -236,10 +252,15 @@ export function BannersManagement() {
                     </div>
                 </div>
 
-                <div className={styles.formActions}>
+                <div className={styles.formActions} style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                     <button type="submit" disabled={isSaving} className={styles.btnSave}>
-                        {isSaving ? 'Salvando...' : 'Adicionar Banner'}
+                        {isSaving ? 'Salvando...' : (editingId ? 'Salvar Alterações' : 'Adicionar Banner')}
                     </button>
+                    {editingId && (
+                        <button type="button" onClick={handleCancelEdit} style={{ padding: '0.8rem 1.5rem', background: '#ccc', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
+                            Cancelar Edição
+                        </button>
+                    )}
                 </div>
             </form>
 
@@ -298,6 +319,12 @@ export function BannersManagement() {
                                             </>
                                         ) : (
                                             <>
+                                                <button 
+                                                    onClick={() => handleEditClick(banner)}
+                                                    style={{ marginRight: '0.5rem', padding: '0.5rem', borderRadius: '4px', border: '1px solid #0056b3', background: '#e6f0fa', color: '#0056b3', cursor: 'pointer' }}
+                                                >
+                                                    Editar
+                                                </button>
                                                 <button 
                                                     onClick={() => toggleBannerActive(banner._id, banner.isActive)}
                                                     style={{ marginRight: '0.5rem', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc', background: '#fff', cursor: 'pointer' }}
