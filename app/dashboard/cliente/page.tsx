@@ -11,8 +11,6 @@ import { ExpirationAlerts } from './ExpirationAlerts';
 import { AutoUpgradeFromQuery } from './AutoUpgradeFromQuery';
 import { FreeTrialGate } from './FreeTrialGate';
 import { SubscriptionControls } from './SubscriptionControls';
-import { BannerCarousel } from '../../../components/cliente/BannerCarousel';
-import { HighlightsSidebar } from '../../../components/cliente/HighlightsSidebar';
 import styles from './cliente.module.css';
 
 function PaymentBanner() {
@@ -198,14 +196,8 @@ export default function ClientDashboard() {
                 </div>
 
                 <div className={styles.content}>
-                    <div className={styles.mainColumn}>
-                        <SubscriptionControls />
-                        <VehicleConsultation role={userInfo.profile === 'gratis' ? 'gratis' : 'client'} isInvitee={isInvitee} />
-                    </div>
-                    <div className={styles.sidebarColumn}>
-                        <HighlightsSidebar />
-                        <BannerCarousel />
-                    </div>
+                    <SubscriptionControls />
+                    <VehicleConsultation role={userInfo.profile === 'gratis' ? 'gratis' : 'client'} isInvitee={isInvitee} />
                 </div>
             </div>
         </ConfigContext.Provider>

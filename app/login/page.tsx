@@ -8,7 +8,6 @@ import { auth } from '@/lib/firebase';
 import styles from './login.module.css';
 import { LoginForm } from '@/components/login/LoginForm';
 import { Logo } from '@/components/Logo';
-import { SessionProvider } from '@/components/providers/SessionProvider';
 
 import { UserProfile } from '@/lib/types/auth';
 import { checkUserAndLogin, getUserAllowedProfiles, markUserAsSetup, checkActiveSession } from '../actions';
@@ -490,9 +489,5 @@ function LoginContent() {
 }
 
 export default function LoginPage() {
-    return (
-        <SessionProvider>
-            <LoginContent />
-        </SessionProvider>
-    );
+    return <LoginContent />;
 }

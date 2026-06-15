@@ -12,6 +12,7 @@ import styles from './VehicleConsultation.module.css';
 import modalStyles from './TablesManagement.module.css';
 import { HighlightText } from '../HighlightText';
 import { UpgradeModal } from './UpgradeModal';
+import { BannerCarousel } from '../cliente/BannerCarousel';
 
 const normalizeString = (value: string) => value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 
@@ -1975,6 +1976,11 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                             onChange={(e) => setModelSearch(e.target.value)}
                             onKeyDown={handleModelSearchKeyDown}
                         />
+                        {['client', 'gratis'].includes(role) && (
+                            <div style={{ marginTop: '1rem', marginBottom: '0.5rem', width: '100%' }}>
+                                <BannerCarousel />
+                            </div>
+                        )}
                     </div>
                     <div className={styles.modelList} ref={modelListRef}>
                         <div
