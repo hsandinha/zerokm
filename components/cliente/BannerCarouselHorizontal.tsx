@@ -84,67 +84,61 @@ export function BannerCarouselHorizontal() {
                         </div>
 
                         <div className={styles.contentWrapper}>
-                            {(banner.price || banner.priceSubtitle) && (
-                                <div className={styles.priceGroup}>
-                                    {banner.price && <div className={styles.price}>{banner.price}</div>}
-                                    {banner.priceSubtitle && <div className={styles.priceSubtitle}>{banner.priceSubtitle}</div>}
+                            <div className={styles.headerRow}>
+                                <div>
+                                    {banner.vehicleModel && <div className={styles.vehicleModel}>{banner.vehicleModel}</div>}
+                                    {banner.storeName && <div className={styles.storeName}>{banner.storeName}</div>}
                                 </div>
-                            )}
+                                {(banner.price || banner.priceSubtitle) && (
+                                    <div className={styles.priceGroup}>
+                                        {banner.price && <div className={styles.price}>{banner.price}</div>}
+                                        {banner.priceSubtitle && <div className={styles.priceSubtitle}>{banner.priceSubtitle}</div>}
+                                    </div>
+                                )}
+                            </div>
 
-                            {banner.vehicleModel && <div className={styles.vehicleModel}>{banner.vehicleModel}</div>}
-                            {banner.storeName && <div className={styles.storeName}>{banner.storeName}</div>}
-
-                            {/* Specifications Grid */}
+                            {/* Specifications Container (Inline) */}
                             <div className={styles.specsContainer}>
-                                <div className={styles.specsRow3}>
-                                    {banner.year && (
-                                        <div className={styles.specItem}>
-                                            <MdDateRange className={styles.specIcon} />
-                                            <div className={styles.specTextGroup}>
-                                                <span className={styles.specValue}>{banner.year}</span>
-                                                <span className={styles.specLabel}>Ano</span>
-                                            </div>
+                                {banner.year && (
+                                    <div className={styles.specItem}>
+                                        <MdDateRange className={styles.specIcon} />
+                                        <div className={styles.specTextGroup}>
+                                            <span className={styles.specValue}>{banner.year}</span>
                                         </div>
-                                    )}
-                                    {banner.color && (
-                                        <div className={styles.specItem}>
-                                            <MdColorLens className={styles.specIcon} />
-                                            <div className={styles.specTextGroup}>
-                                                <span className={styles.specValue}>{banner.color}</span>
-                                                <span className={styles.specLabel}>Cor</span>
-                                            </div>
+                                    </div>
+                                )}
+                                {banner.color && (
+                                    <div className={styles.specItem}>
+                                        <MdColorLens className={styles.specIcon} />
+                                        <div className={styles.specTextGroup}>
+                                            <span className={styles.specValue}>{banner.color}</span>
                                         </div>
-                                    )}
-                                    {banner.fuel && (
-                                        <div className={styles.specItem}>
-                                            <MdLocalGasStation className={styles.specIcon} />
-                                            <div className={styles.specTextGroup}>
-                                                <span className={styles.specValue}>{banner.fuel}</span>
-                                                <span className={styles.specLabel}>Combustível</span>
-                                            </div>
+                                    </div>
+                                )}
+                                {banner.fuel && (
+                                    <div className={styles.specItem}>
+                                        <MdLocalGasStation className={styles.specIcon} />
+                                        <div className={styles.specTextGroup}>
+                                            <span className={styles.specValue}>{banner.fuel}</span>
                                         </div>
-                                    )}
-                                </div>
-                                <div className={styles.specsRow2}>
-                                    {banner.delivery && (
-                                        <div className={styles.specItem}>
-                                            <MdLocalShipping className={styles.specIcon} />
-                                            <div className={styles.specTextGroup}>
-                                                <span className={styles.specValue}>{banner.delivery}</span>
-                                                <span className={styles.specLabel}>Prazo</span>
-                                            </div>
+                                    </div>
+                                )}
+                                {banner.delivery && (
+                                    <div className={styles.specItem}>
+                                        <MdLocalShipping className={styles.specIcon} />
+                                        <div className={styles.specTextGroup}>
+                                            <span className={styles.specValue}>{banner.delivery}</span>
                                         </div>
-                                    )}
-                                    {banner.statusCondition && (
-                                        <div className={styles.specItem}>
-                                            <MdInfo className={styles.specIcon} />
-                                            <div className={styles.specTextGroup}>
-                                                <span className={styles.specValue}>{banner.statusCondition}</span>
-                                                <span className={styles.specLabel}>Situação</span>
-                                            </div>
+                                    </div>
+                                )}
+                                {banner.statusCondition && (
+                                    <div className={styles.specItem}>
+                                        <MdInfo className={styles.specIcon} />
+                                        <div className={styles.specTextGroup}>
+                                            <span className={styles.specValue}>{banner.statusCondition}</span>
                                         </div>
-                                    )}
-                                </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

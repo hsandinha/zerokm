@@ -13,7 +13,6 @@ import modalStyles from './TablesManagement.module.css';
 import { HighlightText } from '../HighlightText';
 import { UpgradeModal } from './UpgradeModal';
 import { BannerCarousel } from '../cliente/BannerCarousel';
-import { BannerCarouselHorizontal } from '../cliente/BannerCarouselHorizontal';
 
 const normalizeString = (value: string) => value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 
@@ -1813,15 +1812,6 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
             {loading && (
                 <div className={styles.loadingOverlay}>
                     <div className={styles.loadingOverlayMessage}>Atualizando resultados...</div>
-                </div>
-            )}
-            
-            {/* Horizontal Banner Test - Centered above everything */}
-            {['client', 'gratis'].includes(role) && (
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem', width: '100%' }}>
-                    <div style={{ width: '100%', maxWidth: '800px', height: '220px' }}>
-                        <BannerCarouselHorizontal />
-                    </div>
                 </div>
             )}
 

@@ -11,6 +11,7 @@ import { ExpirationAlerts } from './ExpirationAlerts';
 import { AutoUpgradeFromQuery } from './AutoUpgradeFromQuery';
 import { FreeTrialGate } from './FreeTrialGate';
 import { SubscriptionControls } from './SubscriptionControls';
+import { BannerCarouselHorizontal } from '../../../components/cliente/BannerCarouselHorizontal';
 import styles from './cliente.module.css';
 
 function PaymentBanner() {
@@ -185,6 +186,13 @@ export default function ClientDashboard() {
                             priority
                         />
                     </div>
+                    
+                    <div style={{ flex: 1, display: 'flex', justifyContent: 'center', padding: '0 1rem' }}>
+                        <div style={{ width: '100%', maxWidth: '600px', height: '80px' }}>
+                            <BannerCarouselHorizontal />
+                        </div>
+                    </div>
+
                     <div className={styles.headerRight}>
                         <UserMenu
                             name={userInfo.name || 'Cliente'}
