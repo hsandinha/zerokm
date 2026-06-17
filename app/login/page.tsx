@@ -47,6 +47,7 @@ function LoginContent() {
         const routes: Record<string, string> = {
             administrador: '/dashboard/admin',
             gerente: '/dashboard/admin',
+            marketing: '/dashboard/admin',
             concessionaria: '/dashboard/dealership',
             operador: '/dashboard/operator',
             operator: '/dashboard/operator',

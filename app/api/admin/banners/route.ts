@@ -42,6 +42,7 @@ export async function POST(req: Request) {
             isActive: body.isActive !== undefined ? body.isActive : true,
             order: body.order ?? nextOrder,
             dealershipId: body.dealershipId || null,
+            vehicleId: body.vehicleId || null,
             badge: body.badge,
             price: body.price,
             priceSubtitle: body.priceSubtitle,

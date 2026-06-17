@@ -102,7 +102,10 @@ function validateMPSignature(req: NextRequest, body: Record<string, any>): { val
     const computed = crypto.createHmac('sha256', secret).update(manifest).digest('hex');
 
     try {
-        const match = crypto.timingSafeEqual(Buffer.from(computed, 'hex'), Buffer.from(v1, 'hex'));
+        const match = crypto.timingSafeEqual(
+            Buffer.from(computed, 'hex') as unknown as Uint8Array,
+            Buffer.from(v1, 'hex') as unknown as Uint8Array
+        );
         return { valid: match, reason: match ? 'ok' : 'hash-mismatch' };
     } catch {
         // Tamanhos diferentes → Buffer.from falha no timingSafeEqual

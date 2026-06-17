@@ -11,6 +11,7 @@ interface Banner {
     isActive: boolean;
     order: number;
     dealershipId?: string;
+    vehicleId?: string;
     status: string;
     createdAt: string;
 }
@@ -18,6 +19,7 @@ interface Banner {
 export function BannersManagement() {
     const [banners, setBanners] = useState<Banner[]>([]);
     const [dealerships, setDealerships] = useState<any[]>([]);
+    const [vehicles, setVehicles] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
@@ -36,7 +38,8 @@ export function BannersManagement() {
         fuel: '',
         delivery: '',
         statusCondition: '',
-        ctaText: ''
+        ctaText: '',
+        vehicleId: ''
     });
     const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -45,13 +48,14 @@ export function BannersManagement() {
         setNewBanner({ 
             title: '', linkUrl: '', imageBase64: '', 
             badge: '', price: '', priceSubtitle: '', vehicleModel: '', storeName: '', 
-            year: '', color: '', fuel: '', delivery: '', statusCondition: '', ctaText: '' 
+            year: '', color: '', fuel: '', delivery: '', statusCondition: '', ctaText: '', vehicleId: '' 
         });
     };
 
     useEffect(() => {
         carregarBanners();
         carregarConcessionarias();
+        carregarVeiculos();
     }, []);
 
     const carregarBanners = async () => {
@@ -78,6 +82,18 @@ export function BannersManagement() {
             }
         } catch (error) {
             console.error('Erro ao buscar concessionárias', error);
+        }
+    };
+
+    const carregarVeiculos = async () => {
+        try {
+            const res = await fetch('/api/vehicles?limit=1000');
+            if (res.ok) {
+                const json = await res.json();
+                setVehicles(json.data || []);
+            }
+        } catch (error) {
+            console.error('Erro ao buscar veículos', error);
         }
     };
 
@@ -131,7 +147,8 @@ export function BannersManagement() {
                     fuel: newBanner.fuel,
                     delivery: newBanner.delivery,
                     statusCondition: newBanner.statusCondition,
-                    ctaText: newBanner.ctaText
+                    ctaText: newBanner.ctaText,
+                    vehicleId: newBanner.vehicleId || null
                 })
             });
 
@@ -148,6 +165,35 @@ export function BannersManagement() {
         } finally {
             setIsSaving(false);
         }
+    };
+
+    const handleVehicleSelect = (vehicleId: string) => {
+        const veiculo = vehicles.find(v => v.id === vehicleId || v._id === vehicleId);
+        if (!veiculo) return;
+
+        let formattedPrice = '';
+        if (veiculo.preco) {
+            formattedPrice = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(veiculo.preco);
+        }
+
+        let newImageBase64 = newBanner.imageBase64;
+        if (veiculo.fotos && veiculo.fotos.length > 0) {
+            newImageBase64 = veiculo.fotos[0];
+        }
+
+        setNewBanner(prev => ({
+            ...prev,
+            vehicleModel: veiculo.modelo || '',
+            price: formattedPrice,
+            year: veiculo.ano || '',
+            color: veiculo.cor || '',
+            fuel: veiculo.combustivel || '',
+            delivery: veiculo.frete ? String(veiculo.frete) : '',
+            statusCondition: veiculo.status || '',
+            storeName: veiculo.concessionaria || prev.storeName,
+            vehicleId: vehicleId,
+            imageBase64: newImageBase64
+        }));
     };
 
     const toggleBannerActive = async (id: string, currentStatus: boolean) => {
@@ -237,7 +283,8 @@ export function BannersManagement() {
             fuel: banner.fuel || '',
             delivery: banner.delivery || '',
             statusCondition: banner.statusCondition || '',
-            ctaText: banner.ctaText || ''
+            ctaText: banner.ctaText || '',
+            vehicleId: banner.vehicleId || ''
         });
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -275,6 +322,23 @@ export function BannersManagement() {
                                 className={styles.input}
                             />
                         </div>
+                        <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
+                            <label style={{ color: '#00d284' }}>Preencher dados a partir de um Veículo</label>
+                            <select 
+                                className={styles.input}
+                                value={newBanner.vehicleId || ''}
+                                onChange={(e) => handleVehicleSelect(e.target.value)}
+                            >
+                                <option value="">-- Escolha um veículo para preencher os dados do Banner --</option>
+                                {vehicles.map(v => (
+                                    <option key={v.id || v._id} value={v.id || v._id}>
+                                        {v.modelo} - {v.ano} ({v.concessionaria || 'Sem concessionária'})
+                                    </option>
+                                ))}
+                            </select>
+                            <span style={{ fontSize: '0.75rem', color: '#666' }}>Isto irá preencher automaticamente os campos de Modelo, Preço, Ano, Cor, Combustível, Situação e puxará a primeira foto do veículo. O banner também será excluído se o veículo for deletado.</span>
+                        </div>
+
                         <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
                             <label style={{ color: '#ff6b00' }}>Preencher dados a partir de uma Concessionária</label>
                             <select 

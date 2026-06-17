@@ -7,6 +7,7 @@ export interface IBanner extends Document {
     isActive: boolean;
     order: number;
     dealershipId?: string;
+    vehicleId?: string;
     status?: 'active' | 'pending' | 'rejected' | 'awaiting_payment';
     expiresAt?: Date;
     paymentId?: string;
@@ -32,6 +33,7 @@ const BannerSchema: Schema = new Schema({
     isActive: { type: Boolean, default: true },
     order: { type: Number, default: 0 },
     dealershipId: { type: String },
+    vehicleId: { type: String },
     status: { type: String, enum: ['active', 'pending', 'rejected', 'awaiting_payment'], default: 'active' },
     expiresAt: { type: Date },
     paymentId: { type: String },

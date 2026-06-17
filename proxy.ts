@@ -15,6 +15,7 @@ export default withAuth(
       switch (p) {
         case 'administrador':
         case 'gerente':
+        case 'marketing':
           return '/dashboard/admin';
         case 'concessionaria': return '/dashboard/dealership';
         case 'operator':
@@ -35,8 +36,8 @@ export default withAuth(
       return NextResponse.redirect(new URL(getDashboardUrl(profile), req.url));
     }
 
-    // 2. Admin Dashboard: Apenas Administradores e Gerentes
-    if (path.startsWith('/dashboard/admin') && !path.startsWith('/dashboard/administrativo') && profile !== 'administrador' && profile !== 'gerente') {
+    // 2. Admin Dashboard: Apenas Administradores e Gerentes e Marketing
+    if (path.startsWith('/dashboard/admin') && !path.startsWith('/dashboard/administrativo') && profile !== 'administrador' && profile !== 'gerente' && profile !== 'marketing') {
       return NextResponse.redirect(new URL(getDashboardUrl(profile), req.url));
     }
 

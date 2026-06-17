@@ -107,6 +107,7 @@ export default function UserMenu({ name, email, role, credits, isDropup, alignLe
         const routes: Record<string, string> = {
             administrador: '/dashboard/admin',
             gerente: '/dashboard/admin',
+            marketing: '/dashboard/admin',
             concessionaria: '/dashboard/dealership',
             operador: '/dashboard/operator',
             operator: '/dashboard/operator',
@@ -132,6 +133,7 @@ export default function UserMenu({ name, email, role, credits, isDropup, alignLe
         switch (profile) {
             case 'administrador': return 'Administrador';
             case 'gerente': return 'Administrador';
+            case 'marketing': return 'Marketing';
             case 'concessionaria': return 'Concessionária';
             case 'operador': return 'Operador';
             case 'administrativo': return 'Administrativo';
