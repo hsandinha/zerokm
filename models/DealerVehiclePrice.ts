@@ -39,7 +39,7 @@ DealerVehiclePriceSchema.index({ concessionariaId: 1, ativo: 1, updatedAt: -1 })
 DealerVehiclePriceSchema.index({ variationId: 1, ativo: 1 });
 
 DealerVehiclePriceSchema.pre('save', function setActiveFromPrice(next) {
-    const doc = this as IDealerVehiclePrice;
+    const doc = this as unknown as IDealerVehiclePrice;
     doc.ativo = typeof doc.preco === 'number' && doc.preco > 0;
     next();
 });
