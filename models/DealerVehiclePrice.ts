@@ -38,13 +38,12 @@ DealerVehiclePriceSchema.index({ variationId: 1, concessionariaId: 1 }, { unique
 DealerVehiclePriceSchema.index({ concessionariaId: 1, ativo: 1, updatedAt: -1 });
 DealerVehiclePriceSchema.index({ variationId: 1, ativo: 1 });
 
-DealerVehiclePriceSchema.pre('save', function setActiveFromPrice(next) {
+DealerVehiclePriceSchema.pre('save', function setActiveFromPrice() {
     const doc = this as unknown as IDealerVehiclePrice;
     doc.ativo = typeof doc.preco === 'number' && doc.preco > 0;
-    next();
 });
 
-DealerVehiclePriceSchema.pre('findOneAndUpdate', function setActiveOnUpdate(next) {
+DealerVehiclePriceSchema.pre('findOneAndUpdate', function setActiveOnUpdate() {
     const update = this.getUpdate() as any;
     const $set = update?.$set || {};
 
@@ -53,8 +52,6 @@ DealerVehiclePriceSchema.pre('findOneAndUpdate', function setActiveOnUpdate(next
         update.$set = $set;
         this.setUpdate(update);
     }
-
-    next();
 });
 
 if (process.env.NODE_ENV === 'development' && mongoose.models.DealerVehiclePrice) {
