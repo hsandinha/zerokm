@@ -10,6 +10,7 @@ export interface IVehicleVariation extends Document {
     anoModelo?: number;
     anoFabricacao?: number;
     combustivel?: string;
+    cor?: string;
     transmissao?: string;
     motor?: string;
     carroceria?: string;
@@ -37,6 +38,7 @@ const VehicleVariationSchema: Schema = new Schema({
     anoModelo: { type: Number, index: true },
     anoFabricacao: { type: Number },
     combustivel: { type: String, trim: true, index: true },
+    cor: { type: String, trim: true, index: true },
     transmissao: { type: String, trim: true, index: true },
     motor: { type: String, trim: true },
     carroceria: { type: String, trim: true },
@@ -55,6 +57,7 @@ VehicleVariationSchema.index({
     versao: 1,
     anoModelo: 1,
     combustivel: 1,
+    cor: 1,
     transmissao: 1,
 }, {
     unique: true,

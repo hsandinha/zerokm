@@ -56,6 +56,13 @@
     margin-top: 1rem;
 }
 
+.importGrid {
+    display: grid;
+    grid-template-columns: 220px 240px 240px minmax(0, 1fr);
+    gap: 0.85rem;
+    margin-top: 1rem;
+}
+
 .linkGrid {
     display: grid;
     gap: 0.85rem;
@@ -63,6 +70,7 @@
 }
 
 .formGrid label,
+.importGrid label,
 .linkGrid label {
     display: flex;
     flex-direction: column;
@@ -74,6 +82,8 @@
 
 .formGrid input,
 .formGrid select,
+.importGrid input,
+.importGrid select,
 .linkGrid select,
 .filters input,
 .filters select {
@@ -88,17 +98,80 @@
 }
 
 .formGrid input::placeholder,
+.importGrid input::placeholder,
 .filters input::placeholder {
     color: var(--color-text-muted);
 }
 
 .formGrid input:focus,
 .formGrid select:focus,
+.importGrid input:focus,
+.importGrid select:focus,
 .linkGrid select:focus,
 .filters input:focus,
 .filters select:focus {
     border-color: var(--color-accent);
     box-shadow: 0 0 0 3px rgba(246, 183, 60, 0.16);
+}
+
+.wideInput {
+    min-width: 0;
+}
+
+.importSource {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    color: var(--color-text);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.segmentedControl {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    overflow: hidden;
+    border: 1px solid var(--color-highlight);
+    border-radius: 8px;
+    min-height: 40px;
+}
+
+.segmentedControl button {
+    border: 0;
+    background: var(--color-bg);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: 0.84rem;
+    font-weight: 800;
+}
+
+.segmentedControl button + button {
+    border-left: 1px solid var(--color-highlight);
+}
+
+.segmentedControl .segmentActive {
+    background: var(--color-accent);
+    color: #111827;
+}
+
+.fileName {
+    color: var(--color-text-muted);
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.importActions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.importActions p {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: 0.84rem;
 }
 
 .actions {
@@ -242,13 +315,178 @@
     text-align: center !important;
 }
 
+.modalBackdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(2, 8, 23, 0.72);
+    padding: 1.25rem;
+}
+
+.modal {
+    display: flex;
+    flex-direction: column;
+    width: min(1180px, 96vw);
+    max-height: 88vh;
+    overflow: hidden;
+    border: 1px solid var(--color-highlight);
+    border-radius: 8px;
+    background: var(--color-surface);
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+}
+
+.modalHeader,
+.modalFooter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem;
+}
+
+.modalHeader {
+    border-bottom: 1px solid var(--color-highlight);
+}
+
+.modalFooter {
+    border-top: 1px solid var(--color-highlight);
+}
+
+.modalHeader h3 {
+    margin: 0;
+    color: var(--color-text);
+    font-size: 1.05rem;
+}
+
+.modalHeader p {
+    margin: 0.3rem 0 0;
+    color: var(--color-text-muted);
+    font-size: 0.86rem;
+}
+
+.iconButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--color-highlight);
+    border-radius: 8px;
+    background: var(--color-bg);
+    color: var(--color-text);
+    cursor: pointer;
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.summaryGrid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.65rem;
+    padding: 1rem;
+}
+
+.summaryGrid div {
+    border: 1px solid var(--color-highlight);
+    border-radius: 8px;
+    background: var(--color-bg);
+    padding: 0.75rem;
+}
+
+.summaryGrid strong,
+.summaryGrid span {
+    display: block;
+}
+
+.summaryGrid strong {
+    color: var(--color-text);
+    font-size: 1.2rem;
+}
+
+.summaryGrid span {
+    color: var(--color-text-muted);
+    font-size: 0.76rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.modalTableShell {
+    overflow: auto;
+    padding: 0 1rem 1rem;
+}
+
+.previewTable {
+    width: 100%;
+    min-width: 1180px;
+    border-collapse: collapse;
+}
+
+.previewTable th,
+.previewTable td {
+    border-bottom: 1px solid var(--color-highlight);
+    color: var(--color-text);
+    font-size: 0.82rem;
+    padding: 0.65rem 0.7rem;
+    text-align: left;
+    vertical-align: top;
+}
+
+.previewTable th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--color-panel);
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.statusBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 78px;
+    border-radius: 999px;
+    padding: 0.28rem 0.55rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+.status_new {
+    background: rgba(34, 197, 94, 0.14);
+    color: #16a34a;
+}
+
+.status_existing {
+    background: rgba(59, 130, 246, 0.14);
+    color: #2563eb;
+}
+
+.status_duplicate {
+    background: rgba(245, 158, 11, 0.16);
+    color: #d97706;
+}
+
+.status_invalid {
+    background: rgba(239, 68, 68, 0.14);
+    color: #dc2626;
+}
+
 @media (max-width: 1040px) {
     .layout {
         grid-template-columns: 1fr;
     }
 
-    .formGrid {
+    .formGrid,
+    .importGrid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .wideInput {
+        grid-column: 1 / -1;
     }
 }
 
@@ -256,12 +494,17 @@
     .header,
     .panelHeader,
     .listHeader,
-    .filters {
+    .filters,
+    .importActions,
+    .modalHeader,
+    .modalFooter {
         align-items: stretch;
         flex-direction: column;
     }
 
-    .formGrid {
+    .formGrid,
+    .importGrid,
+    .summaryGrid {
         grid-template-columns: 1fr;
     }
 }

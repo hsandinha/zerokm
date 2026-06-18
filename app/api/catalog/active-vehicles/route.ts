@@ -76,6 +76,7 @@ export async function GET(request: Request) {
         const marca = normalizeText(searchParams.get('marca'));
         const modelo = normalizeText(searchParams.get('modelo'));
         const combustivel = normalizeText(searchParams.get('combustivel'));
+        const cor = normalizeText(searchParams.get('cor'));
         const transmissao = normalizeText(searchParams.get('transmissao'));
         const anoModelo = normalizeText(searchParams.get('anoModelo') || searchParams.get('ano'));
         const estado = normalizeText(searchParams.get('estado'));
@@ -110,6 +111,7 @@ export async function GET(request: Request) {
         if (marca) filters.push({ 'variation.marca': { $regex: `^${escapeRegex(marca)}$`, $options: 'i' } });
         if (modelo) filters.push({ 'variation.modelo': { $regex: escapeRegex(modelo), $options: 'i' } });
         if (combustivel) filters.push({ 'variation.combustivel': { $regex: `^${escapeRegex(combustivel)}$`, $options: 'i' } });
+        if (cor) filters.push({ 'variation.cor': { $regex: `^${escapeRegex(cor)}$`, $options: 'i' } });
         if (transmissao) filters.push({ 'variation.transmissao': { $regex: `^${escapeRegex(transmissao)}$`, $options: 'i' } });
         if (anoModelo && Number.isFinite(Number(anoModelo))) filters.push({ 'variation.anoModelo': Number(anoModelo) });
         if (estado) filters.push({ 'concessionaria.uf': { $regex: `^${escapeRegex(estado)}$`, $options: 'i' } });
@@ -125,6 +127,7 @@ export async function GET(request: Request) {
                     { 'variation.modelo': regex },
                     { 'variation.versao': regex },
                     { 'variation.codigoFipe': regex },
+                    { 'variation.cor': regex },
                     { 'concessionaria.nome': regex },
                 ],
             });
@@ -152,6 +155,7 @@ export async function GET(request: Request) {
                                 codigoFipe: '$variation.codigoFipe',
                                 anoModelo: '$variation.anoModelo',
                                 combustivel: '$variation.combustivel',
+                                cor: '$variation.cor',
                                 transmissao: '$variation.transmissao',
                                 motor: '$variation.motor',
                                 carroceria: '$variation.carroceria',

@@ -82,12 +82,13 @@ export async function GET(request: Request) {
                 { modelo: regex },
                 { versao: regex },
                 { codigoFipe: regex },
+                { cor: regex },
             ];
         }
 
         const [data, total] = await Promise.all([
             VehicleVariation.find(query)
-                .sort({ marca: 1, modelo: 1, versao: 1, anoModelo: -1 })
+                .sort({ marca: 1, modelo: 1, versao: 1, cor: 1, anoModelo: -1 })
                 .skip(skip)
                 .limit(limit),
             VehicleVariation.countDocuments(query),
@@ -131,6 +132,7 @@ export async function POST(request: Request) {
             anoModelo: body.anoModelo ? Number(body.anoModelo) : undefined,
             anoFabricacao: body.anoFabricacao ? Number(body.anoFabricacao) : undefined,
             combustivel: normalizeText(body.combustivel) || undefined,
+            cor: normalizeText(body.cor) || undefined,
             transmissao: normalizeText(body.transmissao) || undefined,
             motor: normalizeText(body.motor) || undefined,
             carroceria: normalizeText(body.carroceria) || undefined,

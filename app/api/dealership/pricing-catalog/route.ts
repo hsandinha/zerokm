@@ -32,6 +32,7 @@ function serializeCatalogRow(row: any) {
         anoModelo: row.anoModelo,
         anoFabricacao: row.anoFabricacao,
         combustivel: row.combustivel,
+        cor: row.cor,
         transmissao: row.transmissao,
         motor: row.motor,
         carroceria: row.carroceria,
@@ -128,6 +129,7 @@ export async function GET(request: Request) {
                 { versao: regex },
                 { codigoFipe: regex },
                 { combustivel: regex },
+                { cor: regex },
                 { transmissao: regex },
             ];
         }
@@ -168,7 +170,7 @@ export async function GET(request: Request) {
         if (status === 'inativo') pipeline.push({ $match: { hasActivePrice: false } });
 
         pipeline.push(
-            { $sort: { modelo: 1, versao: 1, anoModelo: -1 } },
+            { $sort: { modelo: 1, versao: 1, cor: 1, anoModelo: -1 } },
             {
                 $facet: {
                     metadata: [{ $count: 'total' }],

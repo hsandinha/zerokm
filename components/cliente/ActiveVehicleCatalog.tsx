@@ -11,6 +11,7 @@ interface ActiveVehicle {
     versao?: string;
     anoModelo?: number;
     combustivel?: string;
+    cor?: string;
     transmissao?: string;
     preco: number;
     frete?: number | null;
@@ -96,7 +97,7 @@ export function ActiveVehicleCatalog() {
                     <input
                         value={search}
                         onChange={event => setSearch(event.target.value)}
-                        placeholder="Buscar marca, modelo, versão..."
+                        placeholder="Buscar marca, modelo, versão, cor..."
                         className={styles.search}
                     />
                     <select
@@ -135,6 +136,7 @@ export function ActiveVehicleCatalog() {
                             <div className={styles.specs}>
                                 <span>{vehicle.anoModelo || '-'}</span>
                                 <span>{vehicle.combustivel || '-'}</span>
+                                {vehicle.cor && <span>{vehicle.cor}</span>}
                                 <span>{vehicle.transmissao || '-'}</span>
                             </div>
 

@@ -78,6 +78,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
             'anoModelo',
             'anoFabricacao',
             'combustivel',
+            'cor',
             'transmissao',
             'motor',
             'carroceria',

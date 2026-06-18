@@ -13,6 +13,7 @@ interface PricingRow {
     codigoFipe?: string;
     anoModelo?: number;
     combustivel?: string;
+    cor?: string;
     transmissao?: string;
     motor?: string;
     preco: number | null;
@@ -188,7 +189,7 @@ export function PricingCatalog() {
                 <input
                     value={search}
                     onChange={event => setSearch(event.target.value)}
-                    placeholder="Buscar modelo, versão, FIPE..."
+                    placeholder="Buscar modelo, versão, cor, FIPE..."
                     className={styles.search}
                 />
 
@@ -220,6 +221,7 @@ export function PricingCatalog() {
                             <th>Versão</th>
                             <th>Ano</th>
                             <th>Combustível</th>
+                            <th>Cor</th>
                             <th>Câmbio</th>
                             <th>FIPE</th>
                             <th>Preço</th>
@@ -229,11 +231,11 @@ export function PricingCatalog() {
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan={8} className={styles.empty}>Carregando catálogo...</td>
+                                <td colSpan={9} className={styles.empty}>Carregando catálogo...</td>
                             </tr>
                         ) : rows.length === 0 ? (
                             <tr>
-                                <td colSpan={8} className={styles.empty}>Nenhuma variação encontrada.</td>
+                                <td colSpan={9} className={styles.empty}>Nenhuma variação encontrada.</td>
                             </tr>
                         ) : rows.map((row, index) => {
                             const inputValue = draftPrices[row.variationId] ?? formatCurrency(row.preco);
@@ -248,6 +250,7 @@ export function PricingCatalog() {
                                     <td>{row.versao || '-'}</td>
                                     <td>{row.anoModelo || '-'}</td>
                                     <td>{row.combustivel || '-'}</td>
+                                    <td>{row.cor || '-'}</td>
                                     <td>{row.transmissao || '-'}</td>
                                     <td>{row.codigoFipe || '-'}</td>
                                     <td>
