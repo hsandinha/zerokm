@@ -257,7 +257,7 @@ export default function AdminDashboard() {
         { id: 'visao-geral', label: 'Visão Geral', icon: '📊' },
         { id: 'usuarios', label: 'Usuários', icon: '👥' },
         { id: 'veiculos', label: 'Veículos', icon: '🚗' },
-        { id: 'catalogo', label: 'Catálogo Mestre', icon: '📚' },
+        { id: 'catalogo', label: 'Catálogo', icon: '📚' },
         { id: 'concessionarias', label: 'Concessionárias', icon: '🏢' },
         { id: 'transportadoras', label: 'Frete', icon: '🚚' },
         { id: 'tabelas', label: 'Tabelas', icon: '📋' },

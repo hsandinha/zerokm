@@ -324,6 +324,29 @@
     color: var(--color-negative);
 }
 
+.brandBadge,
+.brandBadgeMuted {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.18rem 0.55rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.brandBadge {
+    background: rgba(246, 183, 60, 0.16);
+    color: var(--color-accent);
+}
+
+.brandBadgeMuted {
+    background: var(--color-panel);
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-highlight);
+}
+
 .actionButtons {
     display: flex;
     gap: 0.5rem;

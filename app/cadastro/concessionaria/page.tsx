@@ -282,7 +282,7 @@ export default function CadastroConcessionariaPage() {
                                     ))}
                                 </select>
                                 {marcas.length === 0 && !marcasLoading && (
-                                    <p className={styles.helpText}>Nenhuma marca disponível. Peça ao operador para cadastrar a marca no Catálogo Mestre.</p>
+                                    <p className={styles.helpText}>Nenhuma marca disponível. Peça ao operador para cadastrar a marca no Catálogo.</p>
                                 )}
                             </div>
 

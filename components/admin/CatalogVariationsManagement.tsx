@@ -8,16 +8,6 @@ interface Marca {
     nome: string;
 }
 
-interface Concessionaria {
-    id: string;
-    nome: string;
-    cnpj?: string;
-    cidade?: string;
-    uf?: string;
-    marcaId?: string | null;
-    marca?: string | null;
-}
-
 interface VehicleVariation {
     id: string;
     marcaId?: string;
@@ -104,13 +94,10 @@ function variationToForm(variation: VehicleVariation): VariationForm {
 
 export function CatalogVariationsManagement() {
     const [marcas, setMarcas] = useState<Marca[]>([]);
-    const [concessionarias, setConcessionarias] = useState<Concessionaria[]>([]);
     const [variations, setVariations] = useState<VehicleVariation[]>([]);
     const [form, setForm] = useState<VariationForm>(EMPTY_FORM);
     const [search, setSearch] = useState('');
     const [brandFilter, setBrandFilter] = useState('');
-    const [selectedConcessionariaId, setSelectedConcessionariaId] = useState('');
-    const [selectedBrandId, setSelectedBrandId] = useState('');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -126,20 +113,13 @@ export function CatalogVariationsManagement() {
         setMarcas(Array.isArray(data) ? data : []);
     }, []);
 
-    const loadConcessionarias = useCallback(async () => {
-        const res = await fetch('/api/concessionarias');
-        if (!res.ok) throw new Error('Erro ao carregar concessionárias');
-        const data = await res.json();
-        setConcessionarias(Array.isArray(data) ? data : []);
-    }, []);
-
     const loadVariations = useCallback(async () => {
         const params = new URLSearchParams({ limit: '500' });
         if (search.trim()) params.set('search', search.trim());
         if (brandFilter) params.set('marcaId', brandFilter);
 
         const res = await fetch(`/api/catalog/variations?${params.toString()}`);
-        if (!res.ok) throw new Error('Erro ao carregar catálogo mestre');
+        if (!res.ok) throw new Error('Erro ao carregar catálogo');
         const data = await res.json();
         setVariations(Array.isArray(data.data) ? data.data : []);
     }, [brandFilter, search]);
@@ -149,13 +129,13 @@ export function CatalogVariationsManagement() {
         setFeedback(null);
 
         try {
-            await Promise.all([loadMarcas(), loadConcessionarias(), loadVariations()]);
+            await Promise.all([loadMarcas(), loadVariations()]);
         } catch (error: any) {
             setFeedback({ type: 'error', message: error?.message || 'Erro ao carregar dados' });
         } finally {
             setLoading(false);
         }
-    }, [loadConcessionarias, loadMarcas, loadVariations]);
+    }, [loadMarcas, loadVariations]);
 
     useEffect(() => {
         loadAll();
@@ -243,37 +223,12 @@ export function CatalogVariationsManagement() {
         }
     };
 
-    const linkBrandToDealership = async () => {
-        setSaving(true);
-        setFeedback(null);
-
-        try {
-            if (!selectedConcessionariaId) throw new Error('Selecione uma concessionária.');
-            if (!selectedBrandId) throw new Error('Selecione uma marca.');
-
-            const res = await fetch(`/api/concessionarias/${selectedConcessionariaId}/catalog-brand`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ marcaId: selectedBrandId }),
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Erro ao vincular marca');
-
-            setFeedback({ type: 'success', message: 'Marca vinculada à concessionária.' });
-            await loadConcessionarias();
-        } catch (error: any) {
-            setFeedback({ type: 'error', message: error?.message || 'Erro ao vincular marca' });
-        } finally {
-            setSaving(false);
-        }
-    };
-
     return (
         <div className={styles.container}>
             <div className={styles.header}>
                 <div>
-                    <h2 className={styles.title}>Catálogo Mestre</h2>
-                    <p className={styles.subtitle}>Cadastre variações por marca e vincule marcas às concessionárias.</p>
+                    <h2 className={styles.title}>Catálogo</h2>
+                    <p className={styles.subtitle}>Cadastre variações por marca para disponibilizar às concessionárias.</p>
                 </div>
                 <button type="button" className={styles.secondaryButton} onClick={loadAll} disabled={loading || saving}>
                     Atualizar
@@ -432,55 +387,6 @@ export function CatalogVariationsManagement() {
                         </button>
                     </div>
                 </form>
-
-                <div className={styles.panel}>
-                    <div className={styles.panelHeader}>
-                        <h3>Vínculo marca → concessionária</h3>
-                    </div>
-
-                    <div className={styles.linkGrid}>
-                        <label>
-                            Concessionária
-                            <select
-                                value={selectedConcessionariaId}
-                                onChange={event => setSelectedConcessionariaId(event.target.value)}
-                            >
-                                <option value="">Selecionar concessionária</option>
-                                {concessionarias.map(concessionaria => (
-                                    <option key={concessionaria.id} value={concessionaria.id}>
-                                        {concessionaria.nome} {concessionaria.marca ? `(${concessionaria.marca})` : ''}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-
-                        <label>
-                            Marca representada
-                            <select
-                                value={selectedBrandId}
-                                onChange={event => setSelectedBrandId(event.target.value)}
-                            >
-                                <option value="">Selecionar marca</option>
-                                {marcas.map(marca => (
-                                    <option key={marca.id} value={marca.id}>{marca.nome}</option>
-                                ))}
-                            </select>
-                        </label>
-
-                        <button type="button" className={styles.primaryButton} onClick={linkBrandToDealership} disabled={saving}>
-                            Vincular marca
-                        </button>
-                    </div>
-
-                    <div className={styles.currentLinks}>
-                        {concessionarias.slice(0, 8).map(concessionaria => (
-                            <div key={concessionaria.id} className={styles.linkRow}>
-                                <span>{concessionaria.nome}</span>
-                                <strong>{concessionaria.marca || 'Sem marca'}</strong>
-                            </div>
-                        ))}
-                    </div>
-                </div>
             </div>
 
             <div className={styles.listPanel}>

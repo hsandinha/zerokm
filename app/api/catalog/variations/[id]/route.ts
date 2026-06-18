@@ -30,7 +30,7 @@ async function assertCanManageCatalog() {
     }
 
     if (!profile || !MASTER_CATALOG_PROFILES.has(profile)) {
-        return { error: NextResponse.json({ error: 'Acesso negado ao catálogo mestre' }, { status: 403 }) };
+        return { error: NextResponse.json({ error: 'Acesso negado ao catálogo' }, { status: 403 }) };
     }
 
     return { session };

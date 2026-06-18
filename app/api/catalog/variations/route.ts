@@ -32,7 +32,7 @@ async function assertCanManageCatalog() {
     }
 
     if (!profile || !MASTER_CATALOG_PROFILES.has(profile)) {
-        return { error: NextResponse.json({ error: 'Acesso negado ao catálogo mestre' }, { status: 403 }) };
+        return { error: NextResponse.json({ error: 'Acesso negado ao catálogo' }, { status: 403 }) };
     }
 
     return { session };
@@ -101,7 +101,7 @@ export async function GET(request: Request) {
             hasNextPage: skip + data.length < total,
         });
     } catch (error: any) {
-        console.error('Erro ao buscar catálogo mestre:', error);
+        console.error('Erro ao buscar catálogo:', error);
         return NextResponse.json({ error: error.message || 'Erro interno' }, { status: 500 });
     }
 }

@@ -96,8 +96,8 @@ PATCH /api/concessionarias/:id/catalog-brand
 
 Também existe UI em:
 
-- Admin: aba `Catálogo Mestre`.
-- Operador: aba `Catálogo Mestre`.
+- Admin: aba `Catálogo`.
+- Operador: aba `Catálogo`.
 
 ### Precificação
 

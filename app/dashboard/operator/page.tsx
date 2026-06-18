@@ -119,7 +119,7 @@ export default function OperatorDashboard() {
         { id: 'visao-geral', label: 'Visão Geral', icon: '📊' },
         { id: 'veiculos', label: 'Veículos', icon: '🚗' },
         { id: 'clientes', label: 'Concessionárias', icon: '🏢' },
-        { id: 'catalogo', label: 'Catálogo Mestre', icon: '📚' },
+        { id: 'catalogo', label: 'Catálogo', icon: '📚' },
     ];
 
     const renderTabContent = () => {

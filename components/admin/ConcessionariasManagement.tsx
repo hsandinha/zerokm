@@ -10,6 +10,8 @@ interface ClienteData {
     id: string;
     nome: string;
     razaoSocial: string;
+    marcaId?: string | null;
+    marca?: string | null;
     telefone: string;
     celular?: string;
     contato: string;
@@ -36,9 +38,15 @@ interface ClienteData {
     ultimaAtualizacao?: string | null;
 }
 
+interface MarcaData {
+    id: string;
+    nome: string;
+}
+
 type ClienteFormData = {
     nome: string;
     razaoSocial: string;
+    marcaId: string;
     inscricaoEstadual: string;
     telefone: string;
     celular: string;
@@ -63,6 +71,7 @@ type ClienteFormData = {
 const createEmptyClienteForm = (): ClienteFormData => ({
     nome: '',
     razaoSocial: '',
+    marcaId: '',
     inscricaoEstadual: '',
     telefone: '',
     celular: '',
@@ -106,6 +115,7 @@ export function ConcessionariasManagement() {
     const [sortColumn, setSortColumn] = useState<string | null>(null);
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
     const [operadores, setOperadores] = useState<{_id: string, displayName: string, email: string}[]>([]);
+    const [marcas, setMarcas] = useState<MarcaData[]>([]);
 
     // Resolve operadorId: usa o campo direto ou faz match pelo nomeResponsavel
     const getOperadorIdForCliente = (cliente: ClienteData): string => {
@@ -243,8 +253,21 @@ export function ConcessionariasManagement() {
         }
     }, []);
 
+    const fetchMarcas = useCallback(async () => {
+        try {
+            const response = await fetch('/api/tables/marcas');
+            if (!response.ok) throw new Error('Erro ao carregar marcas');
+            const data = await response.json();
+            setMarcas(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error('Erro ao carregar marcas:', error);
+            setErrorMessage('Não foi possível carregar as marcas do catálogo.');
+        }
+    }, []);
+
     useEffect(() => {
         fetchClientes();
+        fetchMarcas();
         
         // Fetch operadores
         fetch('/api/admin/users')
@@ -253,7 +276,7 @@ export function ConcessionariasManagement() {
                 if (Array.isArray(data)) setOperadores(data);
             })
             .catch(console.error);
-    }, [fetchClientes]);
+    }, [fetchClientes, fetchMarcas]);
 
     useEffect(() => {
         const normalized = searchTerm.toLowerCase();
@@ -267,6 +290,7 @@ export function ConcessionariasManagement() {
             const bairro = cliente.bairro?.toLowerCase() ?? '';
             const responsavel = cliente.nomeResponsavel?.toLowerCase() ?? '';
             const email = cliente.email?.toLowerCase() ?? '';
+            const marca = cliente.marca?.toLowerCase() ?? '';
             const cnpjDigits = cliente.cnpj?.replace(/\D/g, '') ?? '';
             const cepDigits = cliente.cep?.replace(/\D/g, '') ?? '';
             const telefoneResponsavel = cliente.telefoneResponsavel?.replace(/\D/g, '') ?? '';
@@ -277,6 +301,7 @@ export function ConcessionariasManagement() {
                 contato.includes(normalized) ||
                 cidade.includes(normalized) ||
                 bairro.includes(normalized) ||
+                marca.includes(normalized) ||
                 responsavel.includes(normalized) ||
                 email.includes(normalized) ||
                 (searchDigits ?
@@ -403,10 +428,25 @@ export function ConcessionariasManagement() {
         }
 
         try {
+            let concessionariaId = editingCliente?.id;
+
             if (editingCliente && editingCliente.id) {
                 await ConcessionariaService.updateConcessionaria(editingCliente.id, payload);
             } else {
-                await ConcessionariaService.addConcessionaria(payload);
+                const created = await ConcessionariaService.addConcessionaria(payload);
+                concessionariaId = created.id;
+            }
+
+            if (concessionariaId && formData.marcaId && formData.marcaId !== editingCliente?.marcaId) {
+                const brandResponse = await fetch(`/api/concessionarias/${concessionariaId}/catalog-brand`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ marcaId: formData.marcaId }),
+                });
+                const brandData = await brandResponse.json().catch(() => ({}));
+                if (!brandResponse.ok) {
+                    throw new Error(brandData.error || 'Erro ao vincular marca à concessionária.');
+                }
             }
 
             await fetchClientes();
@@ -426,6 +466,7 @@ export function ConcessionariasManagement() {
         setFormData({
             nome: cliente.nome,
             razaoSocial: cliente.razaoSocial,
+            marcaId: cliente.marcaId ?? '',
             inscricaoEstadual: cliente.inscricaoEstadual ?? '',
             telefone: digitsOnly(cliente.telefone),
             celular: digitsOnly(cliente.celular),
@@ -518,6 +559,22 @@ export function ConcessionariasManagement() {
                                         onChange={(e) => setFormData({ ...formData, razaoSocial: e.target.value })}
                                         className={styles.formInput}
                                     />
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label>Marca representada</label>
+                                    <select
+                                        value={formData.marcaId}
+                                        onChange={(e) => setFormData({ ...formData, marcaId: e.target.value })}
+                                        className={styles.formInput}
+                                    >
+                                        <option value="">Selecionar marca</option>
+                                        {marcas.map((marca) => (
+                                            <option key={marca.id} value={marca.id}>{marca.nome}</option>
+                                        ))}
+                                    </select>
+                                    {marcas.length === 0 && (
+                                        <small className={styles.formHelper}>Cadastre marcas na aba Catálogo para vincular aqui.</small>
+                                    )}
                                 </div>
                             </div>
 
@@ -789,7 +846,7 @@ export function ConcessionariasManagement() {
                 <div className={styles.searchContainer}>
                     <input
                         type="text"
-                        placeholder="Buscar por nome, razão social, responsável, CNPJ ou cidade..."
+                        placeholder="Buscar por nome, razão social, marca, responsável, CNPJ ou cidade..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className={styles.searchInput}
@@ -822,6 +879,7 @@ export function ConcessionariasManagement() {
                             <thead>
                                 <tr>
                                     <th className={styles.tableHeader}>NOME / RAZÃO SOCIAL</th>
+                                    <th className={styles.tableHeader}>MARCA</th>
                                     <th className={styles.tableHeader}>VEÍCULOS</th>
                                     <th className={styles.tableHeader}>ATUALIZAÇÃO</th>
                                     <th className={styles.tableHeader}>CONTATO PRINCIPAL</th>
@@ -835,7 +893,7 @@ export function ConcessionariasManagement() {
                             <tbody>
                                 {filteredClientes.length === 0 ? (
                                     <tr className={styles.tableRow}>
-                                        <td className={styles.emptyStateCell} colSpan={9}>
+                                        <td className={styles.emptyStateCell} colSpan={10}>
                                             {searchTerm ? 'Nenhuma concessionária encontrada.' : 'Nenhuma concessionária cadastrada.'}
                                         </td>
                                     </tr>
@@ -845,6 +903,11 @@ export function ConcessionariasManagement() {
                                             <td className={styles.tableCell}>
                                                 <strong>{cliente.nome}</strong>
                                                 <div className={styles.tableSubtext}>{cliente.razaoSocial}</div>
+                                            </td>
+                                            <td className={styles.tableCell}>
+                                                <span className={cliente.marca ? styles.brandBadge : styles.brandBadgeMuted}>
+                                                    {cliente.marca || 'Sem marca'}
+                                                </span>
                                             </td>
                                             <td className={styles.tableCell}>
                                                 <div className={styles.vehicleCount}>

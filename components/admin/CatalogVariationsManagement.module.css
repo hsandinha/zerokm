@@ -15,7 +15,7 @@
 
 .title {
     margin: 0;
-    color: #111827;
+    color: var(--color-text);
     font-size: 1.35rem;
     font-weight: 700;
 }
@@ -23,28 +23,28 @@
 .subtitle,
 .listHeader p {
     margin: 0.35rem 0 0;
-    color: #6b7280;
+    color: var(--color-text-muted);
     font-size: 0.92rem;
 }
 
 .layout {
     display: grid;
-    grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.8fr);
+    grid-template-columns: minmax(0, 1fr);
     gap: 1rem;
 }
 
 .panel,
 .listPanel {
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--color-highlight);
     border-radius: 8px;
-    background: #ffffff;
+    background: var(--color-surface);
     padding: 1rem;
 }
 
 .panelHeader h3,
 .listHeader h3 {
     margin: 0;
-    color: #111827;
+    color: var(--color-text);
     font-size: 1rem;
     font-weight: 700;
 }
@@ -67,7 +67,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
-    color: #374151;
+    color: var(--color-text);
     font-size: 0.8rem;
     font-weight: 700;
 }
@@ -78,13 +78,18 @@
 .filters input,
 .filters select {
     height: 40px;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--color-highlight);
     border-radius: 8px;
-    background: #ffffff;
-    color: #111827;
+    background: var(--color-bg);
+    color: var(--color-text);
     font-size: 0.9rem;
     outline: none;
     padding: 0 0.7rem;
+}
+
+.formGrid input::placeholder,
+.filters input::placeholder {
+    color: var(--color-text-muted);
 }
 
 .formGrid input:focus,
@@ -92,8 +97,8 @@
 .linkGrid select:focus,
 .filters input:focus,
 .filters select:focus {
-    border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(246, 183, 60, 0.16);
 }
 
 .actions {
@@ -114,13 +119,14 @@
 }
 
 .primaryButton {
-    background: #111827;
-    color: #ffffff;
+    background: var(--color-accent);
+    color: #111827;
 }
 
 .secondaryButton {
-    background: #f3f4f6;
-    color: #111827;
+    background: var(--color-panel);
+    color: var(--color-text);
+    border: 1px solid var(--color-highlight);
 }
 
 .primaryButton:disabled,
@@ -132,7 +138,7 @@
 .linkButton {
     border: 0;
     background: transparent;
-    color: #2563eb;
+    color: var(--color-accent);
     cursor: pointer;
     font-size: 0.86rem;
     font-weight: 700;
@@ -168,15 +174,15 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.8rem;
-    border: 1px solid #f3f4f6;
+    border: 1px solid var(--color-highlight);
     border-radius: 8px;
     padding: 0.55rem 0.65rem;
-    color: #374151;
+    color: var(--color-text-muted);
     font-size: 0.84rem;
 }
 
 .linkRow strong {
-    color: #111827;
+    color: var(--color-text);
 }
 
 .filters {
@@ -197,16 +203,17 @@
 
 .table th,
 .table td {
-    border-bottom: 1px solid #edf0f3;
+    border-bottom: 1px solid var(--color-highlight);
     padding: 0.72rem 0.8rem;
     text-align: left;
     vertical-align: middle;
     font-size: 0.88rem;
+    color: var(--color-text);
 }
 
 .table th {
-    background: #f9fafb;
-    color: #374151;
+    background: var(--color-panel);
+    color: var(--color-text);
     font-size: 0.76rem;
     font-weight: 800;
     text-transform: uppercase;
@@ -218,10 +225,10 @@
 }
 
 .rowActions button {
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--color-highlight);
     border-radius: 8px;
-    background: #ffffff;
-    color: #111827;
+    background: var(--color-bg);
+    color: var(--color-text);
     cursor: pointer;
     font-size: 0.8rem;
     font-weight: 700;
@@ -230,7 +237,7 @@
 }
 
 .empty {
-    color: #6b7280;
+    color: var(--color-text-muted);
     padding: 2rem !important;
     text-align: center !important;
 }
