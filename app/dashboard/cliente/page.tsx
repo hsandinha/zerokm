@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSession, getSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
+import { VehicleConsultation } from '../../../components/operator/VehicleConsultation';
 import { ConfigContext } from '../../../lib/contexts/ConfigContext';
 import UserMenu from '../../../components/UserMenu';
 import { ExpirationAlerts } from './ExpirationAlerts';
@@ -11,7 +12,6 @@ import { AutoUpgradeFromQuery } from './AutoUpgradeFromQuery';
 import { FreeTrialGate } from './FreeTrialGate';
 import { SubscriptionControls } from './SubscriptionControls';
 import { BannerCarouselHorizontal } from '../../../components/cliente/BannerCarouselHorizontal';
-import { ActiveVehicleCatalog } from '../../../components/cliente/ActiveVehicleCatalog';
 import styles from './cliente.module.css';
 
 function PaymentBanner() {
@@ -205,7 +205,7 @@ export default function ClientDashboard() {
 
                 <div className={styles.content}>
                     <SubscriptionControls />
-                    <ActiveVehicleCatalog />
+                    <VehicleConsultation role={userInfo.profile === 'gratis' ? 'gratis' : 'client'} isInvitee={isInvitee} />
                 </div>
             </div>
         </ConfigContext.Provider>
