@@ -142,11 +142,15 @@ export default function AdminDashboard() {
         getSession()
             .then((session) => {
                 if (session?.user) {
+                    const profile = session.user.profile;
                     setUserInfo({
                         name: session.user.name ?? 'Administrador',
                         email: session.user.email ?? null,
-                        profile: session.user.profile,
+                        profile,
                     });
+                    if (profile === 'marketing') {
+                        setActiveTab('funil');
+                    }
                 }
             })
             .catch((error) => {
