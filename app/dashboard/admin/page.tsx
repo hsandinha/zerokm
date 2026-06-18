@@ -16,6 +16,7 @@ import { ConfiguracoesManagement } from '../../../components/admin/Configuracoes
 import { BannersManagement } from '@/components/admin/BannersManagement';
 import IntegrationsPanel from '@/components/admin/IntegrationsPanel';
 import { ChurnDashboard } from '../../../components/admin/ChurnDashboard';
+import { CatalogVariationsManagement } from '../../../components/admin/CatalogVariationsManagement';
 import KanbanBoard from '../../../components/crm/KanbanBoard';
 import styles from './admin.module.css';
 import { MdFilterAlt } from 'react-icons/md';
@@ -33,7 +34,7 @@ const VehicleConsultation = dynamic<any>(
     }
 );
 
-type TabType = 'visao-geral' | 'usuarios' | 'veiculos' | 'concessionarias' | 'transportadoras' | 'tabelas' | 'margem' | 'configuracoes' | 'planos' | 'crm' | 'funil' | 'integracoes' | 'banners';
+type TabType = 'visao-geral' | 'usuarios' | 'veiculos' | 'catalogo' | 'concessionarias' | 'transportadoras' | 'tabelas' | 'margem' | 'configuracoes' | 'planos' | 'crm' | 'funil' | 'integracoes' | 'banners';
 
 type MetricItem = {
     nome: string;
@@ -256,6 +257,7 @@ export default function AdminDashboard() {
         { id: 'visao-geral', label: 'Visão Geral', icon: '📊' },
         { id: 'usuarios', label: 'Usuários', icon: '👥' },
         { id: 'veiculos', label: 'Veículos', icon: '🚗' },
+        { id: 'catalogo', label: 'Catálogo Mestre', icon: '📚' },
         { id: 'concessionarias', label: 'Concessionárias', icon: '🏢' },
         { id: 'transportadoras', label: 'Frete', icon: '🚚' },
         { id: 'tabelas', label: 'Tabelas', icon: '📋' },
@@ -549,6 +551,12 @@ export default function AdminDashboard() {
                 );
             case 'veiculos':
                 return <VehicleConsultation role={userInfo.profile as any || 'admin'} />;
+            case 'catalogo':
+                return (
+                    <div className={styles.contentArea}>
+                        <CatalogVariationsManagement />
+                    </div>
+                );
             case 'concessionarias':
                 return (
                     <div className={styles.contentArea}>

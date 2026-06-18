@@ -4,6 +4,8 @@ export interface IConcessionaria extends Document {
     nome: string;
     razaoSocial: string;
     cnpj: string;
+    marcaId?: mongoose.Types.ObjectId;
+    marca?: string;
     operadorId?: mongoose.Types.ObjectId;
     inscricaoEstadual?: string;
     telefone: string;
@@ -32,6 +34,8 @@ const ConcessionariaSchema: Schema = new Schema({
     nome: { type: String },
     razaoSocial: { type: String },
     cnpj: { type: String, unique: true, sparse: true },
+    marcaId: { type: Schema.Types.ObjectId, ref: 'Marca', index: true },
+    marca: { type: String, trim: true, index: true },
     operadorId: { type: Schema.Types.ObjectId, ref: 'User' },
     inscricaoEstadual: { type: String },
     telefone: { type: String },

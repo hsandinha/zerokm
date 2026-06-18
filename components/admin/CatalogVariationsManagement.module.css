@@ -1,0 +1,260 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.header,
+.panelHeader,
+.listHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.title {
+    margin: 0;
+    color: #111827;
+    font-size: 1.35rem;
+    font-weight: 700;
+}
+
+.subtitle,
+.listHeader p {
+    margin: 0.35rem 0 0;
+    color: #6b7280;
+    font-size: 0.92rem;
+}
+
+.layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.8fr);
+    gap: 1rem;
+}
+
+.panel,
+.listPanel {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 1rem;
+}
+
+.panelHeader h3,
+.listHeader h3 {
+    margin: 0;
+    color: #111827;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.formGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.85rem;
+    margin-top: 1rem;
+}
+
+.linkGrid {
+    display: grid;
+    gap: 0.85rem;
+    margin-top: 1rem;
+}
+
+.formGrid label,
+.linkGrid label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    color: #374151;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.formGrid input,
+.formGrid select,
+.linkGrid select,
+.filters input,
+.filters select {
+    height: 40px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #111827;
+    font-size: 0.9rem;
+    outline: none;
+    padding: 0 0.7rem;
+}
+
+.formGrid input:focus,
+.formGrid select:focus,
+.linkGrid select:focus,
+.filters input:focus,
+.filters select:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1rem;
+}
+
+.primaryButton,
+.secondaryButton {
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.88rem;
+    font-weight: 700;
+    min-height: 40px;
+    padding: 0 1rem;
+}
+
+.primaryButton {
+    background: #111827;
+    color: #ffffff;
+}
+
+.secondaryButton {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.linkButton {
+    border: 0;
+    background: transparent;
+    color: #2563eb;
+    cursor: pointer;
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.feedback {
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    font-size: 0.9rem;
+}
+
+.feedbackSuccess {
+    border: 1px solid #bbf7d0;
+    background: #f0fdf4;
+    color: #166534;
+}
+
+.feedbackError {
+    border: 1px solid #fecaca;
+    background: #fef2f2;
+    color: #991b1b;
+}
+
+.currentLinks {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    margin-top: 1rem;
+}
+
+.linkRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    border: 1px solid #f3f4f6;
+    border-radius: 8px;
+    padding: 0.55rem 0.65rem;
+    color: #374151;
+    font-size: 0.84rem;
+}
+
+.linkRow strong {
+    color: #111827;
+}
+
+.filters {
+    display: flex;
+    gap: 0.6rem;
+}
+
+.tableShell {
+    overflow: auto;
+    margin-top: 1rem;
+}
+
+.table {
+    width: 100%;
+    min-width: 980px;
+    border-collapse: collapse;
+}
+
+.table th,
+.table td {
+    border-bottom: 1px solid #edf0f3;
+    padding: 0.72rem 0.8rem;
+    text-align: left;
+    vertical-align: middle;
+    font-size: 0.88rem;
+}
+
+.table th {
+    background: #f9fafb;
+    color: #374151;
+    font-size: 0.76rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.rowActions {
+    display: flex;
+    gap: 0.45rem;
+}
+
+.rowActions button {
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #111827;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 700;
+    min-height: 34px;
+    padding: 0 0.7rem;
+}
+
+.empty {
+    color: #6b7280;
+    padding: 2rem !important;
+    text-align: center !important;
+}
+
+@media (max-width: 1040px) {
+    .layout {
+        grid-template-columns: 1fr;
+    }
+
+    .formGrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 720px) {
+    .header,
+    .panelHeader,
+    .listHeader,
+    .filters {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .formGrid {
+        grid-template-columns: 1fr;
+    }
+}

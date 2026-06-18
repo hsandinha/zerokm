@@ -3,6 +3,7 @@ import { adminAuth } from '@/lib/firebase-admin';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import Concessionaria from '@/models/Concessionaria';
+import Marca from '@/models/Marca';
 
 export async function POST(request: Request) {
     try {
@@ -14,6 +15,8 @@ export async function POST(request: Request) {
             // Empresa
             nomeFantasia,
             razaoSocial,
+            marcaId,
+            marca,
             cnpj,
             inscricaoEstadual,
             // Endereço
@@ -32,7 +35,7 @@ export async function POST(request: Request) {
         } = body;
 
         // Validações básicas
-        if (!email || !password || !nomeFantasia || !cnpj || !nomeResponsavel || !telefoneResponsavel) {
+        if (!email || !password || !nomeFantasia || !cnpj || !nomeResponsavel || !telefoneResponsavel || !marcaId) {
             return NextResponse.json(
                 { error: 'Campos obrigatórios não preenchidos' },
                 { status: 400 }
@@ -57,6 +60,11 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Este CNPJ já está cadastrado' }, { status: 409 });
         }
 
+        const marcaDoc = await Marca.findById(marcaId);
+        if (!marcaDoc) {
+            return NextResponse.json({ error: 'Marca selecionada não encontrada' }, { status: 400 });
+        }
+
         // Criar usuário no Firebase
         const userRecord = await adminAuth.createUser({
             email: email.toLowerCase().trim(),
@@ -70,6 +78,8 @@ export async function POST(request: Request) {
         const concessionaria = await Concessionaria.create({
             nome: String(nomeFantasia).trim(),
             razaoSocial: razaoSocial ? String(razaoSocial).trim() : undefined,
+            marcaId: marcaDoc._id,
+            marca: marcaDoc.nome || (marca ? String(marca).trim() : undefined),
             cnpj: cnpjClean,
             inscricaoEstadual: inscricaoEstadual || undefined,
             email: email.toLowerCase().trim(),

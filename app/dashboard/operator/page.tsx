@@ -16,10 +16,11 @@ import { ConfigContext, useConfig } from '../../../lib/contexts/ConfigContext';
 import { ConcessionariaService } from '../../../lib/services/concessionariaService';
 import UserMenu from '../../../components/UserMenu';
 import { FarolVencimentos } from './FarolVencimentos';
+import { CatalogVariationsManagement } from '../../../components/admin/CatalogVariationsManagement';
 import styles from './operator.module.css';
 import transportStyles from '../../../components/operator/VehicleConsultation.module.css';
 
-type TabType = 'veiculos' | 'clientes' | 'transportadoras' | 'tabelas' | 'configuracoes';
+type TabType = 'veiculos' | 'clientes' | 'catalogo' | 'transportadoras' | 'tabelas' | 'configuracoes';
 
 export default function OperatorDashboard() {
     const [activeTab, setActiveTab] = useState<TabType | 'visao-geral'>('visao-geral');
@@ -118,6 +119,7 @@ export default function OperatorDashboard() {
         { id: 'visao-geral', label: 'Visão Geral', icon: '📊' },
         { id: 'veiculos', label: 'Veículos', icon: '🚗' },
         { id: 'clientes', label: 'Concessionárias', icon: '🏢' },
+        { id: 'catalogo', label: 'Catálogo Mestre', icon: '📚' },
     ];
 
     const renderTabContent = () => {
@@ -128,6 +130,8 @@ export default function OperatorDashboard() {
                 return <VehicleConsultation role={effectiveRole} />;
             case 'clientes':
                 return <ClientesTab />;
+            case 'catalogo':
+                return <CatalogVariationsManagement />;
             case 'transportadoras':
                 return <TransportadorasManagement role={effectiveRole} />;
             case 'tabelas':

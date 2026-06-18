@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -12,6 +12,8 @@ interface FormData {
     // Step 1 — Empresa
     nomeFantasia: string;
     razaoSocial: string;
+    marcaId: string;
+    marca: string;
     cnpj: string;
     inscricaoEstadual: string;
     telefone: string;
@@ -33,7 +35,7 @@ interface FormData {
 }
 
 const EMPTY: FormData = {
-    nomeFantasia: '', razaoSocial: '', cnpj: '', inscricaoEstadual: '',
+    nomeFantasia: '', razaoSocial: '', marcaId: '', marca: '', cnpj: '', inscricaoEstadual: '',
     telefone: '', celular: '',
     cep: '', endereco: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '',
     nomeResponsavel: '', telefoneResponsavel: '', email: '', password: '', confirm: '',
@@ -63,11 +65,18 @@ const STEPS = [
     { num: 3, label: 'Acesso' },
 ];
 
+interface MarcaOption {
+    id: string;
+    nome: string;
+}
+
 export default function CadastroConcessionariaPage() {
     const router = useRouter();
     const [step, setStep] = useState<Step>(1);
     const [form, setForm] = useState<FormData>(EMPTY);
     const [loading, setLoading] = useState(false);
+    const [marcasLoading, setMarcasLoading] = useState(false);
+    const [marcas, setMarcas] = useState<MarcaOption[]>([]);
     const [cepLoading, setCepLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
@@ -76,6 +85,32 @@ export default function CadastroConcessionariaPage() {
         setForm(f => ({ ...f, [field]: value }));
         setError('');
     }
+
+    useEffect(() => {
+        let active = true;
+
+        async function loadMarcas() {
+            setMarcasLoading(true);
+            try {
+                const res = await fetch('/api/catalog/brands');
+                if (!res.ok) return;
+                const data = await res.json();
+                if (active && Array.isArray(data)) {
+                    setMarcas(data.map((item: any) => ({ id: item.id, nome: item.nome })).filter((item: MarcaOption) => item.id && item.nome));
+                }
+            } catch {
+                // Cadastro continua bloqueando sem marca; operador pode cadastrar a marca no painel.
+            } finally {
+                if (active) setMarcasLoading(false);
+            }
+        }
+
+        loadMarcas();
+
+        return () => {
+            active = false;
+        };
+    }, []);
 
     async function lookupCep(raw: string) {
         const cep = raw.replace(/\D/g, '');
@@ -103,6 +138,7 @@ export default function CadastroConcessionariaPage() {
     function validateStep(): string | null {
         if (step === 1) {
             if (!form.nomeFantasia.trim()) return 'Nome fantasia é obrigatório.';
+            if (!form.marcaId) return 'Selecione a marca representada pela concessionária.';
             const cnpjDigits = form.cnpj.replace(/\D/g, '');
             if (cnpjDigits.length !== 14) return 'CNPJ deve ter 14 dígitos.';
             if (!form.telefone.replace(/\D/g, '')) return 'Telefone é obrigatório.';
@@ -221,6 +257,33 @@ export default function CadastroConcessionariaPage() {
                                     value={form.razaoSocial}
                                     onChange={e => set('razaoSocial', e.target.value)}
                                     placeholder="Razão social completa" />
+                            </div>
+
+                            <div className={styles.field}>
+                                <label className={styles.label}>Marca representada <span className={styles.required}>*</span></label>
+                                <select
+                                    className={styles.input}
+                                    value={form.marcaId}
+                                    onChange={e => {
+                                        const selected = marcas.find(marca => marca.id === e.target.value);
+                                        setForm(f => ({
+                                            ...f,
+                                            marcaId: selected?.id || '',
+                                            marca: selected?.nome || '',
+                                        }));
+                                        setError('');
+                                    }}
+                                    required
+                                    disabled={marcasLoading}
+                                >
+                                    <option value="">{marcasLoading ? 'Carregando marcas...' : 'Selecione a marca'}</option>
+                                    {marcas.map(marca => (
+                                        <option key={marca.id} value={marca.id}>{marca.nome}</option>
+                                    ))}
+                                </select>
+                                {marcas.length === 0 && !marcasLoading && (
+                                    <p className={styles.helpText}>Nenhuma marca disponível. Peça ao operador para cadastrar a marca no Catálogo Mestre.</p>
+                                )}
                             </div>
 
                             <div className={styles.row}>

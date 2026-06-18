@@ -12,10 +12,11 @@ import UserMenu from '../../../components/UserMenu';
 import KanbanBoard from '../../../components/crm/KanbanBoard';
 import styles from './dealership.module.css';
 import { MeusAnuncios } from '../../../components/dealership/MeusAnuncios';
+import { PricingCatalog } from '../../../components/dealership/PricingCatalog';
 
 import { Concessionaria } from '../../../lib/services/concessionariaService';
 
-type TabType = 'visao-geral' | 'veiculos' | 'perfil' | 'crm' | 'anuncios';
+type TabType = 'visao-geral' | 'veiculos' | 'precos' | 'perfil' | 'crm' | 'anuncios';
 
 interface ChartItem {
     label: string;
@@ -113,6 +114,7 @@ export default function DealershipDashboard() {
     const tabs = [
         { id: 'visao-geral', label: 'Visão Geral', icon: '📊' },
         { id: 'veiculos', label: 'Meus Veículos', icon: '🚗' },
+        { id: 'precos', label: 'Preços', icon: '💰' },
         { id: 'perfil', label: 'Meu Perfil', icon: '🏢' },
         { id: 'crm', label: 'CRM', icon: '🎯' },
         { id: 'anuncios', label: 'Meus Anúncios', icon: '🖼️' }
@@ -124,6 +126,12 @@ export default function DealershipDashboard() {
                 return <VisaoGeralTab metrics={metrics} loading={loadingMetrics} />;
             case 'veiculos':
                 return <VehicleConsultation role="dealership" />;
+            case 'precos':
+                return (
+                    <div className={styles.contentArea}>
+                        <PricingCatalog />
+                    </div>
+                );
             case 'crm':
                 return <div style={{ height: 'calc(100vh - 200px)' }}><KanbanBoard /></div>;
             case 'perfil':
