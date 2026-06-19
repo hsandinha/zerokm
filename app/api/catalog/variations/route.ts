@@ -46,6 +46,29 @@ function parseDate(value: unknown) {
     return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 }
 
+function parseYear(value: string) {
+    const digits = value.replace(/\D/g, '');
+    if (!digits) return undefined;
+    const year = digits.length === 2 ? 2000 + Number(digits) : Number(digits.slice(0, 4));
+    return Number.isFinite(year) && year >= 1900 && year <= 2100 ? year : undefined;
+}
+
+function parseAnoComposto(value: string) {
+    const parts = value.split(/[/-]/).map(part => parseYear(part)).filter((year): year is number => Boolean(year));
+    if (parts.length >= 2) {
+        return {
+            anoFabricacao: parts[0],
+            anoModelo: parts[1],
+        };
+    }
+
+    const year = parseYear(value);
+    return {
+        anoFabricacao: undefined,
+        anoModelo: year,
+    };
+}
+
 function parseOptionals(value: string) {
     if (!value.trim()) return [];
     return value
@@ -165,6 +188,7 @@ export async function POST(request: Request) {
         const body = await request.json();
         const modelo = normalizeText(body.modelo);
         const marca = await resolveMarca(normalizeText(body.marcaId), body.marca);
+        const anoComposto = parseAnoComposto(normalizeText(body.ano));
 
         if (!modelo) {
             return NextResponse.json({ error: 'Modelo é obrigatório' }, { status: 400 });
@@ -179,8 +203,8 @@ export async function POST(request: Request) {
             tipoVeiculo: body.tipoVeiculo || 'carro',
             dataEntrada: parseDate(body.dataEntrada),
             ano: normalizeText(body.ano) || undefined,
-            anoModelo: parseNumber(body.anoModelo),
-            anoFabricacao: parseNumber(body.anoFabricacao),
+            anoModelo: parseNumber(body.anoModelo) || anoComposto.anoModelo,
+            anoFabricacao: parseNumber(body.anoFabricacao) || anoComposto.anoFabricacao,
             combustivel: normalizeText(body.combustivel) || undefined,
             cor: normalizeText(body.cor) || undefined,
             transmissao: normalizeText(body.transmissao) || undefined,

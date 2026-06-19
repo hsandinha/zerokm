@@ -58,7 +58,7 @@
 
 .importGrid {
     display: grid;
-    grid-template-columns: 220px 240px 240px minmax(0, 1fr);
+    grid-template-columns: 220px minmax(0, 1fr);
     gap: 0.85rem;
     margin-top: 1rem;
 }

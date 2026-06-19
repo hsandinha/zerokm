@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import styles from './CatalogVariationsManagement.module.css';
 
 interface Marca {
@@ -42,34 +42,15 @@ interface VehicleVariation {
 }
 
 type VariationForm = {
-    id?: string;
-    marcaId: string;
     marca: string;
     modelo: string;
     versao: string;
-    codigoFipe: string;
-    tipoVeiculo: 'carro' | 'moto' | 'caminhao' | 'utilitario';
     dataEntrada: string;
     ano: string;
-    anoModelo: string;
-    anoFabricacao: string;
     combustivel: string;
     cor: string;
     transmissao: string;
-    motor: string;
-    carroceria: string;
-    portas: string;
     opcionais: string;
-    preco: string;
-    status: string;
-    observacoes: string;
-    cidade: string;
-    estado: string;
-    frete: string;
-    telefone: string;
-    concessionaria: string;
-    nomeContato: string;
-    operador: string;
 };
 
 type ImportStatus = 'new' | 'existing' | 'duplicate' | 'invalid';
@@ -124,55 +105,16 @@ type ImportPreview = {
 };
 
 const EMPTY_FORM: VariationForm = {
-    marcaId: '',
     marca: '',
     modelo: '',
     versao: '',
-    codigoFipe: '',
-    tipoVeiculo: 'carro',
     dataEntrada: '',
     ano: '',
-    anoModelo: '',
-    anoFabricacao: '',
     combustivel: '',
     cor: '',
     transmissao: '',
-    motor: '',
-    carroceria: '',
-    portas: '',
     opcionais: '',
-    preco: '',
-    status: '',
-    observacoes: '',
-    cidade: '',
-    estado: '',
-    frete: '',
-    telefone: '',
-    concessionaria: '',
-    nomeContato: '',
-    operador: '',
 };
-
-const tipoVeiculoOptions = [
-    { value: 'carro', label: 'Carro' },
-    { value: 'moto', label: 'Moto' },
-    { value: 'caminhao', label: 'Caminhão' },
-    { value: 'utilitario', label: 'Utilitário' },
-] as const;
-
-function toNumberOrUndefined(value: string) {
-    const normalized = value.trim();
-    if (!normalized) return undefined;
-    const parsed = Number(normalized);
-    return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-function toDecimalOrUndefined(value: string) {
-    const normalized = value.trim().replace(/[^\d.,-]/g, '').replace(/\./g, '').replace(',', '.');
-    if (!normalized) return undefined;
-    const parsed = Number(normalized);
-    return Number.isFinite(parsed) ? parsed : undefined;
-}
 
 function parseOptionals(value: string) {
     if (!value.trim()) return [];
@@ -209,16 +151,10 @@ export function CatalogVariationsManagement() {
     const [importSheetUrl, setImportSheetUrl] = useState('');
     const [importCsvText, setImportCsvText] = useState('');
     const [importCsvFileName, setImportCsvFileName] = useState('');
-    const [importDefaultMarcaId, setImportDefaultMarcaId] = useState('');
-    const [importDefaultMarca, setImportDefaultMarca] = useState('');
     const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
     const [importLoading, setImportLoading] = useState(false);
     const [importCommitting, setImportCommitting] = useState(false);
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-
-    const selectedBrand = useMemo(() => {
-        return marcas.find(marca => marca.id === form.marcaId);
-    }, [form.marcaId, marcas]);
 
     const loadMarcas = useCallback(async () => {
         const res = await fetch('/api/tables/marcas');
@@ -255,12 +191,6 @@ export function CatalogVariationsManagement() {
         loadAll();
     }, [loadAll]);
 
-    useEffect(() => {
-        if (selectedBrand && form.marca !== selectedBrand.nome) {
-            setForm(prev => ({ ...prev, marca: selectedBrand.nome }));
-        }
-    }, [form.marca, selectedBrand]);
-
     const resetForm = () => {
         setForm(EMPTY_FORM);
         setFeedback(null);
@@ -272,56 +202,37 @@ export function CatalogVariationsManagement() {
         setFeedback(null);
 
         try {
-            if (!form.marcaId && !form.marca.trim()) {
-                throw new Error('Selecione ou informe uma marca.');
+            if (!form.marca.trim()) {
+                throw new Error('Marca é obrigatória.');
             }
             if (!form.modelo.trim()) {
                 throw new Error('Modelo é obrigatório.');
             }
 
             const payload = {
-                marcaId: form.marcaId || undefined,
                 marca: form.marca,
                 modelo: form.modelo,
                 versao: form.versao,
-                codigoFipe: form.codigoFipe,
-                tipoVeiculo: form.tipoVeiculo,
+                tipoVeiculo: 'carro',
                 dataEntrada: form.dataEntrada || undefined,
                 ano: form.ano,
-                anoModelo: toNumberOrUndefined(form.anoModelo),
-                anoFabricacao: toNumberOrUndefined(form.anoFabricacao),
                 combustivel: form.combustivel,
                 cor: form.cor,
                 transmissao: form.transmissao,
-                motor: form.motor,
-                carroceria: form.carroceria,
-                portas: toNumberOrUndefined(form.portas),
                 opcionais: form.opcionais,
                 opcionaisPadrao: parseOptionals(form.opcionais),
-                preco: toDecimalOrUndefined(form.preco),
-                status: form.status,
-                observacoes: form.observacoes,
-                cidade: form.cidade,
-                estado: form.estado,
-                frete: toDecimalOrUndefined(form.frete),
-                telefone: form.telefone,
-                concessionaria: form.concessionaria,
-                nomeContato: form.nomeContato,
-                operador: form.operador,
                 ativo: true,
             };
 
-            const url = form.id ? `/api/catalog/variations/${form.id}` : '/api/catalog/variations';
-            const method = form.id ? 'PUT' : 'POST';
-            const res = await fetch(url, {
-                method,
+            const res = await fetch('/api/catalog/variations', {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Erro ao salvar variação');
 
-            setFeedback({ type: 'success', message: form.id ? 'Variação atualizada.' : 'Variação criada.' });
+            setFeedback({ type: 'success', message: 'Variação criada.' });
             setForm(EMPTY_FORM);
             await Promise.all([loadMarcas(), loadVariations()]);
         } catch (error: any) {
@@ -350,8 +261,6 @@ export function CatalogVariationsManagement() {
                 sourceType: importSourceType,
                 sheetUrl: importSourceType === 'googleSheets' ? importSheetUrl : undefined,
                 csvText: importSourceType === 'csv' ? importCsvText : undefined,
-                defaultMarcaId: importDefaultMarcaId || undefined,
-                defaultMarca: importDefaultMarca || undefined,
             };
 
             const res = await fetch('/api/catalog/variations/import', {
@@ -448,34 +357,6 @@ export function CatalogVariationsManagement() {
                         </div>
                     </div>
 
-                    <label>
-                        Marca cadastrada
-                        <select
-                            value={importDefaultMarcaId}
-                            onChange={event => {
-                                setImportDefaultMarcaId(event.target.value);
-                                if (event.target.value) setImportDefaultMarca('');
-                            }}
-                        >
-                            <option value="">Usar coluna marca da planilha</option>
-                            {marcas.map(marca => (
-                                <option key={marca.id} value={marca.id}>{marca.nome}</option>
-                            ))}
-                        </select>
-                    </label>
-
-                    <label>
-                        Ou nova marca padrão
-                        <input
-                            value={importDefaultMarca}
-                            onChange={event => {
-                                setImportDefaultMarca(event.target.value);
-                                if (event.target.value) setImportDefaultMarcaId('');
-                            }}
-                            placeholder="Ex.: RAM"
-                        />
-                    </label>
-
                     {importSourceType === 'googleSheets' ? (
                         <label className={styles.wideInput}>
                             Link do Google Sheets
@@ -495,7 +376,7 @@ export function CatalogVariationsManagement() {
                 </div>
 
                 <div className={styles.importActions}>
-                    <p>Revise a prévia antes de gravar. Linhas duplicadas, existentes ou com erro não serão importadas.</p>
+                    <p>Use as colunas: Entrada, Marca, Modelo, Versão, Ano, Combustível, Cor, Câmbio e Opcionais.</p>
                     <button type="button" className={styles.secondaryButton} onClick={previewImport} disabled={importLoading || saving}>
                         {importLoading ? 'Lendo...' : 'Pré-visualizar importação'}
                     </button>
@@ -505,33 +386,27 @@ export function CatalogVariationsManagement() {
             <div className={styles.layout}>
                 <form className={styles.panel} onSubmit={saveVariation}>
                     <div className={styles.panelHeader}>
-                        <h3>{form.id ? 'Editar variação' : 'Nova variação'}</h3>
-                        {form.id && (
-                            <button type="button" className={styles.linkButton} onClick={resetForm}>
-                                Cancelar edição
-                            </button>
-                        )}
+                        <h3>Nova variação</h3>
+                        <button type="button" className={styles.linkButton} onClick={resetForm}>
+                            Limpar
+                        </button>
                     </div>
 
                     <div className={styles.formGrid}>
                         <label>
-                            Marca cadastrada
-                            <select
-                                value={form.marcaId}
-                                onChange={event => setForm(prev => ({ ...prev, marcaId: event.target.value }))}
-                            >
-                                <option value="">Selecionar marca</option>
-                                {marcas.map(marca => (
-                                    <option key={marca.id} value={marca.id}>{marca.nome}</option>
-                                ))}
-                            </select>
+                            Entrada
+                            <input
+                                type="date"
+                                value={form.dataEntrada}
+                                onChange={event => setForm(prev => ({ ...prev, dataEntrada: event.target.value }))}
+                            />
                         </label>
 
                         <label>
-                            Ou nova marca
+                            Marca
                             <input
                                 value={form.marca}
-                                onChange={event => setForm(prev => ({ ...prev, marca: event.target.value, marcaId: '' }))}
+                                onChange={event => setForm(prev => ({ ...prev, marca: event.target.value }))}
                                 placeholder="Ex.: Toyota"
                             />
                         </label>
@@ -555,43 +430,11 @@ export function CatalogVariationsManagement() {
                         </label>
 
                         <label>
-                            Código FIPE
+                            Ano
                             <input
-                                value={form.codigoFipe}
-                                onChange={event => setForm(prev => ({ ...prev, codigoFipe: event.target.value }))}
-                                placeholder="Opcional"
-                            />
-                        </label>
-
-                        <label>
-                            Tipo
-                            <select
-                                value={form.tipoVeiculo}
-                                onChange={event => setForm(prev => ({ ...prev, tipoVeiculo: event.target.value as VariationForm['tipoVeiculo'] }))}
-                            >
-                                {tipoVeiculoOptions.map(option => (
-                                    <option key={option.value} value={option.value}>{option.label}</option>
-                                ))}
-                            </select>
-                        </label>
-
-                        <label>
-                            Ano modelo
-                            <input
-                                value={form.anoModelo}
-                                onChange={event => setForm(prev => ({ ...prev, anoModelo: event.target.value }))}
-                                inputMode="numeric"
-                                placeholder="2026"
-                            />
-                        </label>
-
-                        <label>
-                            Ano fabricação
-                            <input
-                                value={form.anoFabricacao}
-                                onChange={event => setForm(prev => ({ ...prev, anoFabricacao: event.target.value }))}
-                                inputMode="numeric"
-                                placeholder="2025"
+                                value={form.ano}
+                                onChange={event => setForm(prev => ({ ...prev, ano: event.target.value }))}
+                                placeholder="26/26"
                             />
                         </label>
 
@@ -614,7 +457,7 @@ export function CatalogVariationsManagement() {
                         </label>
 
                         <label>
-                            Transmissão
+                            Câmbio
                             <input
                                 value={form.transmissao}
                                 onChange={event => setForm(prev => ({ ...prev, transmissao: event.target.value }))}
@@ -622,53 +465,7 @@ export function CatalogVariationsManagement() {
                             />
                         </label>
 
-                        <label>
-                            Motor
-                            <input
-                                value={form.motor}
-                                onChange={event => setForm(prev => ({ ...prev, motor: event.target.value }))}
-                                placeholder="Ex.: 1.0 Turbo"
-                            />
-                        </label>
-
-                        <label>
-                            Carroceria
-                            <input
-                                value={form.carroceria}
-                                onChange={event => setForm(prev => ({ ...prev, carroceria: event.target.value }))}
-                                placeholder="SUV, hatch, sedan..."
-                            />
-                        </label>
-
-                        <label>
-                            Portas
-                            <input
-                                value={form.portas}
-                                onChange={event => setForm(prev => ({ ...prev, portas: event.target.value }))}
-                                inputMode="numeric"
-                                placeholder="4"
-                            />
-                        </label>
-
-                        <label>
-                            Data entrada
-                            <input
-                                type="date"
-                                value={form.dataEntrada}
-                                onChange={event => setForm(prev => ({ ...prev, dataEntrada: event.target.value }))}
-                            />
-                        </label>
-
-                        <label>
-                            Ano planilha
-                            <input
-                                value={form.ano}
-                                onChange={event => setForm(prev => ({ ...prev, ano: event.target.value }))}
-                                placeholder="26/26"
-                            />
-                        </label>
-
-                        <label>
+                        <label className={styles.wideField}>
                             Opcionais
                             <input
                                 value={form.opcionais}
@@ -676,105 +473,11 @@ export function CatalogVariationsManagement() {
                                 placeholder="Itens de série, taxa zero..."
                             />
                         </label>
-
-                        <label>
-                            Preço
-                            <input
-                                value={form.preco}
-                                onChange={event => setForm(prev => ({ ...prev, preco: event.target.value }))}
-                                inputMode="decimal"
-                                placeholder="R$ 0,00"
-                            />
-                        </label>
-
-                        <label>
-                            Status
-                            <input
-                                value={form.status}
-                                onChange={event => setForm(prev => ({ ...prev, status: event.target.value }))}
-                                placeholder="Ex.: Ativo, A faturar"
-                            />
-                        </label>
-
-                        <label>
-                            Cidade
-                            <input
-                                value={form.cidade}
-                                onChange={event => setForm(prev => ({ ...prev, cidade: event.target.value }))}
-                                placeholder="Ex.: São Paulo"
-                            />
-                        </label>
-
-                        <label>
-                            Estado
-                            <input
-                                value={form.estado}
-                                onChange={event => setForm(prev => ({ ...prev, estado: event.target.value }))}
-                                placeholder="UF"
-                                maxLength={2}
-                            />
-                        </label>
-
-                        <label>
-                            Frete
-                            <input
-                                value={form.frete}
-                                onChange={event => setForm(prev => ({ ...prev, frete: event.target.value }))}
-                                inputMode="decimal"
-                                placeholder="R$ 0,00"
-                            />
-                        </label>
-
-                        <label>
-                            Telefone
-                            <input
-                                value={form.telefone}
-                                onChange={event => setForm(prev => ({ ...prev, telefone: event.target.value }))}
-                                placeholder="(11) 99999-9999"
-                            />
-                        </label>
-
-                        <label>
-                            Concessionária
-                            <input
-                                value={form.concessionaria}
-                                onChange={event => setForm(prev => ({ ...prev, concessionaria: event.target.value }))}
-                                placeholder="Nome da concessionária"
-                            />
-                        </label>
-
-                        <label>
-                            Nome contato
-                            <input
-                                value={form.nomeContato}
-                                onChange={event => setForm(prev => ({ ...prev, nomeContato: event.target.value }))}
-                                placeholder="Contato"
-                            />
-                        </label>
-
-                        <label>
-                            Operador
-                            <input
-                                value={form.operador}
-                                onChange={event => setForm(prev => ({ ...prev, operador: event.target.value }))}
-                                placeholder="Operador"
-                            />
-                        </label>
-
-                        <label className={styles.wideField}>
-                            Observações
-                            <textarea
-                                value={form.observacoes}
-                                onChange={event => setForm(prev => ({ ...prev, observacoes: event.target.value }))}
-                                placeholder="Informações adicionais"
-                                rows={3}
-                            />
-                        </label>
                     </div>
 
                     <div className={styles.actions}>
                         <button type="submit" className={styles.primaryButton} disabled={saving}>
-                            {saving ? 'Salvando...' : form.id ? 'Salvar variação' : 'Criar variação'}
+                            {saving ? 'Salvando...' : 'Criar variação'}
                         </button>
                     </div>
                 </form>
@@ -790,7 +493,7 @@ export function CatalogVariationsManagement() {
                         <input
                             value={search}
                             onChange={event => setSearch(event.target.value)}
-                            placeholder="Buscar modelo, concessionária, operador, cor, FIPE..."
+                            placeholder="Buscar marca, modelo, versão, cor..."
                         />
                         <select value={brandFilter} onChange={event => setBrandFilter(event.target.value)}>
                             <option value="">Todas as marcas</option>
