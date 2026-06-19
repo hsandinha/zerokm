@@ -182,23 +182,11 @@ function parseOptionals(value: string) {
         .filter(Boolean);
 }
 
-function toDateInputValue(value?: string) {
-    if (!value) return '';
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return '';
-    return parsed.toISOString().slice(0, 10);
-}
-
 function formatDate(value?: string) {
     if (!value) return '-';
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return '-';
     return parsed.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
-}
-
-function formatCurrency(value?: number) {
-    if (typeof value !== 'number' || !Number.isFinite(value)) return '-';
-    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 function getAnoLabel(variation: Pick<VehicleVariation, 'ano' | 'anoModelo' | 'anoFabricacao'>) {
@@ -207,55 +195,6 @@ function getAnoLabel(variation: Pick<VehicleVariation, 'ano' | 'anoModelo' | 'an
         return `${String(variation.anoFabricacao).slice(-2)}/${String(variation.anoModelo).slice(-2)}`;
     }
     return variation.anoModelo ? String(variation.anoModelo) : '-';
-}
-
-function getLocationLabel(cidade?: string, estado?: string) {
-    if (cidade && estado) return `${cidade}/${estado}`;
-    return cidade || estado || '-';
-}
-
-function getImportStatusLabel(status: ImportStatus) {
-    const labels: Record<ImportStatus, string> = {
-        new: 'Novo',
-        existing: 'Já existe',
-        duplicate: 'Duplicado',
-        invalid: 'Erro',
-    };
-
-    return labels[status];
-}
-
-function variationToForm(variation: VehicleVariation): VariationForm {
-    return {
-        id: variation.id,
-        marcaId: variation.marcaId || '',
-        marca: variation.marca || '',
-        modelo: variation.modelo || '',
-        versao: variation.versao || '',
-        codigoFipe: variation.codigoFipe || '',
-        tipoVeiculo: variation.tipoVeiculo || 'carro',
-        dataEntrada: toDateInputValue(variation.dataEntrada),
-        ano: variation.ano || '',
-        anoModelo: variation.anoModelo ? String(variation.anoModelo) : '',
-        anoFabricacao: variation.anoFabricacao ? String(variation.anoFabricacao) : '',
-        combustivel: variation.combustivel || '',
-        cor: variation.cor || '',
-        transmissao: variation.transmissao || '',
-        motor: variation.motor || '',
-        carroceria: variation.carroceria || '',
-        portas: variation.portas ? String(variation.portas) : '',
-        opcionais: variation.opcionais || variation.opcionaisPadrao?.join('; ') || '',
-        preco: typeof variation.preco === 'number' ? String(variation.preco) : '',
-        status: variation.status || '',
-        observacoes: variation.observacoes || '',
-        cidade: variation.cidade || '',
-        estado: variation.estado || '',
-        frete: typeof variation.frete === 'number' ? String(variation.frete) : '',
-        telefone: variation.telefone || '',
-        concessionaria: variation.concessionaria || '',
-        nomeContato: variation.nomeContato || '',
-        operador: variation.operador || '',
-    };
 }
 
 export function CatalogVariationsManagement() {
@@ -387,27 +326,6 @@ export function CatalogVariationsManagement() {
             await Promise.all([loadMarcas(), loadVariations()]);
         } catch (error: any) {
             setFeedback({ type: 'error', message: error?.message || 'Erro ao salvar variação' });
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const deactivateVariation = async (variation: VehicleVariation) => {
-        const confirmed = window.confirm(`Desativar ${variation.modelo} ${variation.versao || ''}?`);
-        if (!confirmed) return;
-
-        setSaving(true);
-        setFeedback(null);
-
-        try {
-            const res = await fetch(`/api/catalog/variations/${variation.id}`, { method: 'DELETE' });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Erro ao desativar variação');
-
-            setFeedback({ type: 'success', message: 'Variação desativada.' });
-            await loadVariations();
-        } catch (error: any) {
-            setFeedback({ type: 'error', message: error?.message || 'Erro ao desativar variação' });
         } finally {
             setSaving(false);
         }
@@ -896,26 +814,16 @@ export function CatalogVariationsManagement() {
                                 <th>Cor</th>
                                 <th>Câmbio</th>
                                 <th>Opcionais</th>
-                                <th>Preço</th>
-                                <th>Status</th>
-                                <th>Cidade/UF</th>
-                                <th>Frete</th>
-                                <th>Telefone</th>
-                                <th>Concessionária</th>
-                                <th>Contato</th>
-                                <th>Operador</th>
-                                <th>FIPE</th>
-                                <th>Ações</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={19} className={styles.empty}>Carregando...</td>
+                                    <td colSpan={9} className={styles.empty}>Carregando...</td>
                                 </tr>
                             ) : variations.length === 0 ? (
                                 <tr>
-                                    <td colSpan={19} className={styles.empty}>Nenhuma variação encontrada.</td>
+                                    <td colSpan={9} className={styles.empty}>Nenhuma variação encontrada.</td>
                                 </tr>
                             ) : variations.map(variation => (
                                 <tr key={variation.id}>
@@ -928,25 +836,6 @@ export function CatalogVariationsManagement() {
                                     <td>{variation.cor || '-'}</td>
                                     <td>{variation.transmissao || '-'}</td>
                                     <td>{variation.opcionais || '-'}</td>
-                                    <td>{formatCurrency(variation.preco)}</td>
-                                    <td>{variation.status || '-'}</td>
-                                    <td>{getLocationLabel(variation.cidade, variation.estado)}</td>
-                                    <td>{formatCurrency(variation.frete)}</td>
-                                    <td>{variation.telefone || '-'}</td>
-                                    <td>{variation.concessionaria || '-'}</td>
-                                    <td>{variation.nomeContato || '-'}</td>
-                                    <td>{variation.operador || '-'}</td>
-                                    <td>{variation.codigoFipe || '-'}</td>
-                                    <td>
-                                        <div className={styles.rowActions}>
-                                            <button type="button" onClick={() => setForm(variationToForm(variation))}>
-                                                Editar
-                                            </button>
-                                            <button type="button" onClick={() => deactivateVariation(variation)} disabled={saving}>
-                                                Desativar
-                                            </button>
-                                        </div>
-                                    </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -960,7 +849,7 @@ export function CatalogVariationsManagement() {
                         <div className={styles.modalHeader}>
                             <div>
                                 <h3 id="import-preview-title">Prévia da importação</h3>
-                                <p>Confira as linhas antes de gravar no catálogo.</p>
+                                <p>Confira as linhas novas antes de gravar no catálogo.</p>
                             </div>
                             <button type="button" className={styles.iconButton} onClick={() => setImportPreview(null)} disabled={importCommitting}>
                                 ×
@@ -1000,8 +889,6 @@ export function CatalogVariationsManagement() {
                             <table className={styles.previewTable}>
                                 <thead>
                                     <tr>
-                                        <th>Linha</th>
-                                        <th>Validação</th>
                                         <th>Entrada</th>
                                         <th>Marca</th>
                                         <th>Modelo</th>
@@ -1011,26 +898,15 @@ export function CatalogVariationsManagement() {
                                         <th>Cor</th>
                                         <th>Câmbio</th>
                                         <th>Opcionais</th>
-                                        <th>Preço</th>
-                                        <th>Status veículo</th>
-                                        <th>Cidade/UF</th>
-                                        <th>Frete</th>
-                                        <th>Telefone</th>
-                                        <th>Concessionária</th>
-                                        <th>Contato</th>
-                                        <th>Operador</th>
-                                        <th>Validação/obs.</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {importPreview.rows.map((row, index) => (
+                                    {importPreview.rows.filter(row => row.status === 'new').length === 0 ? (
+                                        <tr>
+                                            <td colSpan={9} className={styles.empty}>Nenhuma linha nova para importar.</td>
+                                        </tr>
+                                    ) : importPreview.rows.filter(row => row.status === 'new').map((row, index) => (
                                         <tr key={`${row.rowNumber}-${index}`}>
-                                            <td>{row.rowNumber}</td>
-                                            <td>
-                                                <span className={`${styles.statusBadge} ${styles[`status_${row.status}`]}`}>
-                                                    {getImportStatusLabel(row.status)}
-                                                </span>
-                                            </td>
                                             <td>{formatDate(row.dataEntrada)}</td>
                                             <td>{row.marca || '-'}</td>
                                             <td><strong>{row.modelo || '-'}</strong></td>
@@ -1040,15 +916,6 @@ export function CatalogVariationsManagement() {
                                             <td>{row.cor || '-'}</td>
                                             <td>{row.transmissao || '-'}</td>
                                             <td>{row.opcionais || '-'}</td>
-                                            <td>{formatCurrency(row.preco)}</td>
-                                            <td>{row.statusVeiculo || '-'}</td>
-                                            <td>{getLocationLabel(row.cidade, row.estado)}</td>
-                                            <td>{formatCurrency(row.frete)}</td>
-                                            <td>{row.telefone || '-'}</td>
-                                            <td>{row.concessionaria || '-'}</td>
-                                            <td>{row.nomeContato || '-'}</td>
-                                            <td>{row.operador || '-'}</td>
-                                            <td>{[...(row.errors || []), ...(row.warnings || [])].join(' ') || '-'}</td>
                                         </tr>
                                     ))}
                                 </tbody>

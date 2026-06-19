@@ -288,7 +288,7 @@
 
 .table {
     width: 100%;
-    min-width: 2100px;
+    min-width: 1120px;
     border-collapse: collapse;
 }
 
@@ -438,7 +438,7 @@
 
 .previewTable {
     width: 100%;
-    min-width: 2200px;
+    min-width: 1120px;
     border-collapse: collapse;
 }
 
