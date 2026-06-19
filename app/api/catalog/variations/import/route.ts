@@ -5,7 +5,7 @@ import connectDB from '@/lib/mongodb';
 import Marca from '@/models/Marca';
 import VehicleVariation from '@/models/VehicleVariation';
 
-const MASTER_CATALOG_PROFILES = new Set(['admin', 'administrador', 'gerente', 'operador', 'operator']);
+const MASTER_CATALOG_PROFILES = new Set(['admin', 'administrador', 'administrativo', 'gerente', 'operador', 'operator']);
 const MAX_IMPORT_ROWS = 2500;
 
 type ImportStatus = 'new' | 'existing' | 'duplicate' | 'invalid';
@@ -19,6 +19,8 @@ type ParsedImportItem = {
     versao?: string;
     codigoFipe?: string;
     tipoVeiculo: TipoVeiculo;
+    dataEntrada?: Date;
+    ano?: string;
     anoModelo?: number;
     anoFabricacao?: number;
     combustivel?: string;
@@ -27,7 +29,18 @@ type ParsedImportItem = {
     motor?: string;
     carroceria?: string;
     portas?: number;
+    opcionais?: string;
     opcionaisPadrao: string[];
+    preco?: number;
+    statusVeiculo?: string;
+    observacoes?: string;
+    cidade?: string;
+    estado?: string;
+    frete?: number;
+    telefone?: string;
+    concessionaria?: string;
+    nomeContato?: string;
+    operador?: string;
     ativo: boolean;
     status: ImportStatus;
     errors: string[];
@@ -41,6 +54,7 @@ const FIELD_ALIASES = {
     versao: ['versao', 'versão', 'version', 'descricao', 'descrição'],
     codigoFipe: ['codigofipe', 'codigo fipe', 'código fipe', 'fipe', 'cod fipe'],
     tipoVeiculo: ['tipo', 'tipo veiculo', 'tipo veículo', 'categoria'],
+    dataEntrada: ['dataentrada', 'data entrada', 'entrada', 'data'],
     ano: ['ano'],
     anoModelo: ['anomodelo', 'ano modelo'],
     anoFabricacao: ['anofabricacao', 'ano fabricação', 'ano fabricacao', 'ano fab'],
@@ -51,6 +65,16 @@ const FIELD_ALIASES = {
     carroceria: ['carroceria', 'body'],
     portas: ['portas', 'porta'],
     opcionaisPadrao: ['opcionais', 'opcionaispadrao', 'opcionais padrão', 'itens', 'equipamentos'],
+    preco: ['preco', 'preço', 'valor', 'valor venda'],
+    statusVeiculo: ['status', 'situacao', 'situação'],
+    observacoes: ['observacoes', 'observações', 'obs', 'observacao', 'observação'],
+    cidade: ['cidade'],
+    estado: ['estado', 'uf'],
+    frete: ['frete'],
+    telefone: ['telefone', 'fone', 'celular'],
+    concessionaria: ['concessionaria', 'concessionária', 'dealer'],
+    nomeContato: ['nomecontato', 'nome contato', 'contato'],
+    operador: ['operador'],
 } as const;
 
 function normalizeText(value: unknown) {
@@ -215,6 +239,36 @@ function parseNumber(value: string) {
     return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function parseNumberish(value: unknown) {
+    if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+    return parseNumber(normalizeText(value));
+}
+
+function parseDate(value: string) {
+    const normalized = value.trim();
+    if (!normalized) return undefined;
+
+    const dateParts = normalized.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
+    if (dateParts) {
+        const day = Number(dateParts[1]);
+        const month = Number(dateParts[2]);
+        const rawYear = Number(dateParts[3]);
+        const year = rawYear < 100 ? 2000 + rawYear : rawYear;
+        const parsed = new Date(Date.UTC(year, month - 1, day));
+
+        if (
+            parsed.getUTCFullYear() === year &&
+            parsed.getUTCMonth() === month - 1 &&
+            parsed.getUTCDate() === day
+        ) {
+            return parsed;
+        }
+    }
+
+    const parsed = new Date(normalized);
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
 function normalizeTipoVeiculo(value: string): TipoVeiculo {
     const normalized = normalizeKeyPart(value);
     if (normalized.includes('moto')) return 'moto';
@@ -297,7 +351,11 @@ async function resolveDefaultBrand(defaultMarcaId?: string, defaultMarca?: strin
 }
 
 function normalizeItem(rowNumber: number, record: Record<string, string>, defaultBrand: { marcaId?: string; marca: string } | null): ParsedImportItem {
-    const anoComposto = parseAnoComposto(getField(record, FIELD_ALIASES.ano));
+    const rawDataEntrada = getField(record, FIELD_ALIASES.dataEntrada);
+    const rawAno = getField(record, FIELD_ALIASES.ano);
+    const rawOpcionais = getField(record, FIELD_ALIASES.opcionaisPadrao);
+    const dataEntrada = parseDate(rawDataEntrada);
+    const anoComposto = parseAnoComposto(rawAno);
     const anoModelo = parseNumber(getField(record, FIELD_ALIASES.anoModelo)) || anoComposto.anoModelo;
     const anoFabricacao = parseNumber(getField(record, FIELD_ALIASES.anoFabricacao)) || anoComposto.anoFabricacao;
     const marcaFromRow = getField(record, FIELD_ALIASES.marca);
@@ -309,6 +367,8 @@ function normalizeItem(rowNumber: number, record: Record<string, string>, defaul
         versao: getField(record, FIELD_ALIASES.versao) || undefined,
         codigoFipe: getField(record, FIELD_ALIASES.codigoFipe) || undefined,
         tipoVeiculo: normalizeTipoVeiculo(getField(record, FIELD_ALIASES.tipoVeiculo)),
+        dataEntrada,
+        ano: rawAno || undefined,
         anoModelo,
         anoFabricacao,
         combustivel: getField(record, FIELD_ALIASES.combustivel) || undefined,
@@ -317,7 +377,18 @@ function normalizeItem(rowNumber: number, record: Record<string, string>, defaul
         motor: getField(record, FIELD_ALIASES.motor) || undefined,
         carroceria: getField(record, FIELD_ALIASES.carroceria) || undefined,
         portas: parseNumber(getField(record, FIELD_ALIASES.portas)),
-        opcionaisPadrao: parseOptionals(getField(record, FIELD_ALIASES.opcionaisPadrao)),
+        opcionais: rawOpcionais || undefined,
+        opcionaisPadrao: parseOptionals(rawOpcionais),
+        preco: parseNumber(getField(record, FIELD_ALIASES.preco)),
+        statusVeiculo: getField(record, FIELD_ALIASES.statusVeiculo) || undefined,
+        observacoes: getField(record, FIELD_ALIASES.observacoes) || undefined,
+        cidade: getField(record, FIELD_ALIASES.cidade) || undefined,
+        estado: getField(record, FIELD_ALIASES.estado) || undefined,
+        frete: parseNumber(getField(record, FIELD_ALIASES.frete)),
+        telefone: getField(record, FIELD_ALIASES.telefone) || undefined,
+        concessionaria: getField(record, FIELD_ALIASES.concessionaria) || undefined,
+        nomeContato: getField(record, FIELD_ALIASES.nomeContato) || undefined,
+        operador: getField(record, FIELD_ALIASES.operador) || undefined,
         ativo: true,
         status: 'new',
         errors: [],
@@ -329,6 +400,7 @@ function normalizeItem(rowNumber: number, record: Record<string, string>, defaul
     if (!item.modelo) item.errors.push('Modelo ausente.');
     if (item.anoModelo && !Number.isInteger(item.anoModelo)) item.errors.push('Ano modelo inválido.');
     if (item.anoFabricacao && !Number.isInteger(item.anoFabricacao)) item.errors.push('Ano fabricação inválido.');
+    if (rawDataEntrada && !item.dataEntrada) item.warnings.push('Data de entrada inválida.');
 
     item.duplicateKey = buildDuplicateKey(item);
     if (item.errors.length > 0) item.status = 'invalid';
@@ -428,6 +500,8 @@ async function buildPreview(body: any) {
 }
 
 function sanitizeCommitItem(rawItem: any): ParsedImportItem {
+    const rawDataEntrada = normalizeText(rawItem.dataEntrada);
+    const rawOpcionais = normalizeText(rawItem.opcionais);
     const item: ParsedImportItem = {
         rowNumber: Number(rawItem.rowNumber) || 0,
         marcaId: normalizeText(rawItem.marcaId) || undefined,
@@ -436,17 +510,30 @@ function sanitizeCommitItem(rawItem: any): ParsedImportItem {
         versao: normalizeText(rawItem.versao) || undefined,
         codigoFipe: normalizeText(rawItem.codigoFipe) || undefined,
         tipoVeiculo: normalizeTipoVeiculo(rawItem.tipoVeiculo),
-        anoModelo: typeof rawItem.anoModelo === 'number' ? rawItem.anoModelo : parseNumber(normalizeText(rawItem.anoModelo)),
-        anoFabricacao: typeof rawItem.anoFabricacao === 'number' ? rawItem.anoFabricacao : parseNumber(normalizeText(rawItem.anoFabricacao)),
+        dataEntrada: parseDate(rawDataEntrada),
+        ano: normalizeText(rawItem.ano) || undefined,
+        anoModelo: parseNumberish(rawItem.anoModelo),
+        anoFabricacao: parseNumberish(rawItem.anoFabricacao),
         combustivel: normalizeText(rawItem.combustivel) || undefined,
         cor: normalizeText(rawItem.cor) || undefined,
         transmissao: normalizeText(rawItem.transmissao) || undefined,
         motor: normalizeText(rawItem.motor) || undefined,
         carroceria: normalizeText(rawItem.carroceria) || undefined,
-        portas: typeof rawItem.portas === 'number' ? rawItem.portas : parseNumber(normalizeText(rawItem.portas)),
+        portas: parseNumberish(rawItem.portas),
+        opcionais: rawOpcionais || undefined,
         opcionaisPadrao: Array.isArray(rawItem.opcionaisPadrao)
             ? rawItem.opcionaisPadrao.map(normalizeText).filter(Boolean)
-            : [],
+            : parseOptionals(rawOpcionais),
+        preco: parseNumberish(rawItem.preco),
+        statusVeiculo: normalizeText(rawItem.statusVeiculo) || undefined,
+        observacoes: normalizeText(rawItem.observacoes) || undefined,
+        cidade: normalizeText(rawItem.cidade) || undefined,
+        estado: normalizeText(rawItem.estado) || undefined,
+        frete: parseNumberish(rawItem.frete),
+        telefone: normalizeText(rawItem.telefone) || undefined,
+        concessionaria: normalizeText(rawItem.concessionaria) || undefined,
+        nomeContato: normalizeText(rawItem.nomeContato) || undefined,
+        operador: normalizeText(rawItem.operador) || undefined,
         ativo: true,
         status: 'new',
         errors: [],
@@ -456,6 +543,7 @@ function sanitizeCommitItem(rawItem: any): ParsedImportItem {
 
     if (!item.marca) item.errors.push('Marca ausente.');
     if (!item.modelo) item.errors.push('Modelo ausente.');
+    if (rawDataEntrada && !item.dataEntrada) item.warnings.push('Data de entrada inválida.');
     item.duplicateKey = buildDuplicateKey(item);
     if (item.errors.length > 0) item.status = 'invalid';
     return item;
@@ -498,6 +586,8 @@ async function commitRows(rawItems: any[], createdBy?: string | null) {
                 versao: row.versao,
                 codigoFipe: row.codigoFipe,
                 tipoVeiculo: row.tipoVeiculo,
+                dataEntrada: row.dataEntrada,
+                ano: row.ano,
                 anoModelo: row.anoModelo,
                 anoFabricacao: row.anoFabricacao,
                 combustivel: row.combustivel,
@@ -506,7 +596,18 @@ async function commitRows(rawItems: any[], createdBy?: string | null) {
                 motor: row.motor,
                 carroceria: row.carroceria,
                 portas: row.portas,
+                opcionais: row.opcionais,
                 opcionaisPadrao: row.opcionaisPadrao,
+                preco: row.preco,
+                status: row.statusVeiculo,
+                observacoes: row.observacoes,
+                cidade: row.cidade,
+                estado: row.estado,
+                frete: row.frete,
+                telefone: row.telefone,
+                concessionaria: row.concessionaria,
+                nomeContato: row.nomeContato,
+                operador: row.operador,
                 ativo: true,
                 createdBy: createdBy || undefined,
             });

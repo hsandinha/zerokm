@@ -7,6 +7,8 @@ export interface IVehicleVariation extends Document {
     versao?: string;
     codigoFipe?: string;
     tipoVeiculo: 'carro' | 'moto' | 'caminhao' | 'utilitario';
+    dataEntrada?: Date;
+    ano?: string;
     anoModelo?: number;
     anoFabricacao?: number;
     combustivel?: string;
@@ -15,7 +17,18 @@ export interface IVehicleVariation extends Document {
     motor?: string;
     carroceria?: string;
     portas?: number;
+    opcionais?: string;
     opcionaisPadrao?: string[];
+    preco?: number;
+    status?: string;
+    observacoes?: string;
+    cidade?: string;
+    estado?: string;
+    frete?: number;
+    telefone?: string;
+    concessionaria?: string;
+    nomeContato?: string;
+    operador?: string;
     imagemUrl?: string;
     ativo: boolean;
     createdBy?: string;
@@ -35,6 +48,8 @@ const VehicleVariationSchema: Schema = new Schema({
         default: 'carro',
         index: true,
     },
+    dataEntrada: { type: Date },
+    ano: { type: String, trim: true },
     anoModelo: { type: Number, index: true },
     anoFabricacao: { type: Number },
     combustivel: { type: String, trim: true, index: true },
@@ -43,7 +58,18 @@ const VehicleVariationSchema: Schema = new Schema({
     motor: { type: String, trim: true },
     carroceria: { type: String, trim: true },
     portas: { type: Number },
+    opcionais: { type: String, trim: true },
     opcionaisPadrao: { type: [String], default: [] },
+    preco: { type: Number },
+    status: { type: String, trim: true, index: true },
+    observacoes: { type: String, trim: true },
+    cidade: { type: String, trim: true },
+    estado: { type: String, trim: true },
+    frete: { type: Number },
+    telefone: { type: String, trim: true },
+    concessionaria: { type: String, trim: true, index: true },
+    nomeContato: { type: String, trim: true },
+    operador: { type: String, trim: true, index: true },
     imagemUrl: { type: String, trim: true },
     ativo: { type: Boolean, default: true, index: true },
     createdBy: { type: String, trim: true },
@@ -69,6 +95,9 @@ VehicleVariationSchema.index({
     versao: 'text',
     marca: 'text',
     codigoFipe: 'text',
+    concessionaria: 'text',
+    operador: 'text',
+    cidade: 'text',
 });
 
 if (process.env.NODE_ENV === 'development' && mongoose.models.VehicleVariation) {

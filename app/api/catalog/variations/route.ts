@@ -5,12 +5,53 @@ import connectDB from '@/lib/mongodb';
 import Marca from '@/models/Marca';
 import VehicleVariation from '@/models/VehicleVariation';
 
-const MASTER_CATALOG_PROFILES = new Set(['admin', 'administrador', 'gerente', 'operador', 'operator']);
+const MASTER_CATALOG_PROFILES = new Set(['admin', 'administrador', 'administrativo', 'gerente', 'operador', 'operator']);
 
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 function normalizeText(value: unknown) {
     return typeof value === 'string' ? value.trim() : '';
+}
+
+function parseNumber(value: unknown) {
+    if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+    const normalized = normalizeText(value).replace(/[^\d.,-]/g, '').replace(/\./g, '').replace(',', '.');
+    if (!normalized) return undefined;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function parseDate(value: unknown) {
+    const normalized = normalizeText(value);
+    if (!normalized) return undefined;
+
+    const dateParts = normalized.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
+    if (dateParts) {
+        const day = Number(dateParts[1]);
+        const month = Number(dateParts[2]);
+        const rawYear = Number(dateParts[3]);
+        const year = rawYear < 100 ? 2000 + rawYear : rawYear;
+        const parsed = new Date(Date.UTC(year, month - 1, day));
+
+        if (
+            parsed.getUTCFullYear() === year &&
+            parsed.getUTCMonth() === month - 1 &&
+            parsed.getUTCDate() === day
+        ) {
+            return parsed;
+        }
+    }
+
+    const parsed = new Date(normalized);
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
+function parseOptionals(value: string) {
+    if (!value.trim()) return [];
+    return value
+        .split(/[|;]/)
+        .map(option => option.trim())
+        .filter(Boolean);
 }
 
 function serializeVariation(doc: any) {
@@ -83,6 +124,13 @@ export async function GET(request: Request) {
                 { versao: regex },
                 { codigoFipe: regex },
                 { cor: regex },
+                { status: regex },
+                { cidade: regex },
+                { estado: regex },
+                { concessionaria: regex },
+                { nomeContato: regex },
+                { operador: regex },
+                { opcionais: regex },
             ];
         }
 
@@ -129,15 +177,30 @@ export async function POST(request: Request) {
             versao: normalizeText(body.versao) || undefined,
             codigoFipe: normalizeText(body.codigoFipe) || undefined,
             tipoVeiculo: body.tipoVeiculo || 'carro',
-            anoModelo: body.anoModelo ? Number(body.anoModelo) : undefined,
-            anoFabricacao: body.anoFabricacao ? Number(body.anoFabricacao) : undefined,
+            dataEntrada: parseDate(body.dataEntrada),
+            ano: normalizeText(body.ano) || undefined,
+            anoModelo: parseNumber(body.anoModelo),
+            anoFabricacao: parseNumber(body.anoFabricacao),
             combustivel: normalizeText(body.combustivel) || undefined,
             cor: normalizeText(body.cor) || undefined,
             transmissao: normalizeText(body.transmissao) || undefined,
             motor: normalizeText(body.motor) || undefined,
             carroceria: normalizeText(body.carroceria) || undefined,
-            portas: body.portas ? Number(body.portas) : undefined,
-            opcionaisPadrao: Array.isArray(body.opcionaisPadrao) ? body.opcionaisPadrao : [],
+            portas: parseNumber(body.portas),
+            opcionais: normalizeText(body.opcionais) || undefined,
+            opcionaisPadrao: Array.isArray(body.opcionaisPadrao)
+                ? body.opcionaisPadrao
+                : parseOptionals(normalizeText(body.opcionais)),
+            preco: parseNumber(body.preco),
+            status: normalizeText(body.status) || undefined,
+            observacoes: normalizeText(body.observacoes) || undefined,
+            cidade: normalizeText(body.cidade) || undefined,
+            estado: normalizeText(body.estado) || undefined,
+            frete: parseNumber(body.frete),
+            telefone: normalizeText(body.telefone) || undefined,
+            concessionaria: normalizeText(body.concessionaria) || undefined,
+            nomeContato: normalizeText(body.nomeContato) || undefined,
+            operador: normalizeText(body.operador) || undefined,
             imagemUrl: normalizeText(body.imagemUrl) || undefined,
             ativo: body.ativo !== false,
             createdBy: access.session?.user?.email || undefined,

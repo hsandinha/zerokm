@@ -16,6 +16,8 @@ interface VehicleVariation {
     versao?: string;
     codigoFipe?: string;
     tipoVeiculo: 'carro' | 'moto' | 'caminhao' | 'utilitario';
+    dataEntrada?: string;
+    ano?: string;
     anoModelo?: number;
     anoFabricacao?: number;
     combustivel?: string;
@@ -24,6 +26,18 @@ interface VehicleVariation {
     motor?: string;
     carroceria?: string;
     portas?: number;
+    opcionais?: string;
+    opcionaisPadrao?: string[];
+    preco?: number;
+    status?: string;
+    observacoes?: string;
+    cidade?: string;
+    estado?: string;
+    frete?: number;
+    telefone?: string;
+    concessionaria?: string;
+    nomeContato?: string;
+    operador?: string;
     ativo: boolean;
 }
 
@@ -35,6 +49,8 @@ type VariationForm = {
     versao: string;
     codigoFipe: string;
     tipoVeiculo: 'carro' | 'moto' | 'caminhao' | 'utilitario';
+    dataEntrada: string;
+    ano: string;
     anoModelo: string;
     anoFabricacao: string;
     combustivel: string;
@@ -43,6 +59,17 @@ type VariationForm = {
     motor: string;
     carroceria: string;
     portas: string;
+    opcionais: string;
+    preco: string;
+    status: string;
+    observacoes: string;
+    cidade: string;
+    estado: string;
+    frete: string;
+    telefone: string;
+    concessionaria: string;
+    nomeContato: string;
+    operador: string;
 };
 
 type ImportStatus = 'new' | 'existing' | 'duplicate' | 'invalid';
@@ -55,6 +82,8 @@ type ImportPreviewItem = {
     versao?: string;
     codigoFipe?: string;
     tipoVeiculo?: string;
+    dataEntrada?: string;
+    ano?: string;
     anoModelo?: number;
     anoFabricacao?: number;
     combustivel?: string;
@@ -63,7 +92,18 @@ type ImportPreviewItem = {
     motor?: string;
     carroceria?: string;
     portas?: number;
+    opcionais?: string;
     opcionaisPadrao?: string[];
+    preco?: number;
+    statusVeiculo?: string;
+    observacoes?: string;
+    cidade?: string;
+    estado?: string;
+    frete?: number;
+    telefone?: string;
+    concessionaria?: string;
+    nomeContato?: string;
+    operador?: string;
     status: ImportStatus;
     errors: string[];
     warnings: string[];
@@ -90,6 +130,8 @@ const EMPTY_FORM: VariationForm = {
     versao: '',
     codigoFipe: '',
     tipoVeiculo: 'carro',
+    dataEntrada: '',
+    ano: '',
     anoModelo: '',
     anoFabricacao: '',
     combustivel: '',
@@ -98,6 +140,17 @@ const EMPTY_FORM: VariationForm = {
     motor: '',
     carroceria: '',
     portas: '',
+    opcionais: '',
+    preco: '',
+    status: '',
+    observacoes: '',
+    cidade: '',
+    estado: '',
+    frete: '',
+    telefone: '',
+    concessionaria: '',
+    nomeContato: '',
+    operador: '',
 };
 
 const tipoVeiculoOptions = [
@@ -112,6 +165,53 @@ function toNumberOrUndefined(value: string) {
     if (!normalized) return undefined;
     const parsed = Number(normalized);
     return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function toDecimalOrUndefined(value: string) {
+    const normalized = value.trim().replace(/[^\d.,-]/g, '').replace(/\./g, '').replace(',', '.');
+    if (!normalized) return undefined;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function parseOptionals(value: string) {
+    if (!value.trim()) return [];
+    return value
+        .split(/[|;]/)
+        .map(option => option.trim())
+        .filter(Boolean);
+}
+
+function toDateInputValue(value?: string) {
+    if (!value) return '';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return '';
+    return parsed.toISOString().slice(0, 10);
+}
+
+function formatDate(value?: string) {
+    if (!value) return '-';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return '-';
+    return parsed.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+}
+
+function formatCurrency(value?: number) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return '-';
+    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function getAnoLabel(variation: Pick<VehicleVariation, 'ano' | 'anoModelo' | 'anoFabricacao'>) {
+    if (variation.ano) return variation.ano;
+    if (variation.anoFabricacao && variation.anoModelo) {
+        return `${String(variation.anoFabricacao).slice(-2)}/${String(variation.anoModelo).slice(-2)}`;
+    }
+    return variation.anoModelo ? String(variation.anoModelo) : '-';
+}
+
+function getLocationLabel(cidade?: string, estado?: string) {
+    if (cidade && estado) return `${cidade}/${estado}`;
+    return cidade || estado || '-';
 }
 
 function getImportStatusLabel(status: ImportStatus) {
@@ -134,6 +234,8 @@ function variationToForm(variation: VehicleVariation): VariationForm {
         versao: variation.versao || '',
         codigoFipe: variation.codigoFipe || '',
         tipoVeiculo: variation.tipoVeiculo || 'carro',
+        dataEntrada: toDateInputValue(variation.dataEntrada),
+        ano: variation.ano || '',
         anoModelo: variation.anoModelo ? String(variation.anoModelo) : '',
         anoFabricacao: variation.anoFabricacao ? String(variation.anoFabricacao) : '',
         combustivel: variation.combustivel || '',
@@ -142,6 +244,17 @@ function variationToForm(variation: VehicleVariation): VariationForm {
         motor: variation.motor || '',
         carroceria: variation.carroceria || '',
         portas: variation.portas ? String(variation.portas) : '',
+        opcionais: variation.opcionais || variation.opcionaisPadrao?.join('; ') || '',
+        preco: typeof variation.preco === 'number' ? String(variation.preco) : '',
+        status: variation.status || '',
+        observacoes: variation.observacoes || '',
+        cidade: variation.cidade || '',
+        estado: variation.estado || '',
+        frete: typeof variation.frete === 'number' ? String(variation.frete) : '',
+        telefone: variation.telefone || '',
+        concessionaria: variation.concessionaria || '',
+        nomeContato: variation.nomeContato || '',
+        operador: variation.operador || '',
     };
 }
 
@@ -234,6 +347,8 @@ export function CatalogVariationsManagement() {
                 versao: form.versao,
                 codigoFipe: form.codigoFipe,
                 tipoVeiculo: form.tipoVeiculo,
+                dataEntrada: form.dataEntrada || undefined,
+                ano: form.ano,
                 anoModelo: toNumberOrUndefined(form.anoModelo),
                 anoFabricacao: toNumberOrUndefined(form.anoFabricacao),
                 combustivel: form.combustivel,
@@ -242,6 +357,18 @@ export function CatalogVariationsManagement() {
                 motor: form.motor,
                 carroceria: form.carroceria,
                 portas: toNumberOrUndefined(form.portas),
+                opcionais: form.opcionais,
+                opcionaisPadrao: parseOptionals(form.opcionais),
+                preco: toDecimalOrUndefined(form.preco),
+                status: form.status,
+                observacoes: form.observacoes,
+                cidade: form.cidade,
+                estado: form.estado,
+                frete: toDecimalOrUndefined(form.frete),
+                telefone: form.telefone,
+                concessionaria: form.concessionaria,
+                nomeContato: form.nomeContato,
+                operador: form.operador,
                 ativo: true,
             };
 
@@ -604,6 +731,127 @@ export function CatalogVariationsManagement() {
                                 placeholder="4"
                             />
                         </label>
+
+                        <label>
+                            Data entrada
+                            <input
+                                type="date"
+                                value={form.dataEntrada}
+                                onChange={event => setForm(prev => ({ ...prev, dataEntrada: event.target.value }))}
+                            />
+                        </label>
+
+                        <label>
+                            Ano planilha
+                            <input
+                                value={form.ano}
+                                onChange={event => setForm(prev => ({ ...prev, ano: event.target.value }))}
+                                placeholder="26/26"
+                            />
+                        </label>
+
+                        <label>
+                            Opcionais
+                            <input
+                                value={form.opcionais}
+                                onChange={event => setForm(prev => ({ ...prev, opcionais: event.target.value }))}
+                                placeholder="Itens de série, taxa zero..."
+                            />
+                        </label>
+
+                        <label>
+                            Preço
+                            <input
+                                value={form.preco}
+                                onChange={event => setForm(prev => ({ ...prev, preco: event.target.value }))}
+                                inputMode="decimal"
+                                placeholder="R$ 0,00"
+                            />
+                        </label>
+
+                        <label>
+                            Status
+                            <input
+                                value={form.status}
+                                onChange={event => setForm(prev => ({ ...prev, status: event.target.value }))}
+                                placeholder="Ex.: Ativo, A faturar"
+                            />
+                        </label>
+
+                        <label>
+                            Cidade
+                            <input
+                                value={form.cidade}
+                                onChange={event => setForm(prev => ({ ...prev, cidade: event.target.value }))}
+                                placeholder="Ex.: São Paulo"
+                            />
+                        </label>
+
+                        <label>
+                            Estado
+                            <input
+                                value={form.estado}
+                                onChange={event => setForm(prev => ({ ...prev, estado: event.target.value }))}
+                                placeholder="UF"
+                                maxLength={2}
+                            />
+                        </label>
+
+                        <label>
+                            Frete
+                            <input
+                                value={form.frete}
+                                onChange={event => setForm(prev => ({ ...prev, frete: event.target.value }))}
+                                inputMode="decimal"
+                                placeholder="R$ 0,00"
+                            />
+                        </label>
+
+                        <label>
+                            Telefone
+                            <input
+                                value={form.telefone}
+                                onChange={event => setForm(prev => ({ ...prev, telefone: event.target.value }))}
+                                placeholder="(11) 99999-9999"
+                            />
+                        </label>
+
+                        <label>
+                            Concessionária
+                            <input
+                                value={form.concessionaria}
+                                onChange={event => setForm(prev => ({ ...prev, concessionaria: event.target.value }))}
+                                placeholder="Nome da concessionária"
+                            />
+                        </label>
+
+                        <label>
+                            Nome contato
+                            <input
+                                value={form.nomeContato}
+                                onChange={event => setForm(prev => ({ ...prev, nomeContato: event.target.value }))}
+                                placeholder="Contato"
+                            />
+                        </label>
+
+                        <label>
+                            Operador
+                            <input
+                                value={form.operador}
+                                onChange={event => setForm(prev => ({ ...prev, operador: event.target.value }))}
+                                placeholder="Operador"
+                            />
+                        </label>
+
+                        <label className={styles.wideField}>
+                            Observações
+                            <textarea
+                                value={form.observacoes}
+                                onChange={event => setForm(prev => ({ ...prev, observacoes: event.target.value }))}
+                                placeholder="Informações adicionais"
+                                rows={3}
+                            />
+                        </label>
                     </div>
 
                     <div className={styles.actions}>
@@ -624,7 +872,7 @@ export function CatalogVariationsManagement() {
                         <input
                             value={search}
                             onChange={event => setSearch(event.target.value)}
-                            placeholder="Buscar modelo, versão, cor, FIPE..."
+                            placeholder="Buscar modelo, concessionária, operador, cor, FIPE..."
                         />
                         <select value={brandFilter} onChange={event => setBrandFilter(event.target.value)}>
                             <option value="">Todas as marcas</option>
@@ -639,6 +887,7 @@ export function CatalogVariationsManagement() {
                     <table className={styles.table}>
                         <thead>
                             <tr>
+                                <th>Entrada</th>
                                 <th>Marca</th>
                                 <th>Modelo</th>
                                 <th>Versão</th>
@@ -646,6 +895,15 @@ export function CatalogVariationsManagement() {
                                 <th>Combustível</th>
                                 <th>Cor</th>
                                 <th>Câmbio</th>
+                                <th>Opcionais</th>
+                                <th>Preço</th>
+                                <th>Status</th>
+                                <th>Cidade/UF</th>
+                                <th>Frete</th>
+                                <th>Telefone</th>
+                                <th>Concessionária</th>
+                                <th>Contato</th>
+                                <th>Operador</th>
                                 <th>FIPE</th>
                                 <th>Ações</th>
                             </tr>
@@ -653,21 +911,31 @@ export function CatalogVariationsManagement() {
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={9} className={styles.empty}>Carregando...</td>
+                                    <td colSpan={19} className={styles.empty}>Carregando...</td>
                                 </tr>
                             ) : variations.length === 0 ? (
                                 <tr>
-                                    <td colSpan={9} className={styles.empty}>Nenhuma variação encontrada.</td>
+                                    <td colSpan={19} className={styles.empty}>Nenhuma variação encontrada.</td>
                                 </tr>
                             ) : variations.map(variation => (
                                 <tr key={variation.id}>
+                                    <td>{formatDate(variation.dataEntrada)}</td>
                                     <td>{variation.marca}</td>
                                     <td><strong>{variation.modelo}</strong></td>
                                     <td>{variation.versao || '-'}</td>
-                                    <td>{variation.anoModelo || '-'}</td>
+                                    <td>{getAnoLabel(variation)}</td>
                                     <td>{variation.combustivel || '-'}</td>
                                     <td>{variation.cor || '-'}</td>
                                     <td>{variation.transmissao || '-'}</td>
+                                    <td>{variation.opcionais || '-'}</td>
+                                    <td>{formatCurrency(variation.preco)}</td>
+                                    <td>{variation.status || '-'}</td>
+                                    <td>{getLocationLabel(variation.cidade, variation.estado)}</td>
+                                    <td>{formatCurrency(variation.frete)}</td>
+                                    <td>{variation.telefone || '-'}</td>
+                                    <td>{variation.concessionaria || '-'}</td>
+                                    <td>{variation.nomeContato || '-'}</td>
+                                    <td>{variation.operador || '-'}</td>
                                     <td>{variation.codigoFipe || '-'}</td>
                                     <td>
                                         <div className={styles.rowActions}>
@@ -733,7 +1001,8 @@ export function CatalogVariationsManagement() {
                                 <thead>
                                     <tr>
                                         <th>Linha</th>
-                                        <th>Status</th>
+                                        <th>Validação</th>
+                                        <th>Entrada</th>
                                         <th>Marca</th>
                                         <th>Modelo</th>
                                         <th>Versão</th>
@@ -741,7 +1010,16 @@ export function CatalogVariationsManagement() {
                                         <th>Combustível</th>
                                         <th>Cor</th>
                                         <th>Câmbio</th>
-                                        <th>Observação</th>
+                                        <th>Opcionais</th>
+                                        <th>Preço</th>
+                                        <th>Status veículo</th>
+                                        <th>Cidade/UF</th>
+                                        <th>Frete</th>
+                                        <th>Telefone</th>
+                                        <th>Concessionária</th>
+                                        <th>Contato</th>
+                                        <th>Operador</th>
+                                        <th>Validação/obs.</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -753,13 +1031,23 @@ export function CatalogVariationsManagement() {
                                                     {getImportStatusLabel(row.status)}
                                                 </span>
                                             </td>
+                                            <td>{formatDate(row.dataEntrada)}</td>
                                             <td>{row.marca || '-'}</td>
                                             <td><strong>{row.modelo || '-'}</strong></td>
                                             <td>{row.versao || '-'}</td>
-                                            <td>{row.anoModelo || '-'}</td>
+                                            <td>{row.ano || row.anoModelo || '-'}</td>
                                             <td>{row.combustivel || '-'}</td>
                                             <td>{row.cor || '-'}</td>
                                             <td>{row.transmissao || '-'}</td>
+                                            <td>{row.opcionais || '-'}</td>
+                                            <td>{formatCurrency(row.preco)}</td>
+                                            <td>{row.statusVeiculo || '-'}</td>
+                                            <td>{getLocationLabel(row.cidade, row.estado)}</td>
+                                            <td>{formatCurrency(row.frete)}</td>
+                                            <td>{row.telefone || '-'}</td>
+                                            <td>{row.concessionaria || '-'}</td>
+                                            <td>{row.nomeContato || '-'}</td>
+                                            <td>{row.operador || '-'}</td>
                                             <td>{[...(row.errors || []), ...(row.warnings || [])].join(' ') || '-'}</td>
                                         </tr>
                                     ))}

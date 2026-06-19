@@ -10,9 +10,10 @@ import { UsersTable } from '../admin/users/UsersTable';
 import { ConcessionariasManagement } from '../../../components/admin/ConcessionariasManagement';
 import { TransportadorasManagement } from '../../../components/admin/TransportadorasManagement';
 import { TabelasManagement } from '../../../components/admin/TabelasManagement';
+import { CatalogVariationsManagement } from '../../../components/admin/CatalogVariationsManagement';
 import styles from '../operator/operator.module.css';
 
-type TabType = 'veiculos' | 'concessionarias' | 'transportadoras' | 'tabelas' | 'usuarios';
+type TabType = 'veiculos' | 'catalogo' | 'concessionarias' | 'transportadoras' | 'tabelas' | 'usuarios';
 
 // ----------------------------------------------------------------
 // Dashboard principal do Administrativo
@@ -62,6 +63,7 @@ export default function AdministrativoDashboard() {
 
     const tabs = [
         { id: 'veiculos', label: 'Veículos', icon: '🚗' },
+        { id: 'catalogo', label: 'Catálogo', icon: '📚' },
         { id: 'concessionarias', label: 'Concessionárias', icon: '🏢' },
         { id: 'transportadoras', label: 'Frete', icon: '🚚' },
         { id: 'tabelas', label: 'Tabelas', icon: '📋' },
@@ -71,6 +73,7 @@ export default function AdministrativoDashboard() {
     const renderContent = () => {
         switch (activeTab) {
             case 'veiculos': return <VehicleConsultation role={effectiveRole} />;
+            case 'catalogo': return <CatalogVariationsManagement />;
             case 'concessionarias': return <ConcessionariasManagement />;
             case 'transportadoras': return <TransportadorasManagement />;
             case 'tabelas': return <TabelasManagement />;

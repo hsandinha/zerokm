@@ -5,10 +5,43 @@ import connectDB from '@/lib/mongodb';
 import Marca from '@/models/Marca';
 import VehicleVariation from '@/models/VehicleVariation';
 
-const MASTER_CATALOG_PROFILES = new Set(['admin', 'administrador', 'gerente', 'operador', 'operator']);
+const MASTER_CATALOG_PROFILES = new Set(['admin', 'administrador', 'administrativo', 'gerente', 'operador', 'operator']);
 
 function normalizeText(value: unknown) {
     return typeof value === 'string' ? value.trim() : '';
+}
+
+function parseNumber(value: unknown) {
+    if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+    const normalized = normalizeText(value).replace(/[^\d.,-]/g, '').replace(/\./g, '').replace(',', '.');
+    if (!normalized) return undefined;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function parseDate(value: unknown) {
+    const normalized = normalizeText(value);
+    if (!normalized) return undefined;
+
+    const dateParts = normalized.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
+    if (dateParts) {
+        const day = Number(dateParts[1]);
+        const month = Number(dateParts[2]);
+        const rawYear = Number(dateParts[3]);
+        const year = rawYear < 100 ? 2000 + rawYear : rawYear;
+        const parsed = new Date(Date.UTC(year, month - 1, day));
+
+        if (
+            parsed.getUTCFullYear() === year &&
+            parsed.getUTCMonth() === month - 1 &&
+            parsed.getUTCDate() === day
+        ) {
+            return parsed;
+        }
+    }
+
+    const parsed = new Date(normalized);
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 }
 
 function serializeVariation(doc: any) {
@@ -70,27 +103,48 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
             update.marca = marca.nome;
         }
 
-        const allowedFields = [
+        const textFields = [
             'modelo',
             'versao',
             'codigoFipe',
             'tipoVeiculo',
-            'anoModelo',
-            'anoFabricacao',
+            'ano',
             'combustivel',
             'cor',
             'transmissao',
             'motor',
             'carroceria',
-            'portas',
+            'opcionais',
+            'status',
+            'observacoes',
+            'cidade',
+            'estado',
+            'telefone',
+            'concessionaria',
+            'nomeContato',
+            'operador',
             'imagemUrl',
-            'ativo',
         ];
 
-        for (const field of allowedFields) {
+        for (const field of textFields) {
             if (Object.prototype.hasOwnProperty.call(body, field)) {
-                update[field] = typeof body[field] === 'string' ? normalizeText(body[field]) : body[field];
+                update[field] = normalizeText(body[field]) || undefined;
             }
+        }
+
+        const numberFields = ['anoModelo', 'anoFabricacao', 'portas', 'preco', 'frete'];
+        for (const field of numberFields) {
+            if (Object.prototype.hasOwnProperty.call(body, field)) {
+                update[field] = parseNumber(body[field]);
+            }
+        }
+
+        if (Object.prototype.hasOwnProperty.call(body, 'dataEntrada')) {
+            update.dataEntrada = parseDate(body.dataEntrada);
+        }
+
+        if (Object.prototype.hasOwnProperty.call(body, 'ativo')) {
+            update.ativo = body.ativo !== false;
         }
 
         if (Array.isArray(body.opcionaisPadrao)) {
