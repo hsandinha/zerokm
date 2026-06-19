@@ -12,7 +12,6 @@ import styles from './VehicleConsultation.module.css';
 import modalStyles from './TablesManagement.module.css';
 import { HighlightText } from '../HighlightText';
 import { UpgradeModal } from './UpgradeModal';
-import { BannerCarousel } from '../cliente/BannerCarousel';
 
 const normalizeString = (value: string) => value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 
@@ -1969,11 +1968,6 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
             <div className={styles.splitLayout}>
                 <div className={styles.sidebar}>
                     <div className={styles.sidebarHeader}>
-                        {['client', 'gratis'].includes(role) && (
-                            <div style={{ marginBottom: '1rem', width: '100%' }}>
-                                <BannerCarousel />
-                            </div>
-                        )}
                         <input
                             type="text"
                             placeholder="Filtrar modelos..."
