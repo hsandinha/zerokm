@@ -7,7 +7,6 @@ export interface IVehicleVariation extends Document {
     versao?: string;
     codigoFipe?: string;
     tipoVeiculo: 'carro' | 'moto' | 'caminhao' | 'utilitario';
-    dataEntrada?: Date;
     ano?: string;
     anoModelo?: number;
     anoFabricacao?: number;
@@ -48,7 +47,6 @@ const VehicleVariationSchema: Schema = new Schema({
         default: 'carro',
         index: true,
     },
-    dataEntrada: { type: Date },
     ano: { type: String, trim: true },
     anoModelo: { type: Number, index: true },
     anoFabricacao: { type: Number },

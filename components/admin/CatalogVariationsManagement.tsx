@@ -16,7 +16,6 @@ interface VehicleVariation {
     versao?: string;
     codigoFipe?: string;
     tipoVeiculo: 'carro' | 'moto' | 'caminhao' | 'utilitario';
-    dataEntrada?: string;
     ano?: string;
     anoModelo?: number;
     anoFabricacao?: number;
@@ -45,7 +44,6 @@ type VariationForm = {
     marca: string;
     modelo: string;
     versao: string;
-    dataEntrada: string;
     ano: string;
     combustivel: string;
     cor: string;
@@ -63,7 +61,6 @@ type ImportPreviewItem = {
     versao?: string;
     codigoFipe?: string;
     tipoVeiculo?: string;
-    dataEntrada?: string;
     ano?: string;
     anoModelo?: number;
     anoFabricacao?: number;
@@ -108,7 +105,6 @@ const EMPTY_FORM: VariationForm = {
     marca: '',
     modelo: '',
     versao: '',
-    dataEntrada: '',
     ano: '',
     combustivel: '',
     cor: '',
@@ -122,13 +118,6 @@ function parseOptionals(value: string) {
         .split(/[|;]/)
         .map(option => option.trim())
         .filter(Boolean);
-}
-
-function formatDate(value?: string) {
-    if (!value) return '-';
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return '-';
-    return parsed.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
 }
 
 function getAnoLabel(variation: Pick<VehicleVariation, 'ano' | 'anoModelo' | 'anoFabricacao'>) {
@@ -214,7 +203,6 @@ export function CatalogVariationsManagement() {
                 modelo: form.modelo,
                 versao: form.versao,
                 tipoVeiculo: 'carro',
-                dataEntrada: form.dataEntrada || undefined,
                 ano: form.ano,
                 combustivel: form.combustivel,
                 cor: form.cor,
@@ -376,7 +364,7 @@ export function CatalogVariationsManagement() {
                 </div>
 
                 <div className={styles.importActions}>
-                    <p>Use as colunas: Entrada, Marca, Modelo, Versão, Ano, Combustível, Cor, Câmbio e Opcionais.</p>
+                    <p>Use as colunas: Marca, Modelo, Versão, Ano, Combustível, Cor, Câmbio e Opcionais.</p>
                     <button type="button" className={styles.secondaryButton} onClick={previewImport} disabled={importLoading || saving}>
                         {importLoading ? 'Lendo...' : 'Pré-visualizar importação'}
                     </button>
@@ -393,15 +381,6 @@ export function CatalogVariationsManagement() {
                     </div>
 
                     <div className={styles.formGrid}>
-                        <label>
-                            Entrada
-                            <input
-                                type="date"
-                                value={form.dataEntrada}
-                                onChange={event => setForm(prev => ({ ...prev, dataEntrada: event.target.value }))}
-                            />
-                        </label>
-
                         <label>
                             Marca
                             <input
@@ -508,7 +487,6 @@ export function CatalogVariationsManagement() {
                     <table className={styles.table}>
                         <thead>
                             <tr>
-                                <th>Entrada</th>
                                 <th>Marca</th>
                                 <th>Modelo</th>
                                 <th>Versão</th>
@@ -522,15 +500,14 @@ export function CatalogVariationsManagement() {
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={9} className={styles.empty}>Carregando...</td>
+                                    <td colSpan={8} className={styles.empty}>Carregando...</td>
                                 </tr>
                             ) : variations.length === 0 ? (
                                 <tr>
-                                    <td colSpan={9} className={styles.empty}>Nenhuma variação encontrada.</td>
+                                    <td colSpan={8} className={styles.empty}>Nenhuma variação encontrada.</td>
                                 </tr>
                             ) : variations.map(variation => (
                                 <tr key={variation.id}>
-                                    <td>{formatDate(variation.dataEntrada)}</td>
                                     <td>{variation.marca}</td>
                                     <td><strong>{variation.modelo}</strong></td>
                                     <td>{variation.versao || '-'}</td>
@@ -592,7 +569,6 @@ export function CatalogVariationsManagement() {
                             <table className={styles.previewTable}>
                                 <thead>
                                     <tr>
-                                        <th>Entrada</th>
                                         <th>Marca</th>
                                         <th>Modelo</th>
                                         <th>Versão</th>
@@ -606,11 +582,10 @@ export function CatalogVariationsManagement() {
                                 <tbody>
                                     {importPreview.rows.filter(row => row.status === 'new').length === 0 ? (
                                         <tr>
-                                            <td colSpan={9} className={styles.empty}>Nenhuma linha nova para importar.</td>
+                                            <td colSpan={8} className={styles.empty}>Nenhuma linha nova para importar.</td>
                                         </tr>
                                     ) : importPreview.rows.filter(row => row.status === 'new').map((row, index) => (
                                         <tr key={`${row.rowNumber}-${index}`}>
-                                            <td>{formatDate(row.dataEntrada)}</td>
                                             <td>{row.marca || '-'}</td>
                                             <td><strong>{row.modelo || '-'}</strong></td>
                                             <td>{row.versao || '-'}</td>

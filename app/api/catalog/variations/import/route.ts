@@ -19,7 +19,6 @@ type ParsedImportItem = {
     versao?: string;
     codigoFipe?: string;
     tipoVeiculo: TipoVeiculo;
-    dataEntrada?: Date;
     ano?: string;
     anoModelo?: number;
     anoFabricacao?: number;
@@ -54,7 +53,6 @@ const FIELD_ALIASES = {
     versao: ['versao', 'versão', 'version', 'descricao', 'descrição'],
     codigoFipe: ['codigofipe', 'codigo fipe', 'código fipe', 'fipe', 'cod fipe'],
     tipoVeiculo: ['tipo', 'tipo veiculo', 'tipo veículo', 'categoria'],
-    dataEntrada: ['dataentrada', 'data entrada', 'entrada', 'data'],
     ano: ['ano'],
     anoModelo: ['anomodelo', 'ano modelo'],
     anoFabricacao: ['anofabricacao', 'ano fabricação', 'ano fabricacao', 'ano fab'],
@@ -244,31 +242,6 @@ function parseNumberish(value: unknown) {
     return parseNumber(normalizeText(value));
 }
 
-function parseDate(value: string) {
-    const normalized = value.trim();
-    if (!normalized) return undefined;
-
-    const dateParts = normalized.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
-    if (dateParts) {
-        const day = Number(dateParts[1]);
-        const month = Number(dateParts[2]);
-        const rawYear = Number(dateParts[3]);
-        const year = rawYear < 100 ? 2000 + rawYear : rawYear;
-        const parsed = new Date(Date.UTC(year, month - 1, day));
-
-        if (
-            parsed.getUTCFullYear() === year &&
-            parsed.getUTCMonth() === month - 1 &&
-            parsed.getUTCDate() === day
-        ) {
-            return parsed;
-        }
-    }
-
-    const parsed = new Date(normalized);
-    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
-}
-
 function normalizeTipoVeiculo(value: string): TipoVeiculo {
     const normalized = normalizeKeyPart(value);
     if (normalized.includes('moto')) return 'moto';
@@ -351,10 +324,8 @@ async function resolveDefaultBrand(defaultMarcaId?: string, defaultMarca?: strin
 }
 
 function normalizeItem(rowNumber: number, record: Record<string, string>, defaultBrand: { marcaId?: string; marca: string } | null): ParsedImportItem {
-    const rawDataEntrada = getField(record, FIELD_ALIASES.dataEntrada);
     const rawAno = getField(record, FIELD_ALIASES.ano);
     const rawOpcionais = getField(record, FIELD_ALIASES.opcionaisPadrao);
-    const dataEntrada = parseDate(rawDataEntrada);
     const anoComposto = parseAnoComposto(rawAno);
     const anoModelo = parseNumber(getField(record, FIELD_ALIASES.anoModelo)) || anoComposto.anoModelo;
     const anoFabricacao = parseNumber(getField(record, FIELD_ALIASES.anoFabricacao)) || anoComposto.anoFabricacao;
@@ -367,7 +338,6 @@ function normalizeItem(rowNumber: number, record: Record<string, string>, defaul
         versao: getField(record, FIELD_ALIASES.versao) || undefined,
         codigoFipe: getField(record, FIELD_ALIASES.codigoFipe) || undefined,
         tipoVeiculo: normalizeTipoVeiculo(getField(record, FIELD_ALIASES.tipoVeiculo)),
-        dataEntrada,
         ano: rawAno || undefined,
         anoModelo,
         anoFabricacao,
@@ -400,7 +370,6 @@ function normalizeItem(rowNumber: number, record: Record<string, string>, defaul
     if (!item.modelo) item.errors.push('Modelo ausente.');
     if (item.anoModelo && !Number.isInteger(item.anoModelo)) item.errors.push('Ano modelo inválido.');
     if (item.anoFabricacao && !Number.isInteger(item.anoFabricacao)) item.errors.push('Ano fabricação inválido.');
-    if (rawDataEntrada && !item.dataEntrada) item.warnings.push('Data de entrada inválida.');
 
     item.duplicateKey = buildDuplicateKey(item);
     if (item.errors.length > 0) item.status = 'invalid';
@@ -500,7 +469,6 @@ async function buildPreview(body: any) {
 }
 
 function sanitizeCommitItem(rawItem: any): ParsedImportItem {
-    const rawDataEntrada = normalizeText(rawItem.dataEntrada);
     const rawOpcionais = normalizeText(rawItem.opcionais);
     const item: ParsedImportItem = {
         rowNumber: Number(rawItem.rowNumber) || 0,
@@ -510,7 +478,6 @@ function sanitizeCommitItem(rawItem: any): ParsedImportItem {
         versao: normalizeText(rawItem.versao) || undefined,
         codigoFipe: normalizeText(rawItem.codigoFipe) || undefined,
         tipoVeiculo: normalizeTipoVeiculo(rawItem.tipoVeiculo),
-        dataEntrada: parseDate(rawDataEntrada),
         ano: normalizeText(rawItem.ano) || undefined,
         anoModelo: parseNumberish(rawItem.anoModelo),
         anoFabricacao: parseNumberish(rawItem.anoFabricacao),
@@ -543,7 +510,6 @@ function sanitizeCommitItem(rawItem: any): ParsedImportItem {
 
     if (!item.marca) item.errors.push('Marca ausente.');
     if (!item.modelo) item.errors.push('Modelo ausente.');
-    if (rawDataEntrada && !item.dataEntrada) item.warnings.push('Data de entrada inválida.');
     item.duplicateKey = buildDuplicateKey(item);
     if (item.errors.length > 0) item.status = 'invalid';
     return item;
@@ -586,7 +552,6 @@ async function commitRows(rawItems: any[], createdBy?: string | null) {
                 versao: row.versao,
                 codigoFipe: row.codigoFipe,
                 tipoVeiculo: row.tipoVeiculo,
-                dataEntrada: row.dataEntrada,
                 ano: row.ano,
                 anoModelo: row.anoModelo,
                 anoFabricacao: row.anoFabricacao,

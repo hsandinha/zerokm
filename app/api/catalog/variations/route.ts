@@ -21,31 +21,6 @@ function parseNumber(value: unknown) {
     return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function parseDate(value: unknown) {
-    const normalized = normalizeText(value);
-    if (!normalized) return undefined;
-
-    const dateParts = normalized.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
-    if (dateParts) {
-        const day = Number(dateParts[1]);
-        const month = Number(dateParts[2]);
-        const rawYear = Number(dateParts[3]);
-        const year = rawYear < 100 ? 2000 + rawYear : rawYear;
-        const parsed = new Date(Date.UTC(year, month - 1, day));
-
-        if (
-            parsed.getUTCFullYear() === year &&
-            parsed.getUTCMonth() === month - 1 &&
-            parsed.getUTCDate() === day
-        ) {
-            return parsed;
-        }
-    }
-
-    const parsed = new Date(normalized);
-    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
-}
-
 function parseYear(value: string) {
     const digits = value.replace(/\D/g, '');
     if (!digits) return undefined;
@@ -201,7 +176,6 @@ export async function POST(request: Request) {
             versao: normalizeText(body.versao) || undefined,
             codigoFipe: normalizeText(body.codigoFipe) || undefined,
             tipoVeiculo: body.tipoVeiculo || 'carro',
-            dataEntrada: parseDate(body.dataEntrada),
             ano: normalizeText(body.ano) || undefined,
             anoModelo: parseNumber(body.anoModelo) || anoComposto.anoModelo,
             anoFabricacao: parseNumber(body.anoFabricacao) || anoComposto.anoFabricacao,
