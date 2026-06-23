@@ -9,7 +9,6 @@ interface PricingRow {
     variationId: string;
     marca: string;
     modelo: string;
-    versao?: string;
     codigoFipe?: string;
     anoModelo?: number;
     combustivel?: string;
@@ -189,7 +188,7 @@ export function PricingCatalog() {
                 <input
                     value={search}
                     onChange={event => setSearch(event.target.value)}
-                    placeholder="Buscar modelo, versão, cor, FIPE..."
+                    placeholder="Buscar modelo, cor, FIPE..."
                     className={styles.search}
                 />
 
@@ -218,7 +217,6 @@ export function PricingCatalog() {
                     <thead>
                         <tr>
                             <th>Modelo</th>
-                            <th>Versão</th>
                             <th>Ano</th>
                             <th>Combustível</th>
                             <th>Cor</th>
@@ -231,11 +229,11 @@ export function PricingCatalog() {
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan={9} className={styles.empty}>Carregando catálogo...</td>
+                                <td colSpan={8} className={styles.empty}>Carregando catálogo...</td>
                             </tr>
                         ) : rows.length === 0 ? (
                             <tr>
-                                <td colSpan={9} className={styles.empty}>Nenhuma variação encontrada.</td>
+                                <td colSpan={8} className={styles.empty}>Nenhuma variação encontrada.</td>
                             </tr>
                         ) : rows.map((row, index) => {
                             const inputValue = draftPrices[row.variationId] ?? formatCurrency(row.preco);
@@ -247,7 +245,6 @@ export function PricingCatalog() {
                                         <strong>{row.modelo}</strong>
                                         {row.motor && <span className={styles.muted}>{row.motor}</span>}
                                     </td>
-                                    <td>{row.versao || '-'}</td>
                                     <td>{row.anoModelo || '-'}</td>
                                     <td>{row.combustivel || '-'}</td>
                                     <td>{row.cor || '-'}</td>

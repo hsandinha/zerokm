@@ -16,7 +16,6 @@ type ParsedImportItem = {
     marcaId?: string;
     marca: string;
     modelo: string;
-    versao?: string;
     codigoFipe?: string;
     tipoVeiculo: TipoVeiculo;
     ano?: string;
@@ -50,7 +49,6 @@ type ParsedImportItem = {
 const FIELD_ALIASES = {
     marca: ['marca', 'brand'],
     modelo: ['modelo', 'model', 'veiculo', 'veículo', 'nome'],
-    versao: ['versao', 'versão', 'version', 'descricao', 'descrição'],
     codigoFipe: ['codigofipe', 'codigo fipe', 'código fipe', 'fipe', 'cod fipe'],
     tipoVeiculo: ['tipo', 'tipo veiculo', 'tipo veículo', 'categoria'],
     ano: ['ano'],
@@ -97,11 +95,10 @@ function normalizeKeyPart(value: unknown) {
         .replace(/\s+/g, ' ');
 }
 
-function buildDuplicateKey(item: Pick<ParsedImportItem, 'marca' | 'modelo' | 'versao' | 'anoModelo' | 'combustivel' | 'cor' | 'transmissao'>) {
+function buildDuplicateKey(item: Pick<ParsedImportItem, 'marca' | 'modelo' | 'anoModelo' | 'combustivel' | 'cor' | 'transmissao'>) {
     return [
         item.marca,
         item.modelo,
-        item.versao,
         item.anoModelo,
         item.combustivel,
         item.cor,
@@ -335,7 +332,6 @@ function normalizeItem(rowNumber: number, record: Record<string, string>, defaul
         marcaId: marcaFromRow ? undefined : defaultBrand?.marcaId,
         marca: marcaFromRow || defaultBrand?.marca || '',
         modelo: getField(record, FIELD_ALIASES.modelo),
-        versao: getField(record, FIELD_ALIASES.versao) || undefined,
         codigoFipe: getField(record, FIELD_ALIASES.codigoFipe) || undefined,
         tipoVeiculo: normalizeTipoVeiculo(getField(record, FIELD_ALIASES.tipoVeiculo)),
         ano: rawAno || undefined,
@@ -402,12 +398,11 @@ async function markExistingRows(rows: ParsedImportItem[]) {
     const existing = await VehicleVariation.find({
         ativo: true,
         marca: { $in: marcas },
-    }).select('marca modelo versao anoModelo combustivel cor transmissao');
+    }).select('marca modelo anoModelo combustivel cor transmissao');
 
     const existingKeys = new Set(existing.map((variation: any) => buildDuplicateKey({
         marca: variation.marca,
         modelo: variation.modelo,
-        versao: variation.versao,
         anoModelo: variation.anoModelo,
         combustivel: variation.combustivel,
         cor: variation.cor,
@@ -475,7 +470,6 @@ function sanitizeCommitItem(rawItem: any): ParsedImportItem {
         marcaId: normalizeText(rawItem.marcaId) || undefined,
         marca: normalizeText(rawItem.marca),
         modelo: normalizeText(rawItem.modelo),
-        versao: normalizeText(rawItem.versao) || undefined,
         codigoFipe: normalizeText(rawItem.codigoFipe) || undefined,
         tipoVeiculo: normalizeTipoVeiculo(rawItem.tipoVeiculo),
         ano: normalizeText(rawItem.ano) || undefined,
@@ -549,7 +543,6 @@ async function commitRows(rawItems: any[], createdBy?: string | null) {
                 marcaId: marca._id,
                 marca: marca.nome,
                 modelo: row.modelo,
-                versao: row.versao,
                 codigoFipe: row.codigoFipe,
                 tipoVeiculo: row.tipoVeiculo,
                 ano: row.ano,

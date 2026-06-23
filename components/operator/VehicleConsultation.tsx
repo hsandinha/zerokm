@@ -677,7 +677,6 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
     const [inputMargem, setInputMargem] = useState<string>(margem.toString());
     const [inputFixedMargin, setInputFixedMargin] = useState<string>(fixedMargin.toString());
     const [inputMarginMode, setInputMarginMode] = useState<'percent' | 'fixed'>(marginMode);
-    const [forceUpdate, setForceUpdate] = useState(false);
 
     useEffect(() => {
         setInputMargem(margem.toString());
@@ -700,38 +699,9 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
             ? `${newMargem}%`
             : `R$ ${newFixedMargin.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 
-        if (forceUpdate) {
-            try {
-                const res = await fetch('/api/vehicles', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'reset_sales_price' })
-                });
-
-                if (res.ok) {
-                    alert(`Margem de ${margemLabel} salva e aplicada a todos os veículos!`);
-                    // Recarregar lista para refletir mudanças
-                    const effectiveSearch = searchTerm && searchTerm.length < 3 ? '' : searchTerm;
-                    await getVehiclesPaginated({
-                        page: currentPage,
-                        itemsPerPage: itemsPerPage === -1 ? 1000 : itemsPerPage,
-                        searchTerm: effectiveSearch,
-                        filters,
-                        sortConfig: sortConfig.key ? sortConfig : undefined
-                    });
-                } else {
-                    alert('Margem salva, mas erro ao atualizar veículos.');
-                }
-            } catch (error) {
-                console.error('Erro ao resetar preços:', error);
-                alert('Margem salva, mas erro ao atualizar veículos.');
-            }
-        } else {
-            alert(`Margem de ${margemLabel} salva com sucesso!`);
-        }
+        alert(`Margem de ${margemLabel} salva. Os preços exibidos serão recalculados automaticamente.`);
 
         setShowMargemModal(false);
-        setForceUpdate(false);
     };
 
     // Estado efetivo (aplicado) para busca e filtros
@@ -868,7 +838,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                 // Generate CSV
                 const headers = [
                     'Modelo', 'Transmissão', 'Combustível', 'Cor', 'Ano',
-                    'Opcionais', 'Preço Compra', 'Preço Venda', 'Status',
+                    'Opcionais', 'Preço Compra', 'Status',
                     'Data Entrada', 'Cidade', 'Estado', 'Concessionária',
                     'Operador', 'Contato', 'Observações'
                 ];
@@ -893,7 +863,6 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                             escapeCsv(v.ano),
                             escapeCsv(v.opcionais),
                             escapeCsv((v.preco || 0).toFixed(2)),
-                            escapeCsv((v.valorVenda || 0).toFixed(2)),
                             escapeCsv(v.status),
                             escapeCsv(v.dataEntrada ? new Date(v.dataEntrada).toLocaleDateString('pt-BR') : ''),
                             escapeCsv(v.cidade),
@@ -1037,28 +1006,6 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
             items,
             value: items.length > 0 ? items[0].valor : 0
         };
-    };
-
-    const handleUpdateValorVenda = async (vehicle: Vehicle, newValue: number | undefined) => {
-        try {
-            if (!vehicle.id) return;
-
-            // Usar o serviço diretamente para evitar que o hook resete a ordenação/paginação
-            await VehicleService.updateVehicle(vehicle.id, { ...vehicle, valorVenda: newValue });
-
-            // Recarregar mantendo o estado atual
-            const effectiveSearch = searchTerm && searchTerm.length < 3 ? '' : searchTerm;
-            await getVehiclesPaginated({
-                page: currentPage,
-                itemsPerPage: itemsPerPage === -1 ? 1000 : itemsPerPage,
-                searchTerm: effectiveSearch,
-                filters,
-                sortConfig: sortConfig.key ? sortConfig : undefined
-            });
-        } catch (error) {
-            console.error('Erro ao atualizar valor de venda:', error);
-            alert('Erro ao atualizar valor de venda');
-        }
     };
 
     const handleUpdateOpcionais = async (vehicle: Vehicle, newValue: string) => {
@@ -1485,10 +1432,9 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
         return (basePrice || 0) * (1 + margem / 100);
     };
 
-    // Função para calcular preço para o cliente (aplica margem do cliente sobre o valorVenda)
-    const calculateClientPrice = (vehicle: { preco?: number; valorVenda?: number }) => {
-        // Pega o valorVenda já definido, ou se não existir, o preço de compra
-        const basePrice = vehicle.valorVenda || vehicle.preco || 0;
+    // Calcula o preço exibido ao cliente usando o preço base e a margem configurada.
+    const calculateClientPrice = (vehicle: { preco?: number }) => {
+        const basePrice = vehicle.preco || 0;
         if (marginMode === 'fixed') {
             return basePrice + (fixedMargin || 0);
         }
@@ -2155,11 +2101,6 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                                             <th className={styles.tableHeader} onClick={() => handleSort('preco')} style={{ cursor: 'pointer' }}>
                                                 PREÇO (R$) {sortConfig.key === 'preco' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                             </th>
-                                            {['admin', 'administrador', 'administrativo', 'operator', 'operador', 'gerente'].includes(role) && (
-                                                <th className={styles.tableHeader} onClick={() => handleSort('valorVenda')} style={{ cursor: 'pointer' }}>
-                                                    PREÇO VENDA (R$) {sortConfig.key === 'valorVenda' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                                </th>
-                                            )}
                                             <th className={styles.tableHeader} onClick={() => handleSort('status')} style={{ cursor: 'pointer' }}>
                                                 STATUS {sortConfig.key === 'status' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                             </th>
@@ -2284,14 +2225,6 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                                                         />
                                                     )}
                                                 </td>
-                                                {['admin', 'administrador', 'administrativo', 'operator', 'operador', 'gerente'].includes(role) && (
-                                                    <td className={styles.tableCell}>
-                                                        <EditableCurrencyCell
-                                                            value={vehicle.valorVenda || calculatePriceWithMargin(vehicle.preco || 0)}
-                                                            onSave={(newValue) => handleUpdateValorVenda(vehicle, newValue)}
-                                                        />
-                                                    </td>
-                                                )}
                                                 <td className={styles.tableCell}>
                                                     {isClientReadOnly ? (
                                                         <span className={`${styles.statusBadge} ${getStatusColor(vehicle.status)}`}>
@@ -2849,21 +2782,6 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                                         )}
                                     </div>
                                 </div>
-                                <div style={{ marginTop: '15px' }}>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: isInvitee ? 'not-allowed' : 'pointer', userSelect: 'none', opacity: isInvitee ? 0.6 : 1 }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={forceUpdate}
-                                            onChange={(e) => setForceUpdate(e.target.checked)}
-                                            style={{ width: '16px', height: '16px', cursor: isInvitee ? 'not-allowed' : 'pointer' }}
-                                            disabled={isInvitee}
-                                        />
-                                        <span style={{ fontWeight: 500 }}>Forçar atualização em todos os veículos</span>
-                                    </label>
-                                    <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '4px', marginLeft: '24px' }}>
-                                        ⚠️ Isso irá sobrescrever quaisquer preços de venda definidos manualmente, aplicando a nova margem a todos os veículos.
-                                    </p>
-                                </div>
                             </div>
                         </div>
                         <div className={modalStyles.modalActions}>
@@ -3064,17 +2982,9 @@ interface VehicleCardProps {
 }
 
 function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onEdit, onDelete, onWhatsApp, onLocationClick, role = 'operator', canViewLocation = false }: VehicleCardProps) {
-    // Função para calcular preço com margem (percentual ou valor fixo)
-    const calculatePriceWithMargin = (basePrice: number) => {
-        if (marginMode === 'fixed') {
-            return (basePrice || 0) + (fixedMargin || 0);
-        }
-        return (basePrice || 0) * (1 + margem / 100);
-    };
-
-    // Função para calcular preço para o cliente (aplica margem sobre valorVenda)
+    // Calcula o preço para o cliente a partir do preço base e da margem configurada.
     const calculateClientPrice = () => {
-        const basePrice = vehicle.valorVenda || vehicle.preco || 0;
+        const basePrice = vehicle.preco || 0;
         if (marginMode === 'fixed') {
             return basePrice + (fixedMargin || 0);
         }
@@ -3179,21 +3089,13 @@ function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onEdit, onDelet
             </div>
 
             <div className={styles.cardFooter}>
-                <div className={styles.priceSection} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+                <div className={styles.priceSection}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
                         <span className={styles.priceLabel} style={{ fontSize: '0.8rem' }}>Preço:</span>
                         <span className={styles.priceValue} style={{ fontSize: '0.9rem' }}>
                             R$ {(role === 'client' ? calculateClientPrice() : (vehicle.preco || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </span>
                     </div>
-                    {['admin', 'administrador', 'operator', 'operador', 'gerente'].includes(role) && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                            <span className={styles.priceLabel} style={{ fontSize: '0.8rem' }}>Preço Venda:</span>
-                            <span className={styles.priceValue} style={{ fontSize: '0.9rem' }}>
-                                R$ {(vehicle.valorVenda || calculatePriceWithMargin(vehicle.preco || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                            </span>
-                        </div>
-                    )}
                 </div>
                 <div className={styles.cardActions}>
                     {role === 'client' ? (

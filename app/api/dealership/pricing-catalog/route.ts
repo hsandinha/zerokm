@@ -26,7 +26,6 @@ function serializeCatalogRow(row: any) {
         marcaId: row.marcaId?.toString?.() || row.marcaId,
         marca: row.marca,
         modelo: row.modelo,
-        versao: row.versao,
         codigoFipe: row.codigoFipe,
         tipoVeiculo: row.tipoVeiculo,
         anoModelo: row.anoModelo,
@@ -126,7 +125,6 @@ export async function GET(request: Request) {
             const regex = { $regex: escapeRegex(search), $options: 'i' };
             variationMatch.$or = [
                 { modelo: regex },
-                { versao: regex },
                 { codigoFipe: regex },
                 { combustivel: regex },
                 { cor: regex },
@@ -170,7 +168,7 @@ export async function GET(request: Request) {
         if (status === 'inativo') pipeline.push({ $match: { hasActivePrice: false } });
 
         pipeline.push(
-            { $sort: { modelo: 1, versao: 1, cor: 1, anoModelo: -1 } },
+            { $sort: { modelo: 1, cor: 1, anoModelo: -1 } },
             {
                 $facet: {
                     metadata: [{ $count: 'total' }],

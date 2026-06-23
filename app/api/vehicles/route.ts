@@ -336,12 +336,6 @@ export async function PATCH(request: Request) {
         await connectDB();
         const body = await request.json();
 
-        if (body.action === 'reset_sales_price') {
-            // timestamps: false prevents Mongoose from touching updatedAt on all documents
-            await Vehicle.updateMany({}, { $unset: { valorVenda: "" } }, { timestamps: false });
-            return NextResponse.json({ message: 'Preços de venda resetados com sucesso' });
-        }
-
         if (body.action === 'update_date') {
             const { ids } = body;
             if (!ids || !Array.isArray(ids) || ids.length === 0) {

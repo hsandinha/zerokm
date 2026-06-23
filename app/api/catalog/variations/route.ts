@@ -119,7 +119,6 @@ export async function GET(request: Request) {
             query.$or = [
                 { marca: regex },
                 { modelo: regex },
-                { versao: regex },
                 { codigoFipe: regex },
                 { cor: regex },
                 { status: regex },
@@ -134,7 +133,7 @@ export async function GET(request: Request) {
 
         const [data, total] = await Promise.all([
             VehicleVariation.find(query)
-                .sort({ marca: 1, modelo: 1, versao: 1, cor: 1, anoModelo: -1 })
+                .sort({ marca: 1, modelo: 1, cor: 1, anoModelo: -1 })
                 .skip(skip)
                 .limit(limit),
             VehicleVariation.countDocuments(query),
@@ -173,7 +172,6 @@ export async function POST(request: Request) {
             marcaId: marca._id,
             marca: marca.nome,
             modelo,
-            versao: normalizeText(body.versao) || undefined,
             codigoFipe: normalizeText(body.codigoFipe) || undefined,
             tipoVeiculo: body.tipoVeiculo || 'carro',
             ano: normalizeText(body.ano) || undefined,

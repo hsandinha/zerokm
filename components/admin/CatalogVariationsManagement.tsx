@@ -13,7 +13,6 @@ interface VehicleVariation {
     marcaId?: string;
     marca: string;
     modelo: string;
-    versao?: string;
     codigoFipe?: string;
     tipoVeiculo: 'carro' | 'moto' | 'caminhao' | 'utilitario';
     ano?: string;
@@ -43,7 +42,6 @@ interface VehicleVariation {
 type VariationForm = {
     marca: string;
     modelo: string;
-    versao: string;
     ano: string;
     combustivel: string;
     cor: string;
@@ -58,7 +56,6 @@ type ImportPreviewItem = {
     marca?: string;
     marcaId?: string;
     modelo?: string;
-    versao?: string;
     codigoFipe?: string;
     tipoVeiculo?: string;
     ano?: string;
@@ -104,7 +101,6 @@ type ImportPreview = {
 const EMPTY_FORM: VariationForm = {
     marca: '',
     modelo: '',
-    versao: '',
     ano: '',
     combustivel: '',
     cor: '',
@@ -201,7 +197,6 @@ export function CatalogVariationsManagement() {
             const payload = {
                 marca: form.marca,
                 modelo: form.modelo,
-                versao: form.versao,
                 tipoVeiculo: 'carro',
                 ano: form.ano,
                 combustivel: form.combustivel,
@@ -364,7 +359,7 @@ export function CatalogVariationsManagement() {
                 </div>
 
                 <div className={styles.importActions}>
-                    <p>Use as colunas: Marca, Modelo, Versão, Ano, Combustível, Cor, Câmbio e Opcionais.</p>
+                    <p>Use as colunas: Marca, Modelo, Ano, Combustível, Cor, Câmbio e Opcionais.</p>
                     <button type="button" className={styles.secondaryButton} onClick={previewImport} disabled={importLoading || saving}>
                         {importLoading ? 'Lendo...' : 'Pré-visualizar importação'}
                     </button>
@@ -395,16 +390,7 @@ export function CatalogVariationsManagement() {
                             <input
                                 value={form.modelo}
                                 onChange={event => setForm(prev => ({ ...prev, modelo: event.target.value }))}
-                                placeholder="Ex.: Corolla"
-                            />
-                        </label>
-
-                        <label>
-                            Versão
-                            <input
-                                value={form.versao}
-                                onChange={event => setForm(prev => ({ ...prev, versao: event.target.value }))}
-                                placeholder="Ex.: XEI 2.0 Hybrid"
+                                placeholder="Ex.: Corolla XEI 2.0 Hybrid"
                             />
                         </label>
 
@@ -472,7 +458,7 @@ export function CatalogVariationsManagement() {
                         <input
                             value={search}
                             onChange={event => setSearch(event.target.value)}
-                            placeholder="Buscar marca, modelo, versão, cor..."
+                            placeholder="Buscar marca, modelo ou cor..."
                         />
                         <select value={brandFilter} onChange={event => setBrandFilter(event.target.value)}>
                             <option value="">Todas as marcas</option>
@@ -489,7 +475,6 @@ export function CatalogVariationsManagement() {
                             <tr>
                                 <th>Marca</th>
                                 <th>Modelo</th>
-                                <th>Versão</th>
                                 <th>Ano</th>
                                 <th>Combustível</th>
                                 <th>Cor</th>
@@ -500,17 +485,16 @@ export function CatalogVariationsManagement() {
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={8} className={styles.empty}>Carregando...</td>
+                                <td colSpan={7} className={styles.empty}>Carregando...</td>
                                 </tr>
                             ) : variations.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className={styles.empty}>Nenhuma variação encontrada.</td>
+                                <td colSpan={7} className={styles.empty}>Nenhuma variação encontrada.</td>
                                 </tr>
                             ) : variations.map(variation => (
                                 <tr key={variation.id}>
                                     <td>{variation.marca}</td>
                                     <td><strong>{variation.modelo}</strong></td>
-                                    <td>{variation.versao || '-'}</td>
                                     <td>{getAnoLabel(variation)}</td>
                                     <td>{variation.combustivel || '-'}</td>
                                     <td>{variation.cor || '-'}</td>
@@ -571,7 +555,6 @@ export function CatalogVariationsManagement() {
                                     <tr>
                                         <th>Marca</th>
                                         <th>Modelo</th>
-                                        <th>Versão</th>
                                         <th>Ano</th>
                                         <th>Combustível</th>
                                         <th>Cor</th>
@@ -582,13 +565,12 @@ export function CatalogVariationsManagement() {
                                 <tbody>
                                     {importPreview.rows.filter(row => row.status === 'new').length === 0 ? (
                                         <tr>
-                                            <td colSpan={8} className={styles.empty}>Nenhuma linha nova para importar.</td>
+                                            <td colSpan={7} className={styles.empty}>Nenhuma linha nova para importar.</td>
                                         </tr>
                                     ) : importPreview.rows.filter(row => row.status === 'new').map((row, index) => (
                                         <tr key={`${row.rowNumber}-${index}`}>
                                             <td>{row.marca || '-'}</td>
                                             <td><strong>{row.modelo || '-'}</strong></td>
-                                            <td>{row.versao || '-'}</td>
                                             <td>{row.ano || row.anoModelo || '-'}</td>
                                             <td>{row.combustivel || '-'}</td>
                                             <td>{row.cor || '-'}</td>

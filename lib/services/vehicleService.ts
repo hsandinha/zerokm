@@ -18,7 +18,6 @@ export interface Vehicle {
     nomeContato: string;
     operador: string;
     concessionaria?: string;
-    valorVenda?: number;
 
     // Campos opcionais mantidos por compatibilidade ou uso futuro
     fotos?: string[];

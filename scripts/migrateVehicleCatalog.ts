@@ -42,12 +42,13 @@ async function findConcessionariaByName(nome: string) {
 
 function buildVariationPayload(vehicle: any, marca: any) {
     const marcaNome = normalize(vehicle.marca) || normalize(marca?.nome) || 'Sem marca';
+    const modeloBase = normalize(vehicle.modelo) || 'Sem modelo';
+    const versaoLegada = normalize(vehicle.versao);
 
     return {
         marcaId: marca?._id,
         marca: marcaNome,
-        modelo: normalize(vehicle.modelo) || 'Sem modelo',
-        versao: normalize(vehicle.versao) || undefined,
+        modelo: [modeloBase, versaoLegada].filter(Boolean).join(' '),
         tipoVeiculo: 'carro',
         anoModelo: normalizeYear(vehicle.anoModelo || vehicle.ano),
         anoFabricacao: normalizeYear(vehicle.ano),
@@ -66,7 +67,6 @@ async function findOrCreateVariation(payload: any) {
     const query = {
         marca: payload.marca,
         modelo: payload.modelo,
-        versao: payload.versao,
         anoModelo: payload.anoModelo,
         combustivel: payload.combustivel,
         transmissao: payload.transmissao,
@@ -104,7 +104,6 @@ async function main() {
         const variationKey = JSON.stringify({
             marca: variationPayload.marca,
             modelo: variationPayload.modelo,
-            versao: variationPayload.versao,
             anoModelo: variationPayload.anoModelo,
             combustivel: variationPayload.combustivel,
             transmissao: variationPayload.transmissao,
