@@ -43,7 +43,6 @@ interface VehicleVariation {
 type VariationForm = {
     marca: string;
     modelo: string;
-    versao: string;
     ano: string;
     combustivel: string;
     cor: string;
@@ -104,7 +103,6 @@ type ImportPreview = {
 const EMPTY_FORM: VariationForm = {
     marca: '',
     modelo: '',
-    versao: '',
     ano: '',
     combustivel: '',
     cor: '',
@@ -201,7 +199,6 @@ export function CatalogVariationsManagement() {
             const payload = {
                 marca: form.marca,
                 modelo: form.modelo,
-                versao: form.versao,
                 tipoVeiculo: 'carro',
                 ano: form.ano,
                 combustivel: form.combustivel,
@@ -396,15 +393,6 @@ export function CatalogVariationsManagement() {
                                 value={form.modelo}
                                 onChange={event => setForm(prev => ({ ...prev, modelo: event.target.value }))}
                                 placeholder="Ex.: Corolla"
-                            />
-                        </label>
-
-                        <label>
-                            Versão
-                            <input
-                                value={form.versao}
-                                onChange={event => setForm(prev => ({ ...prev, versao: event.target.value }))}
-                                placeholder="Ex.: XEI 2.0 Hybrid"
                             />
                         </label>
 
