@@ -7,6 +7,7 @@ import Plan from '../../../../models/Plan';
 import Invite from '../../../../models/Invite';
 import Payment from '../../../../models/Payment';
 import { calculateProfileCompletion } from '../../../../lib/utils/profileCompletion';
+import { calculateSubscriptionExpiry, parseSubscriptionStartDate } from '../../../../lib/utils/subscriptionDates';
 
 export async function GET() {
     const session = await getServerSession(authOptions);
@@ -118,7 +119,7 @@ export async function PATCH(request: Request) {
     } catch {
         return NextResponse.json({ error: 'Body inválido.' }, { status: 400 });
     }
-    const { userId, planId, activationMethod, paymentFrequency, paymentMethod } = body;
+    const { userId, planId, activationMethod, paymentFrequency, paymentMethod, startDate } = body;
     if (!userId || !planId) {
         return NextResponse.json({ error: 'userId e planId são obrigatórios.' }, { status: 400 });
     }
@@ -169,8 +170,16 @@ export async function PATCH(request: Request) {
 
     const isAnnual = paymentFrequency === 'annual';
     const durationDays = plan.type === 'monthly' ? (isAnnual ? 365 : 30) : null;
-    const expiresAt = durationDays
-        ? new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000)
+    const selectedStartDate = durationDays
+        ? (startDate === undefined ? new Date() : parseSubscriptionStartDate(startDate))
+        : null;
+
+    if (durationDays && !selectedStartDate) {
+        return NextResponse.json({ error: 'Data de início inválida.' }, { status: 400 });
+    }
+
+    const expiresAt = durationDays && selectedStartDate
+        ? calculateSubscriptionExpiry(selectedStartDate, durationDays)
         : null;
 
     const updateFields: Record<string, any> = {
