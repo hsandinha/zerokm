@@ -26,6 +26,7 @@ interface CRMClient {
     expiresAt: string | null;
     daysUntilExpiry: number | null;
     activationMethod: 'manual' | 'cortesia' | 'card' | 'pix' | 'boleto' | null;
+    paymentMethod?: 'pix' | 'boleto' | 'card' | null;
     billingType: 'monthly' | 'annual' | null;
     createdAt: string;
     hasCard: boolean;
@@ -589,6 +590,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                     Status{sortIcon('status')}
                                 </th>
                                 <th className={styles.tableHeader}>Plano</th>
+                                <th className={styles.tableHeader}>Pagamento</th>
                                 <th className={`${styles.tableHeader} ${styles.sortable}`} onClick={() => handleSort('daysUntilExpiry')}>
                                     Expiração{sortIcon('daysUntilExpiry')}
                                 </th>
@@ -664,14 +666,23 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                                     {client.billingType === 'annual' && (
                                                         <span className={styles.cortesiaBadge} style={{ background: 'rgba(16,185,129,0.12)', color: '#10b981', borderColor: 'rgba(16,185,129,0.3)' }}>Anual</span>
                                                     )}
-                                                    {client.activationMethod === 'cortesia' && (
-                                                        <span className={styles.cortesiaBadge}>🎁 Cortesia</span>
-                                                    )}
-                                                    {client.activationMethod === 'boleto' && (
-                                                        <span className={styles.cortesiaBadge} style={{ background: 'rgba(100,116,139,0.12)', color: '#94a3b8', borderColor: 'rgba(100,116,139,0.3)' }}>Boleto</span>
-                                                    )}
                                                   </span>
                                                 : <span className={styles.muted}>—</span>}
+                                        </td>
+                                        <td className={styles.tableCell}>
+                                            {client.status === 'active' || client.status === 'expired' ? (
+                                                client.activationMethod === 'cortesia' ? (
+                                                    <span className={styles.cortesiaBadge}>🎁 Cortesia</span>
+                                                ) : client.paymentMethod === 'pix' || client.activationMethod === 'pix' ? (
+                                                    <span className={styles.cortesiaBadge} style={{ background: 'rgba(16,185,129,0.12)', color: '#10b981', borderColor: 'rgba(16,185,129,0.3)' }}>PIX</span>
+                                                ) : client.paymentMethod === 'boleto' || client.activationMethod === 'boleto' ? (
+                                                    <span className={styles.cortesiaBadge} style={{ background: 'rgba(100,116,139,0.12)', color: '#94a3b8', borderColor: 'rgba(100,116,139,0.3)' }}>Boleto</span>
+                                                ) : client.paymentMethod === 'card' || client.activationMethod === 'card' ? (
+                                                    <span className={styles.cortesiaBadge} style={{ background: 'rgba(59,130,246,0.12)', color: '#3b82f6', borderColor: 'rgba(59,130,246,0.3)' }}>Cartão</span>
+                                                ) : (
+                                                    <span className={styles.cortesiaBadge} style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b', borderColor: 'rgba(245,158,11,0.3)' }} title="Forma de pagamento não associada">⚠️ Não associado</span>
+                                                )
+                                            ) : <span className={styles.muted}>—</span>}
                                         </td>
                                         <td className={styles.tableCell}>
                                             {client.expiresAt ? (

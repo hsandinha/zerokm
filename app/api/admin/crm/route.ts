@@ -81,6 +81,7 @@ export async function GET() {
             expiresAt: sub?.expiresAt ? new Date(sub.expiresAt).toISOString() : null,
             daysUntilExpiry,
             activationMethod: sub?.activationMethod || null,
+            paymentMethod: sub?.paymentMethod || null,
             billingType: sub?.billingType || null,
             createdAt: u.createdAt,
             hasCard: !!(u.creditCard?.mpCardId),
