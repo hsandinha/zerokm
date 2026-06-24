@@ -21,6 +21,7 @@ export interface IUser extends Document {
         expiresAt?: Date;
         billingType?: 'monthly' | 'annual';
         activationMethod?: 'manual' | 'cortesia' | 'card' | 'pix' | 'boleto';
+        paymentMethod?: 'pix' | 'boleto' | 'card';
         mpPreapprovalId?: string;
         mpPreapprovalStatus?: string;
         nextPaymentDate?: Date;
@@ -78,6 +79,7 @@ const UserSchema: Schema = new Schema({
         expiresAt: { type: Date },
         billingType: { type: String, enum: ['monthly', 'annual'] },
         activationMethod: { type: String, enum: ['manual', 'cortesia', 'card', 'pix', 'boleto'] },
+        paymentMethod: { type: String, enum: ['pix', 'boleto', 'card'] },
         mpPreapprovalId: { type: String },
         mpPreapprovalStatus: { type: String },
         nextPaymentDate: { type: Date },

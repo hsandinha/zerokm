@@ -80,7 +80,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
         const textFields = [
             'modelo',
-            'versao',
             'codigoFipe',
             'tipoVeiculo',
             'ano',
