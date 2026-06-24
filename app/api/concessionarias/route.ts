@@ -77,6 +77,8 @@ const serializeConcessionaria = (doc: any) => {
         razaoSocial: doc.razaoSocial,
         marcaId: doc.marcaId?.toString(),
         marca: doc.marca,
+        marcaIds: Array.isArray(doc.marcaIds) ? doc.marcaIds.map((m: any) => m.toString()) : [],
+        marcas: Array.isArray(doc.marcas) ? doc.marcas : [],
         operadorId: doc.operadorId?.toString(),
         telefone: doc.telefone,
         celular: doc.celular,

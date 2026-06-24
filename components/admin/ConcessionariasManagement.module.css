@@ -347,6 +347,103 @@
     border: 1px solid var(--color-highlight);
 }
 
+/* Seletor de marcas inline (múltipla seleção) */
+.brandCell {
+    position: relative;
+}
+
+.brandTrigger {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    width: 100%;
+    min-width: 140px;
+    padding: 0.4rem 0.5rem;
+    background: var(--color-bg);
+    border: 1px solid var(--color-highlight);
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.15s ease;
+}
+
+.brandTrigger:hover {
+    border-color: var(--color-accent);
+}
+
+.brandPlaceholder {
+    font-size: 0.78rem;
+    color: var(--color-text);
+}
+
+.brandChips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    flex: 1;
+}
+
+.brandCaret {
+    margin-left: auto;
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+}
+
+.brandMenu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 20;
+    width: 240px;
+    background: var(--color-bg, #fff);
+    border: 1px solid var(--color-highlight);
+    border-radius: 10px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
+    padding: 0.5rem;
+}
+
+.brandMenuSearch {
+    width: 100%;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--color-highlight);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    margin-bottom: 0.4rem;
+    box-sizing: border-box;
+}
+
+.brandMenuList {
+    max-height: 220px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.brandMenuItem {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.45rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.brandMenuItem:hover {
+    background: var(--color-panel);
+}
+
+.brandMenuItem input {
+    cursor: pointer;
+}
+
+.brandMenuEmpty {
+    padding: 0.5rem 0.45rem;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+}
+
 .actionButtons {
     display: flex;
     gap: 0.5rem;

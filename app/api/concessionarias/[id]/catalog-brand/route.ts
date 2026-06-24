@@ -43,6 +43,41 @@ async function resolveMarca(marcaId?: string, marcaName?: string) {
     );
 }
 
+// Aceita uma lista de marcaIds (multi marcas). Mantém compatibilidade com o
+// formato antigo de marca única (marcaId / marca).
+async function resolveMarcas(body: any): Promise<{ ids: any[]; nomes: string[] }> {
+    const rawIds: unknown[] = Array.isArray(body?.marcaIds)
+        ? body.marcaIds
+        : body?.marcaId
+            ? [body.marcaId]
+            : [];
+
+    const ids = rawIds.map(normalizeText).filter(Boolean);
+
+    if (ids.length === 0) {
+        // Permite limpar todas as marcas, ou cadastrar por nome (formato antigo).
+        if (body?.marca) {
+            const marca = await resolveMarca(undefined, body.marca);
+            return { ids: [marca._id], nomes: [marca.nome] };
+        }
+        return { ids: [], nomes: [] };
+    }
+
+    const marcas = await Marca.find({ _id: { $in: ids } });
+    const byId = new Map(marcas.map(m => [m._id.toString(), m]));
+
+    const resolvedIds: any[] = [];
+    const nomes: string[] = [];
+    for (const id of ids) {
+        const marca = byId.get(id);
+        if (!marca) throw new Error('Marca não encontrada');
+        resolvedIds.push(marca._id);
+        nomes.push(marca.nome);
+    }
+
+    return { ids: resolvedIds, nomes };
+}
+
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const access = await assertCanLinkBrand();
@@ -52,14 +87,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
         const { id } = await params;
         const body = await request.json();
-        const marca = await resolveMarca(normalizeText(body.marcaId), body.marca);
+        const { ids, nomes } = await resolveMarcas(body);
 
         const concessionaria = await Concessionaria.findByIdAndUpdate(
             id,
             {
                 $set: {
-                    marcaId: marca._id,
-                    marca: marca.nome,
+                    marcaIds: ids,
+                    marcas: nomes,
+                    // Mantém os campos legados sincronizados com a primeira marca.
+                    marcaId: ids[0] ?? null,
+                    marca: nomes[0] ?? null,
                 },
             },
             { new: true }
@@ -74,6 +112,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
             nome: concessionaria.nome,
             marcaId: concessionaria.marcaId?.toString?.() || null,
             marca: concessionaria.marca || null,
+            marcaIds: (concessionaria.marcaIds || []).map((m: any) => m.toString()),
+            marcas: concessionaria.marcas || [],
         });
     } catch (error: any) {
         console.error('Erro ao vincular marca da concessionária:', error);

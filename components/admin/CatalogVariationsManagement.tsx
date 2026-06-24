@@ -143,6 +143,11 @@ export function CatalogVariationsManagement() {
     const [importCommitting, setImportCommitting] = useState(false);
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+    const [selectedVariations, setSelectedVariations] = useState<string[]>([]);
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [bulkDeleting, setBulkDeleting] = useState(false);
+
     const loadMarcas = useCallback(async () => {
         const res = await fetch('/api/tables/marcas');
         if (!res.ok) throw new Error('Erro ao carregar marcas');
@@ -180,7 +185,84 @@ export function CatalogVariationsManagement() {
 
     const resetForm = () => {
         setForm(EMPTY_FORM);
+        setEditingId(null);
         setFeedback(null);
+    };
+
+    const handleEdit = (variation: VehicleVariation) => {
+        setForm({
+            marca: variation.marca,
+            modelo: variation.modelo,
+            ano: variation.ano || variation.anoModelo?.toString() || '',
+            combustivel: variation.combustivel || '',
+            cor: variation.cor || '',
+            transmissao: variation.transmissao || '',
+            opcionais: variation.opcionais || variation.opcionaisPadrao?.join(', ') || '',
+        });
+        setEditingId(variation.id);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleDeleteOne = async (id: string) => {
+        if (!window.confirm('Tem certeza que deseja excluir esta variação?')) return;
+        setDeletingId(id);
+        setFeedback(null);
+        try {
+            const res = await fetch(`/api/catalog/variations/${id}`, {
+                method: 'DELETE',
+            });
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Erro ao excluir variação');
+            }
+            setFeedback({ type: 'success', message: 'Variação excluída com sucesso.' });
+            setSelectedVariations(prev => prev.filter(v => v !== id));
+            await loadVariations();
+        } catch (error: any) {
+            setFeedback({ type: 'error', message: error?.message || 'Erro ao excluir variação' });
+        } finally {
+            setDeletingId(null);
+        }
+    };
+
+    const handleDeleteSelected = async () => {
+        if (selectedVariations.length === 0) return;
+        if (!window.confirm(`Tem certeza que deseja excluir as ${selectedVariations.length} variações selecionadas?`)) return;
+        
+        setBulkDeleting(true);
+        setFeedback(null);
+        try {
+            const res = await fetch('/api/catalog/variations', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: selectedVariations }),
+            });
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Erro ao excluir variações em massa');
+            }
+            setFeedback({ type: 'success', message: `${selectedVariations.length} variações excluídas com sucesso.` });
+            setSelectedVariations([]);
+            await loadVariations();
+        } catch (error: any) {
+            setFeedback({ type: 'error', message: error?.message || 'Erro ao excluir variações em massa' });
+        } finally {
+            setBulkDeleting(false);
+        }
+    };
+
+    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.checked) {
+            setSelectedVariations(variations.map(v => v.id));
+        } else {
+            setSelectedVariations([]);
+        }
+    };
+
+    const handleSelectOne = (id: string) => {
+        setSelectedVariations(prev => 
+            prev.includes(id) ? prev.filter(vId => vId !== id) : [...prev, id]
+        );
     };
 
     const saveVariation = async (event: React.FormEvent) => {
@@ -209,19 +291,20 @@ export function CatalogVariationsManagement() {
                 ativo: true,
             };
 
-            const res = await fetch('/api/catalog/variations', {
-                method: 'POST',
+            const res = await fetch(editingId ? `/api/catalog/variations/${editingId}` : '/api/catalog/variations', {
+                method: editingId ? 'PUT' : 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Erro ao salvar variação');
+            if (!res.ok) throw new Error(data.error || `Erro ao ${editingId ? 'atualizar' : 'salvar'} variação`);
 
-            setFeedback({ type: 'success', message: 'Variação criada.' });
+            setFeedback({ type: 'success', message: `Variação ${editingId ? 'atualizada' : 'criada'} com sucesso.` });
             setForm(EMPTY_FORM);
+            setEditingId(null);
             await Promise.all([loadMarcas(), loadVariations()]);
         } catch (error: any) {
-            setFeedback({ type: 'error', message: error?.message || 'Erro ao salvar variação' });
+            setFeedback({ type: 'error', message: error?.message || `Erro ao ${editingId ? 'atualizar' : 'salvar'} variação` });
         } finally {
             setSaving(false);
         }
@@ -371,9 +454,9 @@ export function CatalogVariationsManagement() {
             <div className={styles.layout}>
                 <form className={styles.panel} onSubmit={saveVariation}>
                     <div className={styles.panelHeader}>
-                        <h3>Nova variação</h3>
+                        <h3>{editingId ? 'Editar variação' : 'Nova variação'}</h3>
                         <button type="button" className={styles.linkButton} onClick={resetForm}>
-                            Limpar
+                            {editingId ? 'Cancelar edição' : 'Limpar'}
                         </button>
                     </div>
 
@@ -444,7 +527,7 @@ export function CatalogVariationsManagement() {
 
                     <div className={styles.actions}>
                         <button type="submit" className={styles.primaryButton} disabled={saving}>
-                            {saving ? 'Salvando...' : 'Criar variação'}
+                            {saving ? 'Salvando...' : editingId ? 'Atualizar variação' : 'Criar variação'}
                         </button>
                     </div>
                 </form>
@@ -457,6 +540,16 @@ export function CatalogVariationsManagement() {
                         <p>{variations.length} variações carregadas</p>
                     </div>
                     <div className={styles.filters}>
+                        {selectedVariations.length > 0 && (
+                            <button 
+                                type="button" 
+                                className={`${styles.secondaryButton} ${styles.dangerButton}`} 
+                                onClick={handleDeleteSelected}
+                                disabled={bulkDeleting}
+                            >
+                                {bulkDeleting ? 'Excluindo...' : `Excluir ${selectedVariations.length} selecionados`}
+                            </button>
+                        )}
                         <input
                             value={search}
                             onChange={event => setSearch(event.target.value)}
@@ -475,6 +568,13 @@ export function CatalogVariationsManagement() {
                     <table className={styles.table}>
                         <thead>
                             <tr>
+                                <th>
+                                    <input 
+                                        type="checkbox" 
+                                        checked={variations.length > 0 && selectedVariations.length === variations.length}
+                                        onChange={handleSelectAll}
+                                    />
+                                </th>
                                 <th>Marca</th>
                                 <th>Modelo</th>
                                 <th>Versão</th>
@@ -483,19 +583,27 @@ export function CatalogVariationsManagement() {
                                 <th>Cor</th>
                                 <th>Câmbio</th>
                                 <th>Opcionais</th>
+                                <th>Ações</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={8} className={styles.empty}>Carregando...</td>
+                                    <td colSpan={10} className={styles.empty}>Carregando...</td>
                                 </tr>
                             ) : variations.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className={styles.empty}>Nenhuma variação encontrada.</td>
+                                    <td colSpan={10} className={styles.empty}>Nenhuma variação encontrada.</td>
                                 </tr>
                             ) : variations.map(variation => (
-                                <tr key={variation.id}>
+                                <tr key={variation.id} className={selectedVariations.includes(variation.id) ? styles.selectedRow : ''}>
+                                    <td>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={selectedVariations.includes(variation.id)}
+                                            onChange={() => handleSelectOne(variation.id)}
+                                        />
+                                    </td>
                                     <td>{variation.marca}</td>
                                     <td><strong>{variation.modelo}</strong></td>
                                     <td>{variation.versao || '-'}</td>
@@ -504,6 +612,25 @@ export function CatalogVariationsManagement() {
                                     <td>{variation.cor || '-'}</td>
                                     <td>{variation.transmissao || '-'}</td>
                                     <td>{variation.opcionais || '-'}</td>
+                                    <td>
+                                        <div className={styles.rowActions}>
+                                            <button 
+                                                className={styles.iconButton} 
+                                                onClick={() => handleEdit(variation)}
+                                                title="Editar"
+                                            >
+                                                ✏️
+                                            </button>
+                                            <button 
+                                                className={`${styles.iconButton} ${styles.dangerText}`} 
+                                                onClick={() => handleDeleteOne(variation.id)}
+                                                disabled={deletingId === variation.id}
+                                                title="Excluir"
+                                            >
+                                                {deletingId === variation.id ? '...' : '🗑️'}
+                                            </button>
+                                        </div>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>

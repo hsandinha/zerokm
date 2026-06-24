@@ -23,6 +23,8 @@ export interface Concessionaria {
     operadorId?: string;
     marcaId?: string | null;
     marca?: string | null;
+    marcaIds?: string[];
+    marcas?: string[];
     dataCadastro?: string;
     criadoEm?: string;
 }

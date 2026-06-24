@@ -213,3 +213,32 @@ export async function POST(request: Request) {
         }, { status });
     }
 }
+
+export async function DELETE(request: Request) {
+    try {
+        const access = await assertCanManageCatalog();
+        if (access.error) return access.error;
+
+        await connectDB();
+
+        const body = await request.json();
+        const { ids } = body;
+
+        if (!Array.isArray(ids) || ids.length === 0) {
+            return NextResponse.json({ error: 'Nenhum ID fornecido' }, { status: 400 });
+        }
+
+        const result = await VehicleVariation.updateMany(
+            { _id: { $in: ids } },
+            { $set: { ativo: false } }
+        );
+
+        return NextResponse.json({ 
+            success: true, 
+            message: `${result.modifiedCount} variações excluídas com sucesso` 
+        });
+    } catch (error: any) {
+        console.error('Erro ao excluir variações em massa:', error);
+        return NextResponse.json({ error: error.message || 'Erro interno ao excluir variações' }, { status: 500 });
+    }
+}

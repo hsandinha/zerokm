@@ -12,6 +12,8 @@ interface ClienteData {
     razaoSocial: string;
     marcaId?: string | null;
     marca?: string | null;
+    marcaIds?: string[];
+    marcas?: string[];
     telefone: string;
     celular?: string;
     contato: string;
@@ -46,7 +48,6 @@ interface MarcaData {
 type ClienteFormData = {
     nome: string;
     razaoSocial: string;
-    marcaId: string;
     inscricaoEstadual: string;
     telefone: string;
     celular: string;
@@ -71,7 +72,6 @@ type ClienteFormData = {
 const createEmptyClienteForm = (): ClienteFormData => ({
     nome: '',
     razaoSocial: '',
-    marcaId: '',
     inscricaoEstadual: '',
     telefone: '',
     celular: '',
@@ -116,6 +116,54 @@ export function ConcessionariasManagement() {
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
     const [operadores, setOperadores] = useState<{_id: string, displayName: string, email: string}[]>([]);
     const [marcas, setMarcas] = useState<MarcaData[]>([]);
+    const [openBrandMenuId, setOpenBrandMenuId] = useState<string | null>(null);
+    const [brandSearch, setBrandSearch] = useState('');
+
+    // Marcas selecionadas de uma concessionária (com fallback ao formato antigo de marca única).
+    const getSelectedBrandIds = (cliente: ClienteData): string[] => {
+        if (cliente.marcaIds && cliente.marcaIds.length) return cliente.marcaIds;
+        return cliente.marcaId ? [cliente.marcaId] : [];
+    };
+
+    const getSelectedBrandNames = (cliente: ClienteData): string[] => {
+        if (cliente.marcas && cliente.marcas.length) return cliente.marcas;
+        return cliente.marca ? [cliente.marca] : [];
+    };
+
+    // Atualiza as marcas de uma concessionária localmente (otimista, sem recarregar a lista toda).
+    const applyBrandsLocally = (clienteId: string, marcaIds: string[]) => {
+        const nomes = marcaIds
+            .map(id => marcas.find(m => m.id === id)?.nome)
+            .filter((nome): nome is string => Boolean(nome));
+        setClientes(prev => prev.map(c => c.id === clienteId
+            ? { ...c, marcaIds, marcas: nomes, marcaId: marcaIds[0] ?? null, marca: nomes[0] ?? null }
+            : c));
+    };
+
+    const handleToggleBrand = async (cliente: ClienteData, marcaId: string) => {
+        const current = getSelectedBrandIds(cliente);
+        const next = current.includes(marcaId)
+            ? current.filter(id => id !== marcaId)
+            : [...current, marcaId];
+
+        applyBrandsLocally(cliente.id, next);
+
+        try {
+            const response = await fetch(`/api/concessionarias/${cliente.id}/catalog-brand`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ marcaIds: next }),
+            });
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data.error || 'Erro ao atualizar marcas');
+            }
+        } catch (error) {
+            console.error('Erro ao atualizar marcas:', error);
+            applyBrandsLocally(cliente.id, current); // reverte
+            alert('Erro ao atualizar as marcas da concessionária.');
+        }
+    };
 
     // Resolve operadorId: usa o campo direto ou faz match pelo nomeResponsavel
     const getOperadorIdForCliente = (cliente: ClienteData): string => {
@@ -315,6 +363,19 @@ export function ConcessionariasManagement() {
         setFilteredClientes(filtered);
     }, [searchTerm, clientes]);
 
+    useEffect(() => {
+        if (!openBrandMenuId) return;
+        const handleClickOutside = (event: MouseEvent) => {
+            const target = event.target as HTMLElement;
+            if (!target.closest(`.${styles.brandCell}`)) {
+                setOpenBrandMenuId(null);
+                setBrandSearch('');
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [openBrandMenuId]);
+
     const handleClearSearch = () => setSearchTerm('');
 
     const digitsOnly = (value?: string) => (value ?? '').replace(/\D/g, '');
@@ -428,25 +489,10 @@ export function ConcessionariasManagement() {
         }
 
         try {
-            let concessionariaId = editingCliente?.id;
-
             if (editingCliente && editingCliente.id) {
                 await ConcessionariaService.updateConcessionaria(editingCliente.id, payload);
             } else {
-                const created = await ConcessionariaService.addConcessionaria(payload);
-                concessionariaId = created.id;
-            }
-
-            if (concessionariaId && formData.marcaId && formData.marcaId !== editingCliente?.marcaId) {
-                const brandResponse = await fetch(`/api/concessionarias/${concessionariaId}/catalog-brand`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ marcaId: formData.marcaId }),
-                });
-                const brandData = await brandResponse.json().catch(() => ({}));
-                if (!brandResponse.ok) {
-                    throw new Error(brandData.error || 'Erro ao vincular marca à concessionária.');
-                }
+                await ConcessionariaService.addConcessionaria(payload);
             }
 
             await fetchClientes();
@@ -466,7 +512,6 @@ export function ConcessionariasManagement() {
         setFormData({
             nome: cliente.nome,
             razaoSocial: cliente.razaoSocial,
-            marcaId: cliente.marcaId ?? '',
             inscricaoEstadual: cliente.inscricaoEstadual ?? '',
             telefone: digitsOnly(cliente.telefone),
             celular: digitsOnly(cliente.celular),
@@ -561,20 +606,10 @@ export function ConcessionariasManagement() {
                                     />
                                 </div>
                                 <div className={styles.formGroup}>
-                                    <label>Marca representada</label>
-                                    <select
-                                        value={formData.marcaId}
-                                        onChange={(e) => setFormData({ ...formData, marcaId: e.target.value })}
-                                        className={styles.formInput}
-                                    >
-                                        <option value="">Selecionar marca</option>
-                                        {marcas.map((marca) => (
-                                            <option key={marca.id} value={marca.id}>{marca.nome}</option>
-                                        ))}
-                                    </select>
-                                    {marcas.length === 0 && (
-                                        <small className={styles.formHelper}>Cadastre marcas na aba Catálogo para vincular aqui.</small>
-                                    )}
+                                    <label>Marcas representadas</label>
+                                    <div className={styles.formHelper}>
+                                        As marcas são definidas direto na lista, na coluna <strong>MARCA</strong> (seleção múltipla).
+                                    </div>
                                 </div>
                             </div>
 
@@ -905,9 +940,65 @@ export function ConcessionariasManagement() {
                                                 <div className={styles.tableSubtext}>{cliente.razaoSocial}</div>
                                             </td>
                                             <td className={styles.tableCell}>
-                                                <span className={cliente.marca ? styles.brandBadge : styles.brandBadgeMuted}>
-                                                    {cliente.marca || 'Sem marca'}
-                                                </span>
+                                                {(() => {
+                                                    const selectedIds = getSelectedBrandIds(cliente);
+                                                    const selectedNames = getSelectedBrandNames(cliente);
+                                                    const isOpen = openBrandMenuId === cliente.id;
+                                                    const filteredMarcas = marcas.filter(m =>
+                                                        m.nome.toLowerCase().includes(brandSearch.toLowerCase())
+                                                    );
+                                                    return (
+                                                        <div className={styles.brandCell}>
+                                                            <button
+                                                                type="button"
+                                                                className={styles.brandTrigger}
+                                                                onClick={() => {
+                                                                    setOpenBrandMenuId(isOpen ? null : cliente.id);
+                                                                    setBrandSearch('');
+                                                                }}
+                                                            >
+                                                                {selectedNames.length > 0 ? (
+                                                                    <span className={styles.brandChips}>
+                                                                        {selectedNames.map(nome => (
+                                                                            <span key={nome} className={styles.brandBadge}>{nome}</span>
+                                                                        ))}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className={styles.brandPlaceholder}>— Sem marca —</span>
+                                                                )}
+                                                                <span className={styles.brandCaret}>▾</span>
+                                                            </button>
+                                                            {isOpen && (
+                                                                <div className={styles.brandMenu}>
+                                                                    <input
+                                                                        type="text"
+                                                                        className={styles.brandMenuSearch}
+                                                                        placeholder="Buscar marca..."
+                                                                        value={brandSearch}
+                                                                        onChange={(e) => setBrandSearch(e.target.value)}
+                                                                        autoFocus
+                                                                    />
+                                                                    <div className={styles.brandMenuList}>
+                                                                        {marcas.length === 0 ? (
+                                                                            <span className={styles.brandMenuEmpty}>Cadastre marcas na aba Catálogo.</span>
+                                                                        ) : filteredMarcas.length === 0 ? (
+                                                                            <span className={styles.brandMenuEmpty}>Nenhuma marca encontrada.</span>
+                                                                        ) : filteredMarcas.map(marca => (
+                                                                            <label key={marca.id} className={styles.brandMenuItem}>
+                                                                                <input
+                                                                                    type="checkbox"
+                                                                                    checked={selectedIds.includes(marca.id)}
+                                                                                    onChange={() => handleToggleBrand(cliente, marca.id)}
+                                                                                />
+                                                                                <span>{marca.nome}</span>
+                                                                            </label>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
                                             </td>
                                             <td className={styles.tableCell}>
                                                 <div className={styles.vehicleCount}>
