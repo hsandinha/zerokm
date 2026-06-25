@@ -426,7 +426,7 @@ export default function AdminDashboard() {
                             <p className={styles.subtitle}>Carregando métricas...</p>
                         ) : viewMode === 'summary' ? (
                             <>
-                                <ChurnDashboard />
+                                {['administrador', 'admin'].includes(userInfo.profile || '') && <ChurnDashboard />}
                                 <div className={styles.dashboardGrid}>
                                     <div className={styles.dashboardCard}>
                                     <div className={styles.cardHeader}>
