@@ -124,6 +124,13 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
     const [editingInvite, setEditingInvite] = useState<{ id: string; nome: string; email: string; telefone: string } | null>(null);
     const [editSaving, setEditSaving] = useState(false);
 
+    // Create client
+    const [createModal, setCreateModal] = useState(false);
+    const [createForm, setCreateForm] = useState({ nome: '', email: '', telefone: '', cpf: '' });
+    const [createSending, setCreateSending] = useState(false);
+    const [createFeedback, setCreateFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+    const [createdPassword, setCreatedPassword] = useState<string | null>(null);
+
     // Vendedores
     const [vendedores, setVendedores] = useState<{ id: string; displayName: string; email: string }[]>([]);
     const [assigningVendedor, setAssigningVendedor] = useState<string | null>(null);
@@ -247,6 +254,36 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
         });
         setEditMode(true);
         setEditClientError(null);
+    };
+
+    const handleCepChange = async (val: string) => {
+        const zipCode = val.replace(/\D/g, '');
+        let formatted = zipCode;
+        if (zipCode.length > 5) {
+            formatted = `${zipCode.slice(0, 5)}-${zipCode.slice(5, 8)}`;
+        }
+        setEditForm(f => f ? { ...f, address: { ...f.address, zipCode: formatted } } : f);
+
+        if (zipCode.length === 8) {
+            try {
+                const res = await fetch(`https://viacep.com.br/ws/${zipCode}/json/`);
+                const data = await res.json();
+                if (!data.erro) {
+                    setEditForm(f => f ? {
+                        ...f,
+                        address: {
+                            ...f.address,
+                            street: data.logradouro || f.address.street,
+                            neighborhood: data.bairro || f.address.neighborhood,
+                            city: data.localidade || f.address.city,
+                            state: data.uf || f.address.state,
+                        }
+                    } : f);
+                }
+            } catch (err) {
+                console.error('Erro ao buscar CEP:', err);
+            }
+        }
     };
 
     const handleSaveClientEdit = async () => {
@@ -475,6 +512,33 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
         }
     };
 
+    const handleCreateClient = async () => {
+        if (!createForm.nome.trim()) { setCreateFeedback({ type: 'error', msg: 'Nome é obrigatório.' }); return; }
+        if (!createForm.email.trim()) { setCreateFeedback({ type: 'error', msg: 'E-mail é obrigatório.' }); return; }
+        setCreateSending(true);
+        setCreateFeedback(null);
+        setCreatedPassword(null);
+        try {
+            const res = await fetch('/api/admin/crm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(createForm),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setCreatedPassword(data.tempPassword);
+                setCreateForm({ nome: '', email: '', telefone: '', cpf: '' });
+                reloadClients();
+            } else {
+                setCreateFeedback({ type: 'error', msg: data.error || 'Erro ao criar cliente.' });
+            }
+        } catch {
+            setCreateFeedback({ type: 'error', msg: 'Erro de conexão.' });
+        } finally {
+            setCreateSending(false);
+        }
+    };
+
     const filtered = useMemo(() => {
         let list = [...clients];
 
@@ -579,6 +643,17 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                     <h2 className={styles.title}>CRM de Clientes</h2>
                     <p className={styles.subtitle}>Gerencie clientes ativos, expirados e leads sem plano.</p>
                 </div>
+                <button
+                    className={`${styles.detailBtn} ${styles.btnPlanLg}`}
+                    onClick={() => {
+                        setCreateModal(true);
+                        setCreateForm({ nome: '', email: '', telefone: '', cpf: '' });
+                        setCreateFeedback(null);
+                        setCreatedPassword(null);
+                    }}
+                >
+                    + Cadastrar novo cliente
+                </button>
             </div>
 
             {/* Summary cards */}
@@ -863,7 +938,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                             <div className={styles.clientFormField}>
                                                 <label className={styles.clientFormLabel}>CEP</label>
                                                 {editMode ? (
-                                                    <input className={styles.planSelect} value={editForm?.address.zipCode || ''} onChange={e => setEditForm(f => f ? { ...f, address: { ...f.address, zipCode: e.target.value } } : f)} placeholder="00000-000" />
+                                                    <input className={styles.planSelect} value={editForm?.address.zipCode || ''} onChange={e => handleCepChange(e.target.value)} placeholder="00000-000" />
                                                 ) : (
                                                     <span className={styles.clientFormValue}>{selectedClient.address?.zipCode || '—'}</span>
                                                 )}
@@ -1481,6 +1556,108 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                         ))}
                                     </tbody>
                                 </table>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Create Client Modal */}
+            {createModal && (
+                <div className={styles.overlay} onClick={() => setCreateModal(false)}>
+                    <div className={styles.detailPanel} onClick={e => e.stopPropagation()} style={{ maxWidth: 600 }}>
+                        <button className={styles.closeBtn} onClick={() => setCreateModal(false)}>✕</button>
+                        <h3 className={styles.detailName} style={{ marginBottom: '0.25rem' }}>➕ Cadastrar Novo Cliente</h3>
+                        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
+                            Preencha os dados abaixo para cadastrar um novo cliente na plataforma.
+                        </p>
+
+                        <div style={{
+                            background: 'var(--color-bg)',
+                            border: '1px solid var(--color-highlight)',
+                            borderRadius: '10px',
+                            padding: '1rem',
+                            marginBottom: '1rem',
+                        }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Nome *</label>
+                                    <input
+                                        type="text"
+                                        className={styles.planSelect}
+                                        value={createForm.nome}
+                                        onChange={e => setCreateForm(f => ({ ...f, nome: e.target.value }))}
+                                        placeholder="Nome completo"
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>E-mail *</label>
+                                    <input
+                                        type="email"
+                                        className={styles.planSelect}
+                                        value={createForm.email}
+                                        onChange={e => setCreateForm(f => ({ ...f, email: e.target.value }))}
+                                        placeholder="email@exemplo.com"
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Telefone</label>
+                                    <input
+                                        type="tel"
+                                        className={styles.planSelect}
+                                        value={createForm.telefone}
+                                        onChange={e => {
+                                            const d = e.target.value.replace(/\D/g, '').slice(0, 11);
+                                            const v = d.length <= 10
+                                                ? d.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3')
+                                                : d.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3');
+                                            setCreateForm(f => ({ ...f, telefone: v }));
+                                        }}
+                                        placeholder="(11) 99999-9999"
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>CPF</label>
+                                    <input
+                                        type="text"
+                                        className={styles.planSelect}
+                                        value={createForm.cpf}
+                                        onChange={e => setCreateForm(f => ({ ...f, cpf: e.target.value }))}
+                                        placeholder="000.000.000-00"
+                                    />
+                                </div>
+                            </div>
+                            {!createdPassword && (
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+                                    <button
+                                        className={`${styles.detailBtn} ${styles.btnPlanLg}`}
+                                        onClick={handleCreateClient}
+                                        disabled={createSending || !createForm.nome.trim() || !createForm.email.trim()}
+                                    >
+                                        {createSending ? 'Cadastrando...' : '+ Cadastrar Cliente'}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        {createFeedback && (
+                            <p style={{ color: createFeedback.type === 'error' ? 'var(--color-negative)' : 'var(--color-positive)', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
+                                {createFeedback.msg}
+                            </p>
+                        )}
+
+                        {createdPassword && (
+                            <div style={{ background: '#064e3b', border: '1px solid #10b981', borderRadius: '8px', padding: '12px 16px', marginBottom: '1rem' }}>
+                                <p style={{ color: '#6ee7b7', fontWeight: 700, marginBottom: '4px' }}>✓ Cliente criado com sucesso!</p>
+                                <p style={{ color: '#a7f3d0', fontSize: '0.85rem', marginBottom: '8px' }}>
+                                    A senha padrão é:
+                                </p>
+                                <div style={{ background: '#022c22', borderRadius: '6px', padding: '8px 14px', fontFamily: 'monospace', fontSize: '1.1rem', color: '#fff', letterSpacing: '0.1em', textAlign: 'center' }}>
+                                    {createdPassword}
+                                </div>
+                                <p style={{ color: '#a7f3d0', fontSize: '0.85rem', marginTop: '8px' }}>
+                                    O usuário será solicitado a trocar a senha no primeiro acesso.
+                                </p>
                             </div>
                         )}
                     </div>

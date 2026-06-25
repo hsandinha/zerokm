@@ -267,3 +267,60 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: err?.message || 'Erro interno.' }, { status: 500 });
     }
 }
+
+export async function POST(request: Request) {
+    const session = await getServerSession(authOptions);
+    const profile = (session?.user as any)?.profile;
+    if (!profile || !['administrador', 'admin'].includes(profile)) {
+        return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
+    }
+
+    let body: any;
+    try {
+        body = await request.json();
+    } catch {
+        return NextResponse.json({ error: 'Body inválido.' }, { status: 400 });
+    }
+    const { nome, email, telefone, cpf } = body;
+    if (!nome || !email) {
+        return NextResponse.json({ error: 'Nome e email são obrigatórios.' }, { status: 400 });
+    }
+
+    try {
+        await connectDB();
+
+        const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
+        if (existingUser) {
+            return NextResponse.json({ error: 'Este e-mail já está cadastrado na plataforma.' }, { status: 409 });
+        }
+
+        const { adminAuth } = await import('../../../../lib/firebase-admin');
+        const tempPassword = '123456';
+
+        const userRecord = await adminAuth.createUser({
+            email: email.toLowerCase().trim(),
+            password: tempPassword,
+            displayName: nome.trim(),
+            emailVerified: false,
+            disabled: false,
+        });
+
+        const newUser = await User.create({
+            firebaseUid: userRecord.uid,
+            email: email.toLowerCase().trim(),
+            displayName: nome.trim(),
+            phoneNumber: telefone?.replace(/\D/g, '') || undefined,
+            cpf: cpf?.replace(/\D/g, '') || undefined,
+            allowedProfiles: ['gratis'],
+            defaultProfile: 'gratis',
+            forcePasswordChange: true,
+            credits: 0,
+            isInvitee: false,
+        });
+
+        return NextResponse.json({ ok: true, tempPassword });
+    } catch (err: any) {
+        console.error('POST /api/admin/crm error:', err);
+        return NextResponse.json({ error: err?.message || 'Erro interno.' }, { status: 500 });
+    }
+}
