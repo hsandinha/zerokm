@@ -26,6 +26,7 @@ interface CRMClient {
     expiresAt: string | null;
     daysUntilExpiry: number | null;
     activationMethod: 'manual' | 'cortesia' | 'card' | 'pix' | 'boleto' | null;
+    paymentMethod?: 'pix' | 'boleto' | 'card' | null;
     billingType: 'monthly' | 'annual' | null;
     createdAt: string;
     hasCard: boolean;
@@ -75,6 +76,20 @@ interface CRMManagementProps {
     highlightEmail?: string | null;
 }
 
+type AssignPlanModal = {
+    client: CRMClient;
+    planId: string;
+    startDate: string;
+    activationMethod?: 'manual' | 'cortesia';
+    paymentMethod?: 'pix' | 'boleto' | 'card';
+    paymentFrequency?: 'monthly' | 'annual';
+};
+
+type PaymentInfo = {
+    kind: 'courtesy' | 'pix' | 'boleto' | 'card' | 'unlinked';
+    label: string;
+};
+
 export function CRMManagement({ highlightEmail }: CRMManagementProps) {
     const [clients, setClients] = useState<CRMClient[]>([]);
     const [summary, setSummary] = useState<CRMSummary>({ total: 0, active: 0, expired: 0, no_plan: 0, cortesia: 0 });
@@ -90,7 +105,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
     const [plans, setPlans] = useState<Plan[]>([]);
 
     // Assign plan modal
-    const [assignModal, setAssignModal] = useState<{ client: CRMClient; planId: string; activationMethod?: 'manual' | 'cortesia'; paymentMethod?: 'pix' | 'boleto' | 'card'; paymentFrequency?: 'monthly' | 'annual' } | null>(null);
+    const [assignModal, setAssignModal] = useState<AssignPlanModal | null>(null);
     const [assigning, setAssigning] = useState(false);
     const [assignError, setAssignError] = useState<string | null>(null);
 
@@ -277,8 +292,34 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
         return vendedores.find(v => v.id === vendedorId)?.displayName || null;
     };
 
+    const toDateInputValue = (value?: string | null) => {
+        const date = value ? new Date(value) : new Date();
+        const safeDate = Number.isNaN(date.getTime()) ? new Date() : date;
+        const year = safeDate.getFullYear();
+        const month = String(safeDate.getMonth() + 1).padStart(2, '0');
+        const day = String(safeDate.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const openAssignPlanModal = (client: CRMClient) => {
+        setAssignError(null);
+        setAssignModal({
+            client,
+            planId: plans[0]?.id ?? '',
+            startDate: toDateInputValue(client.expiresAt),
+        });
+    };
+
     const handleAssignPlan = async () => {
         if (!assignModal || !assignModal.planId) return;
+        const selectedPlan = plans.find(plan => plan.id === assignModal.planId);
+        const requiresStartDate = selectedPlan?.type === 'monthly';
+
+        if (requiresStartDate && !assignModal.startDate) {
+            setAssignError('Informe a data de início do plano.');
+            return;
+        }
+
         setAssigning(true);
         setAssignError(null);
         try {
@@ -290,7 +331,8 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                     planId: assignModal.planId,
                     paymentFrequency: assignModal.paymentFrequency || 'monthly',
                     activationMethod: assignModal.planId === '__gratis__' ? undefined : (assignModal.activationMethod || 'manual'),
-                    paymentMethod: assignModal.paymentMethod || 'pix'
+                    paymentMethod: assignModal.paymentMethod || 'pix',
+                    startDate: requiresStartDate ? assignModal.startDate : undefined,
                 }),
             });
             const text = await res.text();
@@ -487,6 +529,20 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
         return new Date(iso).toLocaleDateString('pt-BR');
     };
 
+    const getPaymentInfo = (client: CRMClient): PaymentInfo | null => {
+        if (client.status !== 'active' && client.status !== 'expired') return null;
+        if (client.activationMethod === 'cortesia') return { kind: 'courtesy', label: '🎁 Cortesia' };
+        if (client.paymentMethod === 'pix' || client.activationMethod === 'pix') return { kind: 'pix', label: 'PIX' };
+        if (client.paymentMethod === 'boleto' || client.activationMethod === 'boleto') return { kind: 'boleto', label: 'Boleto' };
+        if (client.paymentMethod === 'card' || client.activationMethod === 'card') return { kind: 'card', label: 'Cartão' };
+        return { kind: 'unlinked', label: 'Não associado' };
+    };
+
+    const selectedAssignPlan = assignModal
+        ? plans.find(plan => plan.id === assignModal.planId)
+        : null;
+    const assignPlanRequiresStartDate = selectedAssignPlan?.type === 'monthly';
+
     const whatsappLink = (phone: string, name: string, status: CRMClient['status']) => {
         const clean = phone.replace(/\D/g, '');
         if (!clean) return null;
@@ -575,190 +631,139 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                 />
             </div>
 
-            {/* Table */}
+            {/* Client grid */}
             <div className={styles.resultsSection}>
-                <div className={styles.tableContainer}>
-                    <table className={styles.table}>
-                        <thead>
-                            <tr>
-                                <th className={`${styles.tableHeader} ${styles.sortable}`} onClick={() => handleSort('displayName')}>
-                                    Cliente{sortIcon('displayName')}
-                                </th>
-                                <th className={styles.tableHeader}>Email / Telefone</th>
-                                <th className={`${styles.tableHeader} ${styles.sortable}`} onClick={() => handleSort('status')}>
-                                    Status{sortIcon('status')}
-                                </th>
-                                <th className={styles.tableHeader}>Plano</th>
-                                <th className={`${styles.tableHeader} ${styles.sortable}`} onClick={() => handleSort('daysUntilExpiry')}>
-                                    Expiração{sortIcon('daysUntilExpiry')}
-                                </th>
-                                <th className={styles.tableHeader}>Perfil %</th>
-                                <th className={`${styles.tableHeader} ${styles.sortable}`} onClick={() => handleSort('createdAt')}>
-                                    Cadastro{sortIcon('createdAt')}
-                                </th>
-                                <th className={styles.tableHeader}>Vendedor</th>
-                                <th className={styles.tableHeader}>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filtered.length === 0 && (
-                                <tr>
-                                    <td colSpan={10} className={styles.emptyStateCell}>Nenhum cliente encontrado.</td>
-                                </tr>
-                            )}
-                            {filtered.map(client => {
-                                const isExpiringSoon = client.status === 'active' && client.daysUntilExpiry !== null && client.daysUntilExpiry <= 7;
-                                const rowClass = client.status === 'expired' ? styles.rowExpired
-                                    : client.status === 'no_plan' ? styles.rowNoPlan
-                                        : isExpiringSoon ? styles.rowWarn : '';
-                                return (
-                                    <tr
-                                        key={client.id}
-                                        className={`${styles.tableRow} ${rowClass}`}
-                                        onClick={() => openClientModal(client)}
-                                    >
-                                        <td className={`${styles.tableCell} ${styles.clientName}`}>
-                                            <span className={styles.nameText}>{client.displayName || '(sem nome)'}</span>
-                                            {(client.status === 'expired' || client.status === 'no_plan') && (
-                                                <span className={styles.alertDot} title={client.status === 'expired' ? 'Plano expirado' : 'Sem plano'}>●</span>
-                                            )}
-                                            {isExpiringSoon && (
-                                                <span className={styles.warnDot} title={`Expira em ${client.daysUntilExpiry} dia(s)`}>⚠️</span>
-                                            )}
-                                        </td>
-                                        <td className={styles.tableCell}>
-                                            <div className={styles.contactInfo}>
-                                                <span>{client.email}</span>
-                                                {client.phoneNumber && (
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                        <span className={styles.phone}>{client.phoneNumber}</span>
-                                                        {whatsappLink(client.phoneNumber, client.displayName, client.status) && (
-                                                            <a
-                                                                href={whatsappLink(client.phoneNumber, client.displayName, client.status)!}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className={`${styles.actionBtn} ${styles.btnWhatsapp}`}
-                                                                title="WhatsApp"
-                                                                style={{ width: '22px', height: '22px', background: 'rgba(37, 211, 102, 0.1)', borderColor: 'transparent' }}
-                                                                onClick={(e) => e.stopPropagation()}
-                                                            >
-                                                                <svg viewBox="0 0 32 32" width="12" height="12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                    <circle cx="16" cy="16" r="16" fill="#25D366" />
-                                                                    <path d="M22.9 9.1A9.7 9.7 0 0 0 16 6.4a9.7 9.7 0 0 0-8.4 14.6L6.4 25.6l4.7-1.2a9.7 9.7 0 0 0 4.9 1.3 9.7 9.7 0 0 0 9.7-9.7 9.7 9.7 0 0 0-2.8-6.9zm-6.9 14.9a8 8 0 0 1-4.1-1.1l-.3-.2-3 .8.8-2.9-.2-.3a8 8 0 0 1-1.2-4.3 8 8 0 0 1 8-8 8 8 0 0 1 5.7 2.4 8 8 0 0 1 2.3 5.7 8 8 0 0 1-8 7.9zm4.4-6c-.2-.1-1.4-.7-1.6-.8-.2-.1-.4-.1-.5.1-.2.2-.6.8-.8 1-.1.1-.3.1-.5 0a6.4 6.4 0 0 1-1.9-1.2 7.1 7.1 0 0 1-1.3-1.6c-.1-.2 0-.4.1-.5l.4-.4.2-.4v-.4l-.8-1.8c-.2-.5-.4-.4-.5-.4h-.5c-.2 0-.4.1-.6.3a2.6 2.6 0 0 0-.8 1.9c0 1.1.8 2.2.9 2.4.1.1 1.5 2.4 3.8 3.3.5.2.9.3 1.2.4.5.1 1 .1 1.4 0 .4-.1 1.3-.5 1.5-1.1.2-.5.2-1 .1-1.1-.1-.1-.3-.2-.5-.3z" fill="#fff" />
-                                                                </svg>
-                                                            </a>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className={styles.tableCell}>
-                                            <span className={styles.statusBadge} style={{ background: STATUS_COLORS[client.status] + '22', color: STATUS_COLORS[client.status], border: `1px solid ${STATUS_COLORS[client.status]}` }}>
-                                                {STATUS_LABELS[client.status]}
-                                            </span>
-                                        </td>
-                                        <td className={styles.tableCell}>
-                                            {client.planName
-                                                ? <span style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
-                                                    {client.planName}
-                                                    {client.billingType === 'annual' && (
-                                                        <span className={styles.cortesiaBadge} style={{ background: 'rgba(16,185,129,0.12)', color: '#10b981', borderColor: 'rgba(16,185,129,0.3)' }}>Anual</span>
-                                                    )}
-                                                    {client.activationMethod === 'cortesia' && (
-                                                        <span className={styles.cortesiaBadge}>🎁 Cortesia</span>
-                                                    )}
-                                                    {client.activationMethod === 'boleto' && (
-                                                        <span className={styles.cortesiaBadge} style={{ background: 'rgba(100,116,139,0.12)', color: '#94a3b8', borderColor: 'rgba(100,116,139,0.3)' }}>Boleto</span>
-                                                    )}
-                                                  </span>
-                                                : <span className={styles.muted}>—</span>}
-                                        </td>
-                                        <td className={styles.tableCell}>
-                                            {client.expiresAt ? (
-                                                <span style={{ color: client.status === 'expired' ? 'var(--color-negative)' : isExpiringSoon ? '#f59e0b' : 'inherit' }}>
-                                                    {formatDate(client.expiresAt)}
-                                                    {client.daysUntilExpiry !== null && (
-                                                        <span className={styles.daysHint}>
-                                                            {client.daysUntilExpiry >= 0 ? ` (${client.daysUntilExpiry}d)` : ` (há ${Math.abs(client.daysUntilExpiry)}d)`}
-                                                        </span>
-                                                    )}
-                                                </span>
-                                            ) : <span className={styles.muted}>—</span>}
-                                        </td>
-                                        <td className={styles.tableCell}>
-                                            <div className={styles.completionCell}>
-                                                {(() => {
-                                                    const pct = client.profileCompletion ?? 0;
-                                                    const r = 10; const c = 2 * Math.PI * r;
-                                                    const color = pct < 40 ? 'var(--color-negative)' : pct < 100 ? '#f59e0b' : 'var(--color-positive)';
-                                                    return (
-                                                        <svg width="28" height="28" viewBox="0 0 28 28">
-                                                            <circle cx="14" cy="14" r={r} fill="none" stroke="var(--color-highlight)" strokeWidth="3" />
-                                                            <circle cx="14" cy="14" r={r} fill="none" stroke={color} strokeWidth="3"
-                                                                strokeDasharray={c}
-                                                                strokeDashoffset={c - (pct / 100) * c}
-                                                                strokeLinecap="round"
-                                                                transform="rotate(-90 14 14)" />
-                                                        </svg>
-                                                    );
-                                                })()}
-                                                <span className={styles.completionPct}>{client.profileCompletion ?? 0}%</span>
-                                                {(client.profileCompletion ?? 0) < 100 && (
-                                                    <a
-                                                        href={`mailto:${client.email}?subject=${encodeURIComponent('Complete seu cadastro na ZeroKM')}&body=${encodeURIComponent(`Olá ${client.displayName || ''},\n\nPara aproveitar todos os recursos da plataforma ZeroKM, por favor complete seu cadastro acessando: ${typeof window !== 'undefined' ? window.location.origin : ''}/dashboard/profile\n\nAtenciosamente,\nEquipe ZeroKM`)}`}
-                                                        className={`${styles.actionBtn} ${styles.btnProfile}`}
-                                                        title="Solicitar conclusão do cadastro"
-                                                        onClick={e => e.stopPropagation()}
-                                                    >
-                                                        📩
-                                                    </a>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className={styles.tableCell}>{formatDate(client.createdAt)}</td>
-                                        <td className={styles.tableCell} onClick={e => e.stopPropagation()}>
-                                            <select
-                                                value={client.vendedorId || ''}
-                                                onChange={e => handleAssignVendedor(client.id, e.target.value)}
-                                                disabled={assigningVendedor === client.id}
-                                                style={{
-                                                    fontSize: '0.75rem',
-                                                    padding: '3px 6px',
-                                                    borderRadius: '6px',
-                                                    border: '1px solid var(--color-highlight)',
-                                                    background: 'var(--color-surface)',
-                                                    color: client.vendedorId ? 'var(--color-accent)' : 'var(--color-text-muted)',
-                                                    minWidth: '120px',
-                                                    cursor: 'pointer',
-                                                }}
+                <div className={styles.clientGridHeader}>
+                    <button className={styles.gridSort} onClick={() => handleSort('displayName')}>
+                        Cliente{sortIcon('displayName')}
+                    </button>
+                    <button className={styles.gridSort} onClick={() => handleSort('daysUntilExpiry')}>
+                        Assinatura{sortIcon('daysUntilExpiry')}
+                    </button>
+                    <span className={styles.gridHeaderLabel}>Financeiro</span>
+                    <span className={styles.gridHeaderLabel}>Responsável</span>
+                    <span className={styles.gridHeaderLabel}>Ação</span>
+                </div>
+
+                <div className={styles.clientGridList}>
+                    {filtered.length === 0 && (
+                        <div className={styles.emptyStateCell}>Nenhum cliente encontrado.</div>
+                    )}
+
+                    {filtered.map(client => {
+                        const isExpiringSoon = client.status === 'active' && client.daysUntilExpiry !== null && client.daysUntilExpiry <= 7;
+                        const rowClass = client.status === 'expired' ? styles.rowExpired
+                            : client.status === 'no_plan' ? styles.rowNoPlan
+                                : isExpiringSoon ? styles.rowWarn : '';
+                        const payment = getPaymentInfo(client);
+                        const profileCompletion = client.profileCompletion ?? 0;
+
+                        return (
+                            <article
+                                key={client.id}
+                                className={`${styles.clientGridRow} ${rowClass}`}
+                                tabIndex={0}
+                                onClick={() => openClientModal(client)}
+                                onKeyDown={event => {
+                                    if (event.target !== event.currentTarget) return;
+                                    if (event.key === 'Enter' || event.key === ' ') {
+                                        event.preventDefault();
+                                        openClientModal(client);
+                                    }
+                                }}
+                                aria-label={`Abrir detalhes de ${client.displayName || client.email}`}
+                            >
+                                <div className={styles.gridIdentity}>
+                                    <div className={styles.clientNameRow}>
+                                        <span className={styles.nameText}>{client.displayName || '(sem nome)'}</span>
+                                        {(client.status === 'expired' || client.status === 'no_plan') && (
+                                            <span className={styles.alertDot} title={client.status === 'expired' ? 'Plano expirado' : 'Sem plano'}>●</span>
+                                        )}
+                                        {isExpiringSoon && <span className={styles.warnDot} title={`Expira em ${client.daysUntilExpiry} dia(s)`}>⚠️</span>}
+                                    </div>
+                                    <span className={styles.clientEmail}>{client.email}</span>
+                                    <div className={styles.clientMetaRow}>
+                                        {client.phoneNumber && <span className={styles.phone}>{client.phoneNumber}</span>}
+                                        {whatsappLink(client.phoneNumber, client.displayName, client.status) && (
+                                            <a
+                                                href={whatsappLink(client.phoneNumber, client.displayName, client.status)!}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className={`${styles.actionBtn} ${styles.btnWhatsapp} ${styles.whatsappAction}`}
+                                                title="Abrir conversa no WhatsApp"
+                                                onClick={event => event.stopPropagation()}
                                             >
-                                                <option value="">— Sem vendedor —</option>
-                                                {vendedores.map(v => (
-                                                    <option key={v.id} value={v.id}>{v.displayName}</option>
-                                                ))}
-                                            </select>
-                                        </td>
-                                        <td className={styles.tableCell} onClick={e => e.stopPropagation()}>
-                                            <div className={styles.actions}>
-                                                <button
-                                                    className={`${styles.actionBtn}`}
-                                                    onClick={() => openClientModal(client)}
-                                                    style={{ width: 'auto', padding: '0 12px', borderRadius: '16px', background: 'var(--color-highlight)', border: 'none', color: 'var(--color-text)', fontWeight: 500 }}
-                                                >
-                                                    Detalhes
-                                                </button>
-                                            </div>
-                                            {chargeResult?.clientId === client.id && (
-                                                <div className={chargeResult.ok ? styles.chargeOk : styles.chargeErr}>
-                                                    {chargeResult.msg}
-                                                </div>
-                                            )}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+                                                <svg viewBox="0 0 32 32" width="12" height="12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                                    <circle cx="16" cy="16" r="16" fill="#25D366" />
+                                                    <path d="M22.9 9.1A9.7 9.7 0 0 0 16 6.4a9.7 9.7 0 0 0-8.4 14.6L6.4 25.6l4.7-1.2a9.7 9.7 0 0 0 4.9 1.3 9.7 9.7 0 0 0 9.7-9.7 9.7 9.7 0 0 0-2.8-6.9zm-6.9 14.9a8 8 0 0 1-4.1-1.1l-.3-.2-3 .8.8-2.9-.2-.3a8 8 0 0 1-1.2-4.3 8 8 0 0 1 8-8 8 8 0 0 1 5.7 2.4 8 8 0 0 1 2.3 5.7 8 8 0 0 1-8 7.9zm4.4-6c-.2-.1-1.4-.7-1.6-.8-.2-.1-.4-.1-.5.1-.2.2-.6.8-.8 1-.1.1-.3.1-.5 0a6.4 6.4 0 0 1-1.9-1.2 7.1 7.1 0 0 1-1.3-1.6c-.1-.2 0-.4.1-.5l.4-.4.2-.4v-.4l-.8-1.8c-.2-.5-.4-.4-.5-.4h-.5c-.2 0-.4.1-.6.3a2.6 2.6 0 0 0-.8 1.9c0 1.1.8 2.2.9 2.4.1.1 1.5 2.4 3.8 3.3.5.2.9.3 1.2.4.5.1 1 .1 1.4 0 .4-.1 1.3-.5 1.5-1.1.2-.5.2-1 .1-1.1-.1-.1-.3-.2-.5-.3z" fill="#fff" />
+                                                </svg>
+                                            </a>
+                                        )}
+                                        <div className={styles.profileMeta} title={`Perfil ${profileCompletion}% completo`}>
+                                            <span className={styles.profileTrack}><span className={styles.profileFill} style={{ width: `${profileCompletion}%` }} /></span>
+                                            <span>{profileCompletion}%</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className={styles.gridSubscription}>
+                                    <span className={styles.mobileLabel}>Assinatura</span>
+                                    <div className={styles.subscriptionHeading}>
+                                        <span className={styles.statusBadge} style={{ background: STATUS_COLORS[client.status] + '22', color: STATUS_COLORS[client.status], border: `1px solid ${STATUS_COLORS[client.status]}` }}>
+                                            {STATUS_LABELS[client.status]}
+                                        </span>
+                                        {client.billingType === 'annual' && <span className={styles.billingBadge}>Anual</span>}
+                                    </div>
+                                    <strong className={styles.planName}>{client.planName || 'Nenhum plano atribuído'}</strong>
+                                    <span className={`${styles.accessMeta} ${client.status === 'expired' ? styles.accessExpired : isExpiringSoon ? styles.accessWarning : ''}`}>
+                                        {client.planType === 'credits'
+                                            ? `${client.credits} créditos disponíveis`
+                                            : client.expiresAt
+                                                ? `${client.status === 'expired' ? 'Expirou' : 'Expira'} em ${formatDate(client.expiresAt)}${client.daysUntilExpiry !== null ? ` · ${client.daysUntilExpiry >= 0 ? `${client.daysUntilExpiry}d restantes` : `${Math.abs(client.daysUntilExpiry)}d atrás`}` : ''}`
+                                                : 'Sem data de expiração'}
+                                    </span>
+                                </div>
+
+                                <div className={styles.gridPayment}>
+                                    <span className={styles.mobileLabel}>Financeiro</span>
+                                    {payment ? (
+                                        <>
+                                            <span className={styles.paymentBadge} data-payment={payment.kind}>{payment.label}</span>
+                                            <span className={styles.paymentMeta}>{client.billingType === 'annual' ? 'Recorrência anual' : 'Recorrência mensal'}</span>
+                                        </>
+                                    ) : (
+                                        <span className={styles.muted}>Sem pagamento</span>
+                                    )}
+                                </div>
+
+                                <div className={styles.gridSeller} onClick={event => event.stopPropagation()}>
+                                    <label className={styles.mobileLabel} htmlFor={`seller-${client.id}`}>Responsável</label>
+                                    <select
+                                        id={`seller-${client.id}`}
+                                        className={styles.sellerSelect}
+                                        value={client.vendedorId || ''}
+                                        onChange={event => handleAssignVendedor(client.id, event.target.value)}
+                                        disabled={assigningVendedor === client.id}
+                                        aria-label={`Responsável por ${client.displayName || client.email}`}
+                                    >
+                                        <option value="">Sem vendedor</option>
+                                        {vendedores.map(vendedor => (
+                                            <option key={vendedor.id} value={vendedor.id}>{vendedor.displayName}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className={styles.gridActions} onClick={event => event.stopPropagation()}>
+                                    <button className={styles.detailsButton} onClick={() => openClientModal(client)}>
+                                        Ver detalhes <span aria-hidden="true">→</span>
+                                    </button>
+                                    {chargeResult?.clientId === client.id && (
+                                        <div className={chargeResult.ok ? styles.chargeOk : styles.chargeErr}>{chargeResult.msg}</div>
+                                    )}
+                                </div>
+                            </article>
+                        );
+                    })}
                 </div>
             </div>
 
@@ -1055,7 +1060,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                                 <button
                                                     className={`${styles.detailBtn} ${styles.btnPlanLg}`}
                                                     onClick={() => {
-                                                        setAssignModal({ client: selectedClient, planId: plans[0]?.id ?? '' });
+                                                        openAssignPlanModal(selectedClient);
                                                         setSelectedClient(null);
                                                     }}
                                                 >
@@ -1184,6 +1189,27 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                             </div>
                         )}
 
+                        {assignPlanRequiresStartDate && (
+                            <div style={{ marginBottom: '1.25rem' }}>
+                                <label htmlFor="plan-start-date" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    Data de início do plano
+                                </label>
+                                <input
+                                    id="plan-start-date"
+                                    className={styles.planSelect}
+                                    type="date"
+                                    value={assignModal.startDate}
+                                    onChange={event => setAssignModal({ ...assignModal, startDate: event.target.value })}
+                                    required
+                                />
+                                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem', margin: '0.4rem 0 0' }}>
+                                    {assignModal.client.expiresAt
+                                        ? 'Preenchida com a expiração atual do cliente. Ajuste para a data em que o pagamento foi recebido, se necessário.'
+                                        : 'Preenchida com a data de hoje. Ajuste para a data em que o pagamento foi recebido, se necessário.'}
+                                </p>
+                            </div>
+                        )}
+
                         {assignModal.planId && assignModal.planId !== '__gratis__' && (
                             <div style={{ marginBottom: '1.25rem' }}>
                                 <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -1232,7 +1258,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                             </button>
                             <button
                                 className={`${styles.detailBtn} ${styles.btnPlanLg}`}
-                                disabled={assigning || !assignModal.planId}
+                                disabled={assigning || !assignModal.planId || (assignPlanRequiresStartDate && !assignModal.startDate)}
                                 onClick={handleAssignPlan}
                             >
                                 {assigning ? 'Salvando...' : 'Confirmar'}

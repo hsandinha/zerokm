@@ -21,6 +21,10 @@ export interface Concessionaria {
     observacoes?: string;
     ativo: boolean;
     operadorId?: string;
+    marcaId?: string | null;
+    marca?: string | null;
+    marcaIds?: string[];
+    marcas?: string[];
     dataCadastro?: string;
     criadoEm?: string;
 }
@@ -29,7 +33,7 @@ const COLLECTION_NAME = 'concessionarias';
 
 export class ConcessionariaService {
     // Adicionar nova concessionária
-    static async addConcessionaria(concessionaria: Omit<Concessionaria, 'id'>): Promise<boolean> {
+    static async addConcessionaria(concessionaria: Omit<Concessionaria, 'id'>): Promise<Concessionaria> {
         try {
             const response = await fetch('/api/concessionarias', {
                 method: 'POST',
@@ -41,7 +45,7 @@ export class ConcessionariaService {
                 console.error('Server error details:', errorData);
                 throw new Error(errorData.error || 'Failed to add concessionaria');
             }
-            return true;
+            return await response.json();
         } catch (error) {
             console.error('Erro ao adicionar concessionária:', error);
             throw error;

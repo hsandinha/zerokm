@@ -82,12 +82,8 @@ export default function LeadCard({ lead, isDragging }: Props) {
             )}
           </div>
 
-          {/* Corretor & Data */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', fontSize: '0.75rem', color: '#6B7280' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <FiUser size={12} />
-                <span>Sem corretor</span>
-            </div>
+          {/* Data */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '16px', fontSize: '0.75rem', color: '#6B7280' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <FiCalendar size={12} />
                 <span>{leadDate}</span>
@@ -95,15 +91,10 @@ export default function LeadCard({ lead, isDragging }: Props) {
           </div>
 
           {/* Ícones de Ação */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '12px', borderTop: '1px dashed #E5E7EB' }}>
-              <button style={{ background: '#F9FAFB', border: '1px solid #F3F4F6', borderRadius: '4px', cursor: 'pointer', color: '#9CA3AF', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FiPhone size={14} /></button>
-              <button style={{ background: '#F9FAFB', border: '1px solid #F3F4F6', borderRadius: '4px', cursor: 'pointer', color: '#9CA3AF', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FiMail size={14} /></button>
-              <button style={{ background: '#F9FAFB', border: '1px solid #F3F4F6', borderRadius: '4px', cursor: 'pointer', color: '#9CA3AF', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FiEye size={14} /></button>
-              <button style={{ background: '#F9FAFB', border: '1px solid #F3F4F6', borderRadius: '4px', cursor: 'pointer', color: '#9CA3AF', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FiHome size={14} /></button>
-              <button style={{ background: '#F9FAFB', border: '1px solid #F3F4F6', borderRadius: '4px', cursor: 'pointer', color: '#9CA3AF', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FiClock size={14} /></button>
-              <button style={{ background: '#F9FAFB', border: '1px solid #F3F4F6', borderRadius: '4px', cursor: 'pointer', color: '#9CA3AF', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FiCheckSquare size={14} /></button>
-              <button style={{ background: '#F9FAFB', border: '1px solid #F3F4F6', borderRadius: '4px', cursor: 'pointer', color: '#9CA3AF', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FiEdit size={14} /></button>
-              <button style={{ background: '#F9FAFB', border: '1px solid #F3F4F6', borderRadius: '4px', cursor: 'pointer', color: '#9CA3AF', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FiTrash2 size={14} /></button>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', alignItems: 'center', paddingTop: '12px', borderTop: '1px dashed #E5E7EB' }}>
+              <button style={{ background: '#F9FAFB', border: '1px solid #F3F4F6', borderRadius: '4px', cursor: 'pointer', color: '#9CA3AF', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Telefone"><FiPhone size={14} /></button>
+              <button style={{ background: '#F9FAFB', border: '1px solid #F3F4F6', borderRadius: '4px', cursor: 'pointer', color: '#9CA3AF', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="E-mail"><FiMail size={14} /></button>
+              <button style={{ background: '#F9FAFB', border: '1px solid #F3F4F6', borderRadius: '4px', cursor: 'pointer', color: '#9CA3AF', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Editar"><FiEdit size={14} /></button>
           </div>
       </div>
     </div>

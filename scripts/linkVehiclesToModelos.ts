@@ -29,7 +29,6 @@ const VehicleSchema = new mongoose.Schema({
     ano: { type: String, required: true },
     opcionais: { type: String },
     preco: { type: Number, required: true },
-    valorVenda: { type: Number },
     status: { type: String, enum: ['A faturar', 'Refaturamento', 'Licenciado', 'Pedido de fábrica'], required: true },
     observacoes: { type: String },
     cidade: { type: String, required: true },

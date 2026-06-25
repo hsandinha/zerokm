@@ -242,6 +242,13 @@
     margin: 0;
 }
 
+.helpText {
+    color: rgba(240, 244, 248, 0.42);
+    font-size: 0.78rem;
+    line-height: 1.35;
+    margin: 0;
+}
+
 /* ── Buttons ── */
 .btnRow {
     display: flex;
