@@ -126,10 +126,43 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
 
     // Create client
     const [createModal, setCreateModal] = useState(false);
-    const [createForm, setCreateForm] = useState({ nome: '', email: '', telefone: '', cpf: '' });
+    const [createForm, setCreateForm] = useState({
+        nome: '', email: '', telefone: '', cpf: '',
+        address: { street: '', number: '', complement: '', neighborhood: '', city: '', state: '', zipCode: '' }
+    });
     const [createSending, setCreateSending] = useState(false);
     const [createFeedback, setCreateFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
     const [createdPassword, setCreatedPassword] = useState<string | null>(null);
+
+    const handleCreateCepChange = async (val: string) => {
+        const zipCode = val.replace(/\D/g, '');
+        let formatted = zipCode;
+        if (zipCode.length > 5) {
+            formatted = `${zipCode.slice(0, 5)}-${zipCode.slice(5, 8)}`;
+        }
+        setCreateForm(f => ({ ...f, address: { ...f.address, zipCode: formatted } }));
+
+        if (zipCode.length === 8) {
+            try {
+                const res = await fetch(`https://viacep.com.br/ws/${zipCode}/json/`);
+                const data = await res.json();
+                if (!data.erro) {
+                    setCreateForm(f => ({
+                        ...f,
+                        address: {
+                            ...f.address,
+                            street: data.logradouro || f.address.street,
+                            neighborhood: data.bairro || f.address.neighborhood,
+                            city: data.localidade || f.address.city,
+                            state: data.uf || f.address.state,
+                        }
+                    }));
+                }
+            } catch (err) {
+                console.error('Erro ao buscar CEP no cadastro:', err);
+            }
+        }
+    };
 
     // Vendedores
     const [vendedores, setVendedores] = useState<{ id: string; displayName: string; email: string }[]>([]);
@@ -527,7 +560,10 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
             const data = await res.json();
             if (res.ok) {
                 setCreatedPassword(data.tempPassword);
-                setCreateForm({ nome: '', email: '', telefone: '', cpf: '' });
+                setCreateForm({
+                    nome: '', email: '', telefone: '', cpf: '',
+                    address: { street: '', number: '', complement: '', neighborhood: '', city: '', state: '', zipCode: '' }
+                });
                 reloadClients();
             } else {
                 setCreateFeedback({ type: 'error', msg: data.error || 'Erro ao criar cliente.' });
@@ -647,7 +683,10 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                     className={styles.primaryHeaderBtn}
                     onClick={() => {
                         setCreateModal(true);
-                        setCreateForm({ nome: '', email: '', telefone: '', cpf: '' });
+                        setCreateForm({
+                            nome: '', email: '', telefone: '', cpf: '',
+                            address: { street: '', number: '', complement: '', neighborhood: '', city: '', state: '', zipCode: '' }
+                        });
                         setCreateFeedback(null);
                         setCreatedPassword(null);
                     }}
@@ -1631,6 +1670,84 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                     />
                                 </div>
                             </div>
+
+                            <div style={{ marginTop: '1.25rem', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                Endereço
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>CEP</label>
+                                    <input
+                                        type="text"
+                                        className={styles.planSelect}
+                                        value={createForm.address.zipCode}
+                                        onChange={e => handleCreateCepChange(e.target.value)}
+                                        placeholder="00000-000"
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Estado</label>
+                                    <input
+                                        type="text"
+                                        className={styles.planSelect}
+                                        value={createForm.address.state}
+                                        onChange={e => setCreateForm(f => ({ ...f, address: { ...f.address, state: e.target.value } }))}
+                                        placeholder="SP"
+                                        maxLength={2}
+                                    />
+                                </div>
+                                <div style={{ gridColumn: 'span 2' }}>
+                                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Rua</label>
+                                    <input
+                                        type="text"
+                                        className={styles.planSelect}
+                                        value={createForm.address.street}
+                                        onChange={e => setCreateForm(f => ({ ...f, address: { ...f.address, street: e.target.value } }))}
+                                        placeholder="Av. Paulista"
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Número</label>
+                                    <input
+                                        type="text"
+                                        className={styles.planSelect}
+                                        value={createForm.address.number}
+                                        onChange={e => setCreateForm(f => ({ ...f, address: { ...f.address, number: e.target.value } }))}
+                                        placeholder="123"
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Complemento</label>
+                                    <input
+                                        type="text"
+                                        className={styles.planSelect}
+                                        value={createForm.address.complement}
+                                        onChange={e => setCreateForm(f => ({ ...f, address: { ...f.address, complement: e.target.value } }))}
+                                        placeholder="Apto 42"
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Bairro</label>
+                                    <input
+                                        type="text"
+                                        className={styles.planSelect}
+                                        value={createForm.address.neighborhood}
+                                        onChange={e => setCreateForm(f => ({ ...f, address: { ...f.address, neighborhood: e.target.value } }))}
+                                        placeholder="Centro"
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cidade</label>
+                                    <input
+                                        type="text"
+                                        className={styles.planSelect}
+                                        value={createForm.address.city}
+                                        onChange={e => setCreateForm(f => ({ ...f, address: { ...f.address, city: e.target.value } }))}
+                                        placeholder="São Paulo"
+                                    />
+                                </div>
+                            </div>
+
                             {!createdPassword && (
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
                                     <button

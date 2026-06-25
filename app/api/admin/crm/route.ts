@@ -281,7 +281,7 @@ export async function POST(request: Request) {
     } catch {
         return NextResponse.json({ error: 'Body inválido.' }, { status: 400 });
     }
-    const { nome, email, telefone, cpf } = body;
+    const { nome, email, telefone, cpf, address } = body;
     if (!nome || !email) {
         return NextResponse.json({ error: 'Nome e email são obrigatórios.' }, { status: 400 });
     }
@@ -311,6 +311,7 @@ export async function POST(request: Request) {
             displayName: nome.trim(),
             phoneNumber: telefone?.replace(/\D/g, '') || undefined,
             cpf: cpf?.replace(/\D/g, '') || undefined,
+            address: address || undefined,
             allowedProfiles: ['gratis'],
             defaultProfile: 'gratis',
             forcePasswordChange: true,
