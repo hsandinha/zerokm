@@ -644,7 +644,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                     <p className={styles.subtitle}>Gerencie clientes ativos, expirados e leads sem plano.</p>
                 </div>
                 <button
-                    className={`${styles.detailBtn} ${styles.btnPlanLg}`}
+                    className={styles.primaryHeaderBtn}
                     onClick={() => {
                         setCreateModal(true);
                         setCreateForm({ nome: '', email: '', telefone: '', cpf: '' });
@@ -652,7 +652,11 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                         setCreatedPassword(null);
                     }}
                 >
-                    + Cadastrar novo cliente
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Cadastrar novo cliente
                 </button>
             </div>
 
