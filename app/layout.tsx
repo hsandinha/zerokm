@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: "Plataforma completa para concessionárias e compradores de veículos zero quilômetro. Gestão de estoque, CRM, logística e vendas.",
   verification: {
     other: {
-      "facebook-domain-verification": ["9msq6vd14yujrpjjt9dbf82ofgq86s", "eljrbvzb612ygbsqo0zv36mowowjwz"],
+      "facebook-domain-verification": ["9msq6vd14yujrpjjt9dbf82ofgq86s"],
     },
   },
 };
