@@ -6,6 +6,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "CNV — Comércio Nacional de Veículos 0km",
   description: "Plataforma completa para concessionárias e compradores de veículos zero quilômetro. Gestão de estoque, CRM, logística e vendas.",
+  verification: {
+    other: {
+      "facebook-domain-verification": ["9msq6vd14yujrpjjt9dbf82ofgq86s", "eljrbvzb612ygbsqo0zv36mowowjwz"],
+    },
+  },
 };
 
 export const viewport: Viewport = {
