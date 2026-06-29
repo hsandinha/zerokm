@@ -80,6 +80,7 @@ VehicleVariationSchema.index({
     combustivel: 1,
     cor: 1,
     transmissao: 1,
+    opcionais: 1,
 }, {
     unique: true,
     partialFilterExpression: { ativo: true },

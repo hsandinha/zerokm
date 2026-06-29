@@ -207,7 +207,7 @@ export async function POST(request: Request) {
         console.error('Erro ao criar variação:', error);
         const status = error?.code === 11000 ? 409 : 500;
         return NextResponse.json({
-            error: status === 409 ? 'Esta variação já existe para a marca' : (error.message || 'Erro interno'),
+            error: status === 409 ? 'Já existe uma variação idêntica (mesma marca, modelo, ano, combustível, cor, câmbio e opcionais)' : (error.message || 'Erro interno'),
         }, { status });
     }
 }
