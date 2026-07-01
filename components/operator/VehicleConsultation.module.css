@@ -735,6 +735,11 @@
     color: var(--color-negative);
 }
 
+.statusBlue {
+    background: rgba(59, 130, 246, 0.15);
+    color: #2563eb;
+}
+
 .statusDefault {
     background: var(--color-panel);
     color: var(--color-text-muted);

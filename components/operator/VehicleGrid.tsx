@@ -9,7 +9,7 @@ export function getStatusColor(status: string | undefined) {
         case 'a faturar':
             return styles.statusAvailable;
         case 'refaturamento':
-            return styles.statusReserved;
+            return styles.statusBlue;
         case 'licenciado':
             return styles.statusSold;
         case 'pedido de fábrica':
