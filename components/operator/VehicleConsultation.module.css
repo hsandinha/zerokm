@@ -664,6 +664,7 @@
     overflow-y: auto;
     flex: 1;
     background: var(--color-bg);
+    align-content: start;
 }
 
 
@@ -677,6 +678,8 @@
     transition: all 0.15s ease;
     overflow: hidden;
     position: relative;
+    display: flex;
+    flex-direction: column;
 }
 
 .vehicleCard:hover {
@@ -770,6 +773,7 @@
     gap: 0.75rem;
     background: var(--color-surface);
     position: relative;
+    flex: 1;
 }
 
 
