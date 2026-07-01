@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
-import Vehicle from '@/models/Vehicle';
+import DealerVehiclePrice from '@/models/DealerVehiclePrice';
 import User from '@/models/User';
 import Concessionaria from '@/models/Concessionaria';
 import { getServerSession } from 'next-auth';
@@ -16,34 +16,28 @@ export async function GET(request: Request) {
         await connectDB();
 
         // Identify the dealership
-        let dealershipName: string | null = null;
+        let dealershipId: string | null = null;
 
         // @ts-ignore
         if (session.user?.profile === 'concessionaria') {
             const user = await User.findOne({ email: session.user.email });
             if (user && user.dealershipId) {
-                const dealership = await Concessionaria.findById(user.dealershipId);
-                if (dealership) {
-                    dealershipName = dealership.nome;
-                }
+                dealershipId = user.dealershipId;
             }
         }
 
-        if (!dealershipName) {
+        if (!dealershipId) {
             return NextResponse.json({ error: 'Concessionária não encontrada para este usuário' }, { status: 404 });
         }
 
         // 1. Total Vehicles
-        const veiculosCadastrados = await Vehicle.countDocuments({ concessionaria: dealershipName });
+        const veiculosCadastrados = await DealerVehiclePrice.countDocuments({ concessionariaId: dealershipId, ativo: true });
 
-        // 2. Sold Vehicles (assuming 'Vendido' status is used, even if not in strict schema enum yet)
-        const veiculosVendidos = await Vehicle.countDocuments({
-            concessionaria: dealershipName,
-            status: 'Vendido' as any
-        });
+        // 2. Sold Vehicles (not fully supported in new model yet, leaving at 0 or query status if added)
+        const veiculosVendidos = 0; // await DealerVehiclePrice.countDocuments({ concessionariaId: dealershipId, status: 'Vendido' });
 
         // 3. Last Update
-        const lastUpdatedVehicle = await Vehicle.findOne({ concessionaria: dealershipName })
+        const lastUpdatedVehicle = await DealerVehiclePrice.findOne({ concessionariaId: dealershipId })
             .sort({ updatedAt: -1 })
             .select('updatedAt');
 
@@ -52,37 +46,30 @@ export async function GET(request: Request) {
             const lastUpdateDate = new Date(lastUpdatedVehicle.updatedAt);
             const today = new Date();
             const diffTime = Math.abs(today.getTime() - lastUpdateDate.getTime());
-            daysSinceUpdate = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            // If updated today, diff might be small, ceil gives 1 if > 0. 
-            // If we want 0 for today:
             daysSinceUpdate = Math.floor(diffTime / (1000 * 60 * 60 * 24));
         } else {
-            // If no vehicles or no update date, maybe treat as very old?
-            // Or 0 if it's a new account? Let's say -1 or handle in frontend.
-            // If they have vehicles but never updated (unlikely with timestamps), it uses createdAt.
-            // If 0 vehicles, daysSinceUpdate = 0 (neutral).
             if (veiculosCadastrados === 0) daysSinceUpdate = 0;
             else daysSinceUpdate = 999; // Very old
         }
 
         // 4. Chart Data (Last 6 months evolution)
-        // We'll group by month of dataEntrada
         const sixMonthsAgo = new Date();
         sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
         sixMonthsAgo.setDate(1); // Start of that month
 
-        const chartAggregation = await Vehicle.aggregate([
+        const chartAggregation = await DealerVehiclePrice.aggregate([
             {
                 $match: {
-                    concessionaria: dealershipName,
-                    dataEntrada: { $gte: sixMonthsAgo }
+                    concessionariaId: typeof dealershipId === 'string' ? dealershipId : (dealershipId as any).toString(), // Just to be safe with ObjectId
+                    createdAt: { $gte: sixMonthsAgo },
+                    ativo: true
                 }
             },
             {
                 $group: {
                     _id: {
-                        month: { $month: "$dataEntrada" },
-                        year: { $year: "$dataEntrada" }
+                        month: { $month: "$createdAt" },
+                        year: { $year: "$createdAt" }
                     },
                     count: { $sum: 1 }
                 }

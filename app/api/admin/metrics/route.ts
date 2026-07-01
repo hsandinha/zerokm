@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
-import Vehicle from '@/models/Vehicle';
+import DealerVehiclePrice from '@/models/DealerVehiclePrice';
+import Concessionaria from '@/models/Concessionaria';
+import User from '@/models/User';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,11 +17,11 @@ export async function GET(request: NextRequest) {
         const responsavelFilter = searchParams.get('responsavel');
         const diasDesdeFilter = searchParams.get('diasDesde');
 
-        // Build match filter for aggregations
+        // Build match filter for aggregations AFTER lookups
         const matchFilter: any = {};
-        if (operadorFilter) matchFilter.operador = operadorFilter;
-        if (concessionariaFilter) matchFilter.concessionaria = concessionariaFilter;
-        if (responsavelFilter) matchFilter.nomeContato = responsavelFilter;
+        if (operadorFilter) matchFilter['op.displayName'] = operadorFilter;
+        if (concessionariaFilter) matchFilter['conc.nome'] = concessionariaFilter;
+        if (responsavelFilter) matchFilter['conc.contato'] = responsavelFilter; // Assuming contato is the responsavel in this context
 
         // Filter by days since update
         if (diasDesdeFilter) {
@@ -43,12 +45,35 @@ export async function GET(request: NextRequest) {
             }
         }
 
+        const basePipeline: any[] = [
+            { $match: { ativo: true } },
+            {
+                $lookup: {
+                    from: 'concessionarias',
+                    localField: 'concessionariaId',
+                    foreignField: '_id',
+                    as: 'conc'
+                }
+            },
+            { $unwind: { path: '$conc', preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'conc.operadorId',
+                    foreignField: '_id',
+                    as: 'op'
+                }
+            },
+            { $unwind: { path: '$op', preserveNullAndEmptyArrays: true } }
+        ];
+
         // Agregação 1: Veículos por Operador
-        const byOperator = await Vehicle.aggregate([
+        const byOperator = await DealerVehiclePrice.aggregate([
+            ...basePipeline,
             ...(Object.keys(matchFilter).length > 0 ? [{ $match: matchFilter }] : []),
             {
                 $group: {
-                    _id: '$operador',
+                    _id: '$op.displayName',
                     total: { $sum: 1 }
                 }
             },
@@ -57,12 +82,8 @@ export async function GET(request: NextRequest) {
                     _id: { $nin: [null, ''] }
                 }
             },
-            {
-                $sort: { total: -1 }
-            },
-            {
-                $limit: 10
-            },
+            { $sort: { total: -1 } },
+            { $limit: 10 },
             {
                 $project: {
                     _id: 0,
@@ -73,11 +94,12 @@ export async function GET(request: NextRequest) {
         ]);
 
         // Agregação 2: Veículos por Concessionária
-        const byConcessionaria = await Vehicle.aggregate([
+        const byConcessionaria = await DealerVehiclePrice.aggregate([
+            ...basePipeline,
             ...(Object.keys(matchFilter).length > 0 ? [{ $match: matchFilter }] : []),
             {
                 $group: {
-                    _id: '$concessionaria',
+                    _id: '$conc.nome',
                     total: { $sum: 1 }
                 }
             },
@@ -86,9 +108,7 @@ export async function GET(request: NextRequest) {
                     _id: { $nin: [null, ''] }
                 }
             },
-            {
-                $sort: { total: -1 }
-            },
+            { $sort: { total: -1 } },
             {
                 $project: {
                     _id: 0,
@@ -99,16 +119,17 @@ export async function GET(request: NextRequest) {
         ]);
 
         // Agregação 3: Dias sem atualização por Concessionária
-        const concessionariaStaleness = await Vehicle.aggregate([
+        const concessionariaStaleness = await DealerVehiclePrice.aggregate([
+            ...basePipeline,
             {
                 $match: {
-                    concessionaria: { $nin: [null, ''] },
+                    'conc.nome': { $nin: [null, ''] },
                     ...matchFilter
                 }
             },
             {
                 $group: {
-                    _id: '$concessionaria',
+                    _id: '$conc.nome',
                     lastUpdated: {
                         $max: {
                             $ifNull: ['$updatedAt', '$createdAt']
@@ -136,25 +157,24 @@ export async function GET(request: NextRequest) {
                     dias: { $floor: '$dias' }
                 }
             },
-            {
-                $sort: { dias: -1 }
-            }
+            { $sort: { dias: -1 } }
         ]);
 
         // Agregação 4: Detalhes por Concessionária (concessionária > responsável > operador > quantidade > dias)
-        const dealershipDetails = await Vehicle.aggregate([
+        const dealershipDetails = await DealerVehiclePrice.aggregate([
+            ...basePipeline,
             {
                 $match: {
-                    concessionaria: { $nin: [null, ''] },
+                    'conc.nome': { $nin: [null, ''] },
                     ...matchFilter
                 }
             },
             {
                 $group: {
                     _id: {
-                        concessionaria: '$concessionaria',
-                        responsavel: '$nomeContato',
-                        operador: '$operador'
+                        concessionaria: '$conc.nome',
+                        responsavel: '$conc.contato',
+                        operador: '$op.displayName'
                     },
                     total: { $sum: 1 },
                     lastUpdated: {

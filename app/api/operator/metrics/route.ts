@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import connectDB from '@/lib/mongodb';
 import Concessionaria from '@/models/Concessionaria';
-import Vehicle from '@/models/Vehicle';
+import DealerVehiclePrice from '@/models/DealerVehiclePrice';
 import User from '@/models/User';
 
 export async function GET(request: Request) {
@@ -70,24 +70,20 @@ export async function GET(request: Request) {
         let veiculosVendidos = 0;
         let desatualizadas = 0;
 
-        if (dealershipNames.length > 0) {
-            const regexes = dealershipNames.map(n => new RegExp(`^${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'));
+        if (dealershipIds.length > 0) {
             
             // Calculando total e vendidos
-            totalVeiculos = await Vehicle.countDocuments({ concessionaria: { $in: regexes } });
-            veiculosVendidos = await Vehicle.countDocuments({ 
-                concessionaria: { $in: regexes }, 
-                status: 'Licenciado' // generic logic
-            });
+            totalVeiculos = await DealerVehiclePrice.countDocuments({ concessionariaId: { $in: dealershipIds }, ativo: true });
+            veiculosVendidos = 0; // await DealerVehiclePrice.countDocuments({ concessionariaId: { $in: dealershipIds }, status: 'Licenciado' });
             veiculosAtivos = totalVeiculos - veiculosVendidos;
 
             // Calculando concessionárias desatualizadas (nenhum veículo atualizado nos últimos 5 dias)
             const fiveDaysAgo = new Date();
             fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
 
-            const activeDealersAgg = await Vehicle.aggregate([
-                { $match: { concessionaria: { $in: regexes } } },
-                { $group: { _id: "$concessionaria", maxUpdatedAt: { $max: "$updatedAt" } } }
+            const activeDealersAgg = await DealerVehiclePrice.aggregate([
+                { $match: { concessionariaId: { $in: dealershipIds }, ativo: true } },
+                { $group: { _id: "$concessionariaId", maxUpdatedAt: { $max: "$updatedAt" } } }
             ]);
 
             const updatingDealersCount = activeDealersAgg.filter(a => a.maxUpdatedAt >= fiveDaysAgo).length;
