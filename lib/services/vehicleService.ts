@@ -69,8 +69,6 @@ export interface VehiclePaginationOptions {
     };
 }
 
-// Coleção de veículos
-const VEHICLES_COLLECTION = 'vehicles';
 
 export class VehicleService {
     // Adicionar um novo veículo

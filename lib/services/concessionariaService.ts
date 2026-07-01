@@ -29,7 +29,6 @@ export interface Concessionaria {
     criadoEm?: string;
 }
 
-const COLLECTION_NAME = 'concessionarias';
 
 export class ConcessionariaService {
     // Adicionar nova concessionária
