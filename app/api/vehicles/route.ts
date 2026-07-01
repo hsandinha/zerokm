@@ -249,7 +249,7 @@ export async function GET(request: Request) {
                 coresDisponiveis: doc.coresDisponiveis || [],
                 observacoes: doc.observacoes,
                 ativo: doc.ativo,
-                operador: doc.operadorInfo?.displayName || doc.operador || '', // Prioritize dynamic operator, fallback to static
+                operador: doc.operadorInfo?.displayName || '', // Usa APENAS o operador dinâmico
                 dataEntrada: doc.createdAt,
                 updatedAt: doc.updatedAt,
                 
@@ -257,7 +257,8 @@ export async function GET(request: Request) {
                 concessionaria: c.nome || 'Concessionária não vinculada',
                 cidade: c.cidade,
                 estado: c.uf,
-                telefone: c.telefone,
+                nomeContato: c.contato || '',
+                telefone: c.celular || c.telefone || '',
             };
         });
 

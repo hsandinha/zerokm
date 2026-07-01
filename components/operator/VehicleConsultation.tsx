@@ -2876,8 +2876,8 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                             )}
 
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>Operador / Contato</label>
-                                <div style={{ fontSize: '1rem', color: '#334155' }}>{locationVehicle.operador || '-'}</div>
+                                <label style={{ display: 'block', fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>Contato Principal</label>
+                                <div style={{ fontSize: '1rem', color: '#334155' }}>{locationVehicle.nomeContato || '-'}</div>
                             </div>
 
                             <div>
