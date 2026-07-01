@@ -7,7 +7,7 @@ import DealerVehiclePrice from '@/models/DealerVehiclePrice';
 import User from '@/models/User';
 import VehicleVariation from '@/models/VehicleVariation';
 
-const ADMIN_PROFILES = new Set(['admin', 'administrador', 'gerente', 'operador', 'operator']);
+const ADMIN_PROFILES = new Set(['admin', 'administrador', 'gerente', 'operador', 'operator', 'administrativo']);
 const DEALERSHIP_PROFILES = new Set(['concessionaria', 'dealership']);
 
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
