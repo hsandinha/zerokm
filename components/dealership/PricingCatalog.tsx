@@ -11,6 +11,7 @@ interface PricingRow {
     marca: string;
     modelo: string;
     codigoFipe?: string;
+    opcionais?: string;
     opcionaisPadrao?: string[];
     anoModelo?: number;
     anoFabricacao?: number;
@@ -450,11 +451,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                                     <td>{row.combustivel || '-'}</td>
                                     <td>{row.cor || '-'}</td>
                                     <td>{row.transmissao || '-'}</td>
-                                    <td>
-                                        {row.opcionaisPadrao && row.opcionaisPadrao.length > 0 
-                                            ? row.opcionaisPadrao.join(', ') 
-                                            : '-'}
-                                    </td>
+                                    <td>{row.opcionais || '-'}</td>
                                     <td>
                                         <div className={styles.priceCell}>
                                             <span>R$</span>

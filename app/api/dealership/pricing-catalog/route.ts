@@ -36,6 +36,7 @@ function serializeCatalogRow(row: any) {
         motor: row.motor,
         carroceria: row.carroceria,
         portas: row.portas,
+        opcionais: row.opcionais,
         opcionaisPadrao: row.opcionaisPadrao || [],
         imagemUrl: row.imagemUrl,
         priceId: price?._id?.toString?.() || null,
