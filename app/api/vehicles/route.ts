@@ -118,7 +118,7 @@ export async function GET(request: Request) {
         if (searchParams.get('estado')) matchStage['concessionariaInfo.uf'] = { $regex: escapeRegex(searchParams.get('estado')!), $options: 'i' };
         if (searchParams.get('cidade')) matchStage['concessionariaInfo.cidade'] = { $regex: escapeRegex(searchParams.get('cidade')!), $options: 'i' };
         if (searchParams.get('concessionaria')) matchStage['concessionariaInfo.nome'] = { $regex: escapeRegex(searchParams.get('concessionaria')!), $options: 'i' };
-        if (searchParams.get('operador')) matchStage['operador'] = { $regex: escapeRegex(searchParams.get('operador')!), $options: 'i' };
+        if (searchParams.get('operador')) matchStage['operadorInfo.displayName'] = { $regex: escapeRegex(searchParams.get('operador')!), $options: 'i' };
         
         // O novo sistema não tem nomeContato no DealerVehiclePrice, usamos observacoes ou fallback
         if (searchParams.get('cor')) {
@@ -159,7 +159,7 @@ export async function GET(request: Request) {
                 { 'variation.opcionais': searchRegex },
                 { 'concessionariaInfo.nome': searchRegex },
                 { 'concessionariaInfo.uf': searchRegex },
-                { 'operador': searchRegex },
+                { 'operadorInfo.displayName': searchRegex }, // Buscamos pelo nome do operador real!
             ];
 
             matchStage.$or = matchStage.$or ? [...matchStage.$or, ...orConditions] : orConditions;
@@ -187,6 +187,17 @@ export async function GET(request: Request) {
                 }
             },
             { $unwind: { path: '$concessionariaInfo', preserveNullAndEmptyArrays: true } },
+            
+            // 2.5. Join with User to get dynamic Operador
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'concessionariaInfo.operadorId',
+                    foreignField: '_id',
+                    as: 'operadorInfo'
+                }
+            },
+            { $unwind: { path: '$operadorInfo', preserveNullAndEmptyArrays: true } },
             
             // 3. Match filters
             { $match: matchStage },
@@ -238,7 +249,7 @@ export async function GET(request: Request) {
                 coresDisponiveis: doc.coresDisponiveis || [],
                 observacoes: doc.observacoes,
                 ativo: doc.ativo,
-                operador: doc.operador || '',
+                operador: doc.operadorInfo?.displayName || doc.operador || '', // Prioritize dynamic operator, fallback to static
                 dataEntrada: doc.createdAt,
                 updatedAt: doc.updatedAt,
                 
