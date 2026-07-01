@@ -8,6 +8,7 @@ import Invite from '../../../../models/Invite';
 import Payment from '../../../../models/Payment';
 import { calculateProfileCompletion } from '../../../../lib/utils/profileCompletion';
 import { calculateSubscriptionExpiry, parseSubscriptionStartDate } from '../../../../lib/utils/subscriptionDates';
+import { isFreeTrialExpired } from '../../../../lib/utils/freeTrial';
 
 export async function GET() {
     const session = await getServerSession(authOptions);
@@ -26,7 +27,7 @@ export async function GET() {
     const users = await User.find({
         allowedProfiles: { $in: ['gratis', 'cliente'] },
     })
-        .select('displayName email phoneNumber allowedProfiles credits subscription createdAt creditCard address cpf isInvitee vendedorId')
+        .select('displayName email phoneNumber allowedProfiles credits subscription createdAt creditCard address cpf isInvitee vendedorId freeTrialStartedAt freeTrialExpiresAt')
         .sort({ createdAt: -1 })
         .lean();
 
@@ -92,6 +93,8 @@ export async function GET() {
             inviteCount: inviteCountMap.get(u._id.toString()) || 0,
             isInvitee: u.isInvitee === true,
             vendedorId: u.vendedorId || null,
+            freeTrialExpiresAt: isGratis && u.freeTrialExpiresAt ? new Date(u.freeTrialExpiresAt).toISOString() : null,
+            freeTrialExpired: isGratis ? isFreeTrialExpired(u.freeTrialExpiresAt, now) : false,
         };
     });
 

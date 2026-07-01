@@ -1,4 +1,4 @@
-export const FREE_TRIAL_DURATION_MS = 10 * 60 * 1000;
+export const FREE_TRIAL_DURATION_MS = 24 * 60 * 60 * 1000;
 
 export function createFreeTrialWindow(now = new Date()) {
     return {
@@ -11,6 +11,14 @@ export function createExpiredFreeTrialWindow(now = new Date()) {
     return {
         freeTrialStartedAt: new Date(now.getTime() - FREE_TRIAL_DURATION_MS),
         freeTrialExpiresAt: now,
+    };
+}
+
+/** Renew the free trial for another 24h starting now. */
+export function createRenewedFreeTrialWindow(now = new Date()) {
+    return {
+        freeTrialStartedAt: now,
+        freeTrialExpiresAt: new Date(now.getTime() + FREE_TRIAL_DURATION_MS),
     };
 }
 

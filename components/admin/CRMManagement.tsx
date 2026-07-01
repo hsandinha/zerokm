@@ -37,6 +37,8 @@ interface CRMClient {
     isInvitee: boolean;
     vendedorId?: string | null;
     vendedorNome?: string | null;
+    freeTrialExpiresAt?: string | null;
+    freeTrialExpired?: boolean;
 }
 
 interface Plan {
@@ -123,6 +125,10 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
     const [tempPassword, setTempPassword] = useState<string | null>(null);
     const [editingInvite, setEditingInvite] = useState<{ id: string; nome: string; email: string; telefone: string } | null>(null);
     const [editSaving, setEditSaving] = useState(false);
+
+    // Renew free trial
+    const [renewingTrialId, setRenewingTrialId] = useState<string | null>(null);
+    const [renewTrialResult, setRenewTrialResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
     // Create client
     const [createModal, setCreateModal] = useState(false);
@@ -572,6 +578,35 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
             setCreateFeedback({ type: 'error', msg: 'Erro de conexão.' });
         } finally {
             setCreateSending(false);
+        }
+    };
+
+    const handleRenewFreeTrial = async (client: CRMClient) => {
+        setRenewingTrialId(client.id);
+        setRenewTrialResult(null);
+        try {
+            const res = await fetch('/api/admin/crm/renew-trial', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: client.id }),
+            });
+            const data = await res.json();
+            if (data.ok) {
+                setRenewTrialResult({ ok: true, msg: 'Trial renovado por +24h!' });
+                const updated = {
+                    ...client,
+                    freeTrialExpiresAt: data.freeTrialExpiresAt,
+                    freeTrialExpired: false,
+                };
+                setClients(prev => prev.map(c => c.id === client.id ? updated : c));
+                if (selectedClient?.id === client.id) setSelectedClient(updated);
+            } else {
+                setRenewTrialResult({ ok: false, msg: data.error || 'Erro ao renovar trial.' });
+            }
+        } catch {
+            setRenewTrialResult({ ok: false, msg: 'Erro de conexão.' });
+        } finally {
+            setRenewingTrialId(null);
         }
     };
 
@@ -1149,6 +1184,37 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                         </div>
                                     </div>
 
+                                    {/* Free Trial info for gratis clients */}
+                                    {selectedClient.profileType === 'gratis' && (
+                                        <div className={styles.clientSection}>
+                                            <div className={styles.clientSectionHeader}>
+                                                <span className={styles.clientSectionTitle}>Teste Grátis (24h)</span>
+                                                <span style={{
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 600,
+                                                    padding: '2px 8px',
+                                                    borderRadius: '4px',
+                                                    background: selectedClient.freeTrialExpired ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)',
+                                                    color: selectedClient.freeTrialExpired ? '#ef4444' : '#10b981',
+                                                }}>
+                                                    {selectedClient.freeTrialExpired ? '⏰ Expirado' : '✅ Ativo'}
+                                                </span>
+                                            </div>
+                                            <div className={styles.clientFormGrid}>
+                                                <div className={styles.clientFormField}>
+                                                    <label className={styles.clientFormLabel}>Expira em</label>
+                                                    <span className={styles.clientFormValue} style={{
+                                                        color: selectedClient.freeTrialExpired ? 'var(--color-negative)' : 'inherit'
+                                                    }}>
+                                                        {selectedClient.freeTrialExpiresAt
+                                                            ? new Date(selectedClient.freeTrialExpiresAt).toLocaleString('pt-BR')
+                                                            : 'Nunca iniciado'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <div className={styles.clientSection}>
                                         <div className={styles.clientSectionHeader}>
                                             <span className={styles.clientSectionTitle}>Ações</span>
@@ -1222,6 +1288,27 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                                 >
                                                     📩 Solicitar Conclusão ({selectedClient.profileCompletion}%)
                                                 </a>
+                                            )}
+                                            {selectedClient.profileType === 'gratis' && (
+                                                <button
+                                                    className={`${styles.detailBtn} ${styles.btnPlanLg}`}
+                                                    disabled={renewingTrialId === selectedClient.id}
+                                                    onClick={() => handleRenewFreeTrial(selectedClient)}
+                                                >
+                                                    {renewingTrialId === selectedClient.id ? '⏳ Renovando...' : '🔄 Renovar 24h'}
+                                                </button>
+                                            )}
+                                            {renewTrialResult && selectedClient && (
+                                                <div style={{
+                                                    fontSize: '0.8rem',
+                                                    padding: '6px 10px',
+                                                    borderRadius: '6px',
+                                                    background: renewTrialResult.ok ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                                                    color: renewTrialResult.ok ? '#10b981' : '#ef4444',
+                                                    gridColumn: '1 / -1',
+                                                }}>
+                                                    {renewTrialResult.msg}
+                                                </div>
                                             )}
                                         </div>
                                     </div>

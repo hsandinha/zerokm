@@ -17,8 +17,19 @@ const firebaseConfig = {
 // Initialize Firebase (avoid re-init on client hot reload)
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const analytics = typeof window !== 'undefined' && firebaseConfig.measurementId ? getAnalytics(app) : null;
-const auth = getAuth(app);
-auth.languageCode = 'pt';
+
+// Only initialize auth if we have a valid API key, otherwise mock/fail gracefully
+let auth: any = null;
+if (firebaseConfig.apiKey) {
+    try {
+        auth = getAuth(app);
+        auth.languageCode = 'pt';
+    } catch (e) {
+        console.warn('Firebase Auth falhou ao iniciar:', e);
+    }
+} else {
+    console.warn('⚠️ NEXT_PUBLIC_FIREBASE_API_KEY não configurada. Funcionalidades do Firebase estarão indisponíveis.');
+}
 
 export { app, analytics, auth };
 export default firebaseConfig;

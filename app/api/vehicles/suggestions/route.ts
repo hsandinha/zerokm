@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
-import Vehicle from '@/models/Vehicle';
 import User from '@/models/User';
 import Concessionaria from '@/models/Concessionaria';
+import VehicleVariation from '@/models/VehicleVariation';
+import DealerVehiclePrice from '@/models/DealerVehiclePrice';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 
@@ -21,7 +22,6 @@ const getEffectiveProfile = (session: any, requestedProfile?: string | null) => 
 };
 
 // GET /api/vehicles/suggestions?fields=modelo,cor,ano,status,combustivel,transmissao&searchTerm=corol
-// Retorna valores distintos para cada campo solicitado (até limite opcional)
 export async function GET(request: Request) {
     try {
         const session = await getServerSession(authOptions);
@@ -41,68 +41,88 @@ export async function GET(request: Request) {
         const fields = (fieldsParam ? fieldsParam.split(',') : defaultFields).filter(Boolean);
 
         // Check for dealership restriction
-        let restrictedDealershipName: string | null = null;
+        let restrictedDealershipId: string | null = null;
         if (effectiveProfile === 'concessionaria') {
             const user = await User.findOne({ email: session.user.email });
             if (user && user.dealershipId) {
-                const dealership = await Concessionaria.findById(user.dealershipId);
-                if (dealership) {
-                    restrictedDealershipName = dealership.nome;
-                }
+                restrictedDealershipId = user.dealershipId.toString();
             }
 
             // If logged in as concessionaria but no dealership found/linked, return empty
-            if (!restrictedDealershipName) {
+            if (!restrictedDealershipId) {
                 return NextResponse.json({ suggestions: {} });
             }
         }
 
         const suggestions: Record<string, string[]> = {};
+        
+        // Mapeamento de quais campos pertencem a quais coleções no novo modelo
+        const variationFields = new Set(['modelo', 'cor', 'ano', 'status', 'combustivel', 'transmissao', 'opcionais', 'anoModelo', 'marca']);
+        const concessionariaFields = new Set(['cidade', 'estado', 'concessionaria']);
 
-        // Para cada campo, buscamos distinct; se searchTerm presente, filtramos por regex case-insensitive
         for (const field of fields) {
             let filtered: string[] = [];
-
-            if (sortByCount) {
-                // Use aggregation to sort by frequency
-                const matchStage: any = {};
-                if (restrictedDealershipName) {
-                    matchStage.concessionaria = restrictedDealershipName;
+            
+            // Map 'ano' to 'anoModelo' for variation query
+            const actualField = field === 'ano' ? 'anoModelo' : field;
+            
+            if (variationFields.has(actualField)) {
+                let query: any = { ativo: true };
+                
+                // If restricted, we should ideally only suggest variations they have prices for.
+                // For performance, we can just do a general distinct, or query DealerVehiclePrice first.
+                if (restrictedDealershipId) {
+                    const activePrices = await DealerVehiclePrice.find({ 
+                        concessionariaId: restrictedDealershipId, 
+                        ativo: true 
+                    }).distinct('variationId');
+                    query._id = { $in: activePrices };
                 }
 
-                const pipeline: any[] = [];
-                if (Object.keys(matchStage).length > 0) {
-                    pipeline.push({ $match: matchStage });
+                if (sortByCount) {
+                    const pipeline: any[] = [
+                        { $match: query },
+                        { $group: { _id: `$${actualField}`, count: { $sum: 1 } } },
+                        { $sort: { count: -1 } },
+                        { $limit: limitParam }
+                    ];
+                    const aggregation = await VehicleVariation.aggregate(pipeline);
+                    filtered = aggregation.map(item => String(item._id));
+                } else {
+                    const distinctValues = await VehicleVariation.distinct(actualField, query).catch(() => []);
+                    filtered = distinctValues.map(v => String(v)).filter(Boolean);
                 }
-                pipeline.push(
-                    { $group: { _id: `$${field}`, count: { $sum: 1 } } },
-                    { $sort: { count: -1 } },
-                    { $limit: limitParam }
-                );
-
-                const aggregation = await Vehicle.aggregate(pipeline);
-                filtered = aggregation.map(item => item._id).filter(v => typeof v === 'string');
-
-                if (searchTerm) {
-                    const lower = searchTerm.toLowerCase();
-                    filtered = filtered.filter(v => v.toLowerCase().includes(lower));
-                }
-            } else {
-                // Se campo inexistente evita erro
-                // Distinct completo
-                const query: any = {};
-                if (restrictedDealershipName) {
-                    query.concessionaria = restrictedDealershipName;
+            } else if (concessionariaFields.has(actualField)) {
+                // Map 'estado' -> 'uf', 'concessionaria' -> 'nome'
+                const dbField = actualField === 'estado' ? 'uf' : actualField === 'concessionaria' ? 'nome' : actualField;
+                
+                let query: any = {};
+                if (restrictedDealershipId) {
+                    query._id = restrictedDealershipId;
                 }
 
-                const distinctValues: string[] = await Vehicle.distinct(field as any, query).catch(() => []);
-                filtered = distinctValues.filter(v => typeof v === 'string');
-                if (searchTerm) {
-                    const lower = searchTerm.toLowerCase();
-                    filtered = filtered.filter(v => v.toLowerCase().includes(lower));
+                if (sortByCount) {
+                    const pipeline: any[] = [
+                        { $match: query },
+                        { $group: { _id: `$${dbField}`, count: { $sum: 1 } } },
+                        { $sort: { count: -1 } },
+                        { $limit: limitParam }
+                    ];
+                    const aggregation = await Concessionaria.aggregate(pipeline);
+                    filtered = aggregation.map(item => String(item._id));
+                } else {
+                    const distinctValues = await Concessionaria.distinct(dbField, query).catch(() => []);
+                    filtered = distinctValues.map(v => String(v)).filter(Boolean);
                 }
-                // Ordena alfabeticamente e aplica limite
-                filtered.sort((a, b) => a.localeCompare(b, 'pt-BR'));
+            }
+
+            if (searchTerm) {
+                const lower = searchTerm.toLowerCase();
+                filtered = filtered.filter(v => v.toLowerCase().includes(lower));
+            }
+
+            // Fallback limits
+            if (!sortByCount) {
                 filtered = filtered.slice(0, limitParam);
             }
 
@@ -111,7 +131,7 @@ export async function GET(request: Request) {
 
         return NextResponse.json({ suggestions });
     } catch (error: any) {
-        console.error('Erro ao obter sugestões:', error);
+        console.error('Erro nas sugestões:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

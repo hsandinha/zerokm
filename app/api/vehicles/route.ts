@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import connectDB from '@/lib/mongodb';
-import Vehicle from '@/models/Vehicle';
 import User from '@/models/User';
 import Concessionaria from '@/models/Concessionaria';
-import Modelo from '@/models/Modelo';
+import DealerVehiclePrice from '@/models/DealerVehiclePrice';
+import VehicleVariation from '@/models/VehicleVariation';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { createExpiredFreeTrialWindow, isFreeTrialExpired } from '@/lib/utils/freeTrial';
@@ -31,9 +32,15 @@ export async function GET(request: Request) {
         }
 
         await connectDB();
+        
+        // Ensure models are registered for lookup
+        require('@/models/VehicleVariation');
+        require('@/models/Concessionaria');
+
         const { searchParams } = new URL(request.url);
         const effectiveProfile = getEffectiveProfile(session, searchParams.get('accessProfile'));
 
+        // --- Verificações de Assinatura e Teste Grátis ---
         if ((effectiveProfile === 'gratis' || effectiveProfile === 'cliente') && session.user?.email) {
             const user = await User.findOne({ email: session.user.email }).select('allowedProfiles freeTrialExpiresAt subscription');
 
@@ -66,179 +73,178 @@ export async function GET(request: Request) {
             }
         }
 
-        // Check for dealership restriction
-        let restrictedDealershipName: string | null = null;
+        // --- Restrição para Concessionárias ---
+        let restrictedDealershipId: string | null = null;
         if (effectiveProfile === 'concessionaria') {
             const user = await User.findOne({ email: session.user.email });
             if (user && user.dealershipId) {
-                const dealership = await Concessionaria.findById(user.dealershipId);
-                if (dealership) {
-                    restrictedDealershipName = dealership.nome;
-                }
+                restrictedDealershipId = user.dealershipId.toString();
             }
 
-            // If logged in as concessionaria but no dealership found/linked, return empty
-            if (!restrictedDealershipName) {
+            if (!restrictedDealershipId) {
                 return NextResponse.json({ data: [], total: 0, hasNextPage: false, page: 1, totalPages: 0 });
             }
         }
 
+        // --- Filtros e Paginação ---
         const page = parseInt(searchParams.get('page') || '1');
         const limit = parseInt(searchParams.get('limit') || '50');
+        const skip = (page - 1) * limit;
         const search = searchParams.get('search') || '';
-        const sortKey = searchParams.get('sortKey') || 'dataEntrada';
+        let sortKey = searchParams.get('sortKey') || 'dataEntrada';
         const sortDir = searchParams.get('sortDir') === 'asc' ? 1 : -1;
         const semConcessionaria = searchParams.get('semConcessionaria') === 'true';
 
-        const filters: any = {};
-        if (searchParams.get('status')) filters.status = searchParams.get('status');
-        if (searchParams.get('combustivel')) filters.combustivel = searchParams.get('combustivel');
-        if (searchParams.get('transmissao')) filters.transmissao = searchParams.get('transmissao');
-        if (searchParams.get('ano')) filters.ano = searchParams.get('ano');
-        if (searchParams.get('modelo')) filters.modelo = searchParams.get('modelo');
-        if (searchParams.get('opcionais')) filters.opcionais = searchParams.get('opcionais');
-        if (searchParams.get('estado')) filters.estado = searchParams.get('estado');
-        if (searchParams.get('cidade')) filters.cidade = searchParams.get('cidade');
-        if (searchParams.get('operador')) filters.operador = searchParams.get('operador');
-        if (searchParams.get('concessionaria')) filters.concessionaria = searchParams.get('concessionaria');
+        // O novo sistema não tem "dataEntrada" explícita, usamos updatedAt do DealerVehiclePrice
+        if (sortKey === 'dataEntrada') sortKey = 'updatedAt';
+        
+        // Mapeia chaves de ordenação para o campo correto no aggregation
+        const sortField = sortKey === 'preco' ? 'preco' :
+                         sortKey === 'updatedAt' ? 'updatedAt' :
+                         sortKey === 'marca' ? 'variation.marca' :
+                         sortKey === 'modelo' ? 'variation.modelo' :
+                         sortKey === 'ano' ? 'variation.anoModelo' : 'updatedAt';
 
-        // Filtro para veículos sem concessionária
-        if (semConcessionaria) {
-            filters.semConcessionaria = true;
-        }
+        const matchStage: any = { ativo: true };
 
-        // Enforce restriction
-        if (restrictedDealershipName) {
-            filters.concessionaria = restrictedDealershipName;
-        }
-        if (searchParams.get('nomeContato')) filters.nomeContato = searchParams.get('nomeContato');
-
-        // Build base query from filters, using regex for cor to allow partial matches
-        let query: any = {};
-        if (filters.status) query.status = filters.status;
-        if (filters.combustivel) query.combustivel = filters.combustivel;
-        if (filters.transmissao) query.transmissao = filters.transmissao;
-        if (filters.ano) query.ano = filters.ano;
-        if (filters.modelo) {
-            query.modelo = { $regex: escapeRegex(filters.modelo), $options: 'i' };
-        }
-        if (filters.estado) {
-            query.estado = { $regex: escapeRegex(filters.estado), $options: 'i' };
-        }
-        if (filters.cidade) {
-            query.cidade = { $regex: escapeRegex(filters.cidade), $options: 'i' };
-        }
-
-        // Filtro para veículos sem concessionária - tem prioridade sobre filtro de concessionária
-        if (filters.semConcessionaria) {
-            query.$or = [
-                { concessionaria: { $exists: false } },
-                { concessionaria: null },
-                { concessionaria: '' }
+        // Aplica filtros exatos se existirem
+        if (searchParams.get('status')) matchStage['variation.status'] = searchParams.get('status');
+        if (searchParams.get('combustivel')) matchStage['variation.combustivel'] = searchParams.get('combustivel');
+        if (searchParams.get('transmissao')) matchStage['variation.transmissao'] = searchParams.get('transmissao');
+        if (searchParams.get('ano')) matchStage['variation.anoModelo'] = parseInt(searchParams.get('ano')!);
+        if (searchParams.get('modelo')) matchStage['variation.modelo'] = { $regex: escapeRegex(searchParams.get('modelo')!), $options: 'i' };
+        if (searchParams.get('opcionais')) matchStage['variation.opcionais'] = { $regex: escapeRegex(searchParams.get('opcionais')!), $options: 'i' };
+        
+        if (searchParams.get('estado')) matchStage['concessionariaInfo.uf'] = { $regex: escapeRegex(searchParams.get('estado')!), $options: 'i' };
+        if (searchParams.get('cidade')) matchStage['concessionariaInfo.cidade'] = { $regex: escapeRegex(searchParams.get('cidade')!), $options: 'i' };
+        if (searchParams.get('concessionaria')) matchStage['concessionariaInfo.nome'] = { $regex: escapeRegex(searchParams.get('concessionaria')!), $options: 'i' };
+        
+        // O novo sistema não tem nomeContato ou operador no DealerVehiclePrice, usamos observacoes ou fallback
+        if (searchParams.get('cor')) {
+            matchStage.$or = [
+                { 'coresDisponiveis': { $regex: escapeRegex(searchParams.get('cor')!), $options: 'i' } },
+                { 'variation.cor': { $regex: escapeRegex(searchParams.get('cor')!), $options: 'i' } }
             ];
-        } else if (filters.concessionaria) {
-            // Só aplica filtro de concessionária se NÃO estiver buscando sem concessionária
-            query.concessionaria = { $regex: escapeRegex(filters.concessionaria), $options: 'i' };
         }
 
-        if (filters.nomeContato) {
-            query.nomeContato = { $regex: escapeRegex(filters.nomeContato), $options: 'i' };
-        }
-        if (filters.operador) {
-            query.operador = { $regex: escapeRegex(filters.operador), $options: 'i' };
-        }
-        const corParam = searchParams.get('cor');
-        if (corParam) query.cor = { $regex: escapeRegex(corParam), $options: 'i' };
-        const opcionaisParam = searchParams.get('opcionais');
-        if (opcionaisParam) {
-            query.opcionais = { $regex: escapeRegex(opcionaisParam), $options: 'i' };
+        // Restriction apply
+        if (restrictedDealershipId) {
+            // override any concessionaria text search with hard restriction
+            matchStage['concessionariaId'] = new mongoose.Types.ObjectId(restrictedDealershipId);
         }
 
+        // Global Search
         if (search) {
             const searchRegex = { $regex: search, $options: 'i' };
-            // Se o termo de busca corresponde exatamente a valores de enum conhecidos, aplicar como filtro específico
             const normalized = search.trim().toLowerCase();
+            
             const fuelMap: Record<string, string> = {
-                'flex': 'Flex',
-                'gasolina': 'Gasolina',
-                'etanol': 'Etanol',
-                'alcool': 'Etanol',
-                'álcool': 'Etanol',
-                'diesel': 'Diesel',
-                'elétrico': 'Elétrico',
-                'eletrico': 'Elétrico',
-                'híbrido': 'Híbrido',
-                'hibrido': 'Híbrido'
+                'flex': 'Flex', 'gasolina': 'Gasolina', 'etanol': 'Etanol', 'alcool': 'Etanol', 'álcool': 'Etanol',
+                'diesel': 'Diesel', 'elétrico': 'Elétrico', 'eletrico': 'Elétrico', 'híbrido': 'Híbrido', 'hibrido': 'Híbrido'
             };
             const transMap: Record<string, string> = {
-                'manual': 'Manual',
-                'automatico': 'Automático',
-                'automático': 'Automático',
-                'cvt': 'CVT'
+                'manual': 'Manual', 'automatico': 'Automático', 'automático': 'Automático', 'cvt': 'CVT'
             };
-            const statusMap: Record<string, string> = {
-                'a faturar': 'A faturar',
-                'refaturamento': 'Refaturamento',
-                'licenciado': 'Licenciado',
-                'pedido de fabrica': 'Pedido de fábrica',
-                'pedido de fábrica': 'Pedido de fábrica',
-                'pedido': 'Pedido de fábrica'
-            };
-
-            if (fuelMap[normalized]) {
-                query.combustivel = fuelMap[normalized];
-            } else if (transMap[normalized]) {
-                query.transmissao = transMap[normalized];
-            } else if (statusMap[normalized]) {
-                query.status = statusMap[normalized];
-            }
+            
+            if (fuelMap[normalized]) matchStage['variation.combustivel'] = fuelMap[normalized];
+            else if (transMap[normalized]) matchStage['variation.transmissao'] = transMap[normalized];
 
             const orConditions: any[] = [
-                { transmissao: searchRegex },
-                { combustivel: searchRegex },
-                { cor: searchRegex },
-                { ano: searchRegex },
-                { opcionais: searchRegex },
-                { observacoes: searchRegex },
-                { estado: searchRegex }
+                { 'variation.modelo': searchRegex },
+                { 'variation.marca': searchRegex },
+                { 'variation.combustivel': searchRegex },
+                { 'variation.transmissao': searchRegex },
+                { 'variation.cor': searchRegex },
+                { 'variation.opcionais': searchRegex },
+                { 'concessionariaInfo.nome': searchRegex },
+                { 'concessionariaInfo.cidade': searchRegex },
+                { 'concessionariaInfo.uf': searchRegex },
             ];
 
-            // Only search in model if we are not already filtering by a specific model
-            if (!filters.modelo) {
-                orConditions.unshift({ modelo: searchRegex });
-            }
-
-            query.$or = orConditions;
+            matchStage.$or = matchStage.$or ? [...matchStage.$or, ...orConditions] : orConditions;
         }
 
-        const skip = (page - 1) * limit;
+        const pipeline: any[] = [
+            // 1. Join with Variation
+            {
+                $lookup: {
+                    from: 'vehiclevariations',
+                    localField: 'variationId',
+                    foreignField: '_id',
+                    as: 'variation'
+                }
+            },
+            { $unwind: '$variation' },
+            
+            // 2. Join with Concessionaria
+            {
+                $lookup: {
+                    from: 'concessionarias',
+                    localField: 'concessionariaId',
+                    foreignField: '_id',
+                    as: 'concessionariaInfo'
+                }
+            },
+            { $unwind: { path: '$concessionariaInfo', preserveNullAndEmptyArrays: true } },
+            
+            // 3. Match filters
+            { $match: matchStage },
+            
+            // 4. Sort and Paginate (Facet for totals)
+            { $sort: { [sortField]: sortDir } },
+            {
+                $facet: {
+                    data: [ { $skip: skip }, { $limit: limit } ],
+                    totalCount: [ { $count: 'count' } ]
+                }
+            }
+        ];
 
-        let data: any[];
-        let total: number;
+        const [aggregationResult] = await DealerVehiclePrice.aggregate(pipeline);
+        
+        const data = aggregationResult.data || [];
+        const total = aggregationResult.totalCount[0]?.count || 0;
 
-        const [resultData, resultTotal] = await Promise.all([
-            Vehicle.find(query)
-                .populate('modeloId', 'nome marca')
-                .sort({ [sortKey]: sortDir })
-                .skip(skip)
-                .limit(limit),
-            Vehicle.countDocuments(query)
-        ]);
-        data = resultData;
-        total = resultTotal;
-
-        const serializedData = data.map(doc => {
-            const obj = doc.toObject();
-            const modeloPopulado = obj.modeloId as any;
-
+        // Serialize data para manter o MESMO FORMATO esperado pelo Frontend
+        const serializedData = data.map((doc: any) => {
+            const v = doc.variation;
+            const c = doc.concessionariaInfo || {};
+            
             return {
-                ...obj,
-                id: obj._id.toString(),
-                _id: undefined,
-                // Se o modelo foi populado, usar o nome atualizado
-                modelo: modeloPopulado?.nome || obj.modelo,
-                marca: modeloPopulado?.marca || obj.marca,
-                modeloId: modeloPopulado?._id?.toString() || obj.modeloId?.toString()
+                id: doc._id.toString(), // The ID of the price record becomes the main ID to interact with
+                variationId: v._id.toString(),
+                concessionariaId: c._id?.toString(),
+                
+                // Mapped from Variation
+                marca: v.marca,
+                modelo: v.modelo,
+                ano: v.ano || String(v.anoModelo),
+                anoModelo: v.anoModelo,
+                anoFabricacao: v.anoFabricacao,
+                combustivel: v.combustivel,
+                cor: v.cor,
+                transmissao: v.transmissao,
+                opcionais: v.opcionais,
+                motor: v.motor,
+                carroceria: v.carroceria,
+                portas: v.portas,
+                imagemUrl: v.imagemUrl,
+                status: v.status || 'A faturar',
+                
+                // Mapped from DealerVehiclePrice
+                preco: doc.preco,
+                frete: doc.frete || 0,
+                coresDisponiveis: doc.coresDisponiveis || [],
+                observacoes: doc.observacoes,
+                ativo: doc.ativo,
+                dataEntrada: doc.createdAt,
+                updatedAt: doc.updatedAt,
+                
+                // Mapped from Concessionaria
+                concessionaria: c.nome || 'Concessionária não vinculada',
+                cidade: c.cidade,
+                estado: c.uf,
+                telefone: c.telefone,
             };
         });
 
@@ -250,80 +256,14 @@ export async function GET(request: Request) {
             totalPages: Math.ceil(total / limit)
         });
     } catch (error: any) {
-        console.error('Erro ao buscar veículos:', error);
+        console.error('Erro ao buscar veículos no novo catálogo:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
 
+// POST desativado - a adição é feita pela API do Catálogo
 export async function POST(request: Request) {
-    try {
-        const session = await getServerSession(authOptions);
-        if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        await connectDB();
-        const body = await request.json();
-
-        // Buscar o modelo pelo nome para obter o ID
-        let modeloId = body.modeloId;
-        if (!modeloId && body.modelo) {
-            const modeloDoc = await Modelo.findOne({
-                nome: { $regex: new RegExp(`^${body.modelo.trim()}$`, 'i') }
-            });
-            if (modeloDoc) {
-                modeloId = modeloDoc._id;
-                // Também atualizar a marca se o modelo foi encontrado e não foi informada
-                if (!body.marca && modeloDoc.marca) {
-                    body.marca = modeloDoc.marca;
-                }
-            }
-        }
-
-        // Ensure required fields are present or set defaults
-        let dataEntrada = body.dataEntrada;
-        if (!dataEntrada) {
-            dataEntrada = new Date();
-        } else if (typeof dataEntrada === 'string' && dataEntrada.includes('/')) {
-            // Handle DD/MM/YYYY format manually if it comes through
-            const [dia, mes, ano] = dataEntrada.split('/');
-            dataEntrada = new Date(`${ano}-${mes}-${dia}T12:00:00Z`);
-        }
-
-        const vehicleData = {
-            ...body,
-            dataEntrada: dataEntrada,
-            modeloId: modeloId, // Salvar referência ao modelo
-            status: body.status || 'A faturar',
-            transmissao: body.transmissao || 'Manual',
-            combustivel: body.combustivel || 'Flex',
-            preco: body.preco || 0
-        };
-
-        // Enforce dealership for concessionaria profile
-        // @ts-ignore
-        if (session.user?.profile === 'concessionaria') {
-            const user = await User.findOne({ email: session.user.email });
-            if (user && user.dealershipId) {
-                const dealership = await Concessionaria.findById(user.dealershipId);
-                if (dealership) {
-                    vehicleData.concessionaria = dealership.nome;
-                }
-            }
-        }
-
-        const newVehicle = await Vehicle.create(vehicleData);
-        const doc = newVehicle as any;
-
-        return NextResponse.json({
-            ...doc.toObject(),
-            id: doc._id.toString(),
-            _id: undefined
-        }, { status: 201 });
-    } catch (error: any) {
-        console.error('Erro ao criar veículo:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    return NextResponse.json({ error: 'Operação movida. Use a tela de Catálogo/Preços para adicionar veículos.' }, { status: 405 });
 }
 
 export async function PATCH(request: Request) {
@@ -336,13 +276,15 @@ export async function PATCH(request: Request) {
         await connectDB();
         const body = await request.json();
 
+        // O 'update_date' é usado para dar um 'bump' no veículo na lista.
+        // Agora atualizamos a data no DealerVehiclePrice.
         if (body.action === 'update_date') {
             const { ids } = body;
             if (!ids || !Array.isArray(ids) || ids.length === 0) {
                 return NextResponse.json({ error: 'IDs são obrigatórios' }, { status: 400 });
             }
             const now = new Date();
-            const result = await Vehicle.updateMany(
+            const result = await DealerVehiclePrice.updateMany(
                 { _id: { $in: ids } },
                 { $set: { updatedAt: now } }
             );
