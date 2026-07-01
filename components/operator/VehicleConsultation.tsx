@@ -2308,21 +2308,27 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                             </div>
                         ) : (
                             <div className={styles.gridContainer}>
-                                {displayVehicles.map((vehicle) => (
-                                    <VehicleCard
-                                        key={vehicle.id}
-                                        vehicle={vehicle}
-                                        margem={margem}
-                                        fixedMargin={fixedMargin}
-                                        marginMode={marginMode}
-                                        onEdit={handleEditVehicle}
-                                        onDelete={handleDeleteVehicle}
-                                        onWhatsApp={handleWhatsAppClick}
-                                        onLocationClick={handleLocationClick}
-                                        role={role}
-                                        canViewLocation={(session?.user as any)?.canViewLocation}
-                                    />
-                                ))}
+                                {displayVehicles.length === 0 ? (
+                                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)', gridColumn: '1 / -1' }}>
+                                        Nenhum veículo encontrado para os filtros atuais.
+                                    </div>
+                                ) : (
+                                    displayVehicles.map((vehicle) => (
+                                        <VehicleCard
+                                            key={vehicle.id}
+                                            vehicle={vehicle}
+                                            margem={margem}
+                                            fixedMargin={fixedMargin}
+                                            marginMode={marginMode}
+                                            onEdit={handleEditVehicle}
+                                            onDelete={handleDeleteVehicle}
+                                            onWhatsApp={handleWhatsAppClick}
+                                            onLocationClick={handleLocationClick}
+                                            role={role}
+                                            canViewLocation={(session?.user as any)?.canViewLocation}
+                                        />
+                                    ))
+                                )}
                             </div>
                         )}
 
