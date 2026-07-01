@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import styles from './UpgradeModal.module.css';
 import { MaskedInput } from '@/components/operator/MaskedInput';
 import { CardPaymentForm, type CardFormData } from '@/components/operator/CardPaymentForm';
@@ -35,6 +35,7 @@ interface UpgradeModalProps {
     pixOnly?: boolean;
     title?: string;
     subtitle?: string;
+    showLogout?: boolean;
 }
 
 /** Maps Mercado Pago status_detail codes to human-readable Portuguese messages. */
@@ -73,7 +74,7 @@ function getMpErrorMessage(statusDetail?: string, serverError?: string): string 
     return 'A cobrança foi recusada pelo banco. Tente novamente ou use outro cartão.';
 }
 
-export function UpgradeModal({ onClose, initialPlanId, initialBilling, locked = false, paidOnly = false, pixOnly = false, title, subtitle }: UpgradeModalProps) {
+export function UpgradeModal({ onClose, initialPlanId, initialBilling, locked = false, paidOnly = false, pixOnly = false, title, subtitle, showLogout = false }: UpgradeModalProps) {
     const [plans, setPlans] = useState<Plan[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -740,6 +741,35 @@ export function UpgradeModal({ onClose, initialPlanId, initialBilling, locked = 
                     {flow === 'card_pending' && <h2 className={styles.headerTitle}>⏳ Pagamento em Análise</h2>}
                     {flow === 'processing' && <h2 className={styles.headerTitle}>Processando...</h2>}
                     {subtitle && flow === 'plans' && <p className={styles.headerSubtitle}>{subtitle}</p>}
+                    {showLogout && (
+                        <button
+                            onClick={() => signOut({ callbackUrl: '/' })}
+                            style={{
+                                marginTop: '1rem',
+                                padding: '8px 16px',
+                                background: 'transparent',
+                                border: '1px solid var(--color-text-muted)',
+                                color: 'var(--color-text-muted)',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontSize: '0.85rem',
+                                fontWeight: 600,
+                                transition: 'all 0.2s',
+                            }}
+                            onMouseOver={(e) => {
+                                e.currentTarget.style.background = 'rgba(255, 0, 0, 0.1)';
+                                e.currentTarget.style.color = '#ef4444';
+                                e.currentTarget.style.borderColor = '#ef4444';
+                            }}
+                            onMouseOut={(e) => {
+                                e.currentTarget.style.background = 'transparent';
+                                e.currentTarget.style.color = 'var(--color-text-muted)';
+                                e.currentTarget.style.borderColor = 'var(--color-text-muted)';
+                            }}
+                        >
+                            Sair / Logout
+                        </button>
+                    )}
                 </div>
 
                 <div className={styles.body}>

@@ -83,6 +83,7 @@ export function FreeTrialGate({ userInfo }: FreeTrialGateProps) {
             onClose={() => undefined}
             title="Teste grátis encerrado"
             subtitle="Para continuar acessando a plataforma, escolha um plano e pague via PIX ou cartão de crédito."
+            showLogout={true}
         />
     );
 }

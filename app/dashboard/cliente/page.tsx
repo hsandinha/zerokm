@@ -10,6 +10,7 @@ import UserMenu from '../../../components/UserMenu';
 import { ExpirationAlerts } from './ExpirationAlerts';
 import { AutoUpgradeFromQuery } from './AutoUpgradeFromQuery';
 import { FreeTrialGate } from './FreeTrialGate';
+import { UpgradeModal } from '../../../components/operator/UpgradeModal';
 import { SubscriptionControls } from './SubscriptionControls';
 import { BannerCarouselHorizontal } from '../../../components/cliente/BannerCarouselHorizontal';
 import styles from './cliente.module.css';
@@ -110,6 +111,7 @@ export default function ClientDashboard() {
     const [fixedMargin, setFixedMargin] = useState<number>(0);
     const [marginMode, setMarginMode] = useState<'percent' | 'fixed'>('percent');
     const [isInvitee, setIsInvitee] = useState<boolean>(false);
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -199,6 +201,7 @@ export default function ClientDashboard() {
                             email={userInfo.email}
                             role={userInfo.profile === 'gratis' ? 'Grátis' : 'Cliente'}
                             credits={userInfo.credits}
+                            onUpgradeClick={userInfo.profile === 'gratis' ? () => setShowUpgradeModal(true) : undefined}
                         />
                     </div>
                 </div>
@@ -208,6 +211,14 @@ export default function ClientDashboard() {
                     <VehicleConsultation role={userInfo.profile === 'gratis' ? 'gratis' : 'client'} isInvitee={isInvitee} />
                 </div>
             </div>
+
+            {showUpgradeModal && (
+                <UpgradeModal
+                    onClose={() => setShowUpgradeModal(false)}
+                    title="🚀 Desbloqueie o acesso completo"
+                    subtitle="Assine um plano para ver localização e contato das concessionárias"
+                />
+            )}
         </ConfigContext.Provider>
     );
 }

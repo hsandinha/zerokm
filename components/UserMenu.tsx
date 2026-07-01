@@ -13,6 +13,7 @@ interface UserMenuProps {
     credits?: number;
     isDropup?: boolean;
     alignLeft?: boolean;
+    onUpgradeClick?: () => void;
 }
 
 function ProfileRing({ pct }: { pct: number }) {
@@ -61,7 +62,7 @@ function ProfileRing({ pct }: { pct: number }) {
     );
 }
 
-export default function UserMenu({ name, email, role, credits, isDropup, alignLeft }: UserMenuProps) {
+export default function UserMenu({ name, email, role, credits, isDropup, alignLeft, onUpgradeClick }: UserMenuProps) {
     const [isOpen, setIsOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const { data: session, update } = useSession();
@@ -173,6 +174,22 @@ export default function UserMenu({ name, email, role, credits, isDropup, alignLe
                             </span>
                         )}
                     </span>
+                    {onUpgradeClick && (
+                        <div style={{ marginTop: '4px' }}>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onUpgradeClick();
+                                }}
+                                style={{
+                                    background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '5px',
+                                    padding: '4px 10px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700,
+                                }}
+                            >
+                                Assinar Plano
+                            </button>
+                        </div>
+                    )}
                 </div>
                 <div className={styles.avatar}>
                     {getInitials(name)}

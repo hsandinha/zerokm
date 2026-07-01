@@ -35,28 +35,6 @@ export function VehicleActionsHeader({
     return (
         <div className={styles.header}>
             <h2>Consulta de Veículos</h2>
-            {role === 'gratis' && (
-                <div style={{
-                    display: 'flex', alignItems: 'center', gap: '8px',
-                    background: '#1e3a5f',
-                    border: '1px solid #3b82f6',
-                    borderRadius: '8px', padding: '6px 14px', fontSize: '0.85rem', fontWeight: 600,
-                }}>
-                    <span>🔒</span>
-                    <span style={{ color: '#93c5fd' }}>
-                        Assine um plano para desbloquear localização e contato das concessionárias
-                    </span>
-                    <button
-                        onClick={() => setShowUpgradeModal(true)}
-                        style={{
-                            background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '5px',
-                            padding: '3px 10px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700,
-                        }}
-                    >
-                        Ver planos
-                    </button>
-                </div>
-            )}
             <div className={styles.headerActions}>
                 {role !== 'client' && selectedIds.length > 0 && (
                     <>
