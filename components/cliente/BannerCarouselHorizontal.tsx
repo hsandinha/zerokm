@@ -23,7 +23,11 @@ interface Banner {
     ctaText?: string;
 }
 
-export function BannerCarouselHorizontal() {
+interface BannerCarouselHorizontalProps {
+    role?: string;
+}
+
+export function BannerCarouselHorizontal({ role }: BannerCarouselHorizontalProps = {}) {
     const [banners, setBanners] = useState<Banner[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
@@ -88,7 +92,7 @@ export function BannerCarouselHorizontal() {
                             <div className={styles.titleContainer}>
                                 <div className={styles.titleRow}>
                                     {banner.vehicleModel && <div className={styles.vehicleModel}>{banner.vehicleModel}</div>}
-                                    {banner.linkUrl && (
+                                    {banner.linkUrl && role !== 'gratis' && (
                                         <div className={styles.whatsappIconOnly}>
                                             <FaWhatsapp size={20} />
                                         </div>
@@ -161,7 +165,7 @@ export function BannerCarouselHorizontal() {
                         className={styles.slide}
                         style={{ transform: transformValue, position: isActive ? 'relative' : 'absolute' }}
                     >
-                        {banner.linkUrl ? (
+                        {banner.linkUrl && role !== 'gratis' ? (
                             <a href={banner.linkUrl} target="_blank" rel="noopener noreferrer" className={styles.bannerLink}>
                                 {content}
                             </a>

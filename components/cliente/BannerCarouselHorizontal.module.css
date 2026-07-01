@@ -7,10 +7,12 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     background: var(--color-surface, #fff);
     display: flex;
+    height: 100%;
 }
 
 .slide {
     min-width: 100%;
+    height: 100%;
     transition: transform 0.5s ease-in-out;
 }
 
