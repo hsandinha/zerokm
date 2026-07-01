@@ -12,6 +12,7 @@ interface PricingRow {
     modelo: string;
     codigoFipe?: string;
     anoModelo?: number;
+    anoFabricacao?: number;
     combustivel?: string;
     cor?: string;
     transmissao?: string;
@@ -205,7 +206,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                 row.variationId,
                 `"${row.marca || ''}"`,
                 `"${row.modelo || ''}"`,
-                `"${row.anoModelo || ''}"`,
+                `"${row.anoFabricacao && row.anoModelo ? `${String(row.anoFabricacao).slice(-2)}/${String(row.anoModelo).slice(-2)}` : row.anoModelo || ''}"`,
                 `"${row.cor || ''}"`,
                 `"${(row.codigoFipe || '').replace(/"/g, '""')}"`,
                 precoAtual,
@@ -440,7 +441,11 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                                         <strong>{row.modelo}</strong>
                                         {row.motor && <span className={styles.muted}>{row.motor}</span>}
                                     </td>
-                                    <td>{row.anoModelo || '-'}</td>
+                                    <td>
+                                        {row.anoFabricacao && row.anoModelo
+                                            ? `${String(row.anoFabricacao).slice(-2)}/${String(row.anoModelo).slice(-2)}`
+                                            : row.anoModelo || '-'}
+                                    </td>
                                     <td>{row.combustivel || '-'}</td>
                                     <td>{row.cor || '-'}</td>
                                     <td>{row.transmissao || '-'}</td>
