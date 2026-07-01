@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
-import connectDB from '@/lib/mongodb';
+import { withApiRoute } from '@/lib/apiRouteWrapper';
 
 import User from '@/models/User';
 import Plan from '@/models/Plan';
@@ -15,15 +13,8 @@ function monthlyValue(plan: any, billingType?: string | null): number {
     return plan.price || 0;
 }
 
-export async function GET(_request: Request) {
+export const GET = withApiRoute(async (_request) => {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !['administrador', 'admin', 'gerente'].includes(session.user?.profile as string)) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        await connectDB();
-
         const plans = await Plan.find({}).lean() as any[];
         const users = await User.find({}).lean() as any[];
 
@@ -160,8 +151,8 @@ export async function GET(_request: Request) {
             },
         });
 
-    } catch (error: any) {
-        console.error('Erro Metrics Churn:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error) {
+        console.error('Erro na métrica de churn:', error);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
-}
+}, { allowedProfiles: ['administrador', 'admin', 'gerente'] });

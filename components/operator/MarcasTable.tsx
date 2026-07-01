@@ -5,6 +5,7 @@ import { useTablesDatabase } from '../../lib/hooks/useTablesDatabase';
 import { Marca, tablesService, PaginationResult } from '../../lib/services/tablesService';
 import { Pagination } from '../Pagination';
 import styles from './TablesManagement.module.css';
+import { GenericDataTable, ColumnDef } from './GenericDataTable';
 
 const formatDate = (dateString: string | Date | undefined) => {
     if (!dateString) return 'N/A';
@@ -160,134 +161,96 @@ export function MarcasTable() {
         ? marcas.filter((marca) => marca.nome.toLowerCase().includes(normalizedSearch))
         : marcas;
 
-    return (
-        <div className={styles.container}>
-            {error && (
-                <div className={styles.errorMessage}>
-                    {error}
-                </div>
-            )}
-
-            <div className={styles.header}>
-                <h3>Gerenciar Marcas</h3>
-                <div className={styles.headerActions}>
-                    <input
-                        type="text"
-                        className={styles.searchInput}
-                        placeholder="Buscar por nome..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+    const columns: ColumnDef<Marca>[] = [
+        {
+            key: 'nome',
+            label: 'Nome da Marca',
+            render: (marca) => <span className={styles.marcaName}>{marca.nome}</span>
+        },
+        {
+            key: 'createdAt',
+            label: 'Criado em',
+            render: (marca) => formatDate(marca.createdAt)
+        },
+        {
+            key: 'acoes',
+            label: 'Ações',
+            render: (marca) => (
+                <div className={styles.actions}>
                     <button
-                        className={styles.addButton}
-                        onClick={handleAddClick}
+                        className={styles.editButton}
+                        onClick={() => handleEdit(marca)}
                     >
-                        {showForm ? (editingMarca ? 'Cancelar edição' : 'Cancelar') : '+ Adicionar Marca'}
+                        ✏️ Editar
+                    </button>
+                    <button
+                        className={styles.deleteButton}
+                        onClick={() => marca.id && handleDelete(marca.id)}
+                    >
+                        🗑️ Excluir
                     </button>
                 </div>
+            )
+        }
+    ];
+
+    const formContent = (
+        <form onSubmit={handleSubmit} className={styles.form}>
+            <div className={styles.formGroup}>
+                <label htmlFor="nome">Nome da Marca*</label>
+                <input
+                    type="text"
+                    id="nome"
+                    value={formData.nome}
+                    onChange={(e) => setFormData({ nome: e.target.value })}
+                    placeholder="Ex: TOYOTA"
+                    required
+                    className={styles.input}
+                />
             </div>
 
-            {showForm && (
-                <div className={styles.inlineFormWrapper}>
-                    <section className={styles.inlineFormPanel}>
-                        <div className={styles.inlineFormHeader}>
-                            <div>
-                                <h4>{editingMarca ? 'Editar Marca' : 'Adicionar Nova Marca'}</h4>
-                                <p>{editingMarca ? 'Atualize o nome e salve para manter a lista consistente.' : 'Cadastre novas marcas para facilitar o vínculo com os modelos.'}</p>
-                            </div>
-                            <button type="button" className={styles.inlineFormClose} onClick={closeForm}>
-                                {editingMarca ? 'Cancelar edição' : 'Fechar formulário'}
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleSubmit} className={styles.form}>
-                            <div className={styles.formGroup}>
-                                <label htmlFor="nome">Nome da Marca*</label>
-                                <input
-                                    type="text"
-                                    id="nome"
-                                    value={formData.nome}
-                                    onChange={(e) => setFormData({ nome: e.target.value })}
-                                    placeholder="Ex: TOYOTA"
-                                    required
-                                    className={styles.input}
-                                />
-                            </div>
-
-                            <div className={styles.modalActions}>
-                                <button
-                                    type="button"
-                                    className={styles.cancelButton}
-                                    onClick={closeForm}
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    type="submit"
-                                    className={styles.submitButton}
-                                    disabled={isSubmitting || loading}
-                                >
-                                    {(isSubmitting || loading) ? 'Salvando...' : (editingMarca ? 'Atualizar' : 'Adicionar')}
-                                </button>
-                            </div>
-                        </form>
-                    </section>
-                </div>
-            )}
-
-            <div className={styles.tableContainer}>
-                <table className={styles.table}>
-                    <thead>
-                        <tr>
-                            <th>Nome da Marca</th>
-                            <th>Criado em</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredMarcas.length === 0 ? (
-                            <tr>
-                                <td colSpan={3} className={styles.emptyMessage}>Nenhuma marca encontrada.</td>
-                            </tr>
-                        ) : (
-                            filteredMarcas.map(marca => (
-                                <tr key={marca.id}>
-                                    <td className={styles.marcaName}>{marca.nome}</td>
-                                    <td>
-                                        {formatDate(marca.createdAt)}
-                                    </td>
-                                    <td>
-                                        <div className={styles.actions}>
-                                            <button
-                                                className={styles.editButton}
-                                                onClick={() => handleEdit(marca)}
-                                            >
-                                                ✏️ Editar
-                                            </button>
-                                            <button
-                                                className={styles.deleteButton}
-                                                onClick={() => marca.id && handleDelete(marca.id)}
-                                            >
-                                                🗑️ Excluir
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
+            <div className={styles.modalActions}>
+                <button
+                    type="button"
+                    className={styles.cancelButton}
+                    onClick={closeForm}
+                >
+                    Cancelar
+                </button>
+                <button
+                    type="submit"
+                    className={styles.submitButton}
+                    disabled={isSubmitting || loading}
+                >
+                    {(isSubmitting || loading) ? 'Salvando...' : (editingMarca ? 'Atualizar' : 'Adicionar')}
+                </button>
             </div>
+        </form>
+    );
 
-            {/* Paginação */}
-            <Pagination
-                currentPage={currentPage}
-                totalItems={totalItems}
-                itemsPerPage={itemsPerPage}
-                onPageChange={handlePageChange}
-                loading={loading}
-            />
-
-        </div>
+    return (
+        <GenericDataTable<Marca>
+            title="Gerenciar Marcas"
+            error={error}
+            items={filteredMarcas}
+            columns={columns}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            showForm={showForm}
+            isEditing={!!editingMarca}
+            onAddClick={handleAddClick}
+            onCloseForm={closeForm}
+            formTitleAdd="Adicionar Nova Marca"
+            formTitleEdit="Editar Marca"
+            formDescriptionAdd="Cadastre novas marcas para facilitar o vínculo com os modelos."
+            formDescriptionEdit="Atualize o nome e salve para manter a lista consistente."
+            formContent={formContent}
+            currentPage={currentPage}
+            totalItems={totalItems}
+            itemsPerPage={itemsPerPage}
+            onPageChange={handlePageChange}
+            loading={loading}
+            emptyMessage="Nenhuma marca encontrada."
+        />
     );
 }

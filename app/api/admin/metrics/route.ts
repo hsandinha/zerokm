@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connectDB from '@/lib/mongodb';
+import { withApiRoute } from '@/lib/apiRouteWrapper';
 import DealerVehiclePrice from '@/models/DealerVehiclePrice';
 import Concessionaria from '@/models/Concessionaria';
 import User from '@/models/User';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: NextRequest) {
+export const GET = withApiRoute(async (request: NextRequest) => {
     try {
-        await connectDB();
 
         // Get query parameters for filtering
         const { searchParams } = new URL(request.url);
@@ -213,11 +212,8 @@ export async function GET(request: NextRequest) {
             concessionariaStaleness,
             dealershipDetails
         });
-    } catch (error) {
-        console.error('Erro ao buscar métricas administrativas:', error);
-        return NextResponse.json(
-            { error: 'Erro ao buscar métricas' },
-            { status: 500 }
-        );
+    } catch (error: any) {
+        console.error('Error fetching admin metrics:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
-}
+}, { allowedProfiles: ['administrador', 'admin', 'gerente'] });

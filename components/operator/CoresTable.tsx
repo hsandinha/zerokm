@@ -9,7 +9,7 @@ import {
 import { useTablesDatabase } from "../../lib/hooks/useTablesDatabase";
 import { Pagination } from "../Pagination";
 import styles from "./TablesManagement.module.css";
-import { FaEdit, FaTrash } from "react-icons/fa";
+import { GenericDataTable, ColumnDef } from "./GenericDataTable";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -131,165 +131,138 @@ const CoresTable: React.FC = () => {
         })
         : cores;
 
-    return (
-        <div className={styles.container}>
-            {error && <div className={styles.errorMessage}>{error}</div>}
-            <div className={styles.header}>
-                <h3>Gerenciar Cores</h3>
-                <div className={styles.headerActions}>
+    const columns: ColumnDef<Cor>[] = [
+        {
+            key: "nome",
+            label: "Nome da Cor",
+            render: (cor) => (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div
+                        style={{
+                            width: "20px",
+                            height: "20px",
+                            borderRadius: "50%",
+                            backgroundColor: cor.hex || "#cccccc",
+                            border: "1px solid #ddd",
+                        }}
+                    />
+                    <span className={styles.marcaName}>{cor.nome}</span>
+                </div>
+            )
+        },
+        {
+            key: "acoes",
+            label: "Ações",
+            render: (cor) => (
+                <div className={styles.actions}>
+                    <button
+                        className={styles.editButton}
+                        onClick={() => handleEdit(cor)}
+                    >
+                        ✏️ Editar
+                    </button>
+                    <button
+                        className={styles.deleteButton}
+                        onClick={() => cor.id && handleDelete(cor.id)}
+                    >
+                        🗑️ Excluir
+                    </button>
+                </div>
+            )
+        }
+    ];
+
+    const formContent = (
+        <form onSubmit={handleSubmit} className={styles.form}>
+            <div className={styles.formGroup}>
+                <label htmlFor="nome">Nome da Cor*</label>
+                <input
+                    type="text"
+                    id="nome"
+                    value={formData.nome}
+                    onChange={(e) =>
+                        setFormData({ ...formData, nome: e.target.value })
+                    }
+                    placeholder="Ex: BRANCO LUNAR"
+                    required
+                    className={styles.input}
+                />
+            </div>
+
+            <div className={styles.formGroup}>
+                <label htmlFor="hex">Cor HEX (Opcional)</label>
+                <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                    <input
+                        type="color"
+                        id="hex-color"
+                        value={formData.hex || "#ffffff"}
+                        onChange={(e) =>
+                            setFormData({ ...formData, hex: e.target.value })
+                        }
+                        className={styles.colorPicker}
+                        style={{ width: "40px", height: "40px", padding: 0, border: "1px solid #ccc", borderRadius: "4px" }}
+                    />
                     <input
                         type="text"
-                        className={styles.searchInput}
-                        placeholder="Buscar por nome ou hex..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        id="hex"
+                        value={formData.hex}
+                        onChange={(e) =>
+                            setFormData({ ...formData, hex: e.target.value })
+                        }
+                        placeholder="#FFFFFF"
+                        className={styles.input}
+                        style={{ flex: 1 }}
                     />
-                    <button onClick={handleAddClick} className={styles.addButton}>
-                        {showForm ? (editingCor ? "Cancelar edição" : "Cancelar") : "+ Adicionar Cor"}
-                    </button>
                 </div>
             </div>
 
-            {showForm && (
-                <div className={styles.inlineFormWrapper}>
-                    <section className={styles.inlineFormPanel}>
-                        <div className={styles.inlineFormHeader}>
-                            <div>
-                                <h4>{editingCor ? "Editar Cor" : "Adicionar Nova Cor"}</h4>
-                                <p>{editingCor ? "Atualize o nome ou código hexadecimal desta cor." : "Cadastre cores para padronizar o catálogo e relatórios."}</p>
-                            </div>
-                            <button type="button" className={styles.inlineFormClose} onClick={closeForm}>
-                                {editingCor ? "Cancelar edição" : "Fechar formulário"}
-                            </button>
-                        </div>
+            <div className={styles.modalActions}>
+                <button
+                    type="button"
+                    className={styles.cancelButton}
+                    onClick={closeForm}
+                >
+                    Cancelar
+                </button>
+                <button
+                    type="submit"
+                    className={styles.submitButton}
+                    disabled={isSubmitting || loading}
+                >
+                    {isSubmitting || loading
+                        ? "Salvando..."
+                        : editingCor
+                        ? "Atualizar"
+                        : "Adicionar"}
+                </button>
+            </div>
+        </form>
+    );
 
-                        <form onSubmit={handleSubmit} className={styles.form}>
-                            <div className={styles.formGroup}>
-                                <label htmlFor="nome">Nome da Cor*</label>
-                                <input
-                                    id="nome"
-                                    type="text"
-                                    value={formData.nome}
-                                    onChange={(e) =>
-                                        setFormData({ ...formData, nome: e.target.value })
-                                    }
-                                    required
-                                    className={styles.input}
-                                />
-                            </div>
-                            <div className={styles.formGroup}>
-                                <label htmlFor="hex">Código Hexadecimal</label>
-                                <div className={styles.colorInputGroup}>
-                                    <input
-                                        id="hex"
-                                        type="text"
-                                        value={formData.hex}
-                                        onChange={(e) =>
-                                            setFormData({ ...formData, hex: e.target.value })
-                                        }
-                                        placeholder="#FFFFFF"
-                                        className={styles.input}
-                                    />
-                                    <input
-                                        type="color"
-                                        className={styles.colorPicker}
-                                        aria-label="Selecionar cor"
-                                        value={formData.hex && /^#([0-9a-fA-F]{6})$/.test(formData.hex)
-                                            ? formData.hex
-                                            : '#000000'}
-                                        onChange={(e) =>
-                                            setFormData({ ...formData, hex: e.target.value.toUpperCase() })
-                                        }
-                                    />
-                                </div>
-                            </div>
-                            <div className={styles.modalActions}>
-                                <button
-                                    type="button"
-                                    className={styles.cancelButton}
-                                    onClick={closeForm}
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={isSubmitting}
-                                    className={styles.submitButton}
-                                >
-                                    {isSubmitting ? "Salvando..." : editingCor ? "Atualizar" : "Adicionar"}
-                                </button>
-                            </div>
-                        </form>
-                    </section>
-                </div>
-            )}
-
-            {loading ? (
-                <p>Carregando...</p>
-            ) : (
-                <>
-                    <div className={styles.tableContainer}>
-                        <table className={styles.table}>
-                            <thead>
-                                <tr>
-                                    <th>Nome</th>
-                                    <th>Hex</th>
-                                    <th>Amostra</th>
-                                    <th>Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredCores.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={4} className={styles.emptyMessage}>Nenhuma cor encontrada.</td>
-                                    </tr>
-                                ) : (
-                                    filteredCores.map((cor) => (
-                                        <tr key={cor.id}>
-                                            <td>{cor.nome}</td>
-                                            <td>{cor.hex}</td>
-                                            <td>
-                                                <div
-                                                    className={styles.colorPreview}
-                                                    style={{ backgroundColor: cor.hex || "#000000" }}
-                                                    title={cor.hex}
-                                                />
-                                            </td>
-                                            <td>
-                                                <button
-                                                    onClick={() => handleEdit(cor)}
-                                                    className={`${styles.actionButton} ${styles.editAction}`}
-                                                    title="Editar cor"
-                                                    aria-label={`Editar ${cor.nome}`}
-                                                >
-                                                    <FaEdit size={16} />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(cor.id!)}
-                                                    className={`${styles.actionButton} ${styles.deleteAction}`}
-                                                    title="Excluir cor"
-                                                    aria-label={`Excluir ${cor.nome}`}
-                                                >
-                                                    <FaTrash size={15} />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                    <Pagination
-                        currentPage={currentPage}
-                        totalItems={totalItems}
-                        itemsPerPage={ITEMS_PER_PAGE}
-                        onPageChange={handlePageChange}
-                        hasNextPage={hasMore}
-                    />
-                </>
-            )}
-
-        </div>
+    return (
+        <GenericDataTable<Cor>
+            title="Gerenciar Cores"
+            error={error}
+            items={filteredCores}
+            columns={columns}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            showForm={showForm}
+            isEditing={!!editingCor}
+            onAddClick={handleAddClick}
+            onCloseForm={closeForm}
+            formTitleAdd="Adicionar Nova Cor"
+            formTitleEdit="Editar Cor"
+            formDescriptionAdd="Cadastre novas cores com seus respectivos códigos HEX."
+            formDescriptionEdit="Atualize o nome ou o código HEX da cor."
+            formContent={formContent}
+            currentPage={currentPage}
+            totalItems={totalItems}
+            itemsPerPage={ITEMS_PER_PAGE}
+            onPageChange={handlePageChange}
+            loading={loading}
+            emptyMessage="Nenhuma cor encontrada."
+        />
     );
 };
 

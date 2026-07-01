@@ -5,6 +5,7 @@ import { useTablesDatabase } from '../../lib/hooks/useTablesDatabase';
 import { Modelo, tablesService, PaginationResult } from '../../lib/services/tablesService';
 import { Pagination } from '../Pagination';
 import styles from './TablesManagement.module.css';
+import { GenericDataTable, ColumnDef } from './GenericDataTable';
 
 const formatDate = (dateString: string | Date | undefined) => {
     if (!dateString) return 'N/A';
@@ -220,259 +221,225 @@ export function ModelosTable() {
             alert('Erro ao processar o arquivo CSV.');
             setImportProgress({ current: 0, total: 0, isImporting: false });
         }
-    }; return (
-        <div className={styles.container}>
-            {error && (
-                <div className={styles.errorMessage}>
-                    {error}
-                </div>
-            )}
+    };
 
-            <div className={styles.header}>
-                <h3>Gerenciar Modelos</h3>
-                <div className={styles.headerActions}>
-                    <input
-                        type="text"
-                        className={styles.searchInput}
-                        placeholder="Buscar por modelo ou marca..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+    const columns: ColumnDef<Modelo>[] = [
+        {
+            key: 'nome',
+            label: 'Nome do Modelo',
+            render: (modelo) => <span className={styles.marcaName}>{modelo.nome}</span>
+        },
+        {
+            key: 'marca',
+            label: 'Marca',
+            render: (modelo) => modelo.marca
+        },
+        {
+            key: 'createdAt',
+            label: 'Criado em',
+            render: (modelo) => formatDate(modelo.createdAt)
+        },
+        {
+            key: 'acoes',
+            label: 'Ações',
+            render: (modelo) => (
+                <div className={styles.actions}>
                     <button
-                        className={styles.importButton}
-                        onClick={() => setShowImportModal(true)}
+                        className={styles.editButton}
+                        onClick={() => handleEdit(modelo)}
                     >
-                        📂 Importar CSV
+                        ✏️ Editar
                     </button>
                     <button
-                        className={styles.addButton}
-                        onClick={handleAddClick}
+                        className={styles.deleteButton}
+                        onClick={() => modelo.id && handleDelete(modelo.id)}
                     >
-                        {showForm ? (editingModelo ? 'Cancelar edição' : 'Cancelar') : '+ Adicionar Modelo'}
+                        🗑️ Excluir
                     </button>
                 </div>
+            )
+        }
+    ];
+
+    const formContent = (
+        <form onSubmit={handleSubmit} className={styles.form}>
+            <div className={styles.formGroup}>
+                <label htmlFor="nome">Nome do Modelo*</label>
+                <input
+                    type="text"
+                    id="nome"
+                    value={formData.nome}
+                    onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                    placeholder="Ex: COROLLA XEI 2.0"
+                    required
+                    className={styles.input}
+                />
             </div>
 
-            {showForm && (
-                <div className={styles.inlineFormWrapper}>
-                    <section className={styles.inlineFormPanel}>
-                        <div className={styles.inlineFormHeader}>
-                            <div>
-                                <h4>{editingModelo ? 'Editar Modelo' : 'Adicionar Novo Modelo'}</h4>
-                                <p>{editingModelo ? 'Atualize o vínculo com a marca e o nome do modelo.' : 'Cadastre modelos para disponibilizar combinações corretas nas demais telas.'}</p>
-                            </div>
-                            <button type="button" className={styles.inlineFormClose} onClick={closeForm}>
-                                {editingModelo ? 'Cancelar edição' : 'Fechar formulário'}
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleSubmit} className={styles.form}>
-                            <div className={styles.formGroup}>
-                                <label htmlFor="marca">Marca*</label>
-                                <select
-                                    id="marca"
-                                    value={formData.marca}
-                                    onChange={(e) => setFormData({ ...formData, marca: e.target.value })}
-                                    required
-                                    className={styles.select}
-                                >
-                                    <option value="">Selecione uma marca</option>
-                                    {marcas.map(marca => (
-                                        <option key={marca.id} value={marca.nome}>
-                                            {marca.nome}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div className={styles.formGroup}>
-                                <label htmlFor="nome">Nome do Modelo*</label>
-                                <input
-                                    type="text"
-                                    id="nome"
-                                    value={formData.nome}
-                                    onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                                    placeholder="Ex: COROLLA"
-                                    required
-                                    className={styles.input}
-                                />
-                            </div>
-
-                            <div className={styles.modalActions}>
-                                <button
-                                    type="button"
-                                    className={styles.cancelButton}
-                                    onClick={closeForm}
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    type="submit"
-                                    className={styles.submitButton}
-                                    disabled={isSubmitting || loading}
-                                >
-                                    {(isSubmitting || loading) ? 'Salvando...' : (editingModelo ? 'Atualizar' : 'Adicionar')}
-                                </button>
-                            </div>
-                        </form>
-                    </section>
-                </div>
-            )}
-
-            <div className={styles.tableContainer}>
-                <table className={styles.table}>
-                    <thead>
-                        <tr>
-                            <th>Nome do Modelo</th>
-                            <th>Marca</th>
-                            <th>Criado em</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {modelos.length === 0 ? (
-                            <tr>
-                                <td colSpan={4} className={styles.emptyMessage}>
-                                    {loading ? 'Carregando...' : searchTerm ? 'Nenhum modelo encontrado para esta busca.' : 'Nenhum modelo encontrado.'}
-                                </td>
-                            </tr>
-                        ) : (
-                            modelos.map(modelo => (
-                                <tr key={modelo.id}>
-                                    <td className={styles.modeloName}>{modelo.nome}</td>
-                                    <td className={styles.marcaName}>{modelo.marca}</td>
-                                    <td>
-                                        {formatDate(modelo.createdAt)}
-                                    </td>
-                                    <td>
-                                        <div className={styles.actions}>
-                                            <button
-                                                className={styles.editButton}
-                                                onClick={() => handleEdit(modelo)}
-                                            >
-                                                ✏️ Editar
-                                            </button>
-                                            <button
-                                                className={styles.deleteButton}
-                                                onClick={() => modelo.id && handleDelete(modelo.id)}
-                                            >
-                                                🗑️ Excluir
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
+            <div className={styles.formGroup}>
+                <label htmlFor="marca">Marca vinculada*</label>
+                <select
+                    id="marca"
+                    value={formData.marca}
+                    onChange={(e) => setFormData({ ...formData, marca: e.target.value })}
+                    required
+                    className={styles.input}
+                >
+                    <option value="">Selecione uma marca</option>
+                    {marcas.map(marca => (
+                        <option key={marca.id} value={marca.nome}>
+                            {marca.nome}
+                        </option>
+                    ))}
+                </select>
             </div>
 
-            {/* Paginação */}
-            <Pagination
+            <div className={styles.modalActions}>
+                <button
+                    type="button"
+                    className={styles.cancelButton}
+                    onClick={closeForm}
+                >
+                    Cancelar
+                </button>
+                <button
+                    type="submit"
+                    className={styles.submitButton}
+                    disabled={isSubmitting || loading}
+                >
+                    {(isSubmitting || loading) ? 'Salvando...' : (editingModelo ? 'Atualizar' : 'Adicionar')}
+                </button>
+            </div>
+        </form>
+    );
+
+    const customActions = (
+        <button
+            className={styles.importButton}
+            onClick={() => setShowImportModal(true)}
+            title="Importar modelos via CSV"
+        >
+            📥 Importar CSV
+        </button>
+    );
+
+    return (
+        <>
+            <GenericDataTable<Modelo>
+                title="Gerenciar Modelos"
+                error={error}
+                items={modelos}
+                columns={columns}
+                searchTerm={searchTerm}
+                onSearchChange={(term) => {
+                    setSearchTerm(term);
+                    loadModelos(1, term);
+                }}
+                showForm={showForm}
+                isEditing={!!editingModelo}
+                onAddClick={handleAddClick}
+                onCloseForm={closeForm}
+                formTitleAdd="Adicionar Novo Modelo"
+                formTitleEdit="Editar Modelo"
+                formDescriptionAdd="Cadastre os modelos completos (ex: COROLLA XEI 2.0) e vincule à marca correspondente."
+                formDescriptionEdit="Atualize o nome ou a marca deste modelo."
+                formContent={formContent}
                 currentPage={currentPage}
                 totalItems={totalItems}
                 itemsPerPage={itemsPerPage}
                 onPageChange={handlePageChange}
                 loading={loading}
+                emptyMessage="Nenhum modelo encontrado."
+                customActions={customActions}
             />
 
-            {/* Modal de Importação CSV */}
+            {/* Modal de Importação */}
             {showImportModal && (
-                <div className={styles.overlay}>
-                    <div className={styles.modal}>
+                <div className={styles.modalOverlay}>
+                    <div className={styles.importModal}>
                         <div className={styles.modalHeader}>
-                            <h3>Importar Modelos do CSV</h3>
-                            <button className={styles.closeButton} onClick={() => setShowImportModal(false)}>✕</button>
+                            <h3>Importar Modelos via CSV</h3>
+                            <button className={styles.closeButton} onClick={() => setShowImportModal(false)}>×</button>
                         </div>
-
-                        <div className={styles.form}>
-                            <div className={styles.importInstructions}>
-                                <h4>📋 Formato do arquivo CSV:</h4>
-                                <ul>
-                                    <li>Primeira linha deve conter os cabeçalhos: <strong>Marca,Modelo</strong></li>
-                                    <li>As linhas seguintes devem conter os dados separados por vírgula</li>
-                                    <li>Exemplo:</li>
-                                </ul>
-                                <pre className={styles.csvExample}>
-                                    Marca,Modelo{'\n'}TOYOTA,COROLLA{'\n'}FORD,FOCUS{'\n'}HONDA,CIVIC
-                                </pre>
-                            </div>
-
-                            <div className={styles.formGroup}>
-                                <label htmlFor="csvFile">Selecionar arquivo CSV:</label>
-                                <input
-                                    type="file"
+                        
+                        <div className={styles.modalContent}>
+                            <p className={styles.importInstructions}>
+                                O arquivo CSV deve conter duas colunas (com ou sem cabeçalho):<br/>
+                                <strong>Coluna 1:</strong> Marca<br/>
+                                <strong>Coluna 2:</strong> Modelo
+                            </p>
+                            
+                            <div className={styles.fileUploadArea}>
+                                <input 
+                                    type="file" 
+                                    accept=".csv" 
                                     id="csvFile"
-                                    accept=".csv"
-                                    onChange={handleFileChange}
                                     className={styles.fileInput}
+                                    onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+                                    disabled={importProgress.isImporting}
                                 />
+                                <label htmlFor="csvFile" className={styles.fileLabel}>
+                                    {csvFile ? csvFile.name : 'Clique para selecionar o arquivo CSV'}
+                                </label>
                             </div>
-
-                            {csvFile && (
-                                <div className={styles.fileInfo}>
-                                    <strong>Arquivo selecionado:</strong> {csvFile.name}
-                                </div>
-                            )}
 
                             {importProgress.isImporting && (
                                 <div className={styles.progressContainer}>
-                                    <h4>Importando modelos...</h4>
-                                    <div className={styles.progressBar}>
-                                        <div
-                                            className={styles.progressFill}
-                                            style={{
-                                                width: `${importProgress.total > 0 ? (importProgress.current / importProgress.total) * 100 : 0}%`
-                                            }}
-                                        ></div>
+                                    <div className={styles.progressInfo}>
+                                        <span>Importando dados...</span>
+                                        <span>{importProgress.current} / {importProgress.total}</span>
                                     </div>
-                                    <p className={styles.progressText}>
-                                        {importProgress.current} de {importProgress.total} ({Math.round((importProgress.current / importProgress.total) * 100) || 0}%)
-                                    </p>
+                                    <div className={styles.progressBar}>
+                                        <div 
+                                            className={styles.progressFill} 
+                                            style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
+                                        />
+                                    </div>
                                 </div>
                             )}
 
-                            {importResults && !importProgress.isImporting && (
+                            {importResults && (
                                 <div className={styles.importResults}>
-                                    <h4>Resultados da Importação:</h4>
-                                    <p><strong>Sucessos:</strong> {importResults.success}</p>
-                                    {importResults.errors.length > 0 && (
-                                        <>
-                                            <p><strong>Erros:</strong> {importResults.errors.length}</p>
-                                            <details>
-                                                <summary>Ver erros</summary>
-                                                <ul className={styles.errorList}>
-                                                    {importResults.errors.map((error, index) => (
-                                                        <li key={index}>Linha {error.line}: {error.reason}</li>
-                                                    ))}
-                                                </ul>
-                                            </details>
-                                        </>
+                                    <div className={styles.successMessage}>
+                                        ✅ {importResults.success} modelos importados com sucesso
+                                    </div>
+                                    
+                                    {importResults.errors && importResults.errors.length > 0 && (
+                                        <div className={styles.errorsContainer}>
+                                            <h4>Erros encontrados ({importResults.errors.length}):</h4>
+                                            <ul className={styles.errorsList}>
+                                                {importResults.errors.map((err, idx) => (
+                                                    <li key={idx}>
+                                                        <strong>Linha {err.line}:</strong> {err.reason}
+                                                        {err.raw && <div className={styles.rawLine}>Original: {err.raw}</div>}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
                                     )}
                                 </div>
                             )}
+                        </div>
 
-                            <div className={styles.modalActions}>
-                                <button
-                                    type="button"
-                                    className={styles.cancelButton}
-                                    onClick={() => setShowImportModal(false)}
-                                >
-                                    Fechar
-                                </button>
-                                <button
-                                    type="button"
-                                    className={styles.submitButton}
-                                    onClick={handleImportCSV}
-                                    disabled={!csvFile || loading}
-                                >
-                                    {loading ? 'Importando...' : 'Importar Dados'}
-                                </button>
-                            </div>
+                        <div className={styles.modalFooter}>
+                            <button 
+                                className={styles.cancelButton} 
+                                onClick={() => setShowImportModal(false)}
+                                disabled={importProgress.isImporting}
+                            >
+                                Fechar
+                            </button>
+                            <button 
+                                className={styles.submitButton}
+                                onClick={handleImportCSV}
+                                disabled={!csvFile || importProgress.isImporting}
+                            >
+                                {importProgress.isImporting ? 'Importando...' : 'Iniciar Importação'}
+                            </button>
                         </div>
                     </div>
                 </div>
             )}
-        </div>
+        </>
     );
 }
