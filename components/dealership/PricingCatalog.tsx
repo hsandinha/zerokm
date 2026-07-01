@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { FaFileExport, FaFileImport, FaTrash } from 'react-icons/fa';
 import styles from './PricingCatalog.module.css';
 
 type PricingStatus = 'todos' | 'ativo' | 'inativo';
@@ -69,6 +70,8 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
     const [error, setError] = useState<string | null>(null);
     const [draftPrices, setDraftPrices] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState<Record<string, boolean>>({});
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const queryStatus = status === 'todos' ? '' : status;
 
@@ -176,6 +179,148 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
         next?.select();
     };
 
+    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.checked) {
+            setSelectedIds(new Set(rows.map(r => r.variationId)));
+        } else {
+            setSelectedIds(new Set());
+        }
+    };
+
+    const handleSelectRow = (id: string, checked: boolean) => {
+        const next = new Set(selectedIds);
+        if (checked) next.add(id);
+        else next.delete(id);
+        setSelectedIds(next);
+    };
+
+    const handleExportCSV = () => {
+        const headers = ['ID_SISTEMA', 'MARCA', 'MODELO', 'ANO', 'COR', 'OPCIONAIS', 'PRECO_ATUAL', 'NOVO_PRECO'];
+        const csvRows = [headers.join(',')];
+        
+        for (const row of rows) {
+            // Se inativo for nulo, precoAtual é 0
+            const precoAtual = row.preco || 0;
+            const cols = [
+                row.variationId,
+                `"${row.marca || ''}"`,
+                `"${row.modelo || ''}"`,
+                `"${row.anoModelo || ''}"`,
+                `"${row.cor || ''}"`,
+                `"${(row.codigoFipe || '').replace(/"/g, '""')}"`,
+                precoAtual,
+                '' // novo preco vazio para o usuario preencher
+            ];
+            csvRows.push(cols.join(','));
+        }
+        
+        const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'catalogo_precos.csv');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        
+        const text = await file.text();
+        const lines = text.split('\n');
+        const updates: { variationId: string; preco: number }[] = [];
+        
+        const headerLine = lines[0].split(',');
+        const idIndex = headerLine.findIndex(h => h.includes('ID_SISTEMA'));
+        const priceIndex = headerLine.findIndex(h => h.includes('NOVO_PRECO'));
+        
+        if (idIndex === -1 || priceIndex === -1) {
+            setError('CSV Inválido. Baixe a planilha mestre novamente.');
+            return;
+        }
+        
+        for (let i = 1; i < lines.length; i++) {
+            const rowStr = lines[i].trim();
+            if (!rowStr) continue;
+            
+            const colsArray = [];
+            let inQuotes = false;
+            let currentStr = '';
+            for (let char of rowStr) {
+                if (char === '"') inQuotes = !inQuotes;
+                else if (char === ',' && !inQuotes) {
+                    colsArray.push(currentStr);
+                    currentStr = '';
+                } else {
+                    currentStr += char;
+                }
+            }
+            colsArray.push(currentStr);
+            
+            const varId = colsArray[idIndex]?.replace(/"/g, '').trim();
+            const rawPrice = colsArray[priceIndex]?.replace(/"/g, '').trim();
+            
+            if (varId && rawPrice !== undefined && rawPrice !== '') {
+                const parsed = parseCurrency(rawPrice);
+                // Assume 0 como inativar
+                updates.push({ variationId: varId, preco: parsed || 0 });
+            }
+        }
+        
+        if (updates.length > 0) {
+            setLoading(true);
+            try {
+                const patchUrl = concessionariaId 
+                    ? `/api/dealership/pricing-catalog/bulk?concessionariaId=${concessionariaId}`
+                    : '/api/dealership/pricing-catalog/bulk';
+
+                const res = await fetch(patchUrl, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ updates }),
+                });
+
+                if (!res.ok) throw new Error('Erro ao processar importação');
+                await loadCatalog();
+                alert(`Importação concluída. ${updates.length} itens processados.`);
+            } catch (err: any) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+        e.target.value = '';
+    };
+
+    const handleMassZerar = async () => {
+        if (selectedIds.size === 0) return;
+        if (!confirm(`Tem certeza que deseja inativar (zerar preço) de ${selectedIds.size} veículos?`)) return;
+        
+        const updates = Array.from(selectedIds).map(id => ({ variationId: id, preco: 0 }));
+        setLoading(true);
+        try {
+            const patchUrl = concessionariaId 
+                ? `/api/dealership/pricing-catalog/bulk?concessionariaId=${concessionariaId}`
+                : '/api/dealership/pricing-catalog/bulk';
+
+            const res = await fetch(patchUrl, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ updates }),
+            });
+
+            if (!res.ok) throw new Error('Erro ao processar inativação em massa');
+            
+            setSelectedIds(new Set());
+            await loadCatalog();
+        } catch (err: any) {
+            setError(err.message);
+            setLoading(false);
+        }
+    };
+
     return (
         <div className={styles.container}>
             <div className={styles.toolbar}>
@@ -191,6 +336,33 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                     <span>{activeCount} ativas</span>
                     <span>{inactiveCount} sem preço</span>
                 </div>
+            </div>
+
+            <div className={styles.bulkActionsRow}>
+                {selectedIds.size > 0 ? (
+                    <div className={styles.selectedActions}>
+                        <span>{selectedIds.size} item(s) selecionados</span>
+                        <button onClick={handleMassZerar} className={styles.dangerButton}>
+                            <FaTrash /> Zerar / Inativar Selecionados
+                        </button>
+                    </div>
+                ) : (
+                    <div className={styles.csvActions}>
+                        <button onClick={handleExportCSV} className={styles.actionBtn}>
+                            <FaFileExport /> Baixar Planilha Base
+                        </button>
+                        <button onClick={() => fileInputRef.current?.click()} className={styles.actionBtn}>
+                            <FaFileImport /> Importar CSV
+                        </button>
+                        <input
+                            type="file"
+                            accept=".csv"
+                            style={{ display: 'none' }}
+                            ref={fileInputRef}
+                            onChange={handleImportCSV}
+                        />
+                    </div>
+                )}
             </div>
 
             <div className={styles.filters}>
@@ -225,6 +397,13 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                 <table className={styles.table}>
                     <thead>
                         <tr>
+                            <th style={{ width: '40px', textAlign: 'center' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={rows.length > 0 && selectedIds.size === rows.length}
+                                    onChange={handleSelectAll}
+                                />
+                            </th>
                             <th>Modelo</th>
                             <th>Ano</th>
                             <th>Combustível</th>
@@ -242,7 +421,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                             </tr>
                         ) : rows.length === 0 ? (
                             <tr>
-                                <td colSpan={8} className={styles.empty}>Nenhuma variação encontrada.</td>
+                                <td colSpan={9} className={styles.empty}>Nenhuma variação encontrada.</td>
                             </tr>
                         ) : rows.map((row, index) => {
                             const inputValue = draftPrices[row.variationId] ?? formatCurrency(row.preco);
@@ -250,6 +429,13 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
 
                             return (
                                 <tr key={row.variationId}>
+                                    <td style={{ textAlign: 'center' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedIds.has(row.variationId)}
+                                            onChange={(e) => handleSelectRow(row.variationId, e.target.checked)}
+                                        />
+                                    </td>
                                     <td>
                                         <strong>{row.modelo}</strong>
                                         {row.motor && <span className={styles.muted}>{row.motor}</span>}

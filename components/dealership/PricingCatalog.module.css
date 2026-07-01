@@ -102,6 +102,69 @@
     font-size: 0.9rem;
 }
 
+.bulkActionsRow {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 1rem;
+    min-height: 40px;
+}
+
+.selectedActions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--color-surface);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--color-highlight);
+    color: var(--color-text);
+    font-size: 0.9rem;
+}
+
+.csvActions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.actionBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-highlight);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.15s ease;
+}
+
+.actionBtn:hover {
+    background: var(--color-highlight);
+    border-color: var(--color-text-muted);
+}
+
+.dangerButton {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--color-negative);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.15s ease;
+}
+
+.dangerButton:hover {
+    filter: brightness(1.1);
+}
+
 .tableShell {
     width: 100%;
     overflow: auto;

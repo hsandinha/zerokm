@@ -68,27 +68,48 @@ async function resolveConcessionaria(session: any, request: Request) {
 }
 
 function buildBrandMatch(concessionaria: any) {
-    if (concessionaria?.marcaId) {
-        return { marcaId: concessionaria.marcaId };
+    const orConditions = [];
+
+    if (concessionaria?.marcaIds && concessionaria.marcaIds.length > 0) {
+        orConditions.push({ marcaId: { $in: concessionaria.marcaIds } });
+    } else if (concessionaria?.marcaId) {
+        orConditions.push({ marcaId: concessionaria.marcaId });
     }
 
-    if (concessionaria?.marca) {
-        return { marca: { $regex: `^${escapeRegex(concessionaria.marca)}$`, $options: 'i' } };
+    if (concessionaria?.marcas && concessionaria.marcas.length > 0) {
+        const regexList = concessionaria.marcas.map((m: string) => new RegExp(`^${escapeRegex(m)}$`, 'i'));
+        orConditions.push({ marca: { $in: regexList } });
+    } else if (concessionaria?.marca) {
+        orConditions.push({ marca: { $regex: `^${escapeRegex(concessionaria.marca)}$`, $options: 'i' } });
+    }
+
+    if (orConditions.length > 0) {
+        return { $or: orConditions };
     }
 
     return null;
 }
 
 function assertVariationBelongsToDealership(variation: any, concessionaria: any) {
-    if (concessionaria?.marcaId && variation?.marcaId) {
-        return variation.marcaId.toString() === concessionaria.marcaId.toString();
+    let matchesId = false;
+    if (variation?.marcaId) {
+        if (concessionaria?.marcaIds && concessionaria.marcaIds.length > 0) {
+            matchesId = concessionaria.marcaIds.some((id: any) => id.toString() === variation.marcaId.toString());
+        } else if (concessionaria?.marcaId) {
+            matchesId = variation.marcaId.toString() === concessionaria.marcaId.toString();
+        }
     }
 
-    if (concessionaria?.marca && variation?.marca) {
-        return variation.marca.toLowerCase() === concessionaria.marca.toLowerCase();
+    let matchesName = false;
+    if (variation?.marca) {
+        if (concessionaria?.marcas && concessionaria.marcas.length > 0) {
+            matchesName = concessionaria.marcas.some((m: string) => m.toLowerCase() === variation.marca.toLowerCase());
+        } else if (concessionaria?.marca) {
+            matchesName = variation.marca.toLowerCase() === concessionaria.marca.toLowerCase();
+        }
     }
 
-    return false;
+    return matchesId || matchesName;
 }
 
 export async function GET(request: Request) {
@@ -120,16 +141,30 @@ export async function GET(request: Request) {
         const search = normalizeText(searchParams.get('search'));
         const status = normalizeText(searchParams.get('status'));
 
-        const variationMatch: any = { ativo: true, ...brandMatch };
+        const variationMatch: any = { ativo: true };
+        
+        // Add brand match logic to the match query properly
+        if (brandMatch.$or) {
+            variationMatch.$or = brandMatch.$or;
+        } else {
+            Object.assign(variationMatch, brandMatch);
+        }
         if (search) {
             const regex = { $regex: escapeRegex(search), $options: 'i' };
-            variationMatch.$or = [
+            const searchOr = [
                 { modelo: regex },
                 { codigoFipe: regex },
                 { combustivel: regex },
                 { cor: regex },
                 { transmissao: regex },
             ];
+            
+            if (variationMatch.$or) {
+                variationMatch.$and = [{ $or: variationMatch.$or }, { $or: searchOr }];
+                delete variationMatch.$or;
+            } else {
+                variationMatch.$or = searchOr;
+            }
         }
 
         const pipeline: any[] = [
