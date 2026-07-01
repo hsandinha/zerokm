@@ -12,6 +12,7 @@ import styles from './VehicleConsultation.module.css';
 import modalStyles from './TablesManagement.module.css';
 import { HighlightText } from '../HighlightText';
 import { UpgradeModal } from './UpgradeModal';
+import { FaWhatsapp } from 'react-icons/fa';
 
 const normalizeString = (value: string) => value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 
@@ -2859,28 +2860,23 @@ function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onEdit, onDelet
                             className={styles.whatsappButton}
                             title="Contatar Vendedor via WhatsApp"
                             onClick={() => onWhatsApp(vehicle)}
-                            style={{ backgroundColor: '#25D366', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', width: '100%', display: 'inline-block', textAlign: 'center' }}
+                            style={{ backgroundColor: '#25D366', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                             role="button"
                             tabIndex={0}
                         >
-                            💬 WhatsApp
+                            <FaWhatsapp size={16} /> WhatsApp
                         </span>
                     ) : (
-                        <>
-                            <span className={styles.proposalButton} title="Criar Proposta" role="button" tabIndex={0}>
-                                📋
-                            </span>
-                            <span
-                                className={styles.whatsappButton}
-                                title="WhatsApp"
-                                onClick={() => onWhatsApp(vehicle)}
-                                role="button"
-                                tabIndex={0}
-                            >
-                                💬
-                            </span>
-                            
-                        </>
+                        <span
+                            className={styles.whatsappButton}
+                            title="WhatsApp"
+                            onClick={() => onWhatsApp(vehicle)}
+                            role="button"
+                            tabIndex={0}
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#25D366', fontSize: '1.2rem' }}
+                        >
+                            <FaWhatsapp />
+                        </span>
                     )}
                 </div>
             </div>
