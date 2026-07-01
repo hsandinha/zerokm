@@ -1805,55 +1805,47 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                         </>
                     )}
                     {role !== 'client' && role !== 'gratis' && role !== 'dealership' && role !== 'vendedor' && (
-                        <>
-                            <div className={styles.exportWrapper} style={{ position: 'relative', display: 'inline-block' }}>
-                                <button
-                                    className={styles.importButton}
-                                    onClick={() => setShowExportMenu(!showExportMenu)}
-                                    title="Exportar Veículos"
-                                    disabled={isExporting}
-                                    style={{ marginRight: '8px' }}
-                                >
-                                    {isExporting ? 'Exportando...' : '📤 Exportar'}
-                                </button>
-                                {showExportMenu && (
-                                    <div className={styles.exportMenu} style={{
-                                        position: 'absolute',
-                                        top: '100%',
-                                        left: 0,
-                                        zIndex: 10,
-                                        background: 'white',
-                                        border: '1px solid #ccc',
-                                        borderRadius: '4px',
-                                        boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        minWidth: '120px'
-                                    }}>
-                                        <button
-                                            onClick={() => handleExport('csv')}
-                                            style={{ padding: '8px 12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', borderBottom: '1px solid #eee', color: '#333' }}
-                                        >
-                                            CSV (.csv)
-                                        </button>
-                                        <button
-                                            onClick={() => handleExport('json')}
-                                            style={{ padding: '8px 12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', color: '#333' }}
-                                        >
-                                            JSON (.json)
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
+                        <div className={styles.exportWrapper} style={{ position: 'relative', display: 'inline-block' }}>
                             <button
-                                className={styles.importButton}
-                                onClick={() => setShowImportModal(true)}
-                                title="Importar Veículos do CSV"
+                                className={styles.exportButton}
+                                onClick={() => setShowExportMenu(!showExportMenu)}
+                                title="Exportar Veículos"
+                                disabled={isExporting}
+                                style={{ marginRight: '8px' }}
                             >
-                                📂 Importar CSV
+                                {isExporting ? 'Exportando...' : '📤 Exportar'}
                             </button>
-                        </>
+                            {showExportMenu && (
+                                <div className={styles.exportMenu} style={{
+                                    position: 'absolute',
+                                    top: '100%',
+                                    left: 0,
+                                    zIndex: 10,
+                                    background: 'white',
+                                    border: '1px solid #ccc',
+                                    borderRadius: '4px',
+                                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    minWidth: '120px'
+                                }}>
+                                    <button
+                                        onClick={() => handleExport('csv')}
+                                        style={{ padding: '8px 12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', borderBottom: '1px solid #eee', color: '#333' }}
+                                    >
+                                        CSV (.csv)
+                                    </button>
+                                    <button
+                                        onClick={() => handleExport('json')}
+                                        style={{ padding: '8px 12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', color: '#333' }}
+                                    >
+                                        JSON (.json)
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     )}
+
                     {/* Margem: admin, gerente e client (plano pago) editam */}
                     {['admin', 'administrador', 'gerente', 'client'].includes(role) && (
                         <button
@@ -2374,224 +2366,6 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                 </div>
             </div>
 
-            {/* Modal de Importação CSV */}
-            {showImportModal && (
-                <div className={modalStyles.overlay}>
-                    <div className={modalStyles.modal}>
-                        <div className={modalStyles.modalHeader}>
-                            <h3>Importar Veículos do CSV</h3>
-                            <button className={modalStyles.closeButton} onClick={() => setShowImportModal(false)}>✕</button>
-                        </div>
-
-                        <div className={modalStyles.form}>
-                            <div className={modalStyles.importInstructions}>
-                                <h4>📋 Formato do arquivo CSV (17 colunas):</h4>
-                                <ul>
-                                    <li>Primeira linha deve conter os cabeçalhos: <strong>dataEntrada,modelo,transmissao,combustivel,cor,ano,opcionais,preco,status,observacoes,cidade,estado,frete,telefone,concessionaria,nomeContato,operador</strong></li>
-                                    <li>As linhas seguintes devem conter os dados separados por vírgula</li>
-                                    <li><strong>Campos obrigatórios:</strong> modelo, transmissao, combustivel, ano, preco, status, cidade, estado, frete, telefone, concessionaria, nomeContato</li>
-                                    <li><strong>Campos opcionais:</strong> dataEntrada, cor, opcionais, observacoes, operador</li>
-                                    <li><strong>Status válidos:</strong> A faturar, Refaturamento, Licenciado</li>
-                                    <li><strong>Combustível válido:</strong> Flex, Gasolina, Etanol, Diesel, Elétrico, Híbrido</li>
-                                    <li><strong>Transmissão válida:</strong> Manual, Automático, CVT</li>
-                                    <li>Exemplo (role horizontalmente):</li>
-                                </ul>
-                                <pre className={modalStyles.csvExample} style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}>
-                                    dataEntrada,modelo,transmissao,combustivel,cor,ano,opcionais,preco,status,observacoes,cidade,estado,frete,telefone,concessionaria,nomeContato,operador{"\n"}20/11/2025,COROLLA ALTIS 2.0,Automático,Flex,BRANCO POLAR,2024,AR CONDICIONADO,154920,A faturar,Veículo novo,São Paulo,SP,1500,11999991001,RENAULT ANDRETA,CARLOS SILVA,JOÃO
-                                </pre>
-                            </div>
-
-                            <div className={modalStyles.formGroup}>
-                                <label htmlFor="csvFile">Selecionar arquivo CSV:</label>
-                                <input
-                                    type="file"
-                                    id="csvFile"
-                                    accept=".csv"
-                                    onChange={handleFileChange}
-                                    className={modalStyles.fileInput}
-                                />
-                            </div>
-
-                            {csvFile && (
-                                <div className={modalStyles.fileInfo}>
-                                    <strong>Arquivo selecionado:</strong> {csvFile.name}
-                                </div>
-                            )}
-
-                            {importProgress.isImporting && (
-                                <div className={modalStyles.progressContainer}>
-                                    <h4>
-                                        <span className={modalStyles.spinner} aria-label="Carregando"></span>
-                                        Importando veículos...
-                                        <span className={modalStyles.percentBadge} style={{ marginLeft: '0.5rem' }}>{percent}%</span>
-                                    </h4>
-                                    <div className={modalStyles.progressBar}>
-                                        <div
-                                            className={modalStyles.progressFill}
-                                            style={{
-                                                width: `${percent}%`
-                                            }}
-                                        ></div>
-                                        <div className={modalStyles.progressPercent}>{percent}%</div>
-                                    </div>
-                                    <p className={modalStyles.progressText}>
-                                        {importProgress.current} de {importProgress.total} ({percent}%)
-                                    </p>
-                                </div>
-                            )}
-
-                            {importResults && !importProgress.isImporting && (
-                                <div style={{ marginTop: '1rem' }}>
-                                    {/* Cabeçalho com resumo */}
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                        <h4 style={{ margin: 0 }}>Relatório de Importação</h4>
-                                        <div style={{ display: 'flex', gap: '1rem', fontSize: '0.875rem' }}>
-                                            <span style={{ color: 'var(--color-positive)', fontWeight: 600 }}>✅ Inseridos: {importResults.success}</span>
-                                            <span style={{ color: 'var(--color-negative)', fontWeight: 600 }}>❌ Erros: {importResults.errors.length}</span>
-                                            <span style={{ color: 'var(--color-text-muted)' }}>Total: {importResults.rows.length}</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Seletor de abas */}
-                                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                                        <button
-                                            onClick={() => setImportResultTab('success')}
-                                            style={{
-                                                padding: '0.4rem 1.1rem',
-                                                borderRadius: '8px',
-                                                border: 'none',
-                                                cursor: 'pointer',
-                                                fontWeight: importResultTab === 'success' ? 700 : 400,
-                                                background: importResultTab === 'success' ? 'var(--color-positive)' : 'var(--color-highlight)',
-                                                color: importResultTab === 'success' ? '#fff' : 'var(--color-text-muted)',
-                                                fontSize: '0.85rem',
-                                            }}
-                                        >
-                                            ✅ Sucesso ({importResults.rows.filter(r => r.status === 'ok').length})
-                                        </button>
-                                        <button
-                                            onClick={() => setImportResultTab('error')}
-                                            style={{
-                                                padding: '0.4rem 1.1rem',
-                                                borderRadius: '8px',
-                                                border: 'none',
-                                                cursor: 'pointer',
-                                                fontWeight: importResultTab === 'error' ? 700 : 400,
-                                                background: importResultTab === 'error' ? 'var(--color-negative)' : 'var(--color-highlight)',
-                                                color: importResultTab === 'error' ? '#fff' : 'var(--color-text-muted)',
-                                                fontSize: '0.85rem',
-                                            }}
-                                        >
-                                            ❌ Erros ({importResults.errors.length})
-                                        </button>
-                                    </div>
-
-                                    {/* Aba Sucesso */}
-                                    {importResultTab === 'success' && (
-                                        <div style={{ overflowY: 'auto', maxHeight: '300px', border: '1px solid var(--color-highlight)', borderRadius: '8px' }}>
-                                            {importResults.rows.filter(r => r.status === 'ok').length === 0 ? (
-                                                <p style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--color-text-muted)', margin: 0 }}>Nenhum registro inserido com sucesso.</p>
-                                            ) : (
-                                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
-                                                    <thead style={{ position: 'sticky', top: 0, background: 'var(--color-surface)', zIndex: 1 }}>
-                                                        <tr>
-                                                            <th style={{ padding: '7px 10px', textAlign: 'left', borderBottom: '1px solid var(--color-highlight)', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>Linha</th>
-                                                            <th style={{ padding: '7px 10px', textAlign: 'left', borderBottom: '1px solid var(--color-highlight)', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>Modelo</th>
-                                                            <th style={{ padding: '7px 10px', textAlign: 'left', borderBottom: '1px solid var(--color-highlight)', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>Cor</th>
-                                                            <th style={{ padding: '7px 10px', textAlign: 'left', borderBottom: '1px solid var(--color-highlight)', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>Transmissão</th>
-                                                            <th style={{ padding: '7px 10px', textAlign: 'left', borderBottom: '1px solid var(--color-highlight)', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>Combustível</th>
-                                                            <th style={{ padding: '7px 10px', textAlign: 'left', borderBottom: '1px solid var(--color-highlight)', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>Ano</th>
-                                                            <th style={{ padding: '7px 10px', textAlign: 'left', borderBottom: '1px solid var(--color-highlight)', color: 'var(--color-text-muted)' }}>Preço</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {importResults.rows.filter(r => r.status === 'ok').map(r => (
-                                                            <tr key={r.line} style={{ borderBottom: '1px solid var(--color-highlight)' }}>
-                                                                <td style={{ padding: '6px 10px', color: 'var(--color-text-muted)' }}>{r.line}</td>
-                                                                <td style={{ padding: '6px 10px', fontWeight: 600 }}>{r.modelo || r.columns?.[1] || '—'}</td>
-                                                                <td style={{ padding: '6px 10px' }}>{r.cor || r.columns?.[4] || '—'}</td>
-                                                                <td style={{ padding: '6px 10px' }}>{r.columns?.[2] || '—'}</td>
-                                                                <td style={{ padding: '6px 10px' }}>{r.columns?.[3] || '—'}</td>
-                                                                <td style={{ padding: '6px 10px' }}>{r.columns?.[5] || '—'}</td>
-                                                                <td style={{ padding: '6px 10px', color: 'var(--color-positive)', fontWeight: 600 }}>{r.columns?.[7] ? `R$ ${parseFloat(r.columns[7]).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'}</td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    {/* Aba Erros */}
-                                    {importResultTab === 'error' && (
-                                        <div style={{ overflowY: 'auto', maxHeight: '300px', border: '1px solid var(--color-highlight)', borderRadius: '8px' }}>
-                                            {importResults.errors.length === 0 ? (
-                                                <p style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--color-text-muted)', margin: 0 }}>🎉 Nenhum erro encontrado! Todos os registros foram inseridos.</p>
-                                            ) : (
-                                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
-                                                    <thead style={{ position: 'sticky', top: 0, background: 'var(--color-surface)', zIndex: 1 }}>
-                                                        <tr>
-                                                            <th style={{ padding: '7px 10px', textAlign: 'left', borderBottom: '1px solid var(--color-highlight)', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>Linha</th>
-                                                            <th style={{ padding: '7px 10px', textAlign: 'left', borderBottom: '1px solid var(--color-highlight)', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>Modelo</th>
-                                                            <th style={{ padding: '7px 10px', textAlign: 'left', borderBottom: '1px solid var(--color-highlight)', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>Cor</th>
-                                                            <th style={{ padding: '7px 10px', textAlign: 'left', borderBottom: '1px solid var(--color-highlight)', color: 'var(--color-text-muted)' }}>Motivo do Erro</th>
-                                                            <th style={{ padding: '7px 10px', textAlign: 'left', borderBottom: '1px solid var(--color-highlight)', color: 'var(--color-text-muted)' }}>Dados brutos</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {importResults.rows.filter(r => r.status === 'error').map(r => (
-                                                            <tr key={r.line} style={{ borderBottom: '1px solid var(--color-highlight)', background: 'rgba(239,68,68,0.05)' }}>
-                                                                <td style={{ padding: '6px 10px', color: 'var(--color-text-muted)' }}>{r.line}</td>
-                                                                <td style={{ padding: '6px 10px' }}>{r.modelo || r.columns?.[1] || '—'}</td>
-                                                                <td style={{ padding: '6px 10px' }}>{r.cor || r.columns?.[4] || '—'}</td>
-                                                                <td style={{ padding: '6px 10px', color: 'var(--color-negative)', fontWeight: 600 }}>{r.reason || '—'}</td>
-                                                                <td style={{ padding: '6px 10px', color: 'var(--color-text-muted)', fontSize: '0.72rem', wordBreak: 'break-all' }}>{r.columns?.join(' | ') || '—'}</td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-
-                        <div className={modalStyles.modalActions}>
-                            <button
-                                type="button"
-                                className={modalStyles.cancelButton}
-                                onClick={() => setShowImportModal(false)}
-                            >
-                                Fechar
-                            </button>
-                            {importResults && importResults.rows?.length > 0 && !importProgress.isImporting && (
-                                <button
-                                    type="button"
-                                    className={modalStyles.addButton || modalStyles.cancelButton}
-                                    onClick={downloadFullReportCsv}
-                                >
-                                    ⬇️ Baixar relatório completo (CSV)
-                                </button>
-                            )}
-                            <button
-                                type="button"
-                                className={modalStyles.submitButton}
-                                onClick={handleImportCSV}
-                                disabled={!csvFile || importProgress.isImporting}
-                            >
-                                {importProgress.isImporting ? (
-                                    <>
-                                        <span className={modalStyles.spinner} aria-hidden="true"></span> Importando... {percent}%
-                                    </>
-                                ) : (
-                                    'Importar Dados'
-                                )}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Modal de Opções de Frete */}
             {freteModal.isOpen && (
