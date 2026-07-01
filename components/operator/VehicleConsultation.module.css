@@ -680,7 +680,7 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    min-height: 450px;
+    min-height: 500px;
 }
 
 .vehicleCard:hover {
