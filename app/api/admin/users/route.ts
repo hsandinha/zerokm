@@ -8,9 +8,9 @@ export async function GET(request: NextRequest) {
     try {
         await connectDB();
 
-        // Buscar somente operadores para vincular a concessionárias
+        // Buscar somente usuários internos para vincular a concessionárias
         const users = await User.find({
-            allowedProfiles: { $in: ['operator', 'operador'] }
+            allowedProfiles: { $in: ['operator', 'operador', 'admin', 'administrador', 'administrativo', 'gerente'] }
         }).select('displayName email allowedProfiles');
 
         return NextResponse.json(users);
