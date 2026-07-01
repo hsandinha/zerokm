@@ -75,18 +75,7 @@ export function VehicleTable({
             <table className={styles.table}>
                 <thead>
                     <tr>
-                        <th className={styles.tableHeader}>
-                            <input
-                                type="checkbox"
-                                onChange={(e) => {
-                                    if (!isClientReadOnly) {
-                                        handleSelectAll(e);
-                                    }
-                                }}
-                                checked={vehicles.length > 0 && selectedIds.length === vehicles.length}
-                                disabled={isClientReadOnly}
-                            />
-                        </th>
+
                         {!selectedModel && (
                             <th className={styles.tableHeader} onClick={() => handleSort('modelo')} style={{ cursor: 'pointer' }}>
                                 MODELO {sortConfig.key === 'modelo' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
@@ -143,18 +132,7 @@ export function VehicleTable({
                 <tbody>
                     {vehicles.map((vehicle) => (
                         <tr key={vehicle.id} className={styles.tableRow}>
-                            <td className={styles.tableCell}>
-                                <input
-                                    type="checkbox"
-                                    checked={selectedIds.includes(vehicle.id || '')}
-                                    onChange={() => {
-                                        if (!isClientReadOnly) {
-                                            handleSelectOne(vehicle.id || '');
-                                        }
-                                    }}
-                                    disabled={isClientReadOnly}
-                                />
-                            </td>
+
                             {!selectedModel && (
                                 <td className={styles.tableCell}>
                                     {isClientReadOnly ? (
