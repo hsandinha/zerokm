@@ -17,6 +17,7 @@ import { BannersManagement } from '@/components/admin/BannersManagement';
 import IntegrationsPanel from '@/components/admin/IntegrationsPanel';
 import { VisaoGeralTab } from '../../../components/admin/VisaoGeralTab';
 import { CatalogVariationsManagement } from '../../../components/admin/CatalogVariationsManagement';
+import { AdminDealershipVehicles } from '../../../components/admin/AdminDealershipVehicles';
 import KanbanBoard from '../../../components/crm/KanbanBoard';
 import styles from './admin.module.css';
 import { MdFilterAlt } from 'react-icons/md';
@@ -34,7 +35,7 @@ const VehicleConsultation = dynamic<any>(
     }
 );
 
-type TabType = 'visao-geral' | 'usuarios' | 'veiculos' | 'catalogo' | 'concessionarias' | 'transportadoras' | 'tabelas' | 'margem' | 'configuracoes' | 'planos' | 'crm' | 'funil' | 'integracoes' | 'banners';
+type TabType = 'visao-geral' | 'usuarios' | 'veiculos' | 'estoque-concessionarias' | 'catalogo' | 'concessionarias' | 'transportadoras' | 'tabelas' | 'margem' | 'configuracoes' | 'planos' | 'crm' | 'funil' | 'integracoes' | 'banners';
 
 export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState<TabType>('visao-geral');
@@ -114,6 +115,7 @@ export default function AdminDashboard() {
         { id: 'visao-geral', label: 'Visão Geral', icon: '📊' },
         { id: 'usuarios', label: 'Usuários', icon: '👥' },
         { id: 'veiculos', label: 'Veículos', icon: '🚗' },
+        { id: 'estoque-concessionarias', label: 'Estoque Cons.', icon: '🏢' },
         { id: 'catalogo', label: 'Catálogo', icon: '📚' },
         { id: 'concessionarias', label: 'Concessionárias', icon: '🏢' },
         { id: 'transportadoras', label: 'Frete', icon: '🚚' },
@@ -153,6 +155,12 @@ export default function AdminDashboard() {
                 );
             case 'veiculos':
                 return <VehicleConsultation role={userInfo.profile as any || 'admin'} />;
+            case 'estoque-concessionarias':
+                return (
+                    <div className={styles.contentArea}>
+                        <AdminDealershipVehicles />
+                    </div>
+                );
             case 'catalogo':
                 return (
                     <div className={styles.contentArea}>

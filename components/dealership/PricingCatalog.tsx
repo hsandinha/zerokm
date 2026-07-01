@@ -55,9 +55,11 @@ function parseCurrency(value: string) {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
-export function PricingCatalog() {
-    const [rows, setRows] = useState<PricingRow[]>([]);
-    const [total, setTotal] = useState(0);
+export interface PricingCatalogProps {
+    concessionariaId?: string;
+}
+
+export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
     const [brandName, setBrandName] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState<PricingStatus>('todos');
@@ -76,6 +78,7 @@ export function PricingCatalog() {
             const params = new URLSearchParams({ limit: '500' });
             if (search.trim()) params.set('search', search.trim());
             if (queryStatus) params.set('status', queryStatus);
+            if (concessionariaId) params.set('concessionariaId', concessionariaId);
 
             const res = await fetch(`/api/dealership/pricing-catalog?${params.toString()}`);
             const data: PricingResponse = await res.json();
@@ -126,7 +129,11 @@ export function PricingCatalog() {
         setError(null);
 
         try {
-            const res = await fetch('/api/dealership/pricing-catalog', {
+            const patchUrl = concessionariaId 
+                ? `/api/dealership/pricing-catalog?concessionariaId=${concessionariaId}`
+                : '/api/dealership/pricing-catalog';
+
+            const res = await fetch(patchUrl, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
