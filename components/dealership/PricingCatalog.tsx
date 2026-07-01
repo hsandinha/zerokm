@@ -60,6 +60,8 @@ export interface PricingCatalogProps {
 }
 
 export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
+    const [rows, setRows] = useState<PricingRow[]>([]);
+    const [total, setTotal] = useState(0);
     const [brandName, setBrandName] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState<PricingStatus>('todos');
