@@ -80,7 +80,7 @@ export function VehicleActionsHeader({
                 {role !== 'client' && role !== 'gratis' && role !== 'dealership' && role !== 'vendedor' && (
                     <div className={styles.exportWrapper} style={{ position: 'relative', display: 'inline-block' }}>
                         <button
-                            className={styles.exportButton}
+                            className={styles.importButton}
                             onClick={() => setShowExportMenu(!showExportMenu)}
                             title="Exportar Veículos"
                             disabled={isExporting}

@@ -37,7 +37,7 @@ describe('PaymentHistory Component', () => {
         expect(emptyMessage).toBeInTheDocument();
     });
 
-    it('deve exibir o título "Meus Pagamentos"', async () => {
+    it('deve exibir o título "Minhas Transações"', async () => {
         mockFetch.mockResolvedValueOnce({
             ok: true,
             json: async () => ([]),
@@ -45,7 +45,7 @@ describe('PaymentHistory Component', () => {
 
         render(React.createElement(PaymentHistory));
 
-        const title = await screen.findByText(/Meus Pagamentos/);
+        const title = await screen.findByText(/Minhas Transações/);
         expect(title).toBeInTheDocument();
     });
 

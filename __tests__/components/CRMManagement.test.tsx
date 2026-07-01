@@ -52,7 +52,7 @@ describe('CRMManagement client grid', () => {
         render(<CRMManagement />);
 
         expect(await screen.findByText('Marcelo Central Motors')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /cliente/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^cliente$/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /assinatura/i })).toBeInTheDocument();
         expect(screen.getByText('Plano Consultas Ilimitadas')).toBeInTheDocument();
         expect(screen.getByText('PIX')).toBeInTheDocument();

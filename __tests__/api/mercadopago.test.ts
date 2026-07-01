@@ -83,6 +83,7 @@ describe('lib/mercadopago — Utilitário Centralizado', () => {
                     headers: {
                         Authorization: 'Bearer TEST-token-123',
                         'Content-Type': 'application/json',
+                        'X-Idempotency-Key': expect.any(String),
                     },
                     body: JSON.stringify(body),
                 }
@@ -125,6 +126,7 @@ describe('lib/mercadopago — Utilitário Centralizado', () => {
                     headers: {
                         Authorization: 'Bearer TEST-token-123',
                         'Content-Type': 'application/json',
+                        'X-Idempotency-Key': expect.any(String),
                     },
                     body: JSON.stringify(body),
                 }
