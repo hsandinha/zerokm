@@ -2855,29 +2855,16 @@ function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onEdit, onDelet
                     </div>
                 </div>
                 <div className={styles.cardActions}>
-                    {role === 'client' ? (
-                        <span
-                            className={styles.whatsappButton}
-                            title="Contatar Vendedor via WhatsApp"
-                            onClick={() => onWhatsApp(vehicle)}
-                            style={{ backgroundColor: '#25D366', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                            role="button"
-                            tabIndex={0}
-                        >
-                            <FaWhatsapp size={16} /> WhatsApp
-                        </span>
-                    ) : (
-                        <span
-                            className={styles.whatsappButton}
-                            title="WhatsApp"
-                            onClick={() => onWhatsApp(vehicle)}
-                            role="button"
-                            tabIndex={0}
-                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#25D366', fontSize: '1.2rem' }}
-                        >
-                            <FaWhatsapp />
-                        </span>
-                    )}
+                    <span
+                        className={styles.whatsappButton}
+                        title="Contatar via WhatsApp"
+                        onClick={() => onWhatsApp(vehicle)}
+                        style={{ backgroundColor: '#25D366', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 600, fontSize: '0.9rem' }}
+                        role="button"
+                        tabIndex={0}
+                    >
+                        <FaWhatsapp size={18} /> WhatsApp
+                    </span>
                 </div>
             </div>
         </div>
