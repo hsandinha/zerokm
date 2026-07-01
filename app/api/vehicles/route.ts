@@ -118,8 +118,9 @@ export async function GET(request: Request) {
         if (searchParams.get('estado')) matchStage['concessionariaInfo.uf'] = { $regex: escapeRegex(searchParams.get('estado')!), $options: 'i' };
         if (searchParams.get('cidade')) matchStage['concessionariaInfo.cidade'] = { $regex: escapeRegex(searchParams.get('cidade')!), $options: 'i' };
         if (searchParams.get('concessionaria')) matchStage['concessionariaInfo.nome'] = { $regex: escapeRegex(searchParams.get('concessionaria')!), $options: 'i' };
+        if (searchParams.get('operador')) matchStage['operador'] = { $regex: escapeRegex(searchParams.get('operador')!), $options: 'i' };
         
-        // O novo sistema não tem nomeContato ou operador no DealerVehiclePrice, usamos observacoes ou fallback
+        // O novo sistema não tem nomeContato no DealerVehiclePrice, usamos observacoes ou fallback
         if (searchParams.get('cor')) {
             matchStage.$or = [
                 { 'coresDisponiveis': { $regex: escapeRegex(searchParams.get('cor')!), $options: 'i' } },
@@ -157,8 +158,8 @@ export async function GET(request: Request) {
                 { 'variation.cor': searchRegex },
                 { 'variation.opcionais': searchRegex },
                 { 'concessionariaInfo.nome': searchRegex },
-                { 'concessionariaInfo.cidade': searchRegex },
                 { 'concessionariaInfo.uf': searchRegex },
+                { 'operador': searchRegex },
             ];
 
             matchStage.$or = matchStage.$or ? [...matchStage.$or, ...orConditions] : orConditions;
@@ -237,6 +238,7 @@ export async function GET(request: Request) {
                 coresDisponiveis: doc.coresDisponiveis || [],
                 observacoes: doc.observacoes,
                 ativo: doc.ativo,
+                operador: doc.operador || '',
                 dataEntrada: doc.createdAt,
                 updatedAt: doc.updatedAt,
                 

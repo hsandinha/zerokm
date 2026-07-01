@@ -671,7 +671,7 @@ function EditableDateCell({ value, onSave }: EditableDateCellProps) {
 
 export function VehicleConsultation({ onClose, role = 'operator', isInvitee = false }: VehicleConsultationProps) {
     const { data: session } = useSession();
-    const isClientReadOnly = role === 'client' || role === 'gratis' || role === 'vendedor';
+    const isClientReadOnly = true; // All edits moved to Pricing Catalog
     const { margem, fixedMargin, marginMode, setMargem, setMarginConfig } = useConfig();
     const [showMargemModal, setShowMargemModal] = useState(false);
     const [inputMargem, setInputMargem] = useState<string>(margem.toString());
@@ -1865,15 +1865,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                             💹 Margem
                         </button>
                     )}
-                    {['admin', 'administrador', 'administrativo', 'gerente', 'operador', 'operator', 'dealership'].includes(role) && (
-                        <button
-                            className={styles.addButton}
-                            onClick={handleNewVehicleClick}
-                            title={showVehicleForm ? 'Fechar formulário' : 'Cadastrar Novo Veículo'}
-                        >
-                            {showVehicleForm ? 'Cancelar' : '+ Novo Veículo'}
-                        </button>
-                    )}
+                    
                     <div className={styles.viewToggle}>
                         <button
                             className={`${styles.viewButton} ${viewMode === 'table' ? styles.active : ''}`}
@@ -2021,6 +2013,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                                             <button onClick={() => { setFilters({ ...filters, operador: '' }); setCurrentPage(1); }} style={{ marginLeft: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
                                         </span>
                                     )}
+                                    
                                     {filters.cidade && (
                                         <span style={{ background: '#eef', border: '1px solid #99c', borderRadius: '12px', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', color: '#1a1a1a' }}>
                                             Cidade: {filters.cidade}
@@ -2122,6 +2115,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                                                     OPERADOR {sortConfig.key === 'operador' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                                 </th>
                                             )}
+                                            
                                             <th className={styles.tableHeader} onClick={() => handleSort('updatedAt')} style={{ cursor: 'pointer' }}>
                                                 DATAS {sortConfig.key === 'updatedAt' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                             </th>
@@ -2274,13 +2268,14 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                                                 )}
                                                 {role !== 'client' && role !== 'gratis' && (
                                                     <td className={styles.tableCell}>
-                                                        <EditableTextCell
-                                                            value={vehicle.operador}
-                                                            onSave={(newValue) => handleUpdateVehicleField(vehicle, 'operador', newValue)}
-                                                            placeholder="Operador"
-                                                        />
+                                                        {isClientReadOnly ? (
+                                                            <HighlightText text={vehicle.operador} searchTerm={pendingSearchTerm} />
+                                                        ) : (
+                                                            vehicle.operador || '-'
+                                                        )}
                                                     </td>
                                                 )}
+                                                
                                                 <td className={styles.tableCell} style={{ whiteSpace: 'nowrap', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                                         {vehicle.createdAt && (
@@ -2310,28 +2305,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                                                             >
                                                                 📍
                                                             </span>
-                                                            {!['dealership', 'client', 'gratis', 'vendedor'].includes(role) && (
-                                                                <>
-                                                                    <span
-                                                                        className={styles.editButton}
-                                                                        title="Editar"
-                                                                        onClick={() => handleEditVehicle(vehicle)}
-                                                                        role="button"
-                                                                        tabIndex={0}
-                                                                    >
-                                                                        ✏️
-                                                                    </span>
-                                                                    <span
-                                                                        className={styles.deleteButton}
-                                                                        title="Excluir"
-                                                                        onClick={() => handleDeleteVehicle(vehicle)}
-                                                                        role="button"
-                                                                        tabIndex={0}
-                                                                    >
-                                                                        🗑️
-                                                                    </span>
-                                                                </>
-                                                            )}
+                                                            
                                                         </div>
                                                     </td>
                                                 )}
@@ -3123,28 +3097,7 @@ function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onEdit, onDelet
                             >
                                 💬
                             </span>
-                            {!['client', 'gratis', 'dealership', 'vendedor'].includes(role) && (
-                                <>
-                                    <span
-                                        className={styles.editButton}
-                                        title="Editar"
-                                        onClick={() => onEdit(vehicle)}
-                                        role="button"
-                                        tabIndex={0}
-                                    >
-                                        ✏️
-                                    </span>
-                                    <span
-                                        className={styles.deleteButton}
-                                        title="Excluir"
-                                        onClick={() => onDelete(vehicle)}
-                                        role="button"
-                                        tabIndex={0}
-                                    >
-                                        🗑️
-                                    </span>
-                                </>
-                            )}
+                            
                         </>
                     )}
                 </div>
