@@ -190,7 +190,7 @@ export default function ClientDashboard() {
                     </div>
                     
                     <div style={{ flex: 1, display: 'flex', justifyContent: 'center', padding: '0 1rem' }}>
-                        <div style={{ width: '100%', maxWidth: '750px', height: '70px', marginTop: '-15px' }}>
+                        <div style={{ width: '100%', maxWidth: '750px', height: '140px', marginTop: '-10px' }}>
                             <BannerCarouselHorizontal role={userInfo.profile === 'gratis' ? 'gratis' : 'client'} />
                         </div>
                     </div>
