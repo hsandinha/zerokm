@@ -2876,30 +2876,32 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                             )}
 
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>Nome do Contato</label>
-                                <div style={{ fontSize: '1rem', color: '#334155' }}>{locationVehicle.nomeContato}</div>
+                                <label style={{ display: 'block', fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>Operador / Contato</label>
+                                <div style={{ fontSize: '1rem', color: '#334155' }}>{locationVehicle.operador || '-'}</div>
                             </div>
 
                             <div>
                                 <label style={{ display: 'block', fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>Telefone</label>
                                 <div style={{ fontSize: '1rem', color: '#334155', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    {locationVehicle.telefone}
-                                    <a
-                                        href={`https://wa.me/55${locationVehicle.telefone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, tenho interesse no veículo ${locationVehicle.modelo} ${locationVehicle.cor} ${locationVehicle.ano} (R$ ${calculatePriceWithMargin(locationVehicle.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })})`)}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        style={{
-                                            fontSize: '0.875rem',
-                                            color: '#25d366',
-                                            textDecoration: 'none',
-                                            background: '#dcfce7',
-                                            padding: '2px 8px',
-                                            borderRadius: '12px',
-                                            fontWeight: 500
-                                        }}
-                                    >
-                                        WhatsApp
-                                    </a>
+                                    {locationVehicle.telefone || '-'}
+                                    {locationVehicle.telefone && (
+                                        <a
+                                            href={`https://wa.me/55${locationVehicle.telefone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, tenho interesse no veículo ${locationVehicle.modelo} ${locationVehicle.cor} ${locationVehicle.ano} (R$ ${calculatePriceWithMargin(locationVehicle.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })})`)}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            style={{
+                                                fontSize: '0.875rem',
+                                                color: '#25d366',
+                                                textDecoration: 'none',
+                                                background: '#dcfce7',
+                                                padding: '2px 8px',
+                                                borderRadius: '12px',
+                                                fontWeight: 500
+                                            }}
+                                        >
+                                            WhatsApp
+                                        </a>
+                                    )}
                                 </div>
                             </div>
                         </div>
