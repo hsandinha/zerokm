@@ -321,16 +321,18 @@ export function VehicleTable({
                                         >
                                             📍
                                         </span>
-                                        <span
-                                            className={styles.whatsappButton}
-                                            title="Contatar via WhatsApp"
-                                            onClick={() => onWhatsApp(vehicle)}
-                                            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#25D366' }}
-                                            role="button"
-                                            tabIndex={0}
-                                        >
-                                            <FaWhatsapp size={20} />
-                                        </span>
+                                        {role !== 'gratis' && (
+                                            <span
+                                                className={styles.whatsappButton}
+                                                title="Contatar via WhatsApp"
+                                                onClick={() => onWhatsApp(vehicle)}
+                                                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#25D366' }}
+                                                role="button"
+                                                tabIndex={0}
+                                            >
+                                                <FaWhatsapp size={20} />
+                                            </span>
+                                        )}
                                     </div>
                                 </td>
                             )}

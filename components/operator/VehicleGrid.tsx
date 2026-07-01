@@ -146,16 +146,18 @@ export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsA
                     </div>
                 </div>
                 <div className={styles.cardActions}>
-                    <span
-                        className={styles.whatsappButton}
-                        title="Contatar via WhatsApp"
-                        onClick={() => onWhatsApp(vehicle)}
-                        style={{ backgroundColor: '#25D366', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 600, fontSize: '0.9rem' }}
-                        role="button"
-                        tabIndex={0}
-                    >
-                        <FaWhatsapp size={18} /> WhatsApp
-                    </span>
+                    {role !== 'gratis' && (
+                        <span
+                            className={styles.whatsappButton}
+                            title="Contatar via WhatsApp"
+                            onClick={() => onWhatsApp(vehicle)}
+                            style={{ backgroundColor: '#25D366', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 600, fontSize: '0.9rem' }}
+                            role="button"
+                            tabIndex={0}
+                        >
+                            <FaWhatsapp size={18} /> WhatsApp
+                        </span>
+                    )}
                 </div>
             </div>
         </div>
