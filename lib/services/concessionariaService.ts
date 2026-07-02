@@ -27,6 +27,8 @@ export interface Concessionaria {
     marcas?: string[];
     dataCadastro?: string;
     criadoEm?: string;
+    totalAtivos?: number;
+    totalVeiculos?: number;
 }
 
 

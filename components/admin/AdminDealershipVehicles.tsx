@@ -43,7 +43,7 @@ export function AdminDealershipVehicles() {
                         <option value="">Selecione uma concessionária...</option>
                         {concessionarias.map((c) => (
                             <option key={c.id} value={c.id}>
-                                {c.nome} {c.marca ? `(${c.marca})` : ''} - {c.cidade}/{c.uf}
+                                {c.nome} {c.marca ? `(${c.marca})` : ''} - {c.cidade}/{c.uf} ({c.totalAtivos || 0} ativos)
                             </option>
                         ))}
                     </select>

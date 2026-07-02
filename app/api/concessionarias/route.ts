@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Concessionaria from '@/models/Concessionaria';
 import Vehicle from '@/models/Vehicle';
+import DealerVehiclePrice from '@/models/DealerVehiclePrice';
 import User from '@/models/User';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
@@ -176,7 +177,7 @@ export async function GET() {
         }
 
         // Buscar concessionárias e estatísticas de veículos em paralelo
-        const [concessionarias, vehicleStats] = await Promise.all([
+        const [concessionarias, vehicleStats, priceStats] = await Promise.all([
             Concessionaria.find(query).sort({ nome: 1 }),
             Vehicle.aggregate([
                 {
@@ -186,22 +187,36 @@ export async function GET() {
                         lastUpdate: { $max: "$updatedAt" }
                     }
                 }
+            ]),
+            DealerVehiclePrice.aggregate([
+                { $match: { ativo: true } },
+                {
+                    $group: {
+                        _id: "$concessionariaId",
+                        count: { $sum: { $ifNull: ["$quantidade", 1] } }
+                    }
+                }
             ])
         ]);
 
-        // Criar mapa de estatísticas para acesso rápido
         const statsMap = new Map(
             vehicleStats.map(stat => [stat._id, { count: stat.count, lastUpdate: stat.lastUpdate }])
+        );
+
+        const priceStatsMap = new Map(
+            priceStats.map(stat => [stat._id.toString(), stat.count])
         );
 
         const serialized = concessionarias.map(c => {
             const base = serializeConcessionaria(c);
             const stats = statsMap.get(base.nome) || { count: 0, lastUpdate: null };
+            const ativos = priceStatsMap.get(base.id) || 0;
 
             return {
                 ...base,
                 totalVeiculos: stats.count,
-                ultimaAtualizacao: stats.lastUpdate
+                ultimaAtualizacao: stats.lastUpdate,
+                totalAtivos: ativos
             };
         });
 
