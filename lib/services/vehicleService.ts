@@ -8,6 +8,7 @@ export interface Vehicle {
     cor: string;
     ano: string;
     opcionais: string;
+    quantidade?: number;
     preco: number;
     status: 'A faturar' | 'Refaturamento' | 'Licenciado' | 'Pedido de fábrica';
     observacoes: string;
@@ -39,6 +40,7 @@ export interface Vehicle {
 export interface VehiclePaginationResult {
     data: Vehicle[];
     total: number;
+    totalQuantidade?: number;
     hasNextPage: boolean;
     lastDoc?: any; // Changed from QueryDocumentSnapshot to any as we don't use Firestore docs anymore
 }
@@ -212,6 +214,7 @@ export class VehicleService {
             return {
                 data: result.data,
                 total: result.total,
+                totalQuantidade: result.totalQuantidade,
                 hasNextPage: result.hasNextPage,
                 lastDoc: null // Not used with API pagination
             };

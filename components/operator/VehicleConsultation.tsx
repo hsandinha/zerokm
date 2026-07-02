@@ -354,8 +354,8 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
         }
     };
 
-    // Usar o hook do banco de dados
-    const { vehicles, totalItems, loading, error, refreshVehicles, updateVehicle, deleteVehicle, deleteVehicles, getVehiclesPaginated } = useVehicleDatabase(role);
+    // Inicializar o banco de veículos
+    const { vehicles, totalItems, totalQuantidade, loading, error, refreshVehicles, updateVehicle, deleteVehicle, deleteVehicles, getVehiclesPaginated } = useVehicleDatabase(role);
     const { importVeiculosFromCSV, modelos, cores } = useTablesDatabase();
 
     // Listas de opções para os selects editáveis
@@ -1197,6 +1197,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                         setPrefixWarnings={setPrefixWarnings}
                         setCurrentPage={setCurrentPage}
                         totalItems={totalItems}
+                        totalQuantidade={totalQuantidade}
                     />
 
                     <div className={styles.resultsSection}>
@@ -1237,6 +1238,9 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                                 onLocationClick={handleLocationClick}
                                 role={role as any}
                                 canViewLocation={(session?.user as any)?.canViewLocation}
+                                onUpdatePreco={handleUpdatePreco}
+                                onUpdateObservacoes={(v, obs) => handleUpdateVehicleField(v, 'observacoes', obs)}
+                                onUpdateQuantidade={(v, qtd) => handleUpdateVehicleField(v, 'quantidade', qtd)}
                             />
                         )}
 
@@ -1296,6 +1300,9 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                         </div>
                         <div className={modalStyles.form}>
                             <div className={styles.tableContainer} style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                                <span className={styles.totalBadge}>
+                                    Veículos Disponíveis ({totalQuantidade})
+                                </span>
                                 <table className={styles.table}>
                                     <thead>
                                         <tr>

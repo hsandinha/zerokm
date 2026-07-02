@@ -447,3 +447,79 @@ export function EditableYearCell({ value, onSave }: EditableYearCellProps) {
         </div>
     );
 }
+
+export interface EditableNumberCellProps {
+    value?: number;
+    onSave: (newValue: number | undefined) => void;
+    min?: number;
+}
+
+export function EditableNumberCell({ value, onSave, min = 0 }: EditableNumberCellProps) {
+    const [isEditing, setIsEditing] = useState(false);
+    const [localValue, setLocalValue] = useState<string>('');
+
+    useEffect(() => {
+        if (value !== undefined) {
+            setLocalValue(value.toString());
+        } else {
+            setLocalValue('');
+        }
+    }, [value]);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value.replace(/\D/g, '');
+        setLocalValue(val);
+    };
+
+    const handleBlur = () => {
+        setIsEditing(false);
+        if (localValue === '') {
+            onSave(undefined);
+            return;
+        }
+        const num = parseInt(localValue, 10);
+        if (num !== value) {
+            onSave(num);
+        }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handleBlur();
+        }
+        if (e.key === 'Escape') {
+            setLocalValue(value !== undefined ? value.toString() : '');
+            setIsEditing(false);
+        }
+    };
+
+    if (isEditing) {
+        return (
+            <input
+                autoFocus
+                type="number"
+                min={min}
+                value={localValue}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                onKeyDown={handleKeyDown}
+                onClick={(e) => e.stopPropagation()}
+                style={{ width: '60px', padding: '4px', borderRadius: '4px', border: '1px solid #ccc', color: '#000', textAlign: 'center' }}
+            />
+        );
+    }
+
+    return (
+        <div
+            onClick={(e) => {
+                e.stopPropagation();
+                setLocalValue(value !== undefined ? value.toString() : '');
+                setIsEditing(true);
+            }}
+            style={{ cursor: 'pointer', minHeight: '20px', minWidth: '40px', borderBottom: '1px dashed #ccc', textAlign: 'center' }}
+            title="Clique para editar"
+        >
+            {value !== undefined ? value : '-'}
+        </div>
+    );
+}

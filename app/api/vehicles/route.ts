@@ -207,7 +207,8 @@ export async function GET(request: Request) {
             {
                 $facet: {
                     data: [ { $skip: skip }, { $limit: limit } ],
-                    totalCount: [ { $count: 'count' } ]
+                    totalCount: [ { $count: 'count' } ],
+                    totalQuantidade: [ { $group: { _id: null, total: { $sum: '$quantidade' } } } ]
                 }
             }
         ];
@@ -216,6 +217,7 @@ export async function GET(request: Request) {
         
         const data = aggregationResult.data || [];
         const total = aggregationResult.totalCount[0]?.count || 0;
+        const totalQuantidade = aggregationResult.totalQuantidade[0]?.total || 0;
 
         // Serialize data para manter o MESMO FORMATO esperado pelo Frontend
         const serializedData = data.map((doc: any) => {
@@ -246,6 +248,7 @@ export async function GET(request: Request) {
                 // Mapped from DealerVehiclePrice
                 preco: doc.preco,
                 frete: doc.frete || 0,
+                quantidade: doc.quantidade || 0,
                 coresDisponiveis: doc.coresDisponiveis || [],
                 observacoes: doc.observacoes,
                 ativo: doc.ativo,
@@ -265,6 +268,7 @@ export async function GET(request: Request) {
         return NextResponse.json({
             data: serializedData,
             total,
+            totalQuantidade,
             hasNextPage: skip + data.length < total,
             page,
             totalPages: Math.ceil(total / limit)

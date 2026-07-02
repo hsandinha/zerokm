@@ -3,7 +3,7 @@ import { Vehicle } from '../../lib/services/vehicleService';
 import { calculateDaysSinceUpdate, formatDate, getUpdateStatusColor } from '../../lib/utils/formatters';
 import { HighlightText } from '../HighlightText';
 import { getStatusColor } from './VehicleGrid';
-import { EditableTextCell, EditableSelectCell, EditableAutocompleteCell, EditableYearCell, EditableCurrencyCell } from './EditableCells';
+import { EditableTextCell, EditableSelectCell, EditableAutocompleteCell, EditableYearCell, EditableCurrencyCell, EditableNumberCell } from './EditableCells';
 import { FaWhatsapp } from 'react-icons/fa';
 import styles from './VehicleConsultation.module.css';
 
@@ -61,6 +61,7 @@ export function VehicleTable({
     handleLocationClick,
     onWhatsApp,
 }: VehicleTableProps) {
+    const canEditPriceAndNotes = ['admin', 'administrador', 'administrativo', 'operator', 'operador', 'gerente'].includes(role || '');
     
     const calculateClientPrice = (vehicle: Vehicle) => {
         const basePrice = vehicle.preco || 0;
@@ -95,6 +96,9 @@ export function VehicleTable({
                         </th>
                         <th className={`${styles.tableHeader} ${styles.colOpcionais}`} onClick={() => handleSort('opcionais')} style={{ cursor: 'pointer' }}>
                             OPCIONAIS {sortConfig.key === 'opcionais' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                        </th>
+                        <th className={styles.tableHeader} style={{ width: '60px' }}>
+                            QTD
                         </th>
                         <th className={styles.tableHeader} onClick={() => handleSort('preco')} style={{ cursor: 'pointer' }}>
                             PREÇO (R$) {sortConfig.key === 'preco' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
@@ -204,7 +208,17 @@ export function VehicleTable({
                                 )}
                             </td>
                             <td className={styles.tableCell}>
-                                {isClientReadOnly ? (
+                                {isClientReadOnly && !canEditPriceAndNotes ? (
+                                    vehicle.quantidade || 0
+                                ) : (
+                                    <EditableNumberCell
+                                        value={vehicle.quantidade ?? 0}
+                                        onSave={(newValue) => handleUpdateVehicleField(vehicle, 'quantidade', newValue ?? 0)}
+                                    />
+                                )}
+                            </td>
+                            <td className={styles.tableCell}>
+                                {isClientReadOnly && !canEditPriceAndNotes ? (
                                     `R$ ${calculateClientPrice(vehicle).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
                                 ) : (
                                     <EditableCurrencyCell
@@ -242,7 +256,7 @@ export function VehicleTable({
                                 </td>
                             )}
                             <td className={styles.tableCell}>
-                                {isClientReadOnly ? (
+                                {isClientReadOnly && !canEditPriceAndNotes ? (
                                     <HighlightText text={vehicle.observacoes} searchTerm={pendingSearchTerm} />
                                 ) : (
                                     <EditableTextCell

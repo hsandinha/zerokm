@@ -13,6 +13,7 @@ interface VehicleFiltersBarProps {
     setPrefixWarnings: (warnings: string[]) => void;
     setCurrentPage: (page: number) => void;
     totalItems: number;
+    totalQuantidade: number;
 }
 
 export function VehicleFiltersBar({
@@ -26,7 +27,8 @@ export function VehicleFiltersBar({
     prefixWarnings,
     setPrefixWarnings,
     setCurrentPage,
-    totalItems
+    totalItems,
+    totalQuantidade
 }: VehicleFiltersBarProps) {
     return (
         <div className={styles.searchSection}>
@@ -133,7 +135,7 @@ export function VehicleFiltersBar({
                         )}
                     </div>
 
-                    <h3 style={{ margin: 0, marginLeft: 'auto' }}>Veículos Disponíveis ({totalItems})</h3>
+                    <h3 style={{ margin: 0, marginLeft: 'auto' }}>Veículos Disponíveis ({totalQuantidade})</h3>
                 </div>
 
                 {prefixWarnings.length > 0 && (

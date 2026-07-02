@@ -6,6 +6,7 @@ export const useVehicleDatabase = (accessProfile?: string) => {
     // const { data: session } = useSession();
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [totalItems, setTotalItems] = useState(0);
+    const [totalQuantidade, setTotalQuantidade] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -16,6 +17,7 @@ export const useVehicleDatabase = (accessProfile?: string) => {
             const result = await VehicleService.getVehiclesPaginated({ page: 1, itemsPerPage: 50, accessProfile });
             setVehicles(result.data);
             setTotalItems(result.total);
+            setTotalQuantidade(result.totalQuantidade || 0);
             setLoading(false);
         } catch (err) {
             console.error('Erro ao inicializar banco:', err);
@@ -31,6 +33,7 @@ export const useVehicleDatabase = (accessProfile?: string) => {
             const result = await VehicleService.getVehiclesPaginated({ ...options, accessProfile: options?.accessProfile || accessProfile });
             setVehicles(result.data);
             setTotalItems(result.total);
+            setTotalQuantidade(result.totalQuantidade || 0);
             setLoading(false);
             return result;
         } catch (err) {
@@ -48,6 +51,7 @@ export const useVehicleDatabase = (accessProfile?: string) => {
             const result = await VehicleService.getVehiclesPaginated({ filters, page: 1, itemsPerPage: 50, accessProfile });
             setVehicles(result.data);
             setTotalItems(result.total);
+            setTotalQuantidade(result.totalQuantidade || 0);
             setLoading(false);
         } catch (err) {
             console.error('Erro ao buscar veículos:', err);
@@ -132,6 +136,7 @@ export const useVehicleDatabase = (accessProfile?: string) => {
     return {
         vehicles,
         totalItems,
+        totalQuantidade,
         loading,
         error,
         searchVehicles,

@@ -21,6 +21,7 @@ interface PricingRow {
     motor?: string;
     preco: number | null;
     frete: number | null;
+    quantidade: number;
     ativo: boolean;
     status: 'ativo' | 'inativo';
     statusVeiculo?: string;
@@ -74,6 +75,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
     const [error, setError] = useState<string | null>(null);
     const [draftPrices, setDraftPrices] = useState<Record<string, string>>({});
     const [draftStatuses, setDraftStatuses] = useState<Record<string, string>>({});
+    const [draftQuantities, setDraftQuantities] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState<Record<string, boolean>>({});
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -126,10 +128,13 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
     const activeCount = useMemo(() => rows.filter(row => row.ativo).length, [rows]);
     const inactiveCount = rows.length - activeCount;
 
-    const updateRowFields = async (row: PricingRow, rawPriceValue: string, newStatusVeiculo?: string) => {
+    const updateRowFields = async (row: PricingRow, rawPriceValue: string, newStatusVeiculo?: string, rawQuantidadeValue?: string) => {
         const rawTrimmed = rawPriceValue.trim();
         const preco = parseCurrency(rawPriceValue);
         const statusVeiculo = newStatusVeiculo !== undefined ? newStatusVeiculo : (row.statusVeiculo || 'A faturar');
+        const quantidadeRawStr = rawQuantidadeValue !== undefined ? rawQuantidadeValue : (draftQuantities[row.variationId] ?? String(row.quantidade || 0));
+        let quantidade = parseInt(quantidadeRawStr, 10);
+        if (isNaN(quantidade) || quantidade < 0) quantidade = 0;
 
         if (rawTrimmed && preco === null && rawTrimmed !== '0' && rawTrimmed !== '0,00') {
             setError('Preço inválido. Use apenas números, vírgula e ponto.');
@@ -151,6 +156,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                     variationId: row.variationId,
                     preco,
                     frete: row.frete,
+                    quantidade,
                     statusVeiculo
                 }),
             });
@@ -163,6 +169,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                     ...item,
                     preco: data.preco ?? null,
                     frete: data.frete ?? item.frete,
+                    quantidade: data.quantidade ?? item.quantidade,
                     statusVeiculo: data.statusVeiculo,
                     ativo: data.ativo,
                     status: data.status,
@@ -175,6 +182,11 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                 return next;
             });
             setDraftStatuses(prev => {
+                const next = { ...prev };
+                delete next[row.variationId];
+                return next;
+            });
+            setDraftQuantities(prev => {
                 const next = { ...prev };
                 delete next[row.variationId];
                 return next;
@@ -208,7 +220,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
     };
 
     const handleExportCSV = () => {
-        const headers = ['ID_SISTEMA', 'MARCA', 'MODELO', 'ANO', 'COR', 'OPCIONAIS', 'STATUS_ATUAL', 'PRECO_ATUAL', 'NOVO_PRECO', 'NOVO_STATUS'];
+        const headers = ['ID_SISTEMA', 'MARCA', 'MODELO', 'ANO', 'COR', 'OPCIONAIS', 'STATUS_ATUAL', 'QUANTIDADE', 'PRECO_ATUAL', 'NOVO_PRECO', 'NOVO_STATUS', 'NOVA_QUANTIDADE'];
         const csvRows = [headers.join(',')];
         
         for (const row of rows) {
@@ -219,11 +231,13 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                 `"${row.modelo || ''}"`,
                 `"${row.anoFabricacao && row.anoModelo ? `${String(row.anoFabricacao).slice(-2)}/${String(row.anoModelo).slice(-2)}` : row.anoModelo || ''}"`,
                 `"${row.cor || ''}"`,
-                `"${(row.opcionais || '').replace(/"/g, '""')}"`,
+                `"${row.opcionais || ''}"`,
                 `"${row.statusVeiculo || 'A faturar'}"`,
+                row.quantidade || 0,
                 precoAtual,
                 '', // novo preco
-                ''  // novo status
+                '', // novo status
+                ''  // nova quantidade
             ];
             csvRows.push(cols.join(','));
         }
@@ -244,12 +258,13 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
         
         const text = await file.text();
         const lines = text.split('\n');
-        const updates: { variationId: string; preco: number; statusVeiculo?: string }[] = [];
+        const updates: { variationId: string; preco: number; statusVeiculo?: string; quantidade?: number }[] = [];
         
         const headerLine = lines[0].split(',');
         const idIndex = headerLine.findIndex(h => h.includes('ID_SISTEMA'));
         const priceIndex = headerLine.findIndex(h => h.includes('NOVO_PRECO'));
         const statusIndex = headerLine.findIndex(h => h.includes('NOVO_STATUS'));
+        const quantidadeIndex = headerLine.findIndex(h => h.includes('NOVA_QUANTIDADE'));
         
         if (idIndex === -1 || priceIndex === -1) {
             setError('CSV Inválido. Baixe a planilha mestre novamente para ter as colunas corretas.');
@@ -277,14 +292,18 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
             const varId = colsArray[idIndex]?.replace(/"/g, '').trim();
             const rawPrice = colsArray[priceIndex]?.replace(/"/g, '').trim();
             const rawStatus = statusIndex !== -1 ? colsArray[statusIndex]?.replace(/"/g, '').trim() : undefined;
+            const rawQuantidade = quantidadeIndex !== -1 ? colsArray[quantidadeIndex]?.replace(/"/g, '').trim() : undefined;
             
             if (varId && rawPrice !== undefined && rawPrice !== '') {
                 const parsed = parseCurrency(rawPrice);
-                // Assume 0 como inativar
+                let qte = rawQuantidade ? parseInt(rawQuantidade, 10) : undefined;
+                if (qte !== undefined && (isNaN(qte) || qte < 0)) qte = undefined;
+
                 updates.push({ 
                     variationId: varId, 
                     preco: parsed || 0,
-                    statusVeiculo: rawStatus || undefined
+                    statusVeiculo: rawStatus || undefined,
+                    quantidade: qte
                 });
             }
         }
@@ -431,6 +450,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                             <th>Cor</th>
                             <th>Câmbio</th>
                             <th>Opcionais</th>
+                            <th style={{ width: '80px' }}>Qtd</th>
                             <th>Preço</th>
                             <th>Status</th>
                         </tr>
@@ -471,6 +491,27 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                                     <td>{row.cor || '-'}</td>
                                     <td>{row.transmissao || '-'}</td>
                                     <td>{row.opcionais || '-'}</td>
+                                    <td>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            value={draftQuantities[row.variationId] ?? row.quantidade ?? 0}
+                                            disabled={isSaving}
+                                            className={styles.priceInput}
+                                            style={{ width: '60px', textAlign: 'center', padding: '0.25rem' }}
+                                            onChange={event => setDraftQuantities(prev => ({
+                                                ...prev,
+                                                [row.variationId]: event.target.value,
+                                            }))}
+                                            onBlur={event => updateRowFields(row, draftPrices[row.variationId] ?? formatCurrency(row.preco), undefined, event.target.value)}
+                                            onKeyDown={event => {
+                                                if (event.key === 'Enter') {
+                                                    event.preventDefault();
+                                                    updateRowFields(row, draftPrices[row.variationId] ?? formatCurrency(row.preco), undefined, event.currentTarget.value).then(() => moveToNextInput(index));
+                                                }
+                                            }}
+                                        />
+                                    </td>
                                     <td>
                                         <div className={styles.priceCell}>
                                             <span>R$</span>

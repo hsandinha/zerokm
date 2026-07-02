@@ -2,6 +2,7 @@ import React from 'react';
 import { Vehicle } from '../../lib/services/vehicleService';
 import { calculateDaysSinceUpdate, formatDate, getUpdateStatusColor } from '../../lib/utils/formatters';
 import { FaWhatsapp } from 'react-icons/fa';
+import { EditableCurrencyCell, EditableTextCell, EditableNumberCell } from './EditableCells';
 import styles from './VehicleConsultation.module.css';
 
 export function getStatusColor(status: string | undefined) {
@@ -28,9 +29,14 @@ interface VehicleCardProps {
     onLocationClick: (vehicle: Vehicle) => void;
     role?: string;
     canViewLocation?: boolean;
+    onUpdatePreco?: (vehicle: Vehicle, preco: number | undefined) => void;
+    onUpdateObservacoes?: (vehicle: Vehicle, obs: string) => void;
+    onUpdateQuantidade?: (vehicle: Vehicle, qtd: number | undefined) => void;
 }
 
-export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsApp, onLocationClick, role = 'operator', canViewLocation = false }: VehicleCardProps) {
+export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsApp, onLocationClick, role = 'operator', canViewLocation = false, onUpdatePreco, onUpdateObservacoes, onUpdateQuantidade }: VehicleCardProps) {
+    const canEditPriceAndNotes = ['admin', 'administrador', 'administrativo', 'operator', 'operador', 'gerente'].includes(role || '');
+    
     const calculateClientPrice = () => {
         const basePrice = vehicle.preco || 0;
         if (marginMode === 'fixed') {
@@ -105,6 +111,19 @@ export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsA
                     </div>
                 )}
                 <div className={styles.cardRow}>
+                    <span className={styles.cardLabel}>Quantidade:</span>
+                    <span className={styles.cardValue}>
+                        {canEditPriceAndNotes && onUpdateQuantidade ? (
+                            <EditableNumberCell
+                                value={vehicle.quantidade ?? 0}
+                                onSave={(val) => onUpdateQuantidade(vehicle, val)}
+                            />
+                        ) : (
+                            vehicle.quantidade || 0
+                        )}
+                    </span>
+                </div>
+                <div className={styles.cardRow}>
                     <span className={styles.cardLabel}>Última Atualização:</span>
                     <span className={styles.cardValue}>
                         {(() => {
@@ -128,12 +147,22 @@ export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsA
                         })()}
                     </span>
                 </div>
-                {vehicle.observacoes && (
+                {vehicle.observacoes || canEditPriceAndNotes ? (
                     <div className={styles.cardRow}>
                         <span className={styles.cardLabel}>Observações:</span>
-                        <span className={styles.cardValue}>{vehicle.observacoes}</span>
+                        <span className={styles.cardValue}>
+                            {canEditPriceAndNotes && onUpdateObservacoes ? (
+                                <EditableTextCell
+                                    value={vehicle.observacoes}
+                                    onSave={(val) => onUpdateObservacoes(vehicle, val)}
+                                    placeholder="Observações"
+                                />
+                            ) : (
+                                vehicle.observacoes
+                            )}
+                        </span>
                     </div>
-                )}
+                ) : null}
             </div>
 
             <div className={styles.cardFooter}>
@@ -141,7 +170,14 @@ export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsA
                     <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
                         <span className={styles.priceLabel} style={{ fontSize: '0.8rem' }}>Preço:</span>
                         <span className={styles.priceValue} style={{ fontSize: '0.9rem' }}>
-                            R$ {(role === 'client' ? calculateClientPrice() : (vehicle.preco || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            {canEditPriceAndNotes && onUpdatePreco ? (
+                                <EditableCurrencyCell
+                                    value={vehicle.preco}
+                                    onSave={(val) => onUpdatePreco(vehicle, val)}
+                                />
+                            ) : (
+                                `R$ ${(role === 'client' ? calculateClientPrice() : (vehicle.preco || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                            )}
                         </span>
                     </div>
                 </div>
@@ -173,9 +209,12 @@ interface VehicleGridProps {
     onLocationClick: (vehicle: Vehicle) => void;
     role?: string;
     canViewLocation?: boolean;
+    onUpdatePreco?: (vehicle: Vehicle, preco: number | undefined) => void;
+    onUpdateObservacoes?: (vehicle: Vehicle, obs: string) => void;
+    onUpdateQuantidade?: (vehicle: Vehicle, qtd: number | undefined) => void;
 }
 
-export function VehicleGrid({ vehicles, margem, fixedMargin, marginMode, onWhatsApp, onLocationClick, role, canViewLocation }: VehicleGridProps) {
+export function VehicleGrid({ vehicles, margem, fixedMargin, marginMode, onWhatsApp, onLocationClick, role, canViewLocation, onUpdatePreco, onUpdateObservacoes, onUpdateQuantidade }: VehicleGridProps) {
     return (
         <div className={styles.gridContainer}>
             {vehicles.length === 0 ? (
@@ -194,6 +233,9 @@ export function VehicleGrid({ vehicles, margem, fixedMargin, marginMode, onWhats
                         onLocationClick={onLocationClick}
                         role={role}
                         canViewLocation={canViewLocation}
+                        onUpdatePreco={onUpdatePreco}
+                        onUpdateObservacoes={onUpdateObservacoes}
+                        onUpdateQuantidade={onUpdateQuantidade}
                     />
                 ))
             )}
