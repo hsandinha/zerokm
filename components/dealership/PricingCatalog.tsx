@@ -407,6 +407,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                                     onChange={handleSelectAll}
                                 />
                             </th>
+                            <th>Marca</th>
                             <th>Modelo</th>
                             <th>Ano</th>
                             <th>Combustível</th>
@@ -439,6 +440,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                                             onChange={(e) => handleSelectRow(row.variationId, e.target.checked)}
                                         />
                                     </td>
+                                    <td>{row.marca || '-'}</td>
                                     <td>
                                         <strong>{row.modelo}</strong>
                                         {row.motor && <span className={styles.muted}>{row.motor}</span>}
