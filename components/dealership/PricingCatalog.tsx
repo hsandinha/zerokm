@@ -260,7 +260,8 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
         const lines = text.split('\n');
         const updates: { variationId: string; preco: number; statusVeiculo?: string; quantidade?: number }[] = [];
         
-        const headerLine = lines[0].split(',');
+        const separator = lines[0].includes(';') ? ';' : ',';
+        const headerLine = lines[0].split(separator);
         const idIndex = headerLine.findIndex(h => h.includes('ID_SISTEMA'));
         const priceIndex = headerLine.findIndex(h => h.includes('NOVO_PRECO'));
         const statusIndex = headerLine.findIndex(h => h.includes('NOVO_STATUS'));
@@ -280,7 +281,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
             let currentStr = '';
             for (let char of rowStr) {
                 if (char === '"') inQuotes = !inQuotes;
-                else if (char === ',' && !inQuotes) {
+                else if (char === separator && !inQuotes) {
                     colsArray.push(currentStr);
                     currentStr = '';
                 } else {
