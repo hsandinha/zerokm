@@ -8,6 +8,7 @@ export interface IDealerVehiclePrice extends Document {
     coresDisponiveis?: string[];
     observacoes?: string;
     operador?: string;
+    statusVeiculo?: string;
     ativo: boolean;
     createdAt: Date;
     updatedAt: Date;
@@ -31,6 +32,7 @@ const DealerVehiclePriceSchema: Schema = new Schema({
     coresDisponiveis: { type: [String], default: [] },
     observacoes: { type: String },
     operador: { type: String },
+    statusVeiculo: { type: String },
     ativo: { type: Boolean, default: false, index: true },
 }, {
     timestamps: true,

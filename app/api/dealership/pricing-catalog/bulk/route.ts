@@ -53,6 +53,7 @@ export async function PATCH(request: Request) {
                         $set: {
                             preco: precoNumber > 0 ? precoNumber : null,
                             ativo: ativo,
+                            statusVeiculo: update.statusVeiculo || undefined,
                             updatedAt: new Date()
                         }
                     },

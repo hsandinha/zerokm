@@ -23,6 +23,7 @@ interface PricingRow {
     frete: number | null;
     ativo: boolean;
     status: 'ativo' | 'inativo';
+    statusVeiculo?: string;
     updatedAt?: string;
 }
 
@@ -72,6 +73,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [draftPrices, setDraftPrices] = useState<Record<string, string>>({});
+    const [draftStatuses, setDraftStatuses] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState<Record<string, boolean>>({});
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -124,9 +126,10 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
     const activeCount = useMemo(() => rows.filter(row => row.ativo).length, [rows]);
     const inactiveCount = rows.length - activeCount;
 
-    const updateRowPrice = async (row: PricingRow, rawValue: string) => {
-        const rawTrimmed = rawValue.trim();
-        const preco = parseCurrency(rawValue);
+    const updateRowFields = async (row: PricingRow, rawPriceValue: string, newStatusVeiculo?: string) => {
+        const rawTrimmed = rawPriceValue.trim();
+        const preco = parseCurrency(rawPriceValue);
+        const statusVeiculo = newStatusVeiculo !== undefined ? newStatusVeiculo : (row.statusVeiculo || 'A faturar');
 
         if (rawTrimmed && preco === null && rawTrimmed !== '0' && rawTrimmed !== '0,00') {
             setError('Preço inválido. Use apenas números, vírgula e ponto.');
@@ -148,17 +151,19 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                     variationId: row.variationId,
                     preco,
                     frete: row.frete,
+                    statusVeiculo
                 }),
             });
 
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Erro ao salvar preço');
+            if (!res.ok) throw new Error(data.error || 'Erro ao salvar informações');
 
             setRows(prev => prev.map(item => item.variationId === row.variationId
                 ? {
                     ...item,
                     preco: data.preco ?? null,
                     frete: data.frete ?? item.frete,
+                    statusVeiculo: data.statusVeiculo,
                     ativo: data.ativo,
                     status: data.status,
                 }
@@ -169,8 +174,13 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                 delete next[row.variationId];
                 return next;
             });
+            setDraftStatuses(prev => {
+                const next = { ...prev };
+                delete next[row.variationId];
+                return next;
+            });
         } catch (err: any) {
-            setError(err?.message || 'Erro ao salvar preço');
+            setError(err?.message || 'Erro ao salvar informações');
         } finally {
             setSaving(prev => ({ ...prev, [row.variationId]: false }));
         }
@@ -198,11 +208,10 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
     };
 
     const handleExportCSV = () => {
-        const headers = ['ID_SISTEMA', 'MARCA', 'MODELO', 'ANO', 'COR', 'OPCIONAIS', 'PRECO_ATUAL', 'NOVO_PRECO'];
+        const headers = ['ID_SISTEMA', 'MARCA', 'MODELO', 'ANO', 'COR', 'OPCIONAIS', 'STATUS_ATUAL', 'PRECO_ATUAL', 'NOVO_PRECO', 'NOVO_STATUS'];
         const csvRows = [headers.join(',')];
         
         for (const row of rows) {
-            // Se inativo for nulo, precoAtual é 0
             const precoAtual = row.preco || 0;
             const cols = [
                 row.variationId,
@@ -210,9 +219,11 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                 `"${row.modelo || ''}"`,
                 `"${row.anoFabricacao && row.anoModelo ? `${String(row.anoFabricacao).slice(-2)}/${String(row.anoModelo).slice(-2)}` : row.anoModelo || ''}"`,
                 `"${row.cor || ''}"`,
-                `"${(row.codigoFipe || '').replace(/"/g, '""')}"`,
+                `"${(row.opcionais || '').replace(/"/g, '""')}"`,
+                `"${row.statusVeiculo || 'A faturar'}"`,
                 precoAtual,
-                '' // novo preco vazio para o usuario preencher
+                '', // novo preco
+                ''  // novo status
             ];
             csvRows.push(cols.join(','));
         }
@@ -233,14 +244,15 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
         
         const text = await file.text();
         const lines = text.split('\n');
-        const updates: { variationId: string; preco: number }[] = [];
+        const updates: { variationId: string; preco: number; statusVeiculo?: string }[] = [];
         
         const headerLine = lines[0].split(',');
         const idIndex = headerLine.findIndex(h => h.includes('ID_SISTEMA'));
         const priceIndex = headerLine.findIndex(h => h.includes('NOVO_PRECO'));
+        const statusIndex = headerLine.findIndex(h => h.includes('NOVO_STATUS'));
         
         if (idIndex === -1 || priceIndex === -1) {
-            setError('CSV Inválido. Baixe a planilha mestre novamente.');
+            setError('CSV Inválido. Baixe a planilha mestre novamente para ter as colunas corretas.');
             return;
         }
         
@@ -264,11 +276,16 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
             
             const varId = colsArray[idIndex]?.replace(/"/g, '').trim();
             const rawPrice = colsArray[priceIndex]?.replace(/"/g, '').trim();
+            const rawStatus = statusIndex !== -1 ? colsArray[statusIndex]?.replace(/"/g, '').trim() : undefined;
             
             if (varId && rawPrice !== undefined && rawPrice !== '') {
                 const parsed = parseCurrency(rawPrice);
                 // Assume 0 como inativar
-                updates.push({ variationId: varId, preco: parsed || 0 });
+                updates.push({ 
+                    variationId: varId, 
+                    preco: parsed || 0,
+                    statusVeiculo: rawStatus || undefined
+                });
             }
         }
         
@@ -468,20 +485,37 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                                                     ...prev,
                                                     [row.variationId]: event.target.value,
                                                 }))}
-                                                onBlur={event => updateRowPrice(row, event.target.value)}
+                                                onBlur={event => updateRowFields(row, event.target.value)}
                                                 onKeyDown={event => {
                                                     if (event.key === 'Enter') {
                                                         event.preventDefault();
-                                                        updateRowPrice(row, event.currentTarget.value).then(() => moveToNextInput(index));
+                                                        updateRowFields(row, event.currentTarget.value).then(() => moveToNextInput(index));
                                                     }
                                                 }}
                                             />
                                         </div>
                                     </td>
                                     <td>
-                                        <span className={`${styles.status} ${row.ativo ? styles.active : styles.inactive}`}>
-                                            {isSaving ? 'Salvando...' : row.ativo ? 'Ativo' : 'Inativo'}
-                                        </span>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'flex-start' }}>
+                                            <select
+                                                value={draftStatuses[row.variationId] ?? row.statusVeiculo ?? 'A faturar'}
+                                                onChange={e => {
+                                                    const newStatus = e.target.value;
+                                                    setDraftStatuses(prev => ({ ...prev, [row.variationId]: newStatus }));
+                                                    updateRowFields(row, draftPrices[row.variationId] ?? formatCurrency(row.preco), newStatus);
+                                                }}
+                                                disabled={isSaving}
+                                                className={styles.statusSelect}
+                                            >
+                                                <option value="A faturar">A faturar</option>
+                                                <option value="Pedido de fábrica">Pedido de fábrica</option>
+                                                <option value="Refaturamento">Refaturamento</option>
+                                                <option value="Licenciado">Licenciado</option>
+                                            </select>
+                                            <span className={`${styles.status} ${row.ativo ? styles.active : styles.inactive}`}>
+                                                {isSaving ? 'Salvando...' : row.ativo ? 'Ativo' : 'Inativo'}
+                                            </span>
+                                        </div>
                                     </td>
                                 </tr>
                             );

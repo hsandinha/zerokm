@@ -44,6 +44,7 @@ function serializeCatalogRow(row: any) {
         frete: typeof price?.frete === 'number' ? price.frete : null,
         coresDisponiveis: price?.coresDisponiveis || [],
         observacoes: price?.observacoes || '',
+        statusVeiculo: price?.statusVeiculo || row.status || 'A faturar',
         ativo: priceValue !== null && priceValue > 0,
         status: priceValue !== null && priceValue > 0 ? 'ativo' : 'inativo',
         updatedAt: price?.updatedAt || row.updatedAt,
@@ -279,6 +280,7 @@ export async function PATCH(request: Request) {
                 preco: null,
                 ativo: false,
                 status: 'inativo',
+                statusVeiculo: body.statusVeiculo || variation.status || 'A faturar',
             });
         }
 
@@ -298,6 +300,7 @@ export async function PATCH(request: Request) {
                     frete,
                     coresDisponiveis: Array.isArray(body.coresDisponiveis) ? body.coresDisponiveis : [],
                     observacoes: normalizeText(body.observacoes) || undefined,
+                    statusVeiculo: normalizeText(body.statusVeiculo) || undefined,
                 },
             },
             { new: true, upsert: true, setDefaultsOnInsert: true }
@@ -310,6 +313,7 @@ export async function PATCH(request: Request) {
             frete: price.frete,
             coresDisponiveis: price.coresDisponiveis || [],
             observacoes: price.observacoes || '',
+            statusVeiculo: price.statusVeiculo || variation.status || 'A faturar',
             ativo: price.ativo,
             status: price.ativo ? 'ativo' : 'inativo',
         });
