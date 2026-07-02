@@ -42,6 +42,7 @@ function serializeCatalogRow(row: any) {
         priceId: price?._id?.toString?.() || null,
         preco: priceValue,
         frete: typeof price?.frete === 'number' ? price.frete : null,
+        quantidade: typeof price?.quantidade === 'number' ? price.quantidade : 0,
         coresDisponiveis: price?.coresDisponiveis || [],
         observacoes: price?.observacoes || '',
         statusVeiculo: price?.statusVeiculo || row.status || 'A faturar',
@@ -298,6 +299,7 @@ export async function PATCH(request: Request) {
                 $set: {
                     preco,
                     frete,
+                    quantidade: body.quantidade !== undefined ? body.quantidade : undefined,
                     coresDisponiveis: Array.isArray(body.coresDisponiveis) ? body.coresDisponiveis : [],
                     observacoes: normalizeText(body.observacoes) || undefined,
                     statusVeiculo: normalizeText(body.statusVeiculo) || undefined,
@@ -311,6 +313,7 @@ export async function PATCH(request: Request) {
             priceId: price._id.toString(),
             preco: price.preco,
             frete: price.frete,
+            quantidade: price.quantidade,
             coresDisponiveis: price.coresDisponiveis || [],
             observacoes: price.observacoes || '',
             statusVeiculo: price.statusVeiculo || variation.status || 'A faturar',

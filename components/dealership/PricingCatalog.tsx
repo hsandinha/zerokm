@@ -115,7 +115,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
         } finally {
             setLoading(false);
         }
-    }, [queryStatus, search]);
+    }, [queryStatus, search, concessionariaId]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
