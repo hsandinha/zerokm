@@ -313,7 +313,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
             const rowStr = lines[i].trim();
             if (!rowStr) continue;
             
-            const colsArray = [];
+            const colsArray: string[] = [];
             let inQuotes = false;
             let currentStr = '';
             for (let char of rowStr) {
