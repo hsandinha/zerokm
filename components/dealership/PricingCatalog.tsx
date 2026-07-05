@@ -25,6 +25,7 @@ interface PricingRow {
     ativo: boolean;
     status: 'ativo' | 'inativo';
     statusVeiculo?: string;
+    observacoes?: string;
     updatedAt?: string;
 }
 
