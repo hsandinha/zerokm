@@ -34,6 +34,12 @@ interface PricingResponse {
     concessionaria?: {
         nome?: string;
         marca?: string | null;
+        cidade?: string | null;
+        uf?: string | null;
+        telefone?: string | null;
+        contato?: string | null;
+        nomeResponsavel?: string | null;
+        operadorId?: string | null;
     };
     error?: string;
     code?: string;
@@ -68,7 +74,7 @@ export interface PricingCatalogProps {
 export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
     const [rows, setRows] = useState<PricingRow[]>([]);
     const [total, setTotal] = useState(0);
-    const [brandName, setBrandName] = useState<string | null>(null);
+    const [concessionariaInfo, setConcessionariaInfo] = useState<PricingResponse['concessionaria'] | null>(null);
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState<PricingStatus>('todos');
     const [loading, setLoading] = useState(true);
@@ -99,7 +105,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                 if (data.code === 'BRAND_NOT_LINKED') {
                     setRows([]);
                     setTotal(0);
-                    setBrandName(null);
+                    setConcessionariaInfo(null);
                     setError('Nenhuma marca foi vinculada a esta concessionária. Solicite ao operador a associação da marca.');
                     return;
                 }
@@ -108,7 +114,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
 
             setRows(data.data || []);
             setTotal(data.total || 0);
-            setBrandName(data.concessionaria?.marca || null);
+            setConcessionariaInfo(data.concessionaria || null);
             setDraftPrices({});
         } catch (err: any) {
             setError(err?.message || 'Erro ao carregar catálogo');
@@ -220,26 +226,47 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
     };
 
     const handleExportCSV = () => {
-        const headers = ['ID_SISTEMA', 'MARCA', 'MODELO', 'ANO', 'COR', 'OPCIONAIS', 'STATUS_ATUAL', 'QUANTIDADE', 'PRECO_ATUAL', 'NOVO_PRECO', 'NOVO_STATUS', 'NOVA_QUANTIDADE'];
-        const csvRows = [headers.join(',')];
+        const headers = [
+            'dataEntrada', 'modelo', 'transmissao', 'combustivel', 'cor', 'ano', 'opcionais', 
+            'preco', 'status', 'observacoes', 'cidade', 'estado', 'frete', 'telefone', 
+            'concession', 'nome contato', 'operador'
+        ];
+        const csvRows = [headers.join(';')]; // Using semicolon to avoid issues in Brazil's Excel
         
         for (const row of rows) {
+            const qtd = row.quantidade || 0;
+            // If quantity is 0, we'll export 1 row as inactive template so the user can fill it.
+            const iterations = qtd > 0 ? qtd : 1;
+            
             const precoAtual = row.preco || 0;
+            const dataEntradaStr = row.updatedAt ? new Date(row.updatedAt).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
+            const anoFormatado = row.anoFabricacao && row.anoModelo 
+                ? `${String(row.anoFabricacao).slice(-2)}/${String(row.anoModelo).slice(-2)}` 
+                : (row.anoModelo?.toString() || '');
+            
             const cols = [
-                row.variationId,
-                `"${row.marca || ''}"`,
+                `"${dataEntradaStr}"`,
                 `"${row.modelo || ''}"`,
-                `"${row.anoFabricacao && row.anoModelo ? `${String(row.anoFabricacao).slice(-2)}/${String(row.anoModelo).slice(-2)}` : row.anoModelo || ''}"`,
+                `"${row.transmissao || ''}"`,
+                `"${row.combustivel || ''}"`,
                 `"${row.cor || ''}"`,
+                `"${anoFormatado}"`,
                 `"${row.opcionais || ''}"`,
-                `"${row.statusVeiculo || 'A faturar'}"`,
-                row.quantidade || 0,
                 precoAtual,
-                '', // novo preco
-                '', // novo status
-                ''  // nova quantidade
+                `"${row.statusVeiculo || 'A faturar'}"`,
+                `"${row.observacoes || ''}"`,
+                `"${concessionariaInfo?.cidade || ''}"`,
+                `"${concessionariaInfo?.uf || ''}"`,
+                row.frete || 0,
+                `"${concessionariaInfo?.telefone || ''}"`,
+                `"${concessionariaInfo?.nome || ''}"`,
+                `"${concessionariaInfo?.contato || concessionariaInfo?.nomeResponsavel || ''}"`,
+                `"${concessionariaInfo?.operadorId || ''}"`
             ];
-            csvRows.push(cols.join(','));
+            
+            for (let i = 0; i < iterations; i++) {
+                csvRows.push(cols.join(';'));
+            }
         }
         
         const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
@@ -258,17 +285,26 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
         
         const text = await file.text();
         const lines = text.split('\n');
-        const updates: { variationId: string; preco: number; statusVeiculo?: string; quantidade?: number }[] = [];
+        const itemsToProcess: any[] = [];
         
         const separator = lines[0].includes(';') ? ';' : ',';
-        const headerLine = lines[0].split(separator);
-        const idIndex = headerLine.findIndex(h => h.includes('ID_SISTEMA'));
-        const priceIndex = headerLine.findIndex(h => h.includes('NOVO_PRECO'));
-        const statusIndex = headerLine.findIndex(h => h.includes('NOVO_STATUS'));
-        const quantidadeIndex = headerLine.findIndex(h => h.includes('NOVA_QUANTIDADE'));
+        const headerLine = lines[0].split(separator).map(h => h.replace(/"/g, '').trim().toLowerCase());
         
-        if (idIndex === -1 || priceIndex === -1) {
-            setError('CSV Inválido. Baixe a planilha mestre novamente para ter as colunas corretas.');
+        const idx = {
+            modelo: headerLine.findIndex(h => h.includes('modelo')),
+            transmissao: headerLine.findIndex(h => h.includes('transmissao') || h.includes('cambio') || h.includes('câmbio')),
+            combustivel: headerLine.findIndex(h => h.includes('combustivel') || h.includes('combustível')),
+            cor: headerLine.findIndex(h => h.includes('cor')),
+            ano: headerLine.findIndex(h => h.includes('ano')),
+            opcionais: headerLine.findIndex(h => h.includes('opcionais')),
+            preco: headerLine.findIndex(h => h === 'preco' || h === 'preço' || h.includes('novo_preco') || h.includes('preco_atual')),
+            status: headerLine.findIndex(h => h === 'status' || h.includes('novo_status')),
+            obs: headerLine.findIndex(h => h.includes('observacoes') || h.includes('observações')),
+            frete: headerLine.findIndex(h => h.includes('frete')),
+        };
+        
+        if (idx.modelo === -1 || idx.preco === -1) {
+            setError('CSV Inválido. O arquivo deve conter pelo menos as colunas "modelo" e "preco".');
             return;
         }
         
@@ -290,26 +326,30 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
             }
             colsArray.push(currentStr);
             
-            const varId = colsArray[idIndex]?.replace(/"/g, '').trim();
-            const rawPrice = colsArray[priceIndex]?.replace(/"/g, '').trim();
-            const rawStatus = statusIndex !== -1 ? colsArray[statusIndex]?.replace(/"/g, '').trim() : undefined;
-            const rawQuantidade = quantidadeIndex !== -1 ? colsArray[quantidadeIndex]?.replace(/"/g, '').trim() : undefined;
+            const getCol = (index: number) => index !== -1 ? colsArray[index]?.replace(/"/g, '').trim() : undefined;
             
-            if (varId && rawPrice !== undefined && rawPrice !== '') {
+            const modelo = getCol(idx.modelo);
+            const rawPrice = getCol(idx.preco);
+            
+            if (modelo && rawPrice !== undefined && rawPrice !== '') {
                 const parsed = parseCurrency(rawPrice);
-                let qte = rawQuantidade ? parseInt(rawQuantidade, 10) : undefined;
-                if (qte !== undefined && (isNaN(qte) || qte < 0)) qte = undefined;
-
-                updates.push({ 
-                    variationId: varId, 
+                
+                itemsToProcess.push({
+                    modelo,
+                    transmissao: getCol(idx.transmissao),
+                    combustivel: getCol(idx.combustivel),
+                    cor: getCol(idx.cor),
+                    ano: getCol(idx.ano),
+                    opcionais: getCol(idx.opcionais),
                     preco: parsed || 0,
-                    statusVeiculo: rawStatus || undefined,
-                    quantidade: qte
+                    statusVeiculo: getCol(idx.status),
+                    observacoes: getCol(idx.obs),
+                    frete: parseCurrency(getCol(idx.frete) || '') || 0,
                 });
             }
         }
         
-        if (updates.length > 0) {
+        if (itemsToProcess.length > 0) {
             setLoading(true);
             try {
                 const patchUrl = concessionariaId 
@@ -319,12 +359,50 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                 const res = await fetch(patchUrl, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ updates }),
+                    body: JSON.stringify({ items: itemsToProcess }),
                 });
 
-                if (!res.ok) throw new Error('Erro ao processar importação');
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Erro ao processar importação');
+                
                 await loadCatalog();
-                alert(`Importação concluída. ${updates.length} itens processados.`);
+                
+                if (data.report) {
+                    const successCount = data.report.successes?.length || 0;
+                    const errorCount = data.report.errors?.length || 0;
+                    
+                    let reportText = `RELATÓRIO DE IMPORTAÇÃO\nData: ${new Date().toLocaleString()}\n`;
+                    reportText += `Sucesso: ${successCount} registros consolidados.\n`;
+                    reportText += `Erros: ${errorCount} veículos não encontrados no catálogo.\n\n`;
+                    
+                    if (successCount > 0) {
+                        reportText += `--- SUCESSOS ---\n`;
+                        data.report.successes.forEach((s: any) => {
+                            reportText += `[QTD: ${s.item.quantidade}] ${s.item.modelo} | ${s.item.cor} | ${s.item.ano} | ${s.item.opcionais} -> Preço atualizado: ${s.item.preco}\n`;
+                        });
+                        reportText += `\n`;
+                    }
+                    
+                    if (errorCount > 0) {
+                        reportText += `--- ERROS (Não encontrados) ---\n`;
+                        data.report.errors.forEach((e: any) => {
+                            reportText += `[QTD: ${e.item.quantidade}] ${e.item.modelo} | ${e.item.cor} | ${e.item.ano} | ${e.item.opcionais} | ${e.item.combustivel} | ${e.item.transmissao}\n`;
+                        });
+                    }
+                    
+                    const blob = new Blob([reportText], { type: 'text/plain;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', 'relatorio_importacao.txt');
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    alert(`Importação concluída.\nSucesso: ${successCount} atualizados.\nErros: ${errorCount} não encontrados.\n\nUm relatório em texto foi baixado no seu computador.`);
+                } else {
+                    alert(`Importação concluída. ${itemsToProcess.length} itens processados.`);
+                }
             } catch (err: any) {
                 setError(err.message);
             } finally {
@@ -367,7 +445,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                 <div>
                     <h2 className={styles.title}>Catálogo e Preços</h2>
                     <p className={styles.subtitle}>
-                        {brandName ? `Marca vinculada: ${brandName}` : 'Preencha preços para ativar os veículos no catálogo do cliente.'}
+                        {concessionariaInfo?.marca ? `Marca vinculada: ${concessionariaInfo.marca}` : 'Preencha preços para ativar os veículos no catálogo do cliente.'}
                     </p>
                 </div>
 
