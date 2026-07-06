@@ -193,8 +193,8 @@ export async function PATCH(request: Request) {
                                 preco: precoNumber > 0 ? precoNumber : null,
                                 ativo: ativo,
                                 quantidade: ativo ? item.quantidade : 0,
-                                statusVeiculo: item.statusVeiculo || undefined,
-                                observacoes: item.observacoes || undefined,
+                                statusVeiculo: item.statusVeiculo || 'A faturar',
+                                observacoes: item.observacoes || null,
                                 frete: item.frete > 0 ? item.frete : null,
                                 updatedAt: new Date()
                             }
