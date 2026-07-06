@@ -79,6 +79,41 @@ export async function PATCH(request: Request) {
 
         const body = await request.json();
         const items = body.items; // Array of items from CSV
+        const updates = body.updates; // Array of { variationId, preco } for mass deactivation
+
+        // Handle mass deactivation by variationId (e.g., "Zerar Selecionados")
+        if (Array.isArray(updates) && updates.length > 0) {
+            const bulkOps = updates.map((u: { variationId: string; preco: number }) => {
+                const precoValue = u.preco > 0 ? u.preco : null;
+                const ativo = typeof u.preco === 'number' && u.preco > 0;
+                return {
+                    updateOne: {
+                        filter: {
+                            concessionariaId: new mongoose.Types.ObjectId(concessionariaId),
+                            variationId: new mongoose.Types.ObjectId(u.variationId),
+                        },
+                        update: {
+                            $set: {
+                                preco: precoValue,
+                                ativo,
+                                quantidade: ativo ? undefined : 0,
+                                updatedAt: new Date(),
+                            },
+                        },
+                        upsert: false,
+                    },
+                };
+            });
+
+            if (bulkOps.length > 0) {
+                await DealerVehiclePrice.bulkWrite(bulkOps);
+            }
+
+            return NextResponse.json({
+                success: true,
+                message: `${bulkOps.length} veículos inativados com sucesso.`,
+            });
+        }
 
         if (!Array.isArray(items) || items.length === 0) {
             return NextResponse.json({ error: 'Nenhuma atualização enviada' }, { status: 400 });
