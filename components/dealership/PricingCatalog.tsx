@@ -684,6 +684,35 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                         </div>
 
                         <div className={styles.modalFooter}>
+                            <button className={styles.actionBtn} onClick={() => {
+                                if (!importReport) return;
+                                let txt = `RELATÓRIO DE IMPORTAÇÃO\nData: ${new Date().toLocaleString()}\n`;
+                                txt += `Sucesso: ${importReport.successes.length} registros.\n`;
+                                txt += `Erros: ${importReport.errors.length} não encontrados.\n\n`;
+                                if (importReport.successes.length > 0) {
+                                    txt += `--- SUCESSOS ---\n`;
+                                    importReport.successes.forEach((s: any) => {
+                                        txt += `[QTD: ${s.item.quantidade}] ${s.item.modelo} | ${s.item.cor} | ${s.item.ano} | ${s.item.opcionais} -> Preço: ${s.item.preco}\n`;
+                                    });
+                                    txt += `\n`;
+                                }
+                                if (importReport.errors.length > 0) {
+                                    txt += `--- ERROS ---\n`;
+                                    importReport.errors.forEach((e: any) => {
+                                        txt += `[QTD: ${e.item.quantidade}] ${e.item.modelo} | ${e.item.cor} | ${e.item.ano} | ${e.item.opcionais} | ${e.item.combustivel} | ${e.item.transmissao}\n`;
+                                    });
+                                }
+                                const blob = new Blob([txt], { type: 'text/plain;charset=utf-8;' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = 'relatorio_importacao.txt';
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                            }}>
+                                <FaFileExport /> Baixar Relatório
+                            </button>
                             <button className={styles.actionBtn} onClick={() => setImportReport(null)}>
                                 Fechar
                             </button>
