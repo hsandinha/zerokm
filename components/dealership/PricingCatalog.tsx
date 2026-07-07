@@ -620,7 +620,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                                                 type="number"
                                                 min="0"
                                                 value={draftQuantities[row.variationId] ?? row.quantidade ?? 0}
-                                                disabled={isSaving}
+                                                disabled={isSaving || !row.ativo}
                                                 className={styles.priceInput}
                                                 style={{ textAlign: 'center' }}
                                                 onChange={event => setDraftQuantities(prev => ({
@@ -649,7 +649,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                                                         : (row.prazo === 0 ? 'Pronta Entrega' : (row.prazo ?? ''))
                                                 }
                                                 list={`prazo-options-${row.variationId}`}
-                                                disabled={isSaving}
+                                                disabled={isSaving || !row.ativo}
                                                 className={styles.priceInput}
                                                 style={{ textAlign: 'center' }}
                                                 onChange={event => setDraftPrazos(prev => ({
