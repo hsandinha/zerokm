@@ -10,6 +10,7 @@ export interface Vehicle {
     opcionais: string;
     quantidade?: number;
     preco: number;
+    prazo?: number;
     status: 'A faturar' | 'Refaturamento' | 'Licenciado' | 'Pedido de fábrica';
     observacoes: string;
     cidade: string;
