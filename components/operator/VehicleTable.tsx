@@ -106,6 +106,9 @@ export function VehicleTable({
                         <th className={styles.tableHeader} onClick={() => handleSort('status')} style={{ cursor: 'pointer' }}>
                             STATUS {sortConfig.key === 'status' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                         </th>
+                        <th className={styles.tableHeader} onClick={() => handleSort('prazo')} style={{ cursor: 'pointer' }}>
+                            PRAZO {sortConfig.key === 'prazo' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                        </th>
                         {role !== 'dealership' && role !== 'gratis' && (
                             <th className={styles.tableHeader} onClick={() => handleSort('estado')} style={{ cursor: 'pointer' }}>
                                 UF {sortConfig.key === 'estado' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
@@ -240,6 +243,9 @@ export function VehicleTable({
                                         placeholder="Selecione"
                                     />
                                 )}
+                            </td>
+                            <td className={styles.tableCell}>
+                                {vehicle.prazo === 0 ? 'Pronta Entrega' : vehicle.prazo ? `${vehicle.prazo} dias` : '-'}
                             </td>
                             {role !== 'dealership' && role !== 'gratis' && (
                                 <td className={styles.tableCell}>

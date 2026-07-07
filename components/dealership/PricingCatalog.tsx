@@ -147,6 +147,14 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
         let quantidade = parseInt(quantidadeRawStr, 10);
         if (isNaN(quantidade) || quantidade < 0) quantidade = 0;
 
+        if (preco !== null && preco > 0 && quantidade === 0) {
+            quantidade = 1;
+            setDraftQuantities(prev => ({ ...prev, [row.variationId]: '1' }));
+        } else if ((preco === null || preco === 0) && quantidade > 0) {
+            quantidade = 0;
+            setDraftQuantities(prev => ({ ...prev, [row.variationId]: '0' }));
+        }
+
         const prazoRawStr = rawPrazoValue !== undefined ? rawPrazoValue : (draftPrazos[row.variationId] ?? String(row.prazo ?? ''));
         const prazoNorm = prazoRawStr.trim().toLowerCase();
         let prazo: number | null = null;
