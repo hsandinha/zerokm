@@ -651,7 +651,10 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                                                 list={`prazo-options-${row.variationId}`}
                                                 disabled={isSaving || !row.ativo}
                                                 className={styles.priceInput}
-                                                style={{ textAlign: 'center' }}
+                                                style={{ 
+                                                    textAlign: 'center',
+                                                    fontSize: String(draftPrazos[row.variationId] !== undefined ? draftPrazos[row.variationId] : (row.prazo === 0 ? 'Pronta Entrega' : (row.prazo ?? ''))).toLowerCase().includes('pronta') ? '0.65rem' : '0.95rem'
+                                                }}
                                                 onChange={event => setDraftPrazos(prev => ({
                                                     ...prev,
                                                     [row.variationId]: event.target.value,
