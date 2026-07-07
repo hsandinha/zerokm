@@ -150,9 +150,11 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
         if (preco !== null && preco > 0 && quantidade === 0) {
             quantidade = 1;
             setDraftQuantities(prev => ({ ...prev, [row.variationId]: '1' }));
-        } else if ((preco === null || preco === 0) && quantidade > 0) {
-            quantidade = 0;
-            setDraftQuantities(prev => ({ ...prev, [row.variationId]: '0' }));
+        } else if (preco === null || preco === 0) {
+            if (quantidade !== 0) {
+                quantidade = 0;
+                setDraftQuantities(prev => ({ ...prev, [row.variationId]: '0' }));
+            }
         }
 
         const prazoRawStr = rawPrazoValue !== undefined ? rawPrazoValue : (draftPrazos[row.variationId] ?? String(row.prazo ?? ''));
@@ -163,6 +165,11 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
         } else if (prazoNorm !== '') {
             prazo = parseInt(prazoNorm, 10);
             if (isNaN(prazo)) prazo = null;
+        }
+
+        if (preco === null || preco === 0) {
+            prazo = null;
+            setDraftPrazos(prev => ({ ...prev, [row.variationId]: '' }));
         }
 
         if (rawTrimmed && preco === null && rawTrimmed !== '0' && rawTrimmed !== '0,00') {
