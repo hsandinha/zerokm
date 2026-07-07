@@ -188,7 +188,7 @@
 .table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 980px;
+    min-width: 800px;
 }
 
 .table th,
@@ -222,7 +222,18 @@
 .priceCell {
     display: flex;
     align-items: center;
-    width: 160px;
+    width: 120px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #6b7280;
+    overflow: hidden;
+}
+
+.numberCell {
+    display: flex;
+    align-items: center;
+    width: 60px;
     border: 1px solid #d1d5db;
     border-radius: 8px;
     background: #ffffff;

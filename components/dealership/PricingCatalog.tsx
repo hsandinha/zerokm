@@ -598,50 +598,54 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                                         </div>
                                     </td>
                                     <td>
-                                        <input
-                                            data-row-index={index}
-                                            data-col="qtd"
-                                            type="number"
-                                            min="0"
-                                            value={draftQuantities[row.variationId] ?? row.quantidade ?? 0}
-                                            disabled={isSaving}
-                                            className={styles.priceInput}
-                                            style={{ width: '60px', textAlign: 'center', padding: '0.25rem' }}
-                                            onChange={event => setDraftQuantities(prev => ({
-                                                ...prev,
-                                                [row.variationId]: event.target.value,
-                                            }))}
-                                            onBlur={event => updateRowFields(row, draftPrices[row.variationId] ?? formatCurrency(row.preco), undefined, event.target.value)}
-                                            onKeyDown={event => {
-                                                if (event.key === 'Enter') {
-                                                    event.preventDefault();
-                                                    updateRowFields(row, draftPrices[row.variationId] ?? formatCurrency(row.preco), undefined, event.currentTarget.value).then(() => moveToNextField(index, 'qtd'));
-                                                }
-                                            }}
-                                        />
+                                        <div className={styles.numberCell}>
+                                            <input
+                                                data-row-index={index}
+                                                data-col="qtd"
+                                                type="number"
+                                                min="0"
+                                                value={draftQuantities[row.variationId] ?? row.quantidade ?? 0}
+                                                disabled={isSaving}
+                                                className={styles.priceInput}
+                                                style={{ textAlign: 'center' }}
+                                                onChange={event => setDraftQuantities(prev => ({
+                                                    ...prev,
+                                                    [row.variationId]: event.target.value,
+                                                }))}
+                                                onBlur={event => updateRowFields(row, draftPrices[row.variationId] ?? formatCurrency(row.preco), undefined, event.target.value)}
+                                                onKeyDown={event => {
+                                                    if (event.key === 'Enter') {
+                                                        event.preventDefault();
+                                                        updateRowFields(row, draftPrices[row.variationId] ?? formatCurrency(row.preco), undefined, event.currentTarget.value).then(() => moveToNextField(index, 'qtd'));
+                                                    }
+                                                }}
+                                            />
+                                        </div>
                                     </td>
                                     <td>
-                                        <input
-                                            data-row-index={index}
-                                            data-col="prazo"
-                                            type="number"
-                                            min="0"
-                                            value={draftPrazos[row.variationId] ?? row.prazo ?? ''}
-                                            disabled={isSaving}
-                                            className={styles.priceInput}
-                                            style={{ width: '60px', textAlign: 'center', padding: '0.25rem' }}
-                                            onChange={event => setDraftPrazos(prev => ({
-                                                ...prev,
-                                                [row.variationId]: event.target.value,
-                                            }))}
-                                            onBlur={event => updateRowFields(row, draftPrices[row.variationId] ?? formatCurrency(row.preco), undefined, undefined, event.target.value)}
-                                            onKeyDown={event => {
-                                                if (event.key === 'Enter') {
-                                                    event.preventDefault();
-                                                    updateRowFields(row, draftPrices[row.variationId] ?? formatCurrency(row.preco), undefined, undefined, event.currentTarget.value).then(() => moveToNextField(index, 'prazo'));
-                                                }
-                                            }}
-                                        />
+                                        <div className={styles.numberCell}>
+                                            <input
+                                                data-row-index={index}
+                                                data-col="prazo"
+                                                type="number"
+                                                min="0"
+                                                value={draftPrazos[row.variationId] ?? row.prazo ?? ''}
+                                                disabled={isSaving}
+                                                className={styles.priceInput}
+                                                style={{ textAlign: 'center' }}
+                                                onChange={event => setDraftPrazos(prev => ({
+                                                    ...prev,
+                                                    [row.variationId]: event.target.value,
+                                                }))}
+                                                onBlur={event => updateRowFields(row, draftPrices[row.variationId] ?? formatCurrency(row.preco), undefined, undefined, event.target.value)}
+                                                onKeyDown={event => {
+                                                    if (event.key === 'Enter') {
+                                                        event.preventDefault();
+                                                        updateRowFields(row, draftPrices[row.variationId] ?? formatCurrency(row.preco), undefined, undefined, event.currentTarget.value).then(() => moveToNextField(index, 'prazo'));
+                                                    }
+                                                }}
+                                            />
+                                        </div>
                                     </td>
                                     <td>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'flex-start' }}>

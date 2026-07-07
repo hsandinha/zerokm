@@ -400,18 +400,28 @@ async function markExistingRows(rows: ParsedImportItem[]) {
     const existing = await VehicleVariation.find({
         ativo: true,
         marca: { $in: marcas },
-    }).select('marca modelo anoFabricacao anoModelo combustivel cor transmissao opcionais');
+    }).select('marca modelo ano anoFabricacao anoModelo combustivel cor transmissao opcionais');
 
-    const existingKeys = new Set(existing.map((variation: any) => buildDuplicateKey({
-        marca: variation.marca,
-        modelo: variation.modelo,
-        anoFabricacao: variation.anoFabricacao,
-        anoModelo: variation.anoModelo,
-        combustivel: variation.combustivel,
-        cor: variation.cor,
-        transmissao: variation.transmissao,
-        opcionais: variation.opcionais,
-    })));
+    const existingKeys = new Set(existing.map((variation: any) => {
+        let { anoFabricacao, anoModelo } = variation;
+        
+        if ((!anoFabricacao || !anoModelo) && variation.ano) {
+            const composto = parseAnoComposto(variation.ano);
+            anoFabricacao = anoFabricacao || composto.anoFabricacao;
+            anoModelo = anoModelo || composto.anoModelo;
+        }
+
+        return buildDuplicateKey({
+            marca: variation.marca,
+            modelo: variation.modelo,
+            anoFabricacao,
+            anoModelo,
+            combustivel: variation.combustivel,
+            cor: variation.cor,
+            transmissao: variation.transmissao,
+            opcionais: variation.opcionais,
+        });
+    }));
 
     const seen = new Set<string>();
     return rows.map(row => {
