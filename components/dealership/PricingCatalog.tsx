@@ -22,6 +22,7 @@ interface PricingRow {
     preco: number | null;
     frete: number | null;
     quantidade: number;
+    prazo?: number | null;
     ativo: boolean;
     status: 'ativo' | 'inativo';
     statusVeiculo?: string;
@@ -83,6 +84,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
     const [draftPrices, setDraftPrices] = useState<Record<string, string>>({});
     const [draftStatuses, setDraftStatuses] = useState<Record<string, string>>({});
     const [draftQuantities, setDraftQuantities] = useState<Record<string, string>>({});
+    const [draftPrazos, setDraftPrazos] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState<Record<string, boolean>>({});
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [importReport, setImportReport] = useState<{ successes: any[]; errors: any[] } | null>(null);
@@ -118,6 +120,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
             setTotal(data.total || 0);
             setConcessionariaInfo(data.concessionaria || null);
             setDraftPrices({});
+            setDraftPrazos({});
         } catch (err: any) {
             setError(err?.message || 'Erro ao carregar catálogo');
         } finally {
@@ -136,13 +139,16 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
     const activeCount = useMemo(() => rows.filter(row => row.ativo).length, [rows]);
     const inactiveCount = rows.length - activeCount;
 
-    const updateRowFields = async (row: PricingRow, rawPriceValue: string, newStatusVeiculo?: string, rawQuantidadeValue?: string) => {
+    const updateRowFields = async (row: PricingRow, rawPriceValue: string, newStatusVeiculo?: string, rawQuantidadeValue?: string, rawPrazoValue?: string) => {
         const rawTrimmed = rawPriceValue.trim();
         const preco = parseCurrency(rawPriceValue);
         const statusVeiculo = newStatusVeiculo !== undefined ? newStatusVeiculo : (row.statusVeiculo || 'A faturar');
         const quantidadeRawStr = rawQuantidadeValue !== undefined ? rawQuantidadeValue : (draftQuantities[row.variationId] ?? String(row.quantidade || 0));
         let quantidade = parseInt(quantidadeRawStr, 10);
         if (isNaN(quantidade) || quantidade < 0) quantidade = 0;
+
+        const prazoRawStr = rawPrazoValue !== undefined ? rawPrazoValue : (draftPrazos[row.variationId] ?? String(row.prazo ?? ''));
+        const prazo = prazoRawStr.trim() === '' ? null : parseInt(prazoRawStr, 10);
 
         if (rawTrimmed && preco === null && rawTrimmed !== '0' && rawTrimmed !== '0,00') {
             setError('Preço inválido. Use apenas números, vírgula e ponto.');
@@ -165,6 +171,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                     preco,
                     frete: row.frete,
                     quantidade,
+                    prazo,
                     statusVeiculo
                 }),
             });
@@ -178,6 +185,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                     preco: data.preco ?? null,
                     frete: data.frete ?? item.frete,
                     quantidade: data.quantidade ?? item.quantidade,
+                    prazo: data.prazo ?? item.prazo,
                     statusVeiculo: data.statusVeiculo,
                     ativo: data.ativo,
                     status: data.status,
@@ -195,6 +203,11 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                 return next;
             });
             setDraftQuantities(prev => {
+                const next = { ...prev };
+                delete next[row.variationId];
+                return next;
+            });
+            setDraftPrazos(prev => {
                 const next = { ...prev };
                 delete next[row.variationId];
                 return next;
@@ -502,6 +515,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                             <th>Câmbio</th>
                             <th>Opcionais</th>
                             <th style={{ width: '80px' }}>Qtd</th>
+                            <th style={{ width: '80px' }}>Prazo</th>
                             <th>Preço</th>
                             <th>Status</th>
                         </tr>
@@ -509,11 +523,11 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan={8} className={styles.empty}>Carregando catálogo...</td>
+                                <td colSpan={11} className={styles.empty}>Carregando catálogo...</td>
                             </tr>
                         ) : rows.length === 0 ? (
                             <tr>
-                                <td colSpan={9} className={styles.empty}>Nenhuma variação encontrada.</td>
+                                <td colSpan={11} className={styles.empty}>Nenhuma variação encontrada.</td>
                             </tr>
                         ) : rows.map((row, index) => {
                             const inputValue = draftPrices[row.variationId] ?? formatCurrency(row.preco);
@@ -559,6 +573,27 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                                                 if (event.key === 'Enter') {
                                                     event.preventDefault();
                                                     updateRowFields(row, draftPrices[row.variationId] ?? formatCurrency(row.preco), undefined, event.currentTarget.value).then(() => moveToNextInput(index));
+                                                }
+                                            }}
+                                        />
+                                    </td>
+                                    <td>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            value={draftPrazos[row.variationId] ?? row.prazo ?? ''}
+                                            disabled={isSaving}
+                                            className={styles.priceInput}
+                                            style={{ width: '60px', textAlign: 'center', padding: '0.25rem' }}
+                                            onChange={event => setDraftPrazos(prev => ({
+                                                ...prev,
+                                                [row.variationId]: event.target.value,
+                                            }))}
+                                            onBlur={event => updateRowFields(row, draftPrices[row.variationId] ?? formatCurrency(row.preco), undefined, undefined, event.target.value)}
+                                            onKeyDown={event => {
+                                                if (event.key === 'Enter') {
+                                                    event.preventDefault();
+                                                    updateRowFields(row, draftPrices[row.variationId] ?? formatCurrency(row.preco), undefined, undefined, event.currentTarget.value).then(() => moveToNextInput(index));
                                                 }
                                             }}
                                         />

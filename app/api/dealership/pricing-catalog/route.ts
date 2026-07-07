@@ -43,6 +43,7 @@ function serializeCatalogRow(row: any) {
         preco: priceValue,
         frete: typeof price?.frete === 'number' ? price.frete : null,
         quantidade: typeof price?.quantidade === 'number' ? price.quantidade : 0,
+        prazo: typeof price?.prazo === 'number' ? price.prazo : null,
         coresDisponiveis: price?.coresDisponiveis || [],
         observacoes: price?.observacoes || '',
         statusVeiculo: price?.statusVeiculo || row.status || 'A faturar',
@@ -296,6 +297,11 @@ export async function PATCH(request: Request) {
             return NextResponse.json({ error: 'Frete inválido' }, { status: 400 });
         }
 
+        const prazo = body.prazo === '' || body.prazo === null || body.prazo === undefined ? null : parseInt(body.prazo, 10);
+        if (prazo !== null && (!Number.isFinite(prazo) || prazo < 0)) {
+            return NextResponse.json({ error: 'Prazo inválido' }, { status: 400 });
+        }
+
         const price = await DealerVehiclePrice.findOneAndUpdate(
             {
                 variationId: variation._id,
@@ -306,6 +312,7 @@ export async function PATCH(request: Request) {
                     preco,
                     frete,
                     quantidade: body.quantidade !== undefined ? body.quantidade : undefined,
+                    prazo,
                     coresDisponiveis: Array.isArray(body.coresDisponiveis) ? body.coresDisponiveis : [],
                     observacoes: normalizeText(body.observacoes) || undefined,
                     statusVeiculo: normalizeText(body.statusVeiculo) || undefined,
@@ -320,6 +327,7 @@ export async function PATCH(request: Request) {
             preco: price.preco,
             frete: price.frete,
             quantidade: price.quantidade,
+            prazo: price.prazo,
             coresDisponiveis: price.coresDisponiveis || [],
             observacoes: price.observacoes || '',
             statusVeiculo: price.statusVeiculo || variation.status || 'A faturar',
