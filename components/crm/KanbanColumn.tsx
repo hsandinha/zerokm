@@ -5,6 +5,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Stage, Lead } from './KanbanBoard';
 import LeadCard from './LeadCard';
+import styles from './Kanban.module.css';
 
 interface Props {
   stage: Stage;
@@ -17,7 +18,7 @@ export default function KanbanColumn({ stage, leads }: Props) {
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0, width: '320px', background: 'transparent', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+    <div className={styles.column} style={{ display: 'flex', flexDirection: 'column', flexShrink: 0, background: 'transparent', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
       <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '4px', background: '#FFFFFF', borderTopLeftRadius: '8px', borderTopRightRadius: '8px', borderBottom: '1px solid #E5E7EB' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

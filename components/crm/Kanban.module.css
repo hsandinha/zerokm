@@ -1,0 +1,76 @@
+.board {
+    padding: 32px;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 32px;
+}
+
+.title {
+    font-size: 2rem;
+}
+
+.actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+.statsRow {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+}
+
+.columns {
+    -webkit-overflow-scrolling: touch;
+}
+
+.column {
+    width: 320px;
+}
+
+@media (max-width: 768px) {
+    .board {
+        padding: 16px;
+    }
+
+    .header {
+        flex-direction: column;
+        margin-bottom: 20px;
+    }
+
+    .title {
+        font-size: 1.4rem;
+    }
+
+    .statsRow {
+        scrollbar-width: none;
+    }
+
+    .statsRow::-webkit-scrollbar {
+        display: none;
+    }
+
+    /* Swipe entre etapas com snap nativo */
+    .columns {
+        scroll-snap-type: x proximity;
+        scrollbar-width: none;
+    }
+
+    .columns::-webkit-scrollbar {
+        display: none;
+    }
+
+    .column {
+        width: min(84vw, 320px);
+        scroll-snap-align: start;
+    }
+}

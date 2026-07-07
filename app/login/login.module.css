@@ -321,6 +321,18 @@
 }
 
 @media (max-width: 640px) {
+    /* Vídeo decorativo não agrega em tela pequena: form ocupa a tela toda */
+    .leftSection {
+        display: none;
+    }
+
+    .rightSection {
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
     .content {
         padding: 0;
     }

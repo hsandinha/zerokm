@@ -6,7 +6,8 @@ import {
   DragOverlay,
   closestCorners,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragStartEvent,
@@ -17,6 +18,7 @@ import KanbanColumn from './KanbanColumn';
 import LeadCard from './LeadCard';
 import StageManagerModal from './StageManagerModal';
 import AddLeadModal from './AddLeadModal';
+import styles from './Kanban.module.css';
 
 export type Lead = {
   id: string;
@@ -70,8 +72,12 @@ export default function KanbanBoard() {
   };
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(MouseSensor, {
       activationConstraint: { distance: 5 },
+    }),
+    // No touch, long-press para arrastar — deixa o scroll com o dedo livre
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 250, tolerance: 8 },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
@@ -133,14 +139,14 @@ export default function KanbanBoard() {
   }
 
   return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#F9FAFB', color: '#111827', padding: '32px', borderRadius: '8px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
+        <div className={styles.board} style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#F9FAFB', color: '#111827', borderRadius: '8px' }}>
+            <div className={styles.header}>
                 <div>
                     <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Comercial</h4>
-                    <h1 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#111827', marginBottom: '4px' }}>Pipeline de leads</h1>
-                    <p style={{ fontSize: '1rem', color: '#6B7280' }}>Acompanhe entrada, contato, follow-up, visitas e propostas em um fluxo único.</p>
+                    <h1 className={styles.title} style={{ fontWeight: 'bold', color: '#111827', marginBottom: '4px', marginTop: 0 }}>Pipeline de leads</h1>
+                    <p style={{ fontSize: '1rem', color: '#6B7280', margin: 0 }}>Acompanhe entrada, contato, follow-up, visitas e propostas em um fluxo único.</p>
                 </div>
-                <div style={{ display: 'flex', gap: '12px' }}>
+                <div className={styles.actions}>
                     <button
                         onClick={() => setIsModalOpen(true)}
                         style={{ background: '#FFFFFF', color: '#374151', padding: '10px 16px', borderRadius: '8px', fontWeight: 600, border: '1px solid #D1D5DB', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
@@ -156,7 +162,7 @@ export default function KanbanBoard() {
                 </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', overflowX: 'auto', paddingBottom: '8px' }}>
+            <div className={styles.statsRow}>
                 {stages.map(stage => {
                 const stageLeads = leads.filter(l => l.stageId === stage.id);
                 const percentage = totalLeads > 0 ? Math.round((stageLeads.length / totalLeads) * 100) : 0;
@@ -201,7 +207,7 @@ export default function KanbanBoard() {
                 </div>
             </div>
 
-            <div style={{ display: 'flex', flex: 1, overflowX: 'auto', paddingBottom: '16px', gap: '20px' }}>
+            <div className={styles.columns} style={{ display: 'flex', flex: 1, overflowX: 'auto', paddingBottom: '16px', gap: '20px' }}>
                 <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}

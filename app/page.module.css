@@ -1605,17 +1605,47 @@
         display: none;
     }
 
-    .navActions .btnOutline {
-        display: none;
+    .navInner {
+        padding: 0 1rem;
+        gap: 0.75rem;
+        height: 60px;
+    }
+
+    .navInner img {
+        width: 108px;
+        height: auto;
+    }
+
+    /* "Entrar" e "Começar grátis" sempre visíveis, alinhados à direita */
+    .navActions {
+        margin-left: auto;
+        gap: 0.5rem;
+    }
+
+    .btnOutline,
+    .btnPrimary {
+        padding: 0.5rem 0.85rem;
+        font-size: 0.82rem;
+        white-space: nowrap;
     }
 
     .heroInner {
         grid-template-columns: 1fr;
-        padding: 3rem 1.5rem 4rem;
+        padding: 5.5rem 1.25rem 3.5rem;
+        gap: 2.5rem;
     }
 
+    /* Preview do dashboard empilhado abaixo do texto */
     .heroRight {
-        display: none;
+        justify-content: center;
+    }
+
+    .heroTitle {
+        font-size: clamp(2.1rem, 9.5vw, 2.8rem);
+    }
+
+    .heroSub {
+        font-size: 0.98rem;
     }
 
     .featuresGrid {
@@ -1667,10 +1697,94 @@
 
     .heroCtas {
         flex-direction: column;
-        align-items: flex-start;
+        align-items: stretch;
+        width: 100%;
+    }
+
+    .heroCtaPrimary,
+    .heroCtaSecondary {
+        justify-content: center;
+        min-height: 3rem;
     }
 
     .videoPhoneFrame {
         width: 280px;
+    }
+
+    /* Seções: respiro lateral menor e tipografia mais compacta */
+    .sectionInner {
+        padding: 3.5rem 1.25rem;
+    }
+
+    .sectionSub {
+        font-size: 0.95rem;
+    }
+
+    .statsInner {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 2rem 1rem;
+        padding: 3rem 1.25rem;
+        text-align: center;
+    }
+
+    .statBlock {
+        align-items: center;
+    }
+
+    .audienceCard {
+        padding: 1.75rem 1.25rem;
+    }
+
+    .audienceCtaPrimary,
+    .audienceCtaOutline {
+        justify-content: center;
+        width: 100%;
+        min-height: 3rem;
+    }
+
+    .testimonialCard {
+        padding: 1.25rem;
+    }
+
+    .planCard {
+        padding: 1.5rem 1.25rem;
+    }
+
+    .ctaInner {
+        padding: 3.5rem 1.25rem;
+    }
+
+    .ctaActions {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+    }
+
+    .ctaTrust {
+        flex-wrap: wrap;
+        justify-content: center;
+        row-gap: 0.5rem;
+    }
+
+    .footerInner {
+        padding: 0 1.25rem;
+    }
+}
+
+/* Telas muito estreitas */
+@media (max-width: 400px) {
+    .btnOutline,
+    .btnPrimary {
+        padding: 0.45rem 0.65rem;
+        font-size: 0.78rem;
+    }
+
+    .navInner img {
+        width: 92px;
+    }
+
+    .statNum {
+        font-size: 2rem;
     }
 }
