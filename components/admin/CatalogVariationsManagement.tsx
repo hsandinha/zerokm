@@ -366,6 +366,10 @@ export function CatalogVariationsManagement() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Erro ao importar catálogo');
 
+            if (data.skipped && data.skipped.length > 0) {
+                console.warn('LINHAS IGNORADAS DETALHES:', data.skipped);
+            }
+
             setFeedback({
                 type: 'success',
                 message: `${data.summary?.imported || 0} variações importadas. ${data.summary?.skipped || 0} linhas ignoradas.`,

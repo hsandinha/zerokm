@@ -592,6 +592,8 @@ async function commitRows(rawItems: any[], createdBy?: string | null) {
                 ...row,
                 status: error?.code === 11000 ? 'existing' : 'invalid',
                 errors: [...row.errors, error?.code === 11000 ? 'Já existe no catálogo.' : (error?.message || 'Erro ao importar.')],
+                rawError: error?.message,
+                errorCode: error?.code,
             });
         }
     }
