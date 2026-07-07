@@ -452,6 +452,12 @@ async function markExistingRows(rows: ParsedImportItem[]) {
 }
 
 async function buildPreview(body: any) {
+    await connectDB();
+    try {
+        await VehicleVariation.syncIndexes();
+    } catch (e) {
+        console.error("Erro ao sincronizar índices:", e);
+    }
     const sourceType = body.sourceType === 'googleSheets' ? 'googleSheets' : 'csv';
     const defaultBrand = await resolveDefaultBrand(body.defaultMarcaId, body.defaultMarca);
     let csvText = normalizeText(body.csvText);
@@ -526,6 +532,12 @@ function sanitizeCommitItem(rawItem: any): ParsedImportItem {
 }
 
 async function commitRows(rawItems: any[], createdBy?: string | null) {
+    await connectDB();
+    try {
+        await VehicleVariation.syncIndexes();
+    } catch (e) {
+        console.error("Erro ao sincronizar índices:", e);
+    }
     if (!Array.isArray(rawItems) || rawItems.length === 0) {
         throw new Error('Nenhuma linha enviada para importação.');
     }
