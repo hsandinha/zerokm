@@ -249,6 +249,7 @@ export async function GET(request: Request) {
                 preco: doc.preco,
                 frete: doc.frete || 0,
                 quantidade: doc.quantidade || 0,
+                prazo: doc.prazo,
                 coresDisponiveis: doc.coresDisponiveis || [],
                 observacoes: doc.observacoes,
                 ativo: doc.ativo,
