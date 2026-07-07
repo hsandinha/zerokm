@@ -1,0 +1,267 @@
+.root {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .root {
+        display: contents;
+    }
+}
+
+/* ===== Backdrop ===== */
+.backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(4, 10, 18, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 1200;
+    animation: fadeIn 0.25s ease;
+}
+
+.backdropClosing {
+    animation: fadeOut 0.22s ease forwards;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+/* ===== Painel (bottom sheet) ===== */
+.panel {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1201;
+    background: var(--color-surface);
+    border: 1px solid var(--color-highlight);
+    border-bottom: none;
+    border-radius: 1.5rem 1.5rem 0 0;
+    max-height: min(84dvh, 42rem);
+    display: flex;
+    flex-direction: column;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+    box-shadow: 0 -18px 48px rgba(0, 0, 0, 0.5);
+    animation: sheetUp 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+}
+
+.panelClosing {
+    animation: sheetDown 0.22s ease forwards;
+}
+
+@keyframes sheetUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
+
+@keyframes sheetDown {
+    from { transform: translateY(0); }
+    to { transform: translateY(110%); }
+}
+
+/* ===== Alça de arraste ===== */
+.grabArea {
+    padding: 0.65rem 0 0.5rem;
+    display: flex;
+    justify-content: center;
+    cursor: grab;
+    touch-action: none;
+    flex-shrink: 0;
+}
+
+.handle {
+    width: 2.5rem;
+    height: 0.3rem;
+    border-radius: 999px;
+    background: var(--color-highlight);
+}
+
+/* ===== Cartão do usuário ===== */
+.userCard {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0 1rem 0.85rem;
+    padding: 0.75rem 1rem;
+    border-radius: 1rem;
+    background: var(--color-panel);
+    border: 1px solid var(--color-highlight);
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.userCard:active {
+    background: var(--color-highlight);
+}
+
+.userAvatar {
+    width: 2.6rem;
+    height: 2.6rem;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, var(--color-accent), #d99320);
+    color: #0b1620;
+    font-weight: 800;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+}
+
+.userInfo {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.userName {
+    color: var(--color-text);
+    font-weight: 700;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.userRole {
+    color: var(--color-text-muted);
+    font-size: 0.78rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.userChevron {
+    margin-left: auto;
+    color: var(--color-text-muted);
+    font-size: 1.4rem;
+    line-height: 1;
+}
+
+/* ===== Grade do menu ===== */
+.grid {
+    flex: 1;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.6rem;
+    padding: 0.15rem 1rem 1rem;
+    align-content: start;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+.cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    padding: 0.95rem 0.4rem 0.8rem;
+    background: var(--color-panel);
+    border: 1px solid var(--color-highlight);
+    border-radius: 1rem;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-family: inherit;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
+    transition: transform 0.15s ease, border-color 0.2s ease, color 0.2s ease;
+    animation: cellIn 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--i, 0) * 20ms);
+}
+
+@keyframes cellIn {
+    from {
+        opacity: 0;
+        transform: translateY(0.75rem);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.cell:active {
+    transform: scale(0.94);
+}
+
+.cellActive {
+    border-color: var(--color-accent);
+    color: var(--color-text);
+    background: rgba(246, 183, 60, 0.1);
+    box-shadow: 0 0 0 1px var(--color-accent) inset;
+}
+
+.cellIcon {
+    font-size: 1.5rem;
+    line-height: 1;
+    display: grid;
+    place-items: center;
+    height: 1.9rem;
+}
+
+.cellLabel {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.2;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+/* ===== Rodapé (tema / sair) ===== */
+.footer {
+    display: flex;
+    gap: 0.6rem;
+    padding: 0.75rem 1rem 0;
+    border-top: 1px solid var(--color-highlight);
+    flex-shrink: 0;
+}
+
+.footerButton {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 0.5rem;
+    background: var(--color-panel);
+    border: 1px solid var(--color-highlight);
+    border-radius: 0.85rem;
+    color: var(--color-text);
+    font-weight: 600;
+    font-size: 0.85rem;
+    font-family: inherit;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.15s ease;
+}
+
+.footerButton:active {
+    transform: scale(0.96);
+}
+
+.footerButtonDanger {
+    color: var(--color-negative);
+    border-color: rgba(231, 76, 60, 0.35);
+    background: rgba(231, 76, 60, 0.08);
+}
+
+.footerIcon {
+    font-size: 1rem;
+    line-height: 1;
+}

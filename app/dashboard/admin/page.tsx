@@ -19,6 +19,7 @@ import { VisaoGeralTab } from '../../../components/admin/VisaoGeralTab';
 import { CatalogVariationsManagement } from '../../../components/admin/CatalogVariationsManagement';
 import { AdminDealershipVehicles } from '../../../components/admin/AdminDealershipVehicles';
 import KanbanBoard from '../../../components/crm/KanbanBoard';
+import { MobileTabBar } from '../../../components/mobile/MobileTabBar';
 import styles from './admin.module.css';
 import { MdFilterAlt } from 'react-icons/md';
 
@@ -289,8 +290,30 @@ export default function AdminDashboard() {
                 </aside>
 
                 <main className={styles.mainContent}>
+                    <header className={styles.mobileHeader}>
+                        <Image
+                            src="/images/logo.png"
+                            alt="Logo"
+                            width={110}
+                            height={37}
+                            className={styles.mobileHeaderLogo}
+                            priority
+                        />
+                    </header>
                     {renderTabContent()}
                 </main>
+
+                <MobileTabBar
+                    items={tabs.map((tab) => ({ id: tab.id, label: tab.label, icon: tab.icon }))}
+                    primaryIds={['visao-geral', 'veiculos', 'crm', 'usuarios']}
+                    activeId={activeTab}
+                    onSelect={(id) => setActiveTab(id as TabType)}
+                    user={{
+                        name: userInfo.name || 'Administrador',
+                        email: userInfo.email,
+                        role: userInfo.profile === 'gerente' ? 'Gerente' : userInfo.profile === 'marketing' ? 'Marketing' : 'Administrador',
+                    }}
+                />
             </div>
         </ConfigContext.Provider>
     );

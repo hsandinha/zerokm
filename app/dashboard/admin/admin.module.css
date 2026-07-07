@@ -630,6 +630,85 @@ select.filterInput {
     font-weight: 600;
 }
 
+/* ===== Mobile ===== */
+.mobileHeader {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .layoutWrapper {
+        display: block;
+        height: auto;
+        min-height: 100dvh;
+        overflow: visible;
+    }
+
+    .sidebar {
+        display: none;
+    }
+
+    .mainContent {
+        height: auto;
+        min-height: 100dvh;
+        overflow: visible;
+        /* Espaço para o menu inferior flutuante */
+        padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    .mobileHeader {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: sticky;
+        top: 0;
+        z-index: 900;
+        padding: 0.6rem 1rem;
+        padding-top: calc(0.6rem + env(safe-area-inset-top, 0px));
+        background: var(--color-surface);
+        border-bottom: 1px solid var(--color-highlight);
+    }
+
+    .mobileHeaderLogo {
+        height: 2rem;
+        width: auto;
+        object-fit: contain;
+    }
+
+    .contentArea {
+        padding: 1rem;
+    }
+
+    .tabContentContainer {
+        padding: 1rem;
+    }
+
+    .title {
+        font-size: 1.35rem;
+    }
+
+    .subtitle {
+        font-size: 0.9rem;
+    }
+
+    .dashboardTitle {
+        font-size: 1.4rem;
+    }
+
+    .overviewHeader,
+    .topBarActions {
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    .filtersPanel {
+        padding: 1rem;
+    }
+
+    .detailedView {
+        padding: 1rem;
+    }
+}
+
 /* Print Styles */
 @media print {
 

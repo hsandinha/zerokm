@@ -12,6 +12,7 @@ import { TransportadorasManagement } from '../../../components/admin/Transportad
 import { TabelasManagement } from '../../../components/admin/TabelasManagement';
 import { CatalogVariationsManagement } from '../../../components/admin/CatalogVariationsManagement';
 import { AdminDealershipVehicles } from '../../../components/admin/AdminDealershipVehicles';
+import { MobileTabBar } from '../../../components/mobile/MobileTabBar';
 import styles from '../operator/operator.module.css';
 
 type TabType = 'veiculos' | 'estoque-concessionarias' | 'catalogo' | 'concessionarias' | 'transportadoras' | 'tabelas' | 'usuarios';
@@ -130,6 +131,14 @@ export default function AdministrativoDashboard() {
                         {renderContent()}
                     </div>
                 </div>
+
+                <MobileTabBar
+                    items={tabs.map((tab) => ({ id: tab.id, label: tab.label, icon: tab.icon }))}
+                    primaryIds={['veiculos', 'estoque-concessionarias', 'concessionarias', 'usuarios']}
+                    activeId={activeTab}
+                    onSelect={(id) => setActiveTab(id as TabType)}
+                    user={{ name: userInfo.name ?? 'Administrativo', email: userInfo.email, role: 'Administrativo' }}
+                />
             </div>
         </ConfigContext.Provider>
     );

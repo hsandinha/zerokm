@@ -10,6 +10,7 @@ import { VehicleConsultation } from '../../../components/operator/VehicleConsult
 import { ConfigContext, useConfig } from '../../../lib/contexts/ConfigContext';
 import UserMenu from '../../../components/UserMenu';
 import KanbanBoard from '../../../components/crm/KanbanBoard';
+import { MobileTabBar } from '../../../components/mobile/MobileTabBar';
 import styles from './dealership.module.css';
 import { MeusAnuncios } from '../../../components/dealership/MeusAnuncios';
 import { PricingCatalog } from '../../../components/dealership/PricingCatalog';
@@ -187,6 +188,14 @@ export default function DealershipDashboard() {
                 <div className={styles.tabContent}>
                     {renderTabContent()}
                 </div>
+
+                <MobileTabBar
+                    items={tabs.map((tab) => ({ id: tab.id, label: tab.label, icon: tab.icon }))}
+                    primaryIds={['visao-geral', 'veiculos', 'precos', 'crm']}
+                    activeId={activeTab}
+                    onSelect={(id) => setActiveTab(id as TabType)}
+                    user={{ name: 'Concessionária', role: 'Concessionária' }}
+                />
             </div>
         </ConfigContext.Provider>
     );

@@ -12,6 +12,7 @@ import { MaskedInput } from '../../../components/operator/MaskedInput';
 import { ConfigContext } from '../../../lib/contexts/ConfigContext';
 import { ConcessionariaService } from '../../../lib/services/concessionariaService';
 import UserMenu from '../../../components/UserMenu';
+import { MobileTabBar } from '../../../components/mobile/MobileTabBar';
 import { FarolVencimentos } from './FarolVencimentos';
 import styles from './operator.module.css';
 import transportStyles from '../../../components/operator/VehicleConsultation.module.css';
@@ -180,6 +181,13 @@ export default function VendedorDashboard() {
                 <div className={styles.tabContent}>
                     {renderTabContent()}
                 </div>
+
+                <MobileTabBar
+                    items={tabs.map((tab) => ({ id: tab.id, label: tab.label, icon: tab.icon }))}
+                    activeId={activeTab}
+                    onSelect={(id) => setActiveTab(id as TabType)}
+                    user={{ name: userName, email: userEmail, role: 'Vendedor Corporativo' }}
+                />
             </div>
         </ConfigContext.Provider>
     );

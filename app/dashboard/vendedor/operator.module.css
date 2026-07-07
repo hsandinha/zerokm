@@ -1292,3 +1292,34 @@
 .farolTable td {
     vertical-align: middle;
 }
+
+/* =========================================================
+   Mobile: o menu inferior flutuante (MobileTabBar) substitui
+   as tabs do topo; header vira barra compacta e fixa.
+   ========================================================= */
+@media (max-width: 768px) {
+    .header {
+        flex-direction: row;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        padding-top: calc(0.5rem + env(safe-area-inset-top, 0px));
+        position: sticky;
+        top: 0;
+        z-index: 900;
+    }
+
+    .logo {
+        width: 8.5rem;
+        height: auto;
+    }
+
+    .tabsContainer {
+        display: none;
+    }
+
+    .tabContent {
+        /* Espaço para o menu inferior flutuante */
+        padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+    }
+}

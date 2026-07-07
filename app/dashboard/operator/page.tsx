@@ -15,6 +15,7 @@ import { MaskedInput } from '../../../components/operator/MaskedInput';
 import { ConfigContext, useConfig } from '../../../lib/contexts/ConfigContext';
 import { ConcessionariaService } from '../../../lib/services/concessionariaService';
 import UserMenu from '../../../components/UserMenu';
+import { MobileTabBar } from '../../../components/mobile/MobileTabBar';
 import { FarolVencimentos } from './FarolVencimentos';
 import { CatalogVariationsManagement } from '../../../components/admin/CatalogVariationsManagement';
 import styles from './operator.module.css';
@@ -188,6 +189,13 @@ export default function OperatorDashboard() {
                 <div className={styles.tabContent}>
                     {renderTabContent()}
                 </div>
+
+                <MobileTabBar
+                    items={tabs.map((tab) => ({ id: tab.id, label: tab.label, icon: tab.icon }))}
+                    activeId={activeTab}
+                    onSelect={(id) => setActiveTab(id as TabType)}
+                    user={{ name: userName, email: userEmail, role: 'Operador' }}
+                />
             </div>
         </ConfigContext.Provider>
     );

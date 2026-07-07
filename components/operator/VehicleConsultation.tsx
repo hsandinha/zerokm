@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useConfig } from '../../lib/contexts/ConfigContext';
 import { useVehicleDatabase } from '../../lib/hooks/useVehicleDatabase';
 import { useTablesDatabase } from '../../lib/hooks/useTablesDatabase';
+import { useIsMobile } from '../../lib/hooks/useIsMobile';
 import { Vehicle, VehicleService } from '../../lib/services/vehicleService';
 import { TransportadoraService, Transportadora } from '../../lib/services/transportadoraService';
 import { AddVehicleModal } from './AddVehicleModal';
@@ -182,6 +183,9 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
     // Estado pendente (digitando) para evitar disparar requisições a cada tecla
     const [pendingSearchTerm, setPendingSearchTerm] = useState('');
     const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+    // No mobile a tabela não cabe: força visualização em cards
+    const isMobile = useIsMobile();
+    const effectiveViewMode = isMobile ? 'grid' : viewMode;
     const [showVehicleForm, setShowVehicleForm] = useState(false);
     const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
 
@@ -1201,7 +1205,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                     />
 
                     <div className={styles.resultsSection}>
-                        {viewMode === 'table' ? (
+                        {effectiveViewMode === 'table' ? (
                             <VehicleTable
                                 vehicles={displayVehicles}
                                 selectedIds={selectedIds}
