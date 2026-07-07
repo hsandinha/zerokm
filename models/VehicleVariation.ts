@@ -76,6 +76,7 @@ const VehicleVariationSchema: Schema = new Schema({
 VehicleVariationSchema.index({
     marca: 1,
     modelo: 1,
+    anoFabricacao: 1,
     anoModelo: 1,
     combustivel: 1,
     cor: 1,

@@ -95,10 +95,11 @@ function normalizeKeyPart(value: unknown) {
         .replace(/\s+/g, ' ');
 }
 
-function buildDuplicateKey(item: Pick<ParsedImportItem, 'marca' | 'modelo' | 'anoModelo' | 'combustivel' | 'cor' | 'transmissao' | 'opcionais'>) {
+function buildDuplicateKey(item: Pick<ParsedImportItem, 'marca' | 'modelo' | 'anoFabricacao' | 'anoModelo' | 'combustivel' | 'cor' | 'transmissao' | 'opcionais'>) {
     return [
         item.marca,
         item.modelo,
+        item.anoFabricacao,
         item.anoModelo,
         item.combustivel,
         item.cor,
@@ -399,11 +400,12 @@ async function markExistingRows(rows: ParsedImportItem[]) {
     const existing = await VehicleVariation.find({
         ativo: true,
         marca: { $in: marcas },
-    }).select('marca modelo anoModelo combustivel cor transmissao opcionais');
+    }).select('marca modelo anoFabricacao anoModelo combustivel cor transmissao opcionais');
 
     const existingKeys = new Set(existing.map((variation: any) => buildDuplicateKey({
         marca: variation.marca,
         modelo: variation.modelo,
+        anoFabricacao: variation.anoFabricacao,
         anoModelo: variation.anoModelo,
         combustivel: variation.combustivel,
         cor: variation.cor,

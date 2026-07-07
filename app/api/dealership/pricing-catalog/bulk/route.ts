@@ -122,7 +122,7 @@ export async function PATCH(request: Request) {
         // 1. Group items by identity
         const groupedMap = new Map();
         for (const item of items) {
-            const key = `${normalizeText(item.modelo)}|${normalizeText(item.ano)}|${normalizeText(item.cor)}|${normalizeText(item.combustivel)}|${normalizeText(item.transmissao)}|${normalizeText(item.opcionais)}`;
+            const key = `${normalizeText(item.marca)}|${normalizeText(item.modelo)}|${normalizeText(item.ano)}|${normalizeText(item.cor)}|${normalizeText(item.combustivel)}|${normalizeText(item.transmissao)}|${normalizeText(item.opcionais)}`;
             if (!groupedMap.has(key)) {
                 groupedMap.set(key, { ...item, quantidade: 0 });
             }
