@@ -148,7 +148,14 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
         if (isNaN(quantidade) || quantidade < 0) quantidade = 0;
 
         const prazoRawStr = rawPrazoValue !== undefined ? rawPrazoValue : (draftPrazos[row.variationId] ?? String(row.prazo ?? ''));
-        const prazo = prazoRawStr.trim() === '' ? null : parseInt(prazoRawStr, 10);
+        const prazoNorm = prazoRawStr.trim().toLowerCase();
+        let prazo: number | null = null;
+        if (prazoNorm === 'pronta entrega' || prazoNorm === 'pronta' || prazoNorm === '0') {
+            prazo = 0;
+        } else if (prazoNorm !== '') {
+            prazo = parseInt(prazoNorm, 10);
+            if (isNaN(prazo)) prazo = null;
+        }
 
         if (rawTrimmed && preco === null && rawTrimmed !== '0' && rawTrimmed !== '0,00') {
             setError('Preço inválido. Use apenas números, vírgula e ponto.');
@@ -623,13 +630,17 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                                         </div>
                                     </td>
                                     <td>
-                                        <div className={styles.numberCell}>
+                                        <div className={styles.prazoCell}>
                                             <input
                                                 data-row-index={index}
                                                 data-col="prazo"
-                                                type="number"
-                                                min="0"
-                                                value={draftPrazos[row.variationId] ?? row.prazo ?? ''}
+                                                type="text"
+                                                value={
+                                                    draftPrazos[row.variationId] !== undefined 
+                                                        ? draftPrazos[row.variationId] 
+                                                        : (row.prazo === 0 ? 'Pronta Entrega' : (row.prazo ?? ''))
+                                                }
+                                                list={`prazo-options-${row.variationId}`}
                                                 disabled={isSaving}
                                                 className={styles.priceInput}
                                                 style={{ textAlign: 'center' }}
@@ -646,6 +657,9 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                                                 }}
                                             />
                                         </div>
+                                        <datalist id={`prazo-options-${row.variationId}`}>
+                                            <option value="Pronta Entrega" />
+                                        </datalist>
                                     </td>
                                     <td>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'flex-start' }}>

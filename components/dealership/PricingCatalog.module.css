@@ -241,6 +241,17 @@
     overflow: hidden;
 }
 
+.prazoCell {
+    display: flex;
+    align-items: center;
+    width: 100px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #6b7280;
+    overflow: hidden;
+}
+
 .priceCell span {
     padding-left: 0.6rem;
     font-size: 0.82rem;
