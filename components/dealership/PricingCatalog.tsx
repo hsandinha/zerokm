@@ -676,6 +676,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                                                 {e.item.ano && <span className={styles.reportDetail}>{e.item.ano}</span>}
                                                 {e.item.combustivel && <span className={styles.reportDetail}>{e.item.combustivel}</span>}
                                                 {e.item.transmissao && <span className={styles.reportDetail}>{e.item.transmissao}</span>}
+                                                {e.message && <span className={styles.reportDetail} style={{ color: '#e74c3c', marginLeft: 'auto', fontWeight: 'bold' }}>{e.message}</span>}
                                             </li>
                                         ))}
                                     </ul>
@@ -699,7 +700,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                                 if (importReport.errors.length > 0) {
                                     txt += `--- ERROS ---\n`;
                                     importReport.errors.forEach((e: any) => {
-                                        txt += `[QTD: ${e.item.quantidade}] ${e.item.modelo} | ${e.item.cor} | ${e.item.ano} | ${e.item.opcionais} | ${e.item.combustivel} | ${e.item.transmissao}\n`;
+                                        txt += `[QTD: ${e.item.quantidade}] ${e.item.modelo} | ${e.item.cor} | ${e.item.ano} | ${e.item.opcionais} | ${e.item.combustivel} | ${e.item.transmissao} -> Motivo: ${e.message || 'Erro'}\n`;
                                     });
                                 }
                                 const blob = new Blob([txt], { type: 'text/plain;charset=utf-8;' });
