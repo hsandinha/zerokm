@@ -219,10 +219,26 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
         }
     };
 
-    const moveToNextInput = (index: number) => {
-        const next = document.querySelector<HTMLInputElement>(`[data-price-index="${index + 1}"]`);
-        next?.focus();
-        next?.select();
+    const moveToNextField = (index: number, currentCol: 'preco' | 'qtd' | 'prazo' | 'status') => {
+        let nextCol: 'preco' | 'qtd' | 'prazo' | 'status' | null = null;
+        let targetIndex = index;
+
+        if (currentCol === 'preco') nextCol = 'qtd';
+        else if (currentCol === 'qtd') nextCol = 'prazo';
+        else if (currentCol === 'prazo') nextCol = 'status';
+        else if (currentCol === 'status') {
+            nextCol = 'preco';
+            targetIndex = index + 1;
+        }
+
+        if (nextCol) {
+            const selector = `[data-row-index="${targetIndex}"][data-col="${nextCol}"]`;
+            const nextElem = document.querySelector<HTMLElement>(selector);
+            nextElem?.focus();
+            if (nextElem instanceof HTMLInputElement) {
+                nextElem.select();
+            }
+        }
     };
 
     const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -514,9 +530,9 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                             <th>Cor</th>
                             <th>Câmbio</th>
                             <th>Opcionais</th>
+                            <th>Preço</th>
                             <th style={{ width: '80px' }}>Qtd</th>
                             <th style={{ width: '80px' }}>Prazo</th>
-                            <th>Preço</th>
                             <th>Status</th>
                         </tr>
                     </thead>
@@ -557,7 +573,34 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                                     <td>{row.transmissao || '-'}</td>
                                     <td>{row.opcionais || '-'}</td>
                                     <td>
+                                        <div className={styles.priceCell}>
+                                            <span>R$</span>
+                                            <input
+                                                data-row-index={index}
+                                                data-col="preco"
+                                                value={inputValue}
+                                                inputMode="decimal"
+                                                disabled={isSaving}
+                                                className={styles.priceInput}
+                                                placeholder="0,00"
+                                                onChange={event => setDraftPrices(prev => ({
+                                                    ...prev,
+                                                    [row.variationId]: event.target.value,
+                                                }))}
+                                                onBlur={event => updateRowFields(row, event.target.value)}
+                                                onKeyDown={event => {
+                                                    if (event.key === 'Enter') {
+                                                        event.preventDefault();
+                                                        updateRowFields(row, event.currentTarget.value).then(() => moveToNextField(index, 'preco'));
+                                                    }
+                                                }}
+                                            />
+                                        </div>
+                                    </td>
+                                    <td>
                                         <input
+                                            data-row-index={index}
+                                            data-col="qtd"
                                             type="number"
                                             min="0"
                                             value={draftQuantities[row.variationId] ?? row.quantidade ?? 0}
@@ -572,13 +615,15 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                                             onKeyDown={event => {
                                                 if (event.key === 'Enter') {
                                                     event.preventDefault();
-                                                    updateRowFields(row, draftPrices[row.variationId] ?? formatCurrency(row.preco), undefined, event.currentTarget.value).then(() => moveToNextInput(index));
+                                                    updateRowFields(row, draftPrices[row.variationId] ?? formatCurrency(row.preco), undefined, event.currentTarget.value).then(() => moveToNextField(index, 'qtd'));
                                                 }
                                             }}
                                         />
                                     </td>
                                     <td>
                                         <input
+                                            data-row-index={index}
+                                            data-col="prazo"
                                             type="number"
                                             min="0"
                                             value={draftPrazos[row.variationId] ?? row.prazo ?? ''}
@@ -593,43 +638,27 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                                             onKeyDown={event => {
                                                 if (event.key === 'Enter') {
                                                     event.preventDefault();
-                                                    updateRowFields(row, draftPrices[row.variationId] ?? formatCurrency(row.preco), undefined, undefined, event.currentTarget.value).then(() => moveToNextInput(index));
+                                                    updateRowFields(row, draftPrices[row.variationId] ?? formatCurrency(row.preco), undefined, undefined, event.currentTarget.value).then(() => moveToNextField(index, 'prazo'));
                                                 }
                                             }}
                                         />
                                     </td>
                                     <td>
-                                        <div className={styles.priceCell}>
-                                            <span>R$</span>
-                                            <input
-                                                data-price-index={index}
-                                                value={inputValue}
-                                                inputMode="decimal"
-                                                disabled={isSaving}
-                                                className={styles.priceInput}
-                                                placeholder="0,00"
-                                                onChange={event => setDraftPrices(prev => ({
-                                                    ...prev,
-                                                    [row.variationId]: event.target.value,
-                                                }))}
-                                                onBlur={event => updateRowFields(row, event.target.value)}
-                                                onKeyDown={event => {
-                                                    if (event.key === 'Enter') {
-                                                        event.preventDefault();
-                                                        updateRowFields(row, event.currentTarget.value).then(() => moveToNextInput(index));
-                                                    }
-                                                }}
-                                            />
-                                        </div>
-                                    </td>
-                                    <td>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'flex-start' }}>
                                             <select
+                                                data-row-index={index}
+                                                data-col="status"
                                                 value={draftStatuses[row.variationId] ?? row.statusVeiculo ?? 'A faturar'}
                                                 onChange={e => {
                                                     const newStatus = e.target.value;
                                                     setDraftStatuses(prev => ({ ...prev, [row.variationId]: newStatus }));
                                                     updateRowFields(row, draftPrices[row.variationId] ?? formatCurrency(row.preco), newStatus);
+                                                }}
+                                                onKeyDown={event => {
+                                                    if (event.key === 'Enter') {
+                                                        event.preventDefault();
+                                                        moveToNextField(index, 'status');
+                                                    }
                                                 }}
                                                 disabled={isSaving}
                                                 className={styles.statusSelect}
