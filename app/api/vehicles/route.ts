@@ -108,7 +108,7 @@ export async function GET(request: Request) {
         const matchStage: any = { ativo: true };
 
         // Aplica filtros exatos se existirem
-        if (searchParams.get('status')) matchStage['variation.status'] = searchParams.get('status');
+        if (searchParams.get('status')) matchStage['statusVeiculo'] = searchParams.get('status');
         if (searchParams.get('combustivel')) matchStage['variation.combustivel'] = searchParams.get('combustivel');
         if (searchParams.get('transmissao')) matchStage['variation.transmissao'] = searchParams.get('transmissao');
         if (searchParams.get('ano')) matchStage['variation.anoModelo'] = parseInt(searchParams.get('ano')!);
@@ -243,7 +243,7 @@ export async function GET(request: Request) {
                 carroceria: v.carroceria,
                 portas: v.portas,
                 imagemUrl: v.imagemUrl,
-                status: v.status || 'A faturar',
+                status: doc.statusVeiculo || v.status || 'A faturar',
                 
                 // Mapped from DealerVehiclePrice
                 preco: doc.preco,
