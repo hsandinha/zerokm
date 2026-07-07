@@ -43,6 +43,8 @@ type ParsedImportItem = {
     status: ImportStatus;
     errors: string[];
     warnings: string[];
+    rawError?: string;
+    errorCode?: string | number;
     duplicateKey: string;
 };
 
