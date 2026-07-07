@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     const bannerConfig = await configCollection.findOne({ key: 'banners' });
     
     const priceCents = bannerConfig?.price_cents || 5000;
-    const durationDays = bannerConfig?.duration_days || 7;
+    const durationDays = bannerConfig?.duration_days || 1;
     const finalPrice = priceCents / 100;
 
     const newBanner = await Banner.create({
@@ -54,8 +54,9 @@ export async function POST(req: NextRequest) {
     const description = `Anúncio Banner: ${title} (${durationDays} dias) — Boleto`;
 
     const clientIp = (req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '').split(',')[0].trim();
-    const baseUrlRaw = process.env.NEXTAUTH_URL || 'https://zerokm.vercel.app';
-    const baseUrl = baseUrlRaw.includes('localhost') || baseUrlRaw.includes('127.0.0.1') ? 'https://zerokm.vercel.app' : baseUrlRaw;
+    const host = req.headers.get('host') || 'www.cnv0km.com.br';
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
 
     const fullName = (user.displayName || '').trim();
     const nameParts = fullName.split(/\s+/);

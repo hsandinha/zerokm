@@ -51,7 +51,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Configuração de pagamento ausente' }, { status: 500 });
     }
 
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const host = req.headers.get('host') || 'www.cnv0km.com.br';
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
     const externalRef = `${session.user.uid}:${planId}:${billing}`;
 
     const mpItems: any[] = [

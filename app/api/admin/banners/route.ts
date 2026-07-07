@@ -53,7 +53,8 @@ export async function POST(req: Request) {
             fuel: body.fuel,
             delivery: body.delivery,
             statusCondition: body.statusCondition,
-            ctaText: body.ctaText
+            ctaText: body.ctaText,
+            expiresAt: body.expiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000)
         });
 
         return NextResponse.json(newBanner);

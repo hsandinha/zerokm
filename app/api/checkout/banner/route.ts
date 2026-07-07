@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     const bannerConfig = await configCollection.findOne({ key: 'banners' });
     
     const priceCents = bannerConfig?.price_cents || 5000;
-    const durationDays = bannerConfig?.duration_days || 7;
+    const durationDays = bannerConfig?.duration_days || 1;
     const finalPrice = priceCents / 100;
 
     // Criar banner com status awaiting_payment
@@ -41,7 +41,9 @@ export async function POST(req: NextRequest) {
         expiresAt: new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000)
     });
 
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const host = req.headers.get('host') || 'www.cnv0km.com.br';
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
     const externalRef = `BANNER:${newBanner._id}`;
 
     const mpItems: any[] = [
