@@ -586,6 +586,8 @@ async function commitRows(rawItems: any[], createdBy?: string | null) {
 
             imported.push(row);
         } catch (error: any) {
+            console.error('ERRO AO IMPORTAR:', error);
+            require('fs').appendFileSync('/tmp/import_error.log', JSON.stringify({ row: row.modelo, error: error?.message, code: error?.code }) + '\n');
             skipped.push({
                 ...row,
                 status: error?.code === 11000 ? 'existing' : 'invalid',
