@@ -32,7 +32,9 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: scope.error }, { status: scope.status });
         }
 
-        const period = resolvePeriodFromRequest(new URL(request.url));
+        const url = new URL(request.url);
+        const period = resolvePeriodFromRequest(url);
+        const tags = (url.searchParams.get('tags') || '').split(',').map(t => t.trim()).filter(Boolean);
 
         // Pipelines de agregação não passam pelo cast do Mongoose: o ObjectId vai na mão.
         const concessionariaId = scope.concessionariaId
@@ -45,8 +47,21 @@ export async function GET(request: Request) {
         const wonIds = idsOfType('won');
         const lostIds = idsOfType('lost');
 
-        const eventMatch = { concessionariaId, ...periodFilter(period) };
-        const leadMatch = { concessionariaId, ativo: true, ...periodFilter(period) };
+        // A tag mora no lead, não no evento. Para recortar o radar por origem, resolvemos
+        // antes quais leads têm a tag e restringimos os eventos a eles.
+        // Sem filtro de período aqui de propósito: um lead criado em janeiro que enviou
+        // proposta em março conta como proposta de março.
+        const tagFilter = tags.length
+            ? { leadId: { $in: await Lead.find({ concessionariaId: scope.concessionariaId, ativo: true, tags: { $in: tags } }).distinct('_id') } }
+            : {};
+
+        const eventMatch = { concessionariaId, ...periodFilter(period), ...tagFilter };
+        const leadMatch = {
+            concessionariaId,
+            ativo: true,
+            ...periodFilter(period),
+            ...(tags.length ? { tags: { $in: tags } } : {}),
+        };
 
         const distinctLeads = (stageIds: any[]) => [
             { $match: { toStageId: { $in: stageIds } } },

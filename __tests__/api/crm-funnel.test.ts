@@ -173,6 +173,34 @@ describe('funil comercial ponta a ponta', () => {
         ]);
     });
 
+    it('o filtro de origem recorta o radar, não só o quadro', async () => {
+        await seedStages();
+        const stages = await stageIds();
+
+        const meta = await criarLead(
+            { name: 'Do Meta', phone: '31900000010', firstMessage: 'Olá! Vim do anúncio e gostaria de criar minha conta no CNV' },
+            stages,
+        );
+        const google = await criarLead(
+            { name: 'Do Google', phone: '31900000011', firstMessage: 'Olá, vim pelo site e gostaria de criar minha conta na plataforma' },
+            stages,
+        );
+
+        await putLeadStage(put(`/api/crm/leads/${meta.id}/stage`, { stageId: stages.get('Proposta Enviada') }), ctx(meta.id));
+        await putLeadStage(put(`/api/crm/leads/${google.id}/stage`, { stageId: stages.get('Venda Ganha') }), ctx(google.id));
+
+        const tag = encodeURIComponent('Meta - Público Aberto');
+        const { data } = await (await getReports(get(`/api/crm/reports?preset=all&tags=${tag}`))).json();
+
+        // Só o lead do Meta entra na conta: 1 criado, 1 proposta, 0 vendas.
+        expect(data.radar).toEqual({ leadsCriados: 1, propostasEnviadas: 1, vendasGanhas: 0, vendasPerdidas: 0 });
+        expect(data.porOrigem.map((o: any) => o.tag)).toEqual(['Meta - Público Aberto']);
+
+        const semFiltro = await (await getReports(get('/api/crm/reports?preset=all'))).json();
+        expect(semFiltro.data.radar.leadsCriados).toBe(2);
+        expect(semFiltro.data.radar.vendasGanhas).toBe(1);
+    });
+
     it('o filtro de período recorta os leads e o radar', async () => {
         await seedStages();
         const stages = await stageIds();
