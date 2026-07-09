@@ -4,6 +4,9 @@ import Concessionaria from '@/models/Concessionaria';
 import User from '@/models/User';
 import Lead from '@/models/Lead';
 import LeadStage from '@/models/LeadStage';
+import LeadEvent from '@/models/LeadEvent';
+import { classifyLeadTags } from '@/lib/utils/leadTags';
+import { GLOBAL_PROFILES } from '@/lib/utils/crmScope';
 
 export async function POST(req: Request) {
     try {
@@ -24,7 +27,8 @@ export async function POST(req: Request) {
         }
 
         // Find by webhookSecret (could be a Dealership or an Admin User)
-        let concessionariaId: string | undefined = undefined;
+        // `null` = pipeline global. Ver lib/utils/crmScope.ts sobre por que não usar `undefined`.
+        let concessionariaId: string | null = null;
         let ownerFound = false;
 
         const concessionaria = await Concessionaria.findOne({ webhookSecret: token });
@@ -33,8 +37,10 @@ export async function POST(req: Request) {
             ownerFound = true;
         } else {
             const user: any = await User.findOne({ webhookSecret: token });
-            if (user && (user.profile === 'admin' || user.profile === 'administrador' || user.profile === 'marketing')) {
-                concessionariaId = undefined; // Global pipeline
+            // `profile` só existe no token da sessão; no banco o campo é `allowedProfiles`.
+            const profiles: string[] = user?.allowedProfiles ?? [];
+            if (user && profiles.some(p => GLOBAL_PROFILES.includes(p))) {
+                concessionariaId = null; // Global pipeline
                 ownerFound = true;
             }
         }
@@ -51,26 +57,36 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Body deve ser um JSON válido' }, { status: 400 });
         }
 
-        const { name, phone, email, source, campaign, notes } = body;
+        const { name, phone, email, source, campaign, notes, message } = body;
 
         if (!name || !phone) {
             return NextResponse.json({ error: 'Nome e telefone são obrigatórios' }, { status: 400 });
         }
 
-        // 3. Find or create the initial stage
-        let stage = await LeadStage.findOne({ concessionariaId }).sort({ order: 1 });
-        
+        // 3. Fase de entrada: a primeira aberta. Cair numa fase de venda/perda por acidente
+        // de ordenação estragaria toda a contagem do funil.
+        // Fases criadas antes de `type` existir não têm o campo; o default do schema só
+        // vale na hidratação, então a query precisa aceitá-las explicitamente.
+        let stage = await LeadStage.findOne({
+            concessionariaId,
+            $or: [{ type: 'open' }, { type: { $exists: false } }],
+        }).sort({ order: 1 });
+
         if (!stage) {
             // If there are no stages, create a default one
             stage = await LeadStage.create({
                 name: 'Novo Lead (Integração)',
                 concessionariaId,
                 order: 0,
-                color: '#3b82f6'
+                color: '#3b82f6',
+                type: 'open'
             });
         }
 
-        // 4. Create the lead
+        // 4. Create the lead, classificando a origem pela frase inicial.
+        const firstMessage = message || notes;
+        const tags = classifyLeadTags(firstMessage);
+
         const lead = await Lead.create({
             name,
             phone,
@@ -78,14 +94,25 @@ export async function POST(req: Request) {
             source: source || 'Integração Webhook',
             campaign,
             notes,
+            firstMessage,
+            tags,
             stageId: stage._id,
             concessionariaId
+        });
+
+        await LeadEvent.create({
+            leadId: lead._id,
+            concessionariaId,
+            type: 'created',
+            fromStageId: null,
+            toStageId: stage._id,
+            actor: 'webhook'
         });
 
         return NextResponse.json({
             success: true,
             message: 'Lead criado com sucesso',
-            data: lead
+            data: { id: (lead._id as any).toString(), tags }
         }, { status: 201 });
 
     } catch (error: any) {

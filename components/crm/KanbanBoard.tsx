@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -13,234 +13,283 @@ import {
   DragStartEvent,
   DragEndEvent,
 } from '@dnd-kit/core';
-import { arrayMove, SortableContext, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import KanbanColumn from './KanbanColumn';
 import LeadCard from './LeadCard';
 import StageManagerModal from './StageManagerModal';
 import AddLeadModal from './AddLeadModal';
+import LostReasonModal from './LostReasonModal';
+import LeadDetailModal from './LeadDetailModal';
+import FunnelFilters, { FilterState } from './FunnelFilters';
+import RadarCards from './RadarCards';
+import ReportsPanel from './ReportsPanel';
+import { Lead, ReportData, Stage } from './types';
 import styles from './Kanban.module.css';
 
-export type Lead = {
-  id: string;
-  name: string;
-  phone: string;
-  email?: string;
-  source?: string;
-  campaign?: string;
-  stageId: string;
-  notes?: string;
-};
+export type { Lead, Stage } from './types';
 
-export type Stage = {
-  id: string;
-  name: string;
-  order: number;
-  color: string;
-};
+type View = 'funil' | 'relatorios';
+
+const INITIAL_FILTERS: FilterState = { preset: 'all', from: '', to: '', tag: '' };
+
+function buildQuery(filters: FilterState) {
+  const params = new URLSearchParams({ preset: filters.preset });
+  if (filters.preset === 'custom') {
+    if (filters.from) params.set('from', filters.from);
+    if (filters.to) params.set('to', filters.to);
+  }
+  if (filters.tag) params.set('tags', filters.tag);
+  return params.toString();
+}
+
+const toggleButton = (active: boolean): React.CSSProperties => ({
+  padding: '8px 16px', borderRadius: '8px', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer',
+  border: '1px solid #D1D5DB', background: active ? '#111827' : '#FFFFFF', color: active ? '#FFFFFF' : '#374151',
+});
 
 export default function KanbanBoard() {
+  const [view, setView] = useState<View>('funil');
   const [stages, setStages] = useState<Stage[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isAddLeadModalOpen, setIsAddLeadModalOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [report, setReport] = useState<ReportData | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
 
+  const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
   const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [isStageModalOpen, setIsStageModalOpen] = useState(false);
+  const [isAddLeadModalOpen, setIsAddLeadModalOpen] = useState(false);
+  const [detailLeadId, setDetailLeadId] = useState<string | null>(null);
+  const [pendingLoss, setPendingLoss] = useState<{ lead: Lead; stage: Stage } | null>(null);
 
-  const fetchData = async () => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const query = buildQuery(filters);
+
+  const fetchData = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
-      const [stagesRes, leadsRes] = await Promise.all([
+      const [stagesRes, leadsRes, reportRes, tagsRes] = await Promise.all([
         fetch('/api/crm/stages'),
-        fetch('/api/crm/leads')
+        fetch(`/api/crm/leads?${query}`),
+        fetch(`/api/crm/reports?${query}`),
+        fetch('/api/crm/tags'),
       ]);
-      const stagesData = await stagesRes.json();
-      const leadsData = await leadsRes.json();
-      
+
+      if (!stagesRes.ok || !leadsRes.ok) throw new Error('Não foi possível carregar o funil');
+
+      const [stagesData, leadsData, reportData, tagsData] = await Promise.all([
+        stagesRes.json(),
+        leadsRes.json(),
+        reportRes.ok ? reportRes.json() : Promise.resolve({ data: null }),
+        tagsRes.ok ? tagsRes.json() : Promise.resolve({ data: [] }),
+      ]);
+
       setStages(stagesData.data || []);
       setLeads(leadsData.data || []);
-    } catch (error) {
-      console.error('Error fetching CRM data:', error);
+      setReport(reportData.data || null);
+      setTags(tagsData.data || []);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao carregar o CRM');
     } finally {
       setLoading(false);
     }
-  };
+  }, [query]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const sensors = useSensors(
-    useSensor(MouseSensor, {
-      activationConstraint: { distance: 5 },
-    }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
     // No touch, long-press para arrastar — deixa o scroll com o dedo livre
-    useSensor(TouchSensor, {
-      activationConstraint: { delay: 250, tolerance: 8 },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
+  const moveLead = async (leadId: string, stageId: string, body: Record<string, any> = {}) => {
+    const previous = leads;
+    setLeads(prev => prev.map(l => (l.id === leadId ? { ...l, stageId } : l)));
+
+    try {
+      const res = await fetch(`/api/crm/leads/${leadId}/stage`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stageId, ...body }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Falha ao mover o lead (${res.status})`);
+      }
+      // A movimentação muda o radar e os relatórios: recarrega os números.
+      fetchData();
+    } catch (err: any) {
+      setLeads(previous);
+      setError(err.message);
+    }
   };
+
+  const handleDragStart = (event: DragStartEvent) => setActiveId(event.active.id as string);
 
   const handleDragEnd = async (event: DragEndEvent) => {
     setActiveId(null);
     const { active, over } = event;
-
     if (!over) return;
 
     const activeLeadId = active.id as string;
-    const overId = over.id as string;
-
-    const activeLead = leads.find((l) => l.id === activeLeadId);
+    const activeLead = leads.find(l => l.id === activeLeadId);
     if (!activeLead) return;
 
-    let newStageId = overId;
-    const overLead = leads.find((l) => l.id === overId);
-    if (overLead) {
-      newStageId = overLead.stageId;
+    const overLead = leads.find(l => l.id === over.id);
+    const newStageId = overLead ? overLead.stageId : (over.id as string);
+    if (activeLead.stageId === newStageId) return;
+
+    const targetStage = stages.find(s => s.id === newStageId);
+    if (!targetStage) return;
+
+    // Perda exige motivo: o card só se move depois que o motivo é escolhido.
+    if (targetStage.type === 'lost') {
+      setPendingLoss({ lead: activeLead, stage: targetStage });
+      return;
     }
 
-    if (activeLead.stageId !== newStageId) {
-      setLeads((prev) =>
-        prev.map((lead) =>
-          lead.id === activeLeadId ? { ...lead, stageId: newStageId } : lead
-        )
-      );
-
-      try {
-        await fetch(`/api/crm/leads/${activeLeadId}/stage`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ stageId: newStageId }),
-        });
-      } catch (error) {
-        console.error('Failed to update lead stage:', error);
-        fetchData();
-      }
-    }
+    await moveLead(activeLeadId, newStageId);
   };
 
-  const activeLead = activeId ? leads.find((l) => l.id === activeId) : null;
-  const filteredLeads = leads.filter(l => 
-      l.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      (l.phone && l.phone.includes(searchQuery)) ||
-      (l.email && l.email.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
-  const totalLeads = leads.length;
+  const activeLead = activeId ? leads.find(l => l.id === activeId) : null;
 
-  if (loading) {
-        return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '16rem', color: '#111827' }}>Carregando CRM...</div>;
+  const filteredLeads = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return leads;
+    return leads.filter(l =>
+      l.name.toLowerCase().includes(q) ||
+      (l.phone && l.phone.includes(q)) ||
+      (l.email && l.email.toLowerCase().includes(q)) ||
+      (l.ownerName && l.ownerName.toLowerCase().includes(q)) ||
+      l.tags.some(t => t.toLowerCase().includes(q)),
+    );
+  }, [leads, searchQuery]);
+
+  if (loading && stages.length === 0 && !error) {
+    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '16rem', color: '#111827' }}>Carregando CRM...</div>;
   }
 
   return (
-        <div className={styles.board} style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#F9FAFB', color: '#111827', borderRadius: '8px' }}>
-            <div className={styles.header}>
-                <div>
-                    <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Comercial</h4>
-                    <h1 className={styles.title} style={{ fontWeight: 'bold', color: '#111827', marginBottom: '4px', marginTop: 0 }}>Pipeline de leads</h1>
-                    <p style={{ fontSize: '1rem', color: '#6B7280', margin: 0 }}>Acompanhe entrada, contato, follow-up, visitas e propostas em um fluxo único.</p>
-                </div>
-                <div className={styles.actions}>
-                    <button
-                        onClick={() => setIsModalOpen(true)}
-                        style={{ background: '#FFFFFF', color: '#374151', padding: '10px 16px', borderRadius: '8px', fontWeight: 600, border: '1px solid #D1D5DB', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
-                    >
-                        ⚙️ Gerenciar Fases
-                    </button>
-                    <button
-                        onClick={() => setIsAddLeadModalOpen(true)}
-                        style={{ background: '#3B82F6', color: '#FFFFFF', padding: '10px 20px', borderRadius: '8px', fontWeight: 600, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
-                    >
-                        ➕ Novo Lead
-                    </button>
-                </div>
-            </div>
-
-            <div className={styles.statsRow}>
-                {stages.map(stage => {
-                const stageLeads = leads.filter(l => l.stageId === stage.id);
-                const percentage = totalLeads > 0 ? Math.round((stageLeads.length / totalLeads) * 100) : 0;
-                return (
-                    <div key={stage.id} style={{ minWidth: '200px', flex: 1, background: '#FFFFFF', borderRadius: '12px', padding: '20px', border: '1px solid #E5E7EB', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: stage.color || '#E5E7EB' }} />
-                                <span style={{ fontSize: '1.5rem', fontWeight: 700, color: '#111827' }}>{stageLeads.length}</span>
-                            </div>
-                            <span style={{ fontSize: '0.875rem', color: '#6B7280', fontWeight: 500 }}>{percentage}%</span>
-                        </div>
-                        <span style={{ fontSize: '1rem', color: '#6B7280', fontWeight: 500 }}>{stage.name}</span>
-                    </div>
-                );
-                })}
-                <div style={{ minWidth: '200px', background: '#111827', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                        <span style={{ fontSize: '0.875rem', color: '#9CA3AF', fontWeight: 500 }}>Total</span>
-                        <span style={{ fontSize: '0.875rem', color: '#10B981', fontWeight: 600 }}>Conv. 0%</span>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <span style={{ fontSize: '1.75rem', fontWeight: 700, color: '#FFFFFF' }}>{totalLeads}</span>
-                        <span style={{ fontSize: '1rem', color: '#9CA3AF', fontWeight: 500 }}>Leads ativos</span>
-                    </div>
-                </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', background: '#FFFFFF', padding: '12px 20px', borderRadius: '12px', border: '1px solid #E5E7EB', marginBottom: '24px', gap: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                <span style={{ color: '#9CA3AF', fontSize: '1.2rem' }}>🔍</span>
-                <input 
-                    type="text" 
-                    placeholder="Pesquisar por nome, contato, interesse ou corretor"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '1rem', color: '#111827' }}
-                />
-                <div style={{ display: 'flex', gap: '8px' }}>
-                    <div style={{ background: '#F3F4F6', color: '#4B5563', padding: '6px 12px', borderRadius: '9999px', fontSize: '0.875rem', fontWeight: 600 }}>
-                        {filteredLeads.length} no quadro
-                    </div>
-                </div>
-            </div>
-
-            <div className={styles.columns} style={{ display: 'flex', flex: 1, overflowX: 'auto', paddingBottom: '16px', gap: '20px' }}>
-                <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          {stages.map((stage) => (
-            <KanbanColumn 
-              key={stage.id} 
-              stage={stage} 
-              leads={filteredLeads.filter((l) => l.stageId === stage.id)} 
-            />
-          ))}
-
-          <DragOverlay>
-            {activeLead ? <LeadCard lead={activeLead} isDragging /> : null}
-          </DragOverlay>
-        </DndContext>
+    <div className={styles.board} style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#F9FAFB', color: '#111827', borderRadius: '8px' }}>
+      <div className={styles.header}>
+        <div>
+          <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Comercial</h4>
+          <h1 className={styles.title} style={{ fontWeight: 'bold', color: '#111827', marginBottom: '4px', marginTop: 0 }}>Pipeline de leads</h1>
+          <p style={{ fontSize: '1rem', color: '#6B7280', margin: 0 }}>Acompanhe entrada, contato, follow-up, propostas e vendas em um fluxo único.</p>
+        </div>
+        <div className={styles.actions}>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            <button onClick={() => setView('funil')} style={toggleButton(view === 'funil')}>Funil</button>
+            <button onClick={() => setView('relatorios')} style={toggleButton(view === 'relatorios')}>Relatórios</button>
+          </div>
+          <button
+            onClick={() => setIsStageModalOpen(true)}
+            style={{ background: '#FFFFFF', color: '#374151', padding: '10px 16px', borderRadius: '8px', fontWeight: 600, border: '1px solid #D1D5DB', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+          >
+            ⚙️ Gerenciar Fases
+          </button>
+          <button
+            onClick={() => setIsAddLeadModalOpen(true)}
+            disabled={stages.length === 0}
+            style={{ background: '#3B82F6', color: '#FFFFFF', padding: '10px 20px', borderRadius: '8px', fontWeight: 600, border: 'none', cursor: stages.length === 0 ? 'not-allowed' : 'pointer', opacity: stages.length === 0 ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+          >
+            ➕ Novo Lead
+          </button>
+        </div>
       </div>
 
-      {isModalOpen && (
-        <StageManagerModal 
-          stages={stages} 
-          onClose={() => setIsModalOpen(false)} 
-          onRefresh={fetchData} 
-        />
+      {error && (
+        <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#B91C1C', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+          <span>{error}</span>
+          <button onClick={() => setError('')} style={{ background: 'transparent', border: 'none', color: '#B91C1C', cursor: 'pointer', fontWeight: 700 }}>✕</button>
+        </div>
+      )}
+
+      <FunnelFilters filters={filters} tags={tags} onChange={setFilters} />
+
+      <RadarCards report={report} loading={loading && !report} />
+
+      {view === 'relatorios' ? (
+        <ReportsPanel report={report} loading={loading && !report} />
+      ) : stages.length === 0 ? (
+        <div style={{ background: '#FFFFFF', border: '1px dashed #D1D5DB', borderRadius: '12px', padding: '48px 24px', textAlign: 'center' }}>
+          <p style={{ color: '#6B7280', marginTop: 0 }}>Seu funil ainda não tem fases.</p>
+          <button onClick={() => setIsStageModalOpen(true)} style={{ background: '#3B82F6', color: '#FFFFFF', padding: '10px 20px', borderRadius: '8px', fontWeight: 600, border: 'none', cursor: 'pointer' }}>
+            Configurar fases
+          </button>
+        </div>
+      ) : (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', background: '#FFFFFF', padding: '12px 20px', borderRadius: '12px', border: '1px solid #E5E7EB', marginBottom: '24px', gap: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+            <span style={{ color: '#9CA3AF', fontSize: '1.2rem' }}>🔍</span>
+            <input
+              type="text"
+              placeholder="Pesquisar por nome, contato, origem ou responsável"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '1rem', color: '#111827' }}
+            />
+            <div style={{ background: '#F3F4F6', color: '#4B5563', padding: '6px 12px', borderRadius: '9999px', fontSize: '0.875rem', fontWeight: 600 }}>
+              {filteredLeads.length} no quadro
+            </div>
+          </div>
+
+          <div className={styles.columns} style={{ display: 'flex', flex: 1, overflowX: 'auto', paddingBottom: '16px', gap: '20px' }}>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCorners}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+              {stages.map(stage => (
+                <KanbanColumn
+                  key={stage.id}
+                  stage={stage}
+                  leads={filteredLeads.filter(l => l.stageId === stage.id)}
+                  onOpenLead={setDetailLeadId}
+                />
+              ))}
+
+              <DragOverlay>
+                {activeLead ? <LeadCard lead={activeLead} isDragging /> : null}
+              </DragOverlay>
+            </DndContext>
+          </div>
+        </>
+      )}
+
+      {isStageModalOpen && (
+        <StageManagerModal stages={stages} onClose={() => setIsStageModalOpen(false)} onRefresh={fetchData} />
       )}
 
       {isAddLeadModalOpen && (
-        <AddLeadModal 
-          stages={stages} 
-          onClose={() => setIsAddLeadModalOpen(false)} 
-          onRefresh={fetchData} 
+        <AddLeadModal stages={stages} onClose={() => setIsAddLeadModalOpen(false)} onRefresh={fetchData} />
+      )}
+
+      {pendingLoss && (
+        <LostReasonModal
+          lead={pendingLoss.lead}
+          stageName={pendingLoss.stage.name}
+          onCancel={() => setPendingLoss(null)}
+          onConfirm={async (lostReason, lostReasonNote) => {
+            const { lead, stage } = pendingLoss;
+            setPendingLoss(null);
+            await moveLead(lead.id, stage.id, { lostReason, lostReasonNote });
+          }}
+        />
+      )}
+
+      {detailLeadId && (
+        <LeadDetailModal
+          leadId={detailLeadId}
+          onClose={() => setDetailLeadId(null)}
+          onSaved={fetchData}
         />
       )}
     </div>

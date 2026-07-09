@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Stage } from './KanbanBoard';
+import { Stage } from './types';
 import { MdClose } from 'react-icons/md';
 
 interface Props {
@@ -11,11 +11,14 @@ interface Props {
 }
 
 export default function AddLeadModal({ stages, onClose, onRefresh }: Props) {
+  // Criar um lead direto em "Venda Perdida" burlaria o motivo obrigatório; a API também recusa.
+  const selectableStages = stages.filter(s => s.type !== 'lost');
+
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [source, setSource] = useState('Manual');
-  const [stageId, setStageId] = useState(stages.length > 0 ? stages[0].id : '');
+  const [stageId, setStageId] = useState(selectableStages.length > 0 ? selectableStages[0].id : '');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -104,7 +107,7 @@ export default function AddLeadModal({ stages, onClose, onRefresh }: Props) {
               style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--color-highlight)', color: 'var(--color-text)', borderRadius: '8px', padding: '10px 12px', outline: 'none' }}
             >
               <option value="" disabled style={{ color: '#000' }}>Selecione uma fase</option>
-              {stages.map((stage) => (
+              {selectableStages.map((stage) => (
                 <option key={stage.id} value={stage.id} style={{ color: '#000' }}>
                   {stage.name}
                 </option>

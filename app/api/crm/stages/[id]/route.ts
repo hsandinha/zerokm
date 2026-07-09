@@ -1,39 +1,32 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
+import Lead from '@/models/Lead';
 import LeadStage from '@/models/LeadStage';
-import User from '@/models/User';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
+import { resolveCrmScope } from '@/lib/utils/crmScope';
+import { LEAD_STAGE_TYPES } from '@/lib/utils/crmFunnel';
+import { serializeStage } from '@/lib/utils/crmSerialize';
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
+        await connectDB();
+
         const session = await getServerSession(authOptions);
-        if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const scope = await resolveCrmScope(session);
+        if (!scope.ok) {
+            return NextResponse.json({ error: scope.error }, { status: scope.status });
         }
 
         const { id } = await params;
-        await connectDB();
         const body = await request.json();
+        const { name, order, color, type } = body;
 
-        let concessionariaId: string | undefined = undefined;
-        // @ts-ignore
-        if (session.user?.profile === 'admin' || session.user?.profile === 'administrador' || session.user?.profile === 'marketing') {
-            // Admins and Marketing
-        } else if (session.user?.profile === 'concessionaria' || session.user?.profile === 'dealership') {
-            const user = await User.findOne({ email: session.user?.email });
-            if (user && user.dealershipId) {
-                concessionariaId = user.dealershipId;
-            } else {
-                 return NextResponse.json({ error: 'Concessionária não vinculada' }, { status: 400 });
-            }
-        } else {
-             return NextResponse.json({ error: 'Acesso negado ao CRM' }, { status: 403 });
+        if (type && !LEAD_STAGE_TYPES.includes(type)) {
+            return NextResponse.json({ error: 'Tipo de fase inválido' }, { status: 400 });
         }
 
-        const { name, order, color } = body;
-        
-        const stage = await LeadStage.findOne({ _id: id, concessionariaId });
+        const stage = await LeadStage.findOne({ _id: id, concessionariaId: scope.concessionariaId });
         if (!stage) {
              return NextResponse.json({ error: 'Fase não encontrada' }, { status: 404 });
         }
@@ -41,15 +34,11 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         if (name) stage.name = name;
         if (order !== undefined) stage.order = order;
         if (color) stage.color = color;
+        if (type) stage.type = type;
 
         await stage.save();
 
-        const doc = stage as any;
-        return NextResponse.json({
-            ...doc.toObject(),
-            id: doc._id.toString(),
-            _id: undefined
-        });
+        return NextResponse.json(serializeStage(stage));
     } catch (error: any) {
         console.error('Erro ao atualizar fase do funil:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
@@ -58,27 +47,24 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
+        await connectDB();
+
         const session = await getServerSession(authOptions);
-        if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const scope = await resolveCrmScope(session);
+        if (!scope.ok) {
+            return NextResponse.json({ error: scope.error }, { status: scope.status });
         }
 
         const { id } = await params;
-        await connectDB();
+        const { concessionariaId } = scope;
 
-        let concessionariaId: string | undefined = undefined;
-        // @ts-ignore
-        if (session.user?.profile === 'admin' || session.user?.profile === 'administrador' || session.user?.profile === 'marketing') {
-            // Admins and Marketing
-        } else if (session.user?.profile === 'concessionaria' || session.user?.profile === 'dealership') {
-            const user = await User.findOne({ email: session.user?.email });
-            if (user && user.dealershipId) {
-                concessionariaId = user.dealershipId;
-            } else {
-                 return NextResponse.json({ error: 'Concessionária não vinculada' }, { status: 400 });
-            }
-        } else {
-             return NextResponse.json({ error: 'Acesso negado ao CRM' }, { status: 403 });
+        // Apagar uma fase com leads dentro os deixaria órfãos e fora de qualquer coluna.
+        const leadsNaFase = await Lead.countDocuments({ stageId: id, concessionariaId, ativo: true });
+        if (leadsNaFase > 0) {
+            return NextResponse.json(
+                { error: `Esta fase tem ${leadsNaFase} lead(s). Mova-os antes de excluí-la.` },
+                { status: 409 },
+            );
         }
 
         const stage = await LeadStage.findOneAndDelete({ _id: id, concessionariaId });

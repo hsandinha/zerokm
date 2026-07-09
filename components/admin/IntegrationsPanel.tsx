@@ -134,11 +134,22 @@ export default function IntegrationsPanel() {
   "name": "Nome do Lead",
   "phone": "(11) 99999-9999",
   "email": "email@exemplo.com", // Opcional
+  "message": "Olá! Vim do anúncio e gostaria de criar minha conta no CNV", // Opcional
   "source": "Facebook Ads", // Opcional (Origem)
   "campaign": "Campanha Black Friday", // Opcional
   "notes": "Lead tem interesse no carro X" // Opcional
 }`}
                     </pre>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginTop: '12px', marginBottom: 0 }}>
+                        O campo <code>message</code> é a primeira frase enviada pelo lead. É a partir dela que a
+                        origem é etiquetada automaticamente — sem ela, o lead entra sem tag e não aparece na
+                        conversão por origem:
+                    </p>
+                    <ul style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginTop: '8px', paddingLeft: '20px' }}>
+                        <li><strong>Meta - Público Aberto</strong> — “…<em>vim do anúncio</em>…”</li>
+                        <li><strong>Meta - Público Segmentado</strong> — “…<em>que vi no anúncio</em>”</li>
+                        <li><strong>Google - LP</strong> — “…<em>vim pelo site</em>…”</li>
+                    </ul>
                 </div>
             </div>
         </div>

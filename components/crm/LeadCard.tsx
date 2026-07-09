@@ -3,30 +3,30 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Lead } from './KanbanBoard';
-import { FiPhone, FiMail, FiEye, FiHome, FiClock, FiCheckSquare, FiEdit, FiTrash2, FiUser, FiCalendar, FiGrid } from 'react-icons/fi';
+import { Lead, formatDate } from './types';
+import { lostReasonLabel } from '@/lib/utils/crmFunnel';
+import { FiPhone, FiMail, FiEdit, FiUser, FiCalendar, FiGrid } from 'react-icons/fi';
 
 interface Props {
   lead: Lead;
   isDragging?: boolean;
+  onOpen?: (leadId: string) => void;
 }
 
-export default function LeadCard({ lead, isDragging }: Props) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-  } = useSortable({ id: lead.id });
+const iconButton: React.CSSProperties = {
+  background: '#F9FAFB', border: '1px solid #F3F4F6', borderRadius: '4px', cursor: 'pointer',
+  color: '#9CA3AF', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+};
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
+const chip = (background: string, color: string): React.CSSProperties => ({
+  fontSize: '0.625rem', padding: '2px 8px', background, color, borderRadius: '4px', fontWeight: 600,
+});
 
-  // Placeholder para a data, no futuro pode ser lead.createdAt formatado
-  const leadDate = "04 de nov.";
+export default function LeadCard({ lead, isDragging, onOpen }: Props) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: lead.id });
+
+  const style = { transform: CSS.Transform.toString(transform), transition };
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
 
   return (
     <div
@@ -36,7 +36,6 @@ export default function LeadCard({ lead, isDragging }: Props) {
         background: '#FFFFFF',
         borderRadius: '12px',
         border: '1px solid #E5E7EB',
-        cursor: isDragging ? 'grabbing' : 'grab',
         transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
         opacity: isDragging ? 0.5 : 1,
         transform: isDragging ? `${style.transform} scale(1.02)` : style.transform,
@@ -45,16 +44,21 @@ export default function LeadCard({ lead, isDragging }: Props) {
         flexDirection: 'row',
         overflow: 'hidden'
       }}
-      {...attributes}
-      {...listeners}
     >
-      {/* Área do Drag Handle */}
-      <div style={{ width: '24px', background: '#F9FAFB', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid #E5E7EB', color: '#D1D5DB' }}>
+      {/* Só a alça arrasta: assim os botões e o clique de abrir o lead continuam funcionando. */}
+      <div
+        {...attributes}
+        {...listeners}
+        style={{ width: '24px', background: '#F9FAFB', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid #E5E7EB', color: '#D1D5DB', cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
+        title="Arraste para mover de fase"
+      >
         <FiGrid size={14} />
       </div>
 
-      <div style={{ flex: 1, padding: '16px' }}>
-          {/* Header Info */}
+      <div
+        style={{ flex: 1, padding: '16px', cursor: onOpen ? 'pointer' : 'default' }}
+        onClick={() => onOpen?.(lead.id)}
+      >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
             <span style={{ fontWeight: 700, color: '#111827', fontSize: '0.875rem', textTransform: 'uppercase' }}>
               {lead.name.length > 20 ? lead.name.substring(0, 20) + '...' : lead.name}
@@ -64,37 +68,49 @@ export default function LeadCard({ lead, isDragging }: Props) {
             </span>
           </div>
 
-          {/* Tags */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '16px' }}>
-            {lead.source ? (
-              <span style={{ fontSize: '0.625rem', padding: '2px 8px', background: '#F3F4F6', color: '#4B5563', borderRadius: '4px', fontWeight: 600 }}>
-                {lead.source}
-              </span>
+            {lead.tags.length > 0 ? (
+              lead.tags.map(tag => (
+                <span key={tag} style={chip('#EFF6FF', '#3B82F6')}>{tag}</span>
+              ))
             ) : (
-                <span style={{ fontSize: '0.625rem', padding: '2px 8px', background: '#F3F4F6', color: '#4B5563', borderRadius: '4px', fontWeight: 600 }}>
-                    Orgânico
-                </span>
+              <span style={chip('#F3F4F6', '#4B5563')}>{lead.source || 'Orgânico'}</span>
             )}
-            {lead.campaign && (
-              <span style={{ fontSize: '0.625rem', padding: '2px 8px', background: '#EFF6FF', color: '#3B82F6', borderRadius: '4px', fontWeight: 600 }}>
-                {lead.campaign}
-              </span>
+            {lead.lostReason && (
+              <span style={chip('#FEF2F2', '#DC2626')}>{lostReasonLabel(lead.lostReason)}</span>
             )}
           </div>
 
-          {/* Data */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '16px', fontSize: '0.75rem', color: '#6B7280' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', fontSize: '0.75rem', color: '#6B7280' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', minWidth: 0 }}>
+                <FiUser size={12} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {lead.ownerName || 'Sem responsável'}
+                </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
                 <FiCalendar size={12} />
-                <span>{leadDate}</span>
+                <span>{formatDate(lead.createdAt)}</span>
             </div>
           </div>
 
-          {/* Ícones de Ação */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', alignItems: 'center', paddingTop: '12px', borderTop: '1px dashed #E5E7EB' }}>
-              <button style={{ background: '#F9FAFB', border: '1px solid #F3F4F6', borderRadius: '4px', cursor: 'pointer', color: '#9CA3AF', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Telefone"><FiPhone size={14} /></button>
-              <button style={{ background: '#F9FAFB', border: '1px solid #F3F4F6', borderRadius: '4px', cursor: 'pointer', color: '#9CA3AF', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="E-mail"><FiMail size={14} /></button>
-              <button style={{ background: '#F9FAFB', border: '1px solid #F3F4F6', borderRadius: '4px', cursor: 'pointer', color: '#9CA3AF', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Editar"><FiEdit size={14} /></button>
+              <a href={`tel:${lead.phone}`} onClick={stop} style={{ ...iconButton, textDecoration: 'none' }} title="Ligar"><FiPhone size={14} /></a>
+              <a
+                href={lead.email ? `mailto:${lead.email}` : undefined}
+                onClick={lead.email ? stop : (e) => e.preventDefault()}
+                style={{ ...iconButton, textDecoration: 'none', opacity: lead.email ? 1 : 0.4 }}
+                title={lead.email ? 'Enviar e-mail' : 'Lead sem e-mail'}
+              >
+                <FiMail size={14} />
+              </a>
+              <button
+                onClick={(e) => { stop(e); onOpen?.(lead.id); }}
+                style={iconButton}
+                title="Abrir lead"
+              >
+                <FiEdit size={14} />
+              </button>
           </div>
       </div>
     </div>
