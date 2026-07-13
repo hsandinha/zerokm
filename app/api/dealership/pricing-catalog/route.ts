@@ -176,14 +176,14 @@ export async function GET(request: Request) {
             {
                 $lookup: {
                     from: DealerVehiclePrice.collection.name,
-                    let: { variationId: '$_id' },
+                    let: { variationId: { $toString: '$_id' } },
                     pipeline: [
                         {
                             $match: {
                                 $expr: {
                                     $and: [
-                                        { $eq: ['$variationId', '$$variationId'] },
-                                        { $eq: ['$concessionariaId', concessionaria._id] },
+                                        { $eq: [{ $toString: '$variationId' }, '$$variationId'] },
+                                        { $eq: [{ $toString: '$concessionariaId' }, concessionaria._id.toString()] },
                                     ],
                                 },
                             },
@@ -211,6 +211,7 @@ export async function GET(request: Request) {
             {
                 $facet: {
                     metadata: [{ $count: 'total' }],
+                    activeMetadata: [{ $match: { hasActivePrice: true } }, { $count: 'total' }],
                     data: [{ $skip: skip }, { $limit: limit }],
                 },
             }
@@ -219,6 +220,7 @@ export async function GET(request: Request) {
         const [result] = await VehicleVariation.aggregate(pipeline);
         const data = result?.data || [];
         const total = result?.metadata?.[0]?.total || 0;
+        const activeCount = result?.activeMetadata?.[0]?.total || 0;
 
         return NextResponse.json({
             concessionaria: {
@@ -235,6 +237,7 @@ export async function GET(request: Request) {
             },
             data: data.map(serializeCatalogRow),
             total,
+            activeCount,
             page,
             totalPages: Math.ceil(total / limit),
             hasNextPage: skip + data.length < total,

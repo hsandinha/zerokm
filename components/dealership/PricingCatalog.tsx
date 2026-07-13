@@ -33,6 +33,7 @@ interface PricingRow {
 interface PricingResponse {
     data: PricingRow[];
     total: number;
+    activeCount?: number;
     concessionaria?: {
         nome?: string;
         marca?: string | null;
@@ -76,6 +77,7 @@ export interface PricingCatalogProps {
 export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
     const [rows, setRows] = useState<PricingRow[]>([]);
     const [total, setTotal] = useState(0);
+    const [backendActiveCount, setBackendActiveCount] = useState<number | null>(null);
     const [concessionariaInfo, setConcessionariaInfo] = useState<PricingResponse['concessionaria'] | null>(null);
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState<PricingStatus>('todos');
@@ -118,6 +120,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
 
             setRows(data.data || []);
             setTotal(data.total || 0);
+            setBackendActiveCount(typeof data.activeCount === 'number' ? data.activeCount : null);
             setConcessionariaInfo(data.concessionaria || null);
             setDraftPrices({});
             setDraftPrazos({});
@@ -136,8 +139,9 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
         return () => clearTimeout(timer);
     }, [loadCatalog]);
 
-    const activeCount = useMemo(() => rows.filter(row => row.ativo).length, [rows]);
-    const inactiveCount = rows.length - activeCount;
+    const clientActiveCount = useMemo(() => rows.filter(row => row.ativo).length, [rows]);
+    const activeCount = backendActiveCount ?? clientActiveCount;
+    const inactiveCount = total - activeCount;
 
     const updateRowFields = async (row: PricingRow, rawPriceValue: string, newStatusVeiculo?: string, rawQuantidadeValue?: string, rawPrazoValue?: string) => {
         const rawTrimmed = rawPriceValue.trim();
