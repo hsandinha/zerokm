@@ -173,27 +173,28 @@ export async function GET(request: Request) {
 
         const pipeline: any[] = [
             { $match: variationMatch },
+            // Lookup por localField/foreignField para usar o índice de variationId;
+            // o $expr com $toString forçava um scan completo da coleção por variação.
             {
                 $lookup: {
                     from: DealerVehiclePrice.collection.name,
-                    let: { variationId: { $toString: '$_id' } },
-                    pipeline: [
-                        {
-                            $match: {
-                                $expr: {
-                                    $and: [
-                                        { $eq: [{ $toString: '$variationId' }, '$$variationId'] },
-                                        { $eq: [{ $toString: '$concessionariaId' }, concessionaria._id.toString()] },
-                                    ],
-                                },
-                            },
-                        },
-                        { $limit: 1 },
-                    ],
+                    localField: '_id',
+                    foreignField: 'variationId',
                     as: 'priceRecords',
                 },
             },
-            { $addFields: { priceRecord: { $first: '$priceRecords' } } },
+            {
+                $addFields: {
+                    priceRecord: {
+                        $first: {
+                            $filter: {
+                                input: '$priceRecords',
+                                cond: { $eq: [{ $toString: '$$this.concessionariaId' }, concessionaria._id.toString()] },
+                            },
+                        },
+                    },
+                },
+            },
             {
                 $addFields: {
                     hasActivePrice: {

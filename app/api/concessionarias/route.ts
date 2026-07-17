@@ -3,6 +3,7 @@ import connectDB from '@/lib/mongodb';
 import Concessionaria from '@/models/Concessionaria';
 import Vehicle from '@/models/Vehicle';
 import DealerVehiclePrice from '@/models/DealerVehiclePrice';
+import VehicleVariation from '@/models/VehicleVariation';
 import User from '@/models/User';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
@@ -190,10 +191,20 @@ export async function GET() {
             ]),
             DealerVehiclePrice.aggregate([
                 { $match: { ativo: true } },
+                // Preços cujo modelo foi removido do catálogo mestre não contam como ativos
+                {
+                    $lookup: {
+                        from: VehicleVariation.collection.name,
+                        localField: 'variationId',
+                        foreignField: '_id',
+                        as: 'variation',
+                    }
+                },
+                { $match: { 'variation.ativo': true } },
                 {
                     $group: {
                         _id: "$concessionariaId",
-                        count: { $sum: { $ifNull: ["$quantidade", 1] } }
+                        count: { $sum: { $ifNull: ["$quantidade", 0] } }
                     }
                 }
             ])

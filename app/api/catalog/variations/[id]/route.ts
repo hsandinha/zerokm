@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/authOptions';
 import connectDB from '@/lib/mongodb';
 import Marca from '@/models/Marca';
 import VehicleVariation from '@/models/VehicleVariation';
+import DealerVehiclePrice from '@/models/DealerVehiclePrice';
 
 const MASTER_CATALOG_PROFILES = new Set(['admin', 'administrador', 'administrativo', 'gerente', 'operador', 'operator']);
 
@@ -148,6 +149,12 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
         if (!variation) {
             return NextResponse.json({ error: 'Variação não encontrada' }, { status: 404 });
         }
+
+        // Desativa os preços das concessionárias vinculados à variação removida
+        await DealerVehiclePrice.updateMany(
+            { variationId: variation._id, ativo: true },
+            { $set: { ativo: false, quantidade: 0 } }
+        );
 
         return NextResponse.json(serializeVariation(variation));
     } catch (error: any) {
