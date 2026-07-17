@@ -51,6 +51,13 @@ async function main() {
     const totalAtivos = await db.collection('dealervehicleprices').countDocuments({ ativo: true });
     console.log('Total de preços ativos após limpeza:', totalAtivos);
 
+    // Normaliza registros inativos que ficaram com prazo/quantidade residuais
+    const norm = await db.collection('dealervehicleprices').updateMany(
+        { ativo: false, $or: [{ prazo: { $ne: null } }, { quantidade: { $gt: 0 } }] },
+        { $set: { prazo: null, quantidade: 0 } }
+    );
+    console.log('Inativos normalizados (prazo/quantidade zerados):', norm.modifiedCount);
+
     await mongoose.disconnect();
 }
 

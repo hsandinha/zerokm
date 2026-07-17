@@ -86,20 +86,22 @@ export async function PATCH(request: Request) {
             const bulkOps = updates.map((u: { variationId: string; preco: number }) => {
                 const precoValue = u.preco > 0 ? u.preco : null;
                 const ativo = typeof u.preco === 'number' && u.preco > 0;
+                const $set: any = {
+                    preco: precoValue,
+                    ativo,
+                    updatedAt: new Date(),
+                };
+                if (!ativo) {
+                    $set.quantidade = 0;
+                    $set.prazo = null;
+                }
                 return {
                     updateOne: {
                         filter: {
                             concessionariaId: new mongoose.Types.ObjectId(concessionariaId),
                             variationId: new mongoose.Types.ObjectId(u.variationId),
                         },
-                        update: {
-                            $set: {
-                                preco: precoValue,
-                                ativo,
-                                quantidade: ativo ? undefined : 0,
-                                updatedAt: new Date(),
-                            },
-                        },
+                        update: { $set },
                         upsert: false,
                     },
                 };
@@ -196,7 +198,8 @@ export async function PATCH(request: Request) {
                                 statusVeiculo: item.statusVeiculo || 'A faturar',
                                 observacoes: item.observacoes || null,
                                 frete: item.frete > 0 ? item.frete : null,
-                                updatedAt: new Date()
+                                updatedAt: new Date(),
+                                ...(ativo ? {} : { prazo: null })
                             }
                         },
                         upsert: true
