@@ -3,6 +3,7 @@ import connectDB from '@/lib/mongodb';
 import Lead from '@/models/Lead';
 import LeadStage from '@/models/LeadStage';
 import LeadEvent from '@/models/LeadEvent';
+import LeadTask from '@/models/LeadTask';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { resolveCrmScope } from '@/lib/utils/crmScope';
@@ -41,8 +42,22 @@ export async function GET(request: Request) {
 
         const leads = await Lead.find(filter).sort({ createdAt: -1 });
 
+        // Próximo follow-up pendente de cada lead — alimenta o badge de tarefa no quadro.
+        const taskSummary = await LeadTask.aggregate([
+            { $match: { leadId: { $in: leads.map(l => l._id) }, done: false } },
+            { $group: { _id: '$leadId', nextTaskAt: { $min: '$dueAt' }, pendingTasks: { $sum: 1 } } },
+        ]);
+        const taskMap = new Map(taskSummary.map(t => [t._id.toString(), t]));
+
         return NextResponse.json({
-            data: leads.map(serializeLead),
+            data: leads.map(lead => {
+                const tasks = taskMap.get((lead._id as any).toString());
+                return {
+                    ...serializeLead(lead),
+                    nextTaskAt: tasks?.nextTaskAt ?? null,
+                    pendingTasks: tasks?.pendingTasks ?? 0,
+                };
+            }),
             period: { preset: period.preset, from: period.from, to: period.to },
         });
     } catch (error: any) {

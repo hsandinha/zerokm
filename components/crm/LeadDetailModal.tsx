@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { MdClose } from 'react-icons/md';
-import { FiArrowRight, FiPlusCircle } from 'react-icons/fi';
+import { FiArrowRight, FiPlusCircle, FiTrash2, FiClock } from 'react-icons/fi';
 import { lostReasonLabel } from '@/lib/utils/crmFunnel';
-import { LeadDetail, Owner, formatDateTime } from './types';
+import { LeadDetail, LeadTaskItem, Owner, formatDateTime } from './types';
 
 interface Props {
   leadId: string;
@@ -31,11 +31,29 @@ const STATUS_LABEL: Record<string, string> = {
   lost: 'Venda perdida',
 };
 
+const formatCurrencyInput = (value: number | null | undefined) =>
+  typeof value === 'number' && value > 0
+    ? value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : '';
+
+/** Aceita "185.000,00", "R$ 185000" etc. Retorna null para vazio, NaN para inválido. */
+const parseCurrencyInput = (raw: string): number | null => {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const normalized = trimmed.replace(/\s/g, '').replace(/R\$/gi, '').replace(/\./g, '').replace(',', '.');
+  return Number(normalized);
+};
+
 export default function LeadDetailModal({ leadId, onClose, onSaved }: Props) {
   const [lead, setLead] = useState<LeadDetail | null>(null);
   const [owners, setOwners] = useState<Owner[]>([]);
   const [ownerId, setOwnerId] = useState('');
   const [notes, setNotes] = useState('');
+  const [proposalValue, setProposalValue] = useState('');
+  const [tasks, setTasks] = useState<LeadTaskItem[]>([]);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskDue, setNewTaskDue] = useState('');
+  const [taskBusy, setTaskBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -44,19 +62,23 @@ export default function LeadDetailModal({ leadId, onClose, onSaved }: Props) {
 
     (async () => {
       try {
-        const [leadRes, ownersRes] = await Promise.all([
+        const [leadRes, ownersRes, tasksRes] = await Promise.all([
           fetch(`/api/crm/leads/${leadId}`),
           fetch('/api/crm/owners'),
+          fetch(`/api/crm/leads/${leadId}/tasks`),
         ]);
         if (!leadRes.ok) throw new Error('Não foi possível carregar o lead');
 
         const leadData = await leadRes.json();
         const ownersData = ownersRes.ok ? await ownersRes.json() : { data: [] };
+        const tasksData = tasksRes.ok ? await tasksRes.json() : { data: [] };
         if (cancelled) return;
 
         setLead(leadData.data);
         setOwnerId(leadData.data.ownerId || '');
         setNotes(leadData.data.notes || '');
+        setProposalValue(formatCurrencyInput(leadData.data.proposalValue));
+        setTasks(Array.isArray(tasksData.data) ? tasksData.data : []);
         setOwners(ownersData.data || []);
       } catch (err: any) {
         if (!cancelled) setError(err.message || 'Erro ao carregar o lead');
@@ -67,6 +89,12 @@ export default function LeadDetailModal({ leadId, onClose, onSaved }: Props) {
   }, [leadId]);
 
   const handleSave = async () => {
+    const parsedProposal = parseCurrencyInput(proposalValue);
+    if (parsedProposal !== null && (!Number.isFinite(parsedProposal) || parsedProposal < 0)) {
+      setError('Valor da proposta inválido. Use apenas números, vírgula e ponto.');
+      return;
+    }
+
     setSaving(true);
     setError('');
     try {
@@ -74,7 +102,7 @@ export default function LeadDetailModal({ leadId, onClose, onSaved }: Props) {
       const res = await fetch(`/api/crm/leads/${leadId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ownerId: ownerId || null, ownerName: owner?.name, notes }),
+        body: JSON.stringify({ ownerId: ownerId || null, ownerName: owner?.name, notes, proposalValue: parsedProposal }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -86,6 +114,69 @@ export default function LeadDetailModal({ leadId, onClose, onSaved }: Props) {
       setError(err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleAddTask = async () => {
+    if (!newTaskTitle.trim() || !newTaskDue) {
+      setError('Informe a descrição e a data da tarefa');
+      return;
+    }
+    setTaskBusy(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/crm/leads/${leadId}/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTaskTitle.trim(), dueAt: new Date(newTaskDue).toISOString() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Não foi possível criar a tarefa');
+      setTasks(prev => [...prev, data].sort((a, b) =>
+        Number(a.done) - Number(b.done) || new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime()));
+      setNewTaskTitle('');
+      setNewTaskDue('');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setTaskBusy(false);
+    }
+  };
+
+  const handleToggleTask = async (task: LeadTaskItem) => {
+    setTaskBusy(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/crm/leads/${leadId}/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ done: !task.done }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Não foi possível atualizar a tarefa');
+      setTasks(prev => prev.map(t => (t.id === task.id ? data : t)));
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setTaskBusy(false);
+    }
+  };
+
+  const handleDeleteTask = async (task: LeadTaskItem) => {
+    if (!confirm(`Excluir a tarefa "${task.title}"?`)) return;
+    setTaskBusy(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/crm/leads/${leadId}/tasks/${task.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Não foi possível excluir a tarefa');
+      }
+      setTasks(prev => prev.filter(t => t.id !== task.id));
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setTaskBusy(false);
     }
   };
 
@@ -166,8 +257,85 @@ export default function LeadDetailModal({ leadId, onClose, onSaved }: Props) {
               </div>
 
               <div>
+                <label style={labelStyle} htmlFor="lead-proposal">Valor da proposta (R$)</label>
+                <input
+                  id="lead-proposal"
+                  value={proposalValue}
+                  onChange={(e) => setProposalValue(e.target.value)}
+                  placeholder="0,00"
+                  inputMode="decimal"
+                  style={inputStyle}
+                />
+              </div>
+
+              <div>
                 <label style={labelStyle} htmlFor="lead-notes">Anotações</label>
                 <textarea id="lead-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+              </div>
+
+              <div>
+                <span style={labelStyle}>Tarefas e follow-up</span>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                  <input
+                    value={newTaskTitle}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                    placeholder="Ex.: Ligar para negociar entrada"
+                    style={{ ...inputStyle, flex: '1 1 200px' }}
+                  />
+                  <input
+                    type="datetime-local"
+                    value={newTaskDue}
+                    onChange={(e) => setNewTaskDue(e.target.value)}
+                    style={{ ...inputStyle, flex: '0 1 200px', colorScheme: 'dark' }}
+                  />
+                  <button
+                    onClick={handleAddTask}
+                    disabled={taskBusy}
+                    style={{ background: 'var(--color-primary)', color: 'var(--color-text)', padding: '10px 16px', borderRadius: '8px', fontWeight: 600, border: 'none', cursor: taskBusy ? 'not-allowed' : 'pointer', opacity: taskBusy ? 0.5 : 1 }}
+                  >
+                    Adicionar
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {tasks.length === 0 ? (
+                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', fontStyle: 'italic', margin: 0 }}>
+                      Nenhuma tarefa. Crie lembretes para não perder o follow-up deste lead.
+                    </p>
+                  ) : tasks.map(task => {
+                    const overdue = !task.done && new Date(task.dueAt) < new Date();
+                    return (
+                      <div key={task.id} style={{ display: 'flex', gap: '10px', alignItems: 'center', padding: '10px 12px', background: 'rgba(255,255,255,0.03)', border: `1px solid ${overdue ? '#DC2626' : 'var(--color-highlight)'}`, borderRadius: '8px' }}>
+                        <input
+                          type="checkbox"
+                          checked={task.done}
+                          onChange={() => handleToggleTask(task)}
+                          disabled={taskBusy}
+                          style={{ cursor: 'pointer', width: '16px', height: '16px', flexShrink: 0 }}
+                          aria-label={task.done ? 'Reabrir tarefa' : 'Concluir tarefa'}
+                        />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ color: 'var(--color-text)', fontSize: '0.875rem', textDecoration: task.done ? 'line-through' : 'none', opacity: task.done ? 0.6 : 1 }}>
+                            {task.title}
+                          </div>
+                          <div style={{ color: overdue ? '#FCA5A5' : 'var(--color-text-muted)', fontSize: '0.75rem', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <FiClock size={11} />
+                            {formatDateTime(task.dueAt)}
+                            {overdue && ' • Atrasada'}
+                            {task.done && task.doneAt && ` • Concluída em ${formatDateTime(task.doneAt)}`}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteTask(task)}
+                          disabled={taskBusy}
+                          style={{ background: 'transparent', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', padding: '4px', flexShrink: 0 }}
+                          title="Excluir tarefa"
+                        >
+                          <FiTrash2 size={15} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
               <div>

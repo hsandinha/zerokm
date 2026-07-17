@@ -40,11 +40,16 @@ const leadDetail = {
     ],
 };
 
+const tasks = [
+    { id: 't1', title: 'Ligar para negociar entrada', dueAt: '2026-07-20T14:00:00.000Z', done: false, doneAt: null, createdBy: 'ana@cnv.com', createdAt: '2026-07-01T12:00:00.000Z' },
+];
+
 const json = (data: any) => Promise.resolve({ ok: true, json: () => Promise.resolve(data) } as Response);
 
 beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn((url: string) => {
         if (url.startsWith('/api/crm/stages')) return json({ data: stages });
+        if (url.startsWith('/api/crm/leads/l1/tasks')) return json({ data: tasks });
         if (url.startsWith('/api/crm/leads/l1')) return json({ data: leadDetail });
         if (url.startsWith('/api/crm/leads')) return json({ data: leads });
         if (url.startsWith('/api/crm/reports')) return json({ data: report });
@@ -96,6 +101,15 @@ describe('KanbanBoard', () => {
         expect(screen.getByText(/ana@cnv\.com/)).toBeInTheDocument();
         expect(screen.getByText(/Integração/)).toBeInTheDocument();
         expect(screen.getByText(/Vim do anúncio/)).toBeInTheDocument();
+    });
+
+    it('mostra valor da proposta e as tarefas de follow-up no modal do lead', async () => {
+        render(<KanbanBoard />);
+        fireEvent.click(await screen.findByTitle('Abrir lead'));
+
+        expect(await screen.findByLabelText('Valor da proposta (R$)')).toBeInTheDocument();
+        expect(screen.getByText('Tarefas e follow-up')).toBeInTheDocument();
+        expect(screen.getByText('Ligar para negociar entrada')).toBeInTheDocument();
     });
 
     it('pede período personalizado com dois campos de data', async () => {

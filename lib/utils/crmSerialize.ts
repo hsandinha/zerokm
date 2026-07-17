@@ -17,6 +17,7 @@ export function serializeLead(doc: any) {
         lostReason: obj.lostReason ?? null,
         lostReasonNote: obj.lostReasonNote ?? null,
         notes: obj.notes ?? null,
+        proposalValue: obj.proposalValue ?? null,
         iaPausedAt: obj.iaPausedAt ?? null,
         iaResumeAt: obj.iaResumeAt ?? null,
         createdAt: obj.createdAt,
@@ -32,6 +33,19 @@ export function serializeStage(doc: any) {
         order: obj.order,
         color: obj.color ?? '#E5E7EB',
         type: obj.type ?? 'open',
+    };
+}
+
+export function serializeTask(doc: any) {
+    const obj = typeof doc.toObject === 'function' ? doc.toObject() : doc;
+    return {
+        id: obj._id.toString(),
+        title: obj.title,
+        dueAt: obj.dueAt,
+        done: obj.done ?? false,
+        doneAt: obj.doneAt ?? null,
+        createdBy: obj.createdBy ?? null,
+        createdAt: obj.createdAt,
     };
 }
 

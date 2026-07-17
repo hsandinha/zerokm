@@ -17,6 +17,19 @@ export type Lead = {
     lostReason?: string | null;
     lostReasonNote?: string | null;
     notes?: string | null;
+    proposalValue?: number | null;
+    nextTaskAt?: string | null;
+    pendingTasks?: number;
+    createdAt: string;
+};
+
+export type LeadTaskItem = {
+    id: string;
+    title: string;
+    dueAt: string;
+    done: boolean;
+    doneAt: string | null;
+    createdBy: string | null;
     createdAt: string;
 };
 
@@ -61,6 +74,9 @@ export type ReportData = {
 
 export const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+
+export const formatCurrencyBRL = (value: number) =>
+    value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 export const formatDateTime = (iso: string) =>
     new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });

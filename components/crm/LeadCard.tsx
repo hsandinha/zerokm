@@ -3,9 +3,9 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Lead, formatDate } from './types';
+import { Lead, formatDate, formatCurrencyBRL } from './types';
 import { lostReasonLabel } from '@/lib/utils/crmFunnel';
-import { FiPhone, FiMail, FiEdit, FiUser, FiCalendar, FiGrid } from 'react-icons/fi';
+import { FiPhone, FiMail, FiEdit, FiUser, FiCalendar, FiGrid, FiClock, FiDollarSign } from 'react-icons/fi';
 
 interface Props {
   lead: Lead;
@@ -78,6 +78,22 @@ export default function LeadCard({ lead, isDragging, onOpen }: Props) {
             )}
             {lead.lostReason && (
               <span style={chip('#FEF2F2', '#DC2626')}>{lostReasonLabel(lead.lostReason)}</span>
+            )}
+            {typeof lead.proposalValue === 'number' && lead.proposalValue > 0 && (
+              <span style={{ ...chip('#ECFDF5', '#059669'), display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                <FiDollarSign size={10} />{formatCurrencyBRL(lead.proposalValue)}
+              </span>
+            )}
+            {(lead.pendingTasks ?? 0) > 0 && lead.nextTaskAt && (
+              new Date(lead.nextTaskAt) < new Date() ? (
+                <span style={{ ...chip('#FEF2F2', '#DC2626'), display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                  <FiClock size={10} />Tarefa atrasada
+                </span>
+              ) : (
+                <span style={{ ...chip('#FFFBEB', '#B45309'), display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                  <FiClock size={10} />{formatDate(lead.nextTaskAt)}
+                </span>
+              )
             )}
           </div>
 

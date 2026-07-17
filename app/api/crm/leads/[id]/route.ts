@@ -78,6 +78,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
             lead.tags = body.tags.map((t: any) => String(t).trim()).filter(Boolean);
         }
         if ('notes' in body) lead.notes = body.notes;
+        if ('proposalValue' in body) {
+            const raw = body.proposalValue;
+            const value = raw === '' || raw === null || raw === undefined ? null : Number(raw);
+            if (value !== null && (!Number.isFinite(value) || value < 0)) {
+                return NextResponse.json({ error: 'Valor da proposta inválido' }, { status: 400 });
+            }
+            lead.proposalValue = value;
+        }
         if ('name' in body && body.name) lead.name = body.name;
         if ('phone' in body && body.phone) lead.phone = body.phone;
         if ('email' in body) lead.email = body.email;
