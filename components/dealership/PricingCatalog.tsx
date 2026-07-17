@@ -34,6 +34,7 @@ interface PricingResponse {
     data: PricingRow[];
     total: number;
     activeCount?: number;
+    totalQuantidade?: number;
     concessionaria?: {
         nome?: string;
         marca?: string | null;
@@ -78,6 +79,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
     const [rows, setRows] = useState<PricingRow[]>([]);
     const [total, setTotal] = useState(0);
     const [backendActiveCount, setBackendActiveCount] = useState<number | null>(null);
+    const [totalQuantidade, setTotalQuantidade] = useState(0);
     const [concessionariaInfo, setConcessionariaInfo] = useState<PricingResponse['concessionaria'] | null>(null);
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState<PricingStatus>('todos');
@@ -121,6 +123,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
             setRows(data.data || []);
             setTotal(data.total || 0);
             setBackendActiveCount(typeof data.activeCount === 'number' ? data.activeCount : null);
+            setTotalQuantidade(typeof data.totalQuantidade === 'number' ? data.totalQuantidade : 0);
             setConcessionariaInfo(data.concessionaria || null);
             setDraftPrices({});
             setDraftPrazos({});
@@ -478,7 +481,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
 
                 <div className={styles.summary}>
                     <span>{total} variações</span>
-                    <span>{activeCount} ativas</span>
+                    <span>{totalQuantidade} veículos disponíveis</span>
                     <span>{inactiveCount} sem preço</span>
                 </div>
             </div>

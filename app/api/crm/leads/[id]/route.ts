@@ -7,6 +7,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { resolveCrmScope } from '@/lib/utils/crmScope';
 import { serializeEvent, serializeLead } from '@/lib/utils/crmSerialize';
+import { computeIaResumeAt } from '@/lib/utils/iaSchedule';
 
 /** Lead + histórico completo de movimentações (item 5 do funil comercial). */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -80,6 +81,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         if ('name' in body && body.name) lead.name = body.name;
         if ('phone' in body && body.phone) lead.phone = body.phone;
         if ('email' in body) lead.email = body.email;
+
+        // Atuação humana pausa a IA de atendimento: volta 1h depois, dentro do horário comercial
+        lead.iaPausedAt = new Date();
+        lead.iaResumeAt = computeIaResumeAt(lead.iaPausedAt);
 
         await lead.save();
 

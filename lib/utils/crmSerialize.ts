@@ -17,6 +17,8 @@ export function serializeLead(doc: any) {
         lostReason: obj.lostReason ?? null,
         lostReasonNote: obj.lostReasonNote ?? null,
         notes: obj.notes ?? null,
+        iaPausedAt: obj.iaPausedAt ?? null,
+        iaResumeAt: obj.iaResumeAt ?? null,
         createdAt: obj.createdAt,
         updatedAt: obj.updatedAt,
     };

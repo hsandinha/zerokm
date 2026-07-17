@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import connectDB from '@/lib/mongodb';
 import Banner from '@/models/Banner';
+import { BANNER_DURATION_MS } from '@/lib/services/bannerService';
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
@@ -14,8 +15,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
         const body = await req.json();
         await connectDB();
-        
+
         const { id } = await params;
+
+        // Editar, aprovar ou reativar reinicia o timer de 24h; apenas ocultar/rejeitar mantém o prazo
+        const isDeactivating = body.isActive === false || body.status === 'rejected';
+        if (!isDeactivating && body.expiresAt === undefined) {
+            body.expiresAt = new Date(Date.now() + BANNER_DURATION_MS);
+            if (body.isActive === true && body.status === undefined) body.status = 'active';
+        }
 
         const updatedBanner = await Banner.findByIdAndUpdate(
             id,

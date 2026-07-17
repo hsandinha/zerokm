@@ -20,6 +20,10 @@ export interface ILead extends Document {
     // `null` = pipeline global (admin/marketing). Ver lib/utils/crmScope.ts.
     concessionariaId?: mongoose.Types.ObjectId | null;
     notes?: string;
+    /** Última atuação humana que pausou a IA de atendimento. Ver lib/utils/iaSchedule.ts. */
+    iaPausedAt?: Date | null;
+    /** Quando a IA pode voltar a atuar neste lead (1h útil após a pausa). */
+    iaResumeAt?: Date | null;
     ativo: boolean;
     createdAt: Date;
     updatedAt: Date;
@@ -40,6 +44,8 @@ const LeadSchema: Schema = new Schema({
     lostReasonNote: { type: String },
     concessionariaId: { type: Schema.Types.ObjectId, ref: 'Concessionaria' },
     notes: { type: String },
+    iaPausedAt: { type: Date, default: null },
+    iaResumeAt: { type: Date, default: null },
     ativo: { type: Boolean, default: true }
 }, {
     timestamps: true

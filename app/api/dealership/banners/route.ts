@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import connectDB from '@/lib/mongodb';
 import Banner from '@/models/Banner';
+import { deactivateExpiredBanners } from '@/lib/services/bannerService';
 
 export async function GET() {
     try {
@@ -12,6 +13,7 @@ export async function GET() {
         }
 
         await connectDB();
+        await deactivateExpiredBanners();
         const banners = await Banner.find({ dealershipId: session.user.uid }).sort({ createdAt: -1 });
         return NextResponse.json(banners);
     } catch (error: any) {

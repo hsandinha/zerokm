@@ -8,7 +8,7 @@ export interface IBanner extends Document {
     order: number;
     dealershipId?: string;
     vehicleId?: string;
-    status?: 'active' | 'pending' | 'rejected' | 'awaiting_payment';
+    status?: 'active' | 'pending' | 'rejected' | 'awaiting_payment' | 'expired';
     expiresAt?: Date;
     paymentId?: string;
     badge?: string;
@@ -34,7 +34,7 @@ const BannerSchema: Schema = new Schema({
     order: { type: Number, default: 0 },
     dealershipId: { type: String },
     vehicleId: { type: String },
-    status: { type: String, enum: ['active', 'pending', 'rejected', 'awaiting_payment'], default: 'active' },
+    status: { type: String, enum: ['active', 'pending', 'rejected', 'awaiting_payment', 'expired'], default: 'active' },
     expiresAt: { type: Date },
     paymentId: { type: String },
     badge: { type: String },

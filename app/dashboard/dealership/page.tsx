@@ -14,6 +14,7 @@ import { MobileTabBar } from '../../../components/mobile/MobileTabBar';
 import styles from './dealership.module.css';
 import { MeusAnuncios } from '../../../components/dealership/MeusAnuncios';
 import { PricingCatalog } from '../../../components/dealership/PricingCatalog';
+import { StockReminderModal } from '../../../components/dealership/StockReminderModal';
 
 import { Concessionaria } from '../../../lib/services/concessionariaService';
 
@@ -28,6 +29,11 @@ interface DealershipMetrics {
     veiculosCadastrados: number;
     veiculosVendidos: number;
     daysSinceUpdate: number;
+    statusBreakdown?: {
+        verde: number;
+        amarelo: number;
+        vermelho: number;
+    };
     chartData: ChartItem[];
     propostas: {
         total: number;
@@ -151,6 +157,7 @@ export default function DealershipDashboard() {
     return (
         <ConfigContext.Provider value={{ margem: 0, fixedMargin: 0, marginMode: 'percent', setMargem: () => { }, setMarginConfig: () => { } }}>
             <div className={styles.container}>
+                <StockReminderModal onUpdateStock={() => setActiveTab('precos')} />
                 <div className={styles.header}>
                     <div className={styles.headerLeft}>
                         <Image
@@ -259,6 +266,22 @@ function StockOverview({ metrics }: { metrics: DealershipMetrics }) {
                     </div>
 
                 </div>
+                {metrics.statusBreakdown && (
+                    <div className={styles.statusBreakdown}>
+                        <div className={`${styles.statusBreakdownItem} ${styles.breakdownGreen}`}>
+                            <span className={styles.statusBreakdownCount}>{metrics.statusBreakdown.verde}</span>
+                            <span className={styles.statusBreakdownLabel}>Em dia</span>
+                        </div>
+                        <div className={`${styles.statusBreakdownItem} ${styles.breakdownYellow}`}>
+                            <span className={styles.statusBreakdownCount}>{metrics.statusBreakdown.amarelo}</span>
+                            <span className={styles.statusBreakdownLabel}>Atenção</span>
+                        </div>
+                        <div className={`${styles.statusBreakdownItem} ${styles.breakdownRed}`}>
+                            <span className={styles.statusBreakdownCount}>{metrics.statusBreakdown.vermelho}</span>
+                            <span className={styles.statusBreakdownLabel}>Desatualizados</span>
+                        </div>
+                    </div>
+                )}
                 <div className={styles.statCard}>
                     <div className={styles.statIcon}>🚗</div>
                     <div className={styles.statContent}>

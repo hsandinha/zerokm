@@ -8,6 +8,7 @@ import { authOptions } from '@/lib/authOptions';
 import { resolveCrmScope } from '@/lib/utils/crmScope';
 import { LOST_REASON_VALUES } from '@/lib/utils/crmFunnel';
 import { serializeLead } from '@/lib/utils/crmSerialize';
+import { computeIaResumeAt } from '@/lib/utils/iaSchedule';
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
@@ -55,6 +56,11 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
             // A história fica nos eventos.
             lead.lostReason = isLost ? lostReason : null;
             lead.lostReasonNote = isLost ? (lostReasonNote || undefined) : undefined;
+
+            // Atuação humana pausa a IA de atendimento: volta 1h depois, dentro do horário comercial
+            lead.iaPausedAt = new Date();
+            lead.iaResumeAt = computeIaResumeAt(lead.iaPausedAt);
+
             await lead.save();
 
             await LeadEvent.create({

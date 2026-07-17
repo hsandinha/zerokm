@@ -644,6 +644,63 @@
     color: var(--color-negative);
 }
 
+.statusBreakdown {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.statusBreakdownItem {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.1rem;
+    padding: 0.75rem 0.25rem;
+    border-radius: 0.75rem;
+    border: 1px solid;
+    text-align: center;
+}
+
+.breakdownGreen {
+    background: rgba(34, 197, 94, 0.08);
+    border-color: rgba(34, 197, 94, 0.4);
+}
+
+.breakdownYellow {
+    background: rgba(234, 179, 8, 0.08);
+    border-color: rgba(234, 179, 8, 0.4);
+}
+
+.breakdownRed {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: rgba(239, 68, 68, 0.4);
+}
+
+.statusBreakdownCount {
+    font-size: 1.25rem;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.breakdownGreen .statusBreakdownCount {
+    color: #22c55e;
+}
+
+.breakdownYellow .statusBreakdownCount {
+    color: #b45309;
+}
+
+.breakdownRed .statusBreakdownCount {
+    color: #ef4444;
+}
+
+.statusBreakdownLabel {
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    font-weight: 600;
+}
+
 .barChart {
     display: flex;
     align-items: flex-end;

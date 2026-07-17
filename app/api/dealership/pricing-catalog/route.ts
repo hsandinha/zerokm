@@ -212,6 +212,10 @@ export async function GET(request: Request) {
                 $facet: {
                     metadata: [{ $count: 'total' }],
                     activeMetadata: [{ $match: { hasActivePrice: true } }, { $count: 'total' }],
+                    activeTotalQuantidade: [
+                        { $match: { hasActivePrice: true } },
+                        { $group: { _id: null, total: { $sum: { $ifNull: ['$priceRecord.quantidade', 0] } } } },
+                    ],
                     data: [{ $skip: skip }, { $limit: limit }],
                 },
             }
@@ -221,6 +225,7 @@ export async function GET(request: Request) {
         const data = result?.data || [];
         const total = result?.metadata?.[0]?.total || 0;
         const activeCount = result?.activeMetadata?.[0]?.total || 0;
+        const totalQuantidade = result?.activeTotalQuantidade?.[0]?.total || 0;
 
         return NextResponse.json({
             concessionaria: {
@@ -238,6 +243,7 @@ export async function GET(request: Request) {
             data: data.map(serializeCatalogRow),
             total,
             activeCount,
+            totalQuantidade,
             page,
             totalPages: Math.ceil(total / limit),
             hasNextPage: skip + data.length < total,

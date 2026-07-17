@@ -29,11 +29,41 @@ export function MeusAnuncios() {
     });
 
     const [showModal, setShowModal] = useState(false);
+    const [now, setNow] = useState(() => Date.now());
 
     useEffect(() => {
         carregarBanners();
         carregarConfig();
     }, []);
+
+    // Tick de 1 minuto para o timer regressivo dos banners ativos
+    useEffect(() => {
+        const interval = setInterval(() => setNow(Date.now()), 60 * 1000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const renderVencimento = (banner: Banner) => {
+        if (!banner.expiresAt) return '-';
+
+        const expiresAt = new Date(banner.expiresAt).getTime();
+        const remainingMs = expiresAt - now;
+
+        if (banner.status === 'active' && remainingMs > 0) {
+            const hours = Math.floor(remainingMs / (60 * 60 * 1000));
+            const minutes = Math.floor((remainingMs % (60 * 60 * 1000)) / (60 * 1000));
+            return (
+                <span style={{ color: hours < 3 ? '#d93025' : '#1e8e3e', fontWeight: 'bold' }}>
+                    ⏱ Expira em {hours}h {minutes}min
+                </span>
+            );
+        }
+
+        if (banner.status === 'active' || banner.status === 'expired') {
+            return <span style={{ color: '#d93025', fontWeight: 'bold' }}>Vencido</span>;
+        }
+
+        return new Date(banner.expiresAt).toLocaleDateString();
+    };
 
     const carregarConfig = async () => {
         try {
@@ -198,9 +228,10 @@ export function MeusAnuncios() {
                                         {banner.status === 'pending' && <span style={{ color: '#f29900', fontWeight: 'bold' }}>Aguardando Aprovação</span>}
                                         {banner.status === 'awaiting_payment' && <span style={{ color: '#d93025', fontWeight: 'bold' }}>Pagamento Pendente</span>}
                                         {banner.status === 'rejected' && <span style={{ color: '#d93025', fontWeight: 'bold' }}>Rejeitado</span>}
+                                        {banner.status === 'expired' && <span style={{ color: '#80868b', fontWeight: 'bold' }}>Expirado</span>}
                                     </td>
                                     <td style={{ padding: '1rem' }}>
-                                        {banner.expiresAt ? new Date(banner.expiresAt).toLocaleDateString() : '-'}
+                                        {renderVencimento(banner)}
                                     </td>
                                 </tr>
                             ))}

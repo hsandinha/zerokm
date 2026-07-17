@@ -1,53 +1,21 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
-import Concessionaria from '@/models/Concessionaria';
-import User from '@/models/User';
 import Lead from '@/models/Lead';
 import LeadStage from '@/models/LeadStage';
 import LeadEvent from '@/models/LeadEvent';
 import { classifyLeadTags } from '@/lib/utils/leadTags';
-import { GLOBAL_PROFILES } from '@/lib/utils/crmScope';
+import { resolveWebhookAccount } from '@/lib/utils/webhookAuth';
 
 export async function POST(req: Request) {
     try {
         await dbConnect();
 
-        // 1. Authenticate via Token
-        const authHeader = req.headers.get('authorization');
-        const url = new URL(req.url);
-        const queryToken = url.searchParams.get('token');
-
-        let token = queryToken;
-        if (!token && authHeader && authHeader.startsWith('Bearer ')) {
-            token = authHeader.substring(7);
-        }
-
-        if (!token) {
-            return NextResponse.json({ error: 'Token de autenticação não fornecido' }, { status: 401 });
-        }
-
-        // Find by webhookSecret (could be a Dealership or an Admin User)
-        // `null` = pipeline global. Ver lib/utils/crmScope.ts sobre por que não usar `undefined`.
-        let concessionariaId: string | null = null;
-        let ownerFound = false;
-
-        const concessionaria = await Concessionaria.findOne({ webhookSecret: token });
-        if (concessionaria) {
-            concessionariaId = concessionaria._id.toString();
-            ownerFound = true;
-        } else {
-            const user: any = await User.findOne({ webhookSecret: token });
-            // `profile` só existe no token da sessão; no banco o campo é `allowedProfiles`.
-            const profiles: string[] = user?.allowedProfiles ?? [];
-            if (user && profiles.some(p => GLOBAL_PROFILES.includes(p))) {
-                concessionariaId = null; // Global pipeline
-                ownerFound = true;
-            }
-        }
-
-        if (!ownerFound) {
+        // 1. Authenticate via Token (Dealership or Admin User webhookSecret)
+        const account = await resolveWebhookAccount(req);
+        if (!account.ok) {
             return NextResponse.json({ error: 'Token inválido ou conta não encontrada' }, { status: 401 });
         }
+        const { concessionariaId } = account;
 
         // 2. Parse payload
         let body;

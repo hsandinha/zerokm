@@ -558,10 +558,10 @@ export function BannersManagement() {
                                             borderRadius: '20px', 
                                             fontSize: '0.8rem',
                                             fontWeight: 'bold',
-                                            backgroundColor: banner.status === 'pending' ? '#fef7e0' : (banner.isActive ? '#e6f4ea' : '#fce8e6'),
-                                            color: banner.status === 'pending' ? '#b06000' : (banner.isActive ? '#1e8e3e' : '#d93025')
+                                            backgroundColor: banner.status === 'pending' ? '#fef7e0' : (banner.isActive ? '#e6f4ea' : (banner.status === 'expired' ? '#f1f3f4' : '#fce8e6')),
+                                            color: banner.status === 'pending' ? '#b06000' : (banner.isActive ? '#1e8e3e' : (banner.status === 'expired' ? '#5f6368' : '#d93025'))
                                         }}>
-                                            {banner.status === 'pending' ? 'Pendente (Aprovar)' : (banner.status === 'awaiting_payment' ? 'Aguardando Pagamento' : (banner.isActive ? 'Ativo' : 'Inativo'))}
+                                            {banner.status === 'pending' ? 'Pendente (Aprovar)' : (banner.status === 'awaiting_payment' ? 'Aguardando Pagamento' : (banner.status === 'expired' ? 'Expirado' : (banner.isActive ? 'Ativo' : 'Inativo')))}
                                         </span>
                                     </td>
                                     <td style={{ padding: '1rem' }}>
