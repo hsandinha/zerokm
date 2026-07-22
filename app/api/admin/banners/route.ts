@@ -5,21 +5,38 @@ import connectDB from '@/lib/mongodb';
 import Banner from '@/models/Banner';
 import { deactivateExpiredBanners } from '@/lib/services/bannerService';
 
-export async function GET() {
+export async function GET(req: Request) {
     try {
         const session = await getServerSession(authOptions);
         // @ts-ignore
         const profile = session?.user?.profile;
-        console.log('[admin/banners GET] profile:', profile, '| email:', session?.user?.email);
         if (!session?.user || (profile !== 'admin' && profile !== 'administrador' && profile !== 'administrativo')) {
-            console.log('[admin/banners GET] BLOCKED - profile not allowed:', profile);
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        const { searchParams } = new URL(req.url);
+        const page = parseInt(searchParams.get('page') || '1');
+        const limit = parseInt(searchParams.get('limit') || '10');
+        const skip = (page - 1) * limit;
+
         await connectDB();
         await deactivateExpiredBanners();
-        const banners = await Banner.find().sort({ order: 1, createdAt: -1 }).allowDiskUse(true).lean();
-        return NextResponse.json(banners);
+
+        const totalCount = await Banner.countDocuments();
+        const totalPages = Math.ceil(totalCount / limit);
+
+        const banners = await Banner.find()
+            .sort({ order: 1, createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean();
+
+        return NextResponse.json({
+            banners,
+            currentPage: page,
+            totalPages,
+            totalCount
+        });
     } catch (error: any) {
         console.error('Error fetching banners:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
@@ -37,8 +54,9 @@ export async function POST(req: Request) {
         const body = await req.json();
         await connectDB();
 
-        const lastBanner = await Banner.findOne().sort({ order: -1 }).lean();
-        const nextOrder = lastBanner ? lastBanner.order + 1 : 0;
+        const allOrders = await Banner.find({}, { order: 1 }).lean() as any[];
+        const maxOrder = allOrders.reduce((max, b) => Math.max(max, b.order || 0), 0);
+        const nextOrder = allOrders.length > 0 ? maxOrder + 1 : 0;
 
         const newBanner = await Banner.create({
             title: body.title,

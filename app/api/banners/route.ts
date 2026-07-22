@@ -16,7 +16,13 @@ export async function GET() {
         const banners = await Banner.find({
             isActive: true,
             $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }],
-        }).sort({ order: 1, createdAt: -1 }).allowDiskUse(true).lean();
+        }).lean() as any[];
+
+        // Sort in memory to bypass MongoDB 32MB sort limit
+        banners.sort((a, b) => {
+            if (a.order !== b.order) return (a.order || 0) - (b.order || 0);
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
         
         return NextResponse.json(banners);
     } catch (error: any) {

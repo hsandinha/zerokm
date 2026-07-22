@@ -14,7 +14,12 @@ export async function GET() {
 
         await connectDB();
         await deactivateExpiredBanners();
-        const banners = await Banner.find({ dealershipId: session.user.uid }).sort({ createdAt: -1 }).allowDiskUse(true).lean();
+        const banners = await Banner.find({ dealershipId: session.user.uid }).lean() as any[];
+        
+        // Sort in memory to bypass MongoDB 32MB sort limit
+        banners.sort((a, b) => {
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
         return NextResponse.json(banners);
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });

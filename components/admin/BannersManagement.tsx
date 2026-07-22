@@ -24,6 +24,8 @@ export function BannersManagement() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
 
     const [newBanner, setNewBanner] = useState({
         title: '',
@@ -76,14 +78,20 @@ export function BannersManagement() {
         carregarVeiculos();
     }, []);
 
-    const carregarBanners = async () => {
+    const carregarBanners = async (page = 1) => {
         try {
             setIsLoading(true);
-            const res = await fetch('/api/admin/banners');
+            const res = await fetch(`/api/admin/banners?page=${page}&limit=10`);
             if (res.ok) {
                 const data = await res.json();
-                console.log('[BannersManagement] Banners carregados:', data.length);
-                setBanners(Array.isArray(data) ? data : []);
+                // Verifica se é a resposta paginada ou o formato antigo
+                if (data.banners) {
+                    setBanners(data.banners);
+                    setCurrentPage(data.currentPage || 1);
+                    setTotalPages(data.totalPages || 1);
+                } else {
+                    setBanners(Array.isArray(data) ? data : []);
+                }
             } else {
                 const errorBody = await res.text();
                 console.error('[BannersManagement] Erro na resposta:', res.status, errorBody);
@@ -637,17 +645,144 @@ export function BannersManagement() {
                                                 </button>
                                                 <button 
                                                     onClick={() => handleDelete(banner._id)}
-                                                    style={{ padding: '0.5rem', borderRadius: '4px', border: 'none', background: '#d93025', color: '#fff', cursor: 'pointer' }}
-                                                >
-                                                    Deletar
-                                                </button>
-                                            </>
-                                        )}
-                                    </td>
+                    <>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1rem' }}>
+                            <thead>
+                                <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
+                                    <th style={{ padding: '1rem' }}>Imagem</th>
+                                    <th style={{ padding: '1rem' }}>Título</th>
+                                    <th style={{ padding: '1rem' }}>Status</th>
+                                    <th style={{ padding: '1rem' }}>Ações</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {banners.map(banner => (
+                                    <tr key={banner._id} style={{ borderBottom: '1px solid #eee' }}>
+                                        <td style={{ padding: '1rem', width: '200px' }}>
+                                            <img src={banner.imageUrl} alt={banner.title} style={{ width: '150px', height: 'auto', borderRadius: '4px', border: '1px solid #ddd' }} />
+                                        </td>
+                                        <td style={{ padding: '1rem' }}>
+                                            <strong>{banner.title}</strong>
+                                            {banner.linkUrl && <div style={{ fontSize: '0.8rem', color: '#666' }}><a href={banner.linkUrl} target="_blank" rel="noreferrer">🔗 Link</a></div>}
+                                        </td>
+                                        <td style={{ padding: '1rem' }}>
+                                            <span style={{ 
+                                                padding: '0.3rem 0.6rem', 
+                                                borderRadius: '20px', 
+                                                fontSize: '0.8rem',
+                                                fontWeight: 'bold',
+                                                backgroundColor: banner.status === 'pending' ? '#fef7e0' : (banner.isActive ? '#e6f4ea' : (banner.status === 'expired' ? '#f1f3f4' : '#fce8e6')),
+                                                color: banner.status === 'pending' ? '#b06000' : (banner.isActive ? '#1e8e3e' : (banner.status === 'expired' ? '#5f6368' : '#d93025'))
+                                            }}>
+                                                {banner.status === 'pending' ? 'Pendente (Aprovar)' : (banner.status === 'awaiting_payment' ? 'Aguardando Pagamento' : (banner.status === 'expired' ? 'Expirado' : (banner.isActive ? 'Ativo' : 'Inativo')))}
+                                            </span>
+                                            {banner.expiresAt && banner.isActive && banner.status === 'active' && (() => {
+                                                const remaining = getTimeRemaining(banner.expiresAt);
+                                                if (!remaining) return null;
+                                                return (
+                                                    <div style={{
+                                                        marginTop: '0.4rem',
+                                                        fontSize: '0.75rem',
+                                                        fontWeight: 600,
+                                                        fontFamily: 'monospace',
+                                                        color: remaining.expired ? '#d93025' : (parseInt(remaining.text) <= 2 ? '#e65100' : '#1a73e8'),
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px'
+                                                    }}>
+                                                        <span>{remaining.expired ? '⏰' : '⏱️'}</span>
+                                                        <span>{remaining.text}</span>
+                                                    </div>
+                                                );
+                                            })()}
+                                        </td>
+                                        <td style={{ padding: '1rem' }}>
+                                            {banner.status === 'pending' ? (
+                                                <>
+                                                    <button 
+                                                        onClick={() => handleApprove(banner._id)}
+                                                        style={{ marginRight: '0.5rem', padding: '0.5rem', borderRadius: '4px', border: '1px solid #1e8e3e', background: '#e6f4ea', color: '#1e8e3e', cursor: 'pointer' }}
+                                                    >
+                                                        ✅ Aprovar
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleReject(banner._id)}
+                                                        style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #d93025', background: '#fce8e6', color: '#d93025', cursor: 'pointer' }}
+                                                    >
+                                                        ❌ Rejeitar
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <button 
+                                                        onClick={() => handleEditClick(banner)}
+                                                        style={{ marginRight: '0.5rem', padding: '0.5rem', borderRadius: '4px', border: '1px solid #0056b3', background: '#e6f0fa', color: '#0056b3', cursor: 'pointer' }}
+                                                    >
+                                                        Editar
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => toggleBannerActive(banner._id, banner.isActive)}
+                                                        style={{ marginRight: '0.5rem', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc', background: '#fff', cursor: 'pointer' }}
+                                                    >
+                                                        {banner.isActive ? 'Ocultar' : 'Exibir'}
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleDelete(banner._id)}
+                                                        style={{ padding: '0.5rem', borderRadius: '4px', border: 'none', background: '#d93025', color: '#fff', cursor: 'pointer' }}
+                                                    >
+                                                        Deletar
+                                                    </button>
+                                                </>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        
+                        {totalPages > 1 && (
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                gap: '1rem',
+                                marginTop: '1.5rem',
+                                padding: '1rem'
+                            }}>
+                                <button
+                                    onClick={() => carregarBanners(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                    style={{
+                                        padding: '0.5rem 1rem',
+                                        backgroundColor: currentPage === 1 ? '#e0e0e0' : '#1a73e8',
+                                        color: currentPage === 1 ? '#757575' : '#fff',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
+                                    }}
+                                >
+                                    Anterior
+                                </button>
+                                <span style={{ fontWeight: 500, color: '#3c4043' }}>
+                                    Página {currentPage} de {totalPages}
+                                </span>
+                                <button
+                                    onClick={() => carregarBanners(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                    style={{
+                                        padding: '0.5rem 1rem',
+                                        backgroundColor: currentPage === totalPages ? '#e0e0e0' : '#1a73e8',
+                                        color: currentPage === totalPages ? '#757575' : '#fff',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
+                                    }}
+                                >
+                                    Próxima
+                                </button>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
         </div>
