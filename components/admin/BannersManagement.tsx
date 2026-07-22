@@ -26,6 +26,7 @@ export function BannersManagement() {
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+    const [statusFilter, setStatusFilter] = useState('all');
 
     const [newBanner, setNewBanner] = useState({
         title: '',
@@ -78,10 +79,10 @@ export function BannersManagement() {
         carregarVeiculos();
     }, []);
 
-    const carregarBanners = async (page = 1) => {
+    const carregarBanners = async (page = 1, status = statusFilter) => {
         try {
             setIsLoading(true);
-            const res = await fetch(`/api/admin/banners?page=${page}&limit=10`);
+            const res = await fetch(`/api/admin/banners?page=${page}&limit=10&status=${status}`);
             if (res.ok) {
                 const data = await res.json();
                 // Verifica se é a resposta paginada ou o formato antigo
@@ -558,7 +559,24 @@ export function BannersManagement() {
             </form>
 
             <div className={styles.formGroupPanel} style={{ marginTop: '2rem' }}>
-                <h3 className={styles.groupTitle}>Banners Ativos e Inativos</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <h3 className={styles.groupTitle} style={{ margin: 0 }}>Banners Ativos e Inativos</h3>
+                    <select 
+                        value={statusFilter}
+                        onChange={(e) => {
+                            setStatusFilter(e.target.value);
+                            carregarBanners(1, e.target.value);
+                        }}
+                        style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc', outline: 'none' }}
+                    >
+                        <option value="all">Todos os Status</option>
+                        <option value="active">Ativos</option>
+                        <option value="inactive">Inativos</option>
+                        <option value="pending">Pendentes</option>
+                        <option value="awaiting_payment">Aguardando Pagamento</option>
+                        <option value="expired">Expirados</option>
+                    </select>
+                </div>
                 
                 {banners.length === 0 ? (
                     <p style={{ color: '#666' }}>Nenhum banner cadastrado no momento.</p>
@@ -668,7 +686,7 @@ export function BannersManagement() {
                                 padding: '1rem'
                             }}>
                                 <button
-                                    onClick={() => carregarBanners(currentPage - 1)}
+                                    onClick={() => carregarBanners(currentPage - 1, statusFilter)}
                                     disabled={currentPage === 1}
                                     style={{
                                         padding: '0.5rem 1rem',
@@ -685,7 +703,7 @@ export function BannersManagement() {
                                     Página {currentPage} de {totalPages}
                                 </span>
                                 <button
-                                    onClick={() => carregarBanners(currentPage + 1)}
+                                    onClick={() => carregarBanners(currentPage + 1, statusFilter)}
                                     disabled={currentPage === totalPages}
                                     style={{
                                         padding: '0.5rem 1rem',

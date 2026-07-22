@@ -17,15 +17,31 @@ export async function GET(req: Request) {
         const { searchParams } = new URL(req.url);
         const page = parseInt(searchParams.get('page') || '1');
         const limit = parseInt(searchParams.get('limit') || '10');
+        const statusFilter = searchParams.get('status') || 'all';
         const skip = (page - 1) * limit;
 
         await connectDB();
         await deactivateExpiredBanners();
 
-        const totalCount = await Banner.countDocuments();
+        const query: any = {};
+        if (statusFilter === 'pending') {
+            query.status = 'pending';
+        } else if (statusFilter === 'awaiting_payment') {
+            query.status = 'awaiting_payment';
+        } else if (statusFilter === 'expired') {
+            query.status = 'expired';
+        } else if (statusFilter === 'active') {
+            query.isActive = true;
+            query.status = { $nin: ['pending', 'awaiting_payment', 'expired', 'rejected'] };
+        } else if (statusFilter === 'inactive') {
+            query.isActive = false;
+            query.status = { $nin: ['pending', 'awaiting_payment', 'expired', 'rejected'] };
+        }
+
+        const totalCount = await Banner.countDocuments(query);
         const totalPages = Math.ceil(totalCount / limit);
 
-        const banners = await Banner.find()
+        const banners = await Banner.find(query)
             .sort({ order: 1, createdAt: -1 })
             .skip(skip)
             .limit(limit)
