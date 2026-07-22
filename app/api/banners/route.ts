@@ -15,6 +15,7 @@ export async function GET() {
         // Retorna todos os banners ativos, ordenados pelo campo 'order'
         const banners = await Banner.find({
             isActive: true,
+            status: { $nin: ['pending', 'awaiting_payment', 'expired', 'rejected'] },
             $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }],
         }).lean() as any[];
 
