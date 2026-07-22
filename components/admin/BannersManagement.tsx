@@ -82,7 +82,11 @@ export function BannersManagement() {
             const res = await fetch('/api/admin/banners');
             if (res.ok) {
                 const data = await res.json();
-                setBanners(data);
+                console.log('[BannersManagement] Banners carregados:', data.length);
+                setBanners(Array.isArray(data) ? data : []);
+            } else {
+                const errorBody = await res.text();
+                console.error('[BannersManagement] Erro na resposta:', res.status, errorBody);
             }
         } catch (error) {
             console.error('Erro ao buscar banners:', error);

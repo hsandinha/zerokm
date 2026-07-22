@@ -9,13 +9,17 @@ export async function GET() {
     try {
         const session = await getServerSession(authOptions);
         // @ts-ignore
-        if (!session?.user || (session.user.profile !== 'admin' && session.user.profile !== 'administrador' && session.user.profile !== 'administrativo')) {
+        const profile = session?.user?.profile;
+        console.log('[admin/banners GET] profile:', profile, '| email:', session?.user?.email);
+        if (!session?.user || (profile !== 'admin' && profile !== 'administrador' && profile !== 'administrativo')) {
+            console.log('[admin/banners GET] BLOCKED - profile not allowed:', profile);
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         await connectDB();
         await deactivateExpiredBanners();
         const banners = await Banner.find().sort({ order: 1, createdAt: -1 });
+        console.log('[admin/banners GET] banners found:', banners.length);
         return NextResponse.json(banners);
     } catch (error: any) {
         console.error('Error fetching banners:', error);
