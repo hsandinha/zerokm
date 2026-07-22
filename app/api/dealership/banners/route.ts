@@ -14,7 +14,7 @@ export async function GET() {
 
         await connectDB();
         await deactivateExpiredBanners();
-        const banners = await Banner.find({ dealershipId: session.user.uid }).sort({ createdAt: -1 });
+        const banners = await Banner.find({ dealershipId: session.user.uid }).sort({ createdAt: -1 }).allowDiskUse(true).lean();
         return NextResponse.json(banners);
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });

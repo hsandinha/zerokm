@@ -16,7 +16,7 @@ export async function GET() {
         const banners = await Banner.find({
             isActive: true,
             $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }],
-        }).sort({ order: 1, createdAt: -1 });
+        }).sort({ order: 1, createdAt: -1 }).allowDiskUse(true).lean();
         
         return NextResponse.json(banners);
     } catch (error: any) {

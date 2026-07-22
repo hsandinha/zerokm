@@ -18,8 +18,7 @@ export async function GET() {
 
         await connectDB();
         await deactivateExpiredBanners();
-        const banners = await Banner.find().sort({ order: 1, createdAt: -1 });
-        console.log('[admin/banners GET] banners found:', banners.length);
+        const banners = await Banner.find().sort({ order: 1, createdAt: -1 }).allowDiskUse(true).lean();
         return NextResponse.json(banners);
     } catch (error: any) {
         console.error('Error fetching banners:', error);
@@ -38,7 +37,7 @@ export async function POST(req: Request) {
         const body = await req.json();
         await connectDB();
 
-        const lastBanner = await Banner.findOne().sort({ order: -1 });
+        const lastBanner = await Banner.findOne().sort({ order: -1 }).lean();
         const nextOrder = lastBanner ? lastBanner.order + 1 : 0;
 
         const newBanner = await Banner.create({
