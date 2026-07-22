@@ -15,9 +15,10 @@ interface CrmEntry {
 
 interface UsersTableProps {
     onViewInCRM?: (email: string) => void;
+    restrictedProfiles?: UserProfile[];
 }
 
-export function UsersTable({ onViewInCRM }: UsersTableProps) {
+export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableProps) {
     const [users, setUsers] = useState<AdminUser[]>([]);
     const [loading, setLoading] = useState(true);
     const [crmDataMap, setCrmDataMap] = useState<Map<string, CrmEntry>>(new Map());
@@ -439,18 +440,22 @@ export function UsersTable({ onViewInCRM }: UsersTableProps) {
                                 <div style={{ marginBottom: '1rem', padding: '0.75rem', border: '1px solid #334155', borderRadius: '8px', background: 'rgba(99,102,241,0.06)' }}>
                                     <p style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: '#818cf8', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>Diretivo — escolha um</p>
                                     <div style={{ display: 'flex', gap: '1.5rem' }}>
-                                        {['administrador', 'gerente', 'marketing'].map(p => (
-                                            <label key={p} className={styles.checkboxLabel} style={{ cursor: 'pointer' }}>
+                                        {['administrador', 'gerente', 'marketing'].map(p => {
+                                            const isRestricted = restrictedProfiles.includes(p as UserProfile);
+                                            return (
+                                            <label key={p} className={styles.checkboxLabel} style={{ cursor: isRestricted ? 'not-allowed' : 'pointer', opacity: isRestricted ? 0.4 : 1 }}>
                                                 <input
                                                     type="radio"
                                                     name="newDiretivo"
                                                     checked={newUser.allowedProfiles.includes(p as UserProfile)}
-                                                    onClick={() => toggleNewUserProfile(p as UserProfile)}
+                                                    onClick={() => !isRestricted && toggleNewUserProfile(p as UserProfile)}
+                                                    disabled={isRestricted}
                                                     readOnly
                                                 />
                                                 {p.charAt(0).toUpperCase() + p.slice(1)}
                                             </label>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </div>
 
@@ -458,18 +463,22 @@ export function UsersTable({ onViewInCRM }: UsersTableProps) {
                                 <div style={{ marginBottom: '1rem', padding: '0.75rem', border: '1px solid #334155', borderRadius: '8px', background: 'rgba(245,158,11,0.06)' }}>
                                     <p style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: '#f59e0b', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>Operacional — escolha um</p>
                                     <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-                                        {['operador', 'vendedor', 'administrativo'].map(p => (
-                                            <label key={p} className={styles.checkboxLabel} style={{ cursor: 'pointer' }}>
+                                        {['operador', 'vendedor', 'administrativo'].map(p => {
+                                            const isRestricted = restrictedProfiles.includes(p as UserProfile);
+                                            return (
+                                            <label key={p} className={styles.checkboxLabel} style={{ cursor: isRestricted ? 'not-allowed' : 'pointer', opacity: isRestricted ? 0.4 : 1 }}>
                                                 <input
                                                     type="radio"
                                                     name="newOperacional"
                                                     checked={newUser.allowedProfiles.includes(p as UserProfile)}
-                                                    onClick={() => toggleNewUserProfile(p as UserProfile)}
+                                                    onClick={() => !isRestricted && toggleNewUserProfile(p as UserProfile)}
+                                                    disabled={isRestricted}
                                                     readOnly
                                                 />
                                                 {p.charAt(0).toUpperCase() + p.slice(1)}
                                             </label>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </div>
 
@@ -556,18 +565,22 @@ export function UsersTable({ onViewInCRM }: UsersTableProps) {
                         <div style={{ marginBottom: '1rem', padding: '0.75rem', border: '1px solid #334155', borderRadius: '8px', background: 'rgba(99,102,241,0.06)' }}>
                             <p style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: '#818cf8', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>Diretivo — escolha um</p>
                             <div style={{ display: 'flex', gap: '1.5rem' }}>
-                                {['administrador', 'gerente', 'marketing'].map(p => (
-                                    <label key={p} className={styles.checkboxLabel} style={{ cursor: 'pointer' }}>
+                                {['administrador', 'gerente', 'marketing'].map(p => {
+                                    const isRestricted = restrictedProfiles.includes(p as UserProfile);
+                                    return (
+                                    <label key={p} className={styles.checkboxLabel} style={{ cursor: isRestricted ? 'not-allowed' : 'pointer', opacity: isRestricted ? 0.4 : 1 }}>
                                         <input
                                             type="radio"
                                             name="editDiretivo"
                                             checked={selectedProfiles.includes(p as UserProfile)}
-                                            onClick={() => toggleProfile(p as UserProfile)}
+                                            onClick={() => !isRestricted && toggleProfile(p as UserProfile)}
+                                            disabled={isRestricted}
                                             readOnly
                                         />
                                         {p.charAt(0).toUpperCase() + p.slice(1)}
                                     </label>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
 
@@ -575,18 +588,22 @@ export function UsersTable({ onViewInCRM }: UsersTableProps) {
                         <div style={{ marginBottom: '1rem', padding: '0.75rem', border: '1px solid #334155', borderRadius: '8px', background: 'rgba(245,158,11,0.06)' }}>
                             <p style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: '#f59e0b', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>Operacional — escolha um</p>
                             <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-                                {['operador', 'vendedor', 'administrativo'].map(p => (
-                                    <label key={p} className={styles.checkboxLabel} style={{ cursor: 'pointer' }}>
+                                {['operador', 'vendedor', 'administrativo'].map(p => {
+                                    const isRestricted = restrictedProfiles.includes(p as UserProfile);
+                                    return (
+                                    <label key={p} className={styles.checkboxLabel} style={{ cursor: isRestricted ? 'not-allowed' : 'pointer', opacity: isRestricted ? 0.4 : 1 }}>
                                         <input
                                             type="radio"
                                             name="editOperacional"
                                             checked={selectedProfiles.includes(p as UserProfile)}
-                                            onClick={() => toggleProfile(p as UserProfile)}
+                                            onClick={() => !isRestricted && toggleProfile(p as UserProfile)}
+                                            disabled={isRestricted}
                                             readOnly
                                         />
                                         {p.charAt(0).toUpperCase() + p.slice(1)}
                                     </label>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
 

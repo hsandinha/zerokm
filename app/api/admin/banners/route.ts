@@ -9,7 +9,7 @@ export async function GET() {
     try {
         const session = await getServerSession(authOptions);
         // @ts-ignore
-        if (!session?.user || (session.user.profile !== 'admin' && session.user.profile !== 'administrador')) {
+        if (!session?.user || (session.user.profile !== 'admin' && session.user.profile !== 'administrador' && session.user.profile !== 'administrativo')) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     try {
         const session = await getServerSession(authOptions);
         // @ts-ignore
-        if (!session?.user || (session.user.profile !== 'admin' && session.user.profile !== 'administrador')) {
+        if (!session?.user || (session.user.profile !== 'admin' && session.user.profile !== 'administrador' && session.user.profile !== 'administrativo')) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 

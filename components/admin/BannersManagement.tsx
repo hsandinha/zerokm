@@ -13,6 +13,7 @@ interface Banner {
     dealershipId?: string;
     vehicleId?: string;
     status: string;
+    expiresAt?: string;
     createdAt: string;
 }
 
@@ -42,6 +43,23 @@ export function BannersManagement() {
         vehicleId: ''
     });
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [tick, setTick] = useState(0);
+
+    // Live countdown tick every second
+    useEffect(() => {
+        const interval = setInterval(() => setTick(t => t + 1), 1000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const getTimeRemaining = (expiresAt?: string) => {
+        if (!expiresAt) return null;
+        const diff = new Date(expiresAt).getTime() - Date.now();
+        if (diff <= 0) return { text: 'Expirado', expired: true };
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+        return { text: `${hours}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`, expired: false };
+    };
 
     const handleCancelEdit = () => {
         setEditingId(null);
@@ -563,6 +581,25 @@ export function BannersManagement() {
                                         }}>
                                             {banner.status === 'pending' ? 'Pendente (Aprovar)' : (banner.status === 'awaiting_payment' ? 'Aguardando Pagamento' : (banner.status === 'expired' ? 'Expirado' : (banner.isActive ? 'Ativo' : 'Inativo')))}
                                         </span>
+                                        {banner.expiresAt && banner.isActive && banner.status === 'active' && (() => {
+                                            const remaining = getTimeRemaining(banner.expiresAt);
+                                            if (!remaining) return null;
+                                            return (
+                                                <div style={{
+                                                    marginTop: '0.4rem',
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 600,
+                                                    fontFamily: 'monospace',
+                                                    color: remaining.expired ? '#d93025' : (parseInt(remaining.text) <= 2 ? '#e65100' : '#1a73e8'),
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '4px'
+                                                }}>
+                                                    <span>{remaining.expired ? '⏰' : '⏱️'}</span>
+                                                    <span>{remaining.text}</span>
+                                                </div>
+                                            );
+                                        })()}
                                     </td>
                                     <td style={{ padding: '1rem' }}>
                                         {banner.status === 'pending' ? (

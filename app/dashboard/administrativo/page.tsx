@@ -10,12 +10,13 @@ import { UsersTable } from '../admin/users/UsersTable';
 import { ConcessionariasManagement } from '../../../components/admin/ConcessionariasManagement';
 import { TransportadorasManagement } from '../../../components/admin/TransportadorasManagement';
 import { TabelasManagement } from '../../../components/admin/TabelasManagement';
+import { BannersManagement } from '../../../components/admin/BannersManagement';
 import { CatalogVariationsManagement } from '../../../components/admin/CatalogVariationsManagement';
 import { AdminDealershipVehicles } from '../../../components/admin/AdminDealershipVehicles';
 import { MobileTabBar } from '../../../components/mobile/MobileTabBar';
 import styles from '../operator/operator.module.css';
 
-type TabType = 'veiculos' | 'estoque-concessionarias' | 'catalogo' | 'concessionarias' | 'transportadoras' | 'tabelas' | 'usuarios';
+type TabType = 'veiculos' | 'estoque-concessionarias' | 'catalogo' | 'concessionarias' | 'transportadoras' | 'tabelas' | 'usuarios' | 'banners';
 
 // ----------------------------------------------------------------
 // Dashboard principal do Administrativo
@@ -71,6 +72,7 @@ export default function AdministrativoDashboard() {
         { id: 'transportadoras', label: 'Frete', icon: '🚚' },
         { id: 'tabelas', label: 'Tabelas', icon: '📋' },
         { id: 'usuarios', label: 'Usuários', icon: '👥' },
+        { id: 'banners', label: 'Banners', icon: '🖼️' },
     ];
 
     const renderContent = () => {
@@ -81,7 +83,8 @@ export default function AdministrativoDashboard() {
             case 'concessionarias': return <ConcessionariasManagement />;
             case 'transportadoras': return <TransportadorasManagement />;
             case 'tabelas': return <TabelasManagement />;
-            case 'usuarios': return <UsersTable />;
+            case 'usuarios': return <UsersTable restrictedProfiles={['administrador']} />;
+            case 'banners': return <BannersManagement />;
         }
     };
 
@@ -134,7 +137,7 @@ export default function AdministrativoDashboard() {
 
                 <MobileTabBar
                     items={tabs.map((tab) => ({ id: tab.id, label: tab.label, icon: tab.icon }))}
-                    primaryIds={['veiculos', 'estoque-concessionarias', 'concessionarias', 'usuarios']}
+                    primaryIds={['veiculos', 'estoque-concessionarias', 'concessionarias', 'usuarios', 'banners']}
                     activeId={activeTab}
                     onSelect={(id) => setActiveTab(id as TabType)}
                     user={{ name: userInfo.name ?? 'Administrativo', email: userInfo.email, role: 'Administrativo' }}
