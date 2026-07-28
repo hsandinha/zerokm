@@ -208,7 +208,10 @@ export async function GET(request: Request) {
         if (status === 'inativo') pipeline.push({ $match: { hasActivePrice: false } });
 
         pipeline.push(
-            { $sort: { modelo: 1, cor: 1, anoModelo: -1 } },
+            // _id como desempate: sem ele, variações que empatam em
+            // modelo/cor/ano podem trocar de posição entre páginas e o mesmo
+            // veículo aparecer duas vezes (ou sumir) ao navegar.
+            { $sort: { modelo: 1, cor: 1, anoModelo: -1, _id: 1 } },
             {
                 $facet: {
                     metadata: [{ $count: 'total' }],

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { FaFileExport, FaFileImport, FaTrash, FaCheckCircle, FaTimesCircle, FaTimes } from 'react-icons/fa';
+import { Pagination } from '../Pagination';
 import styles from './PricingCatalog.module.css';
 
 type PricingStatus = 'todos' | 'ativo' | 'inativo';
@@ -35,6 +36,9 @@ interface PricingResponse {
     total: number;
     activeCount?: number;
     totalQuantidade?: number;
+    page?: number;
+    totalPages?: number;
+    hasNextPage?: boolean;
     concessionaria?: {
         nome?: string;
         marca?: string | null;
@@ -71,6 +75,9 @@ function parseCurrency(value: string) {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
+const PAGE_SIZE = 100;
+const EXPORT_PAGE_SIZE = 500;
+
 export interface PricingCatalogProps {
     concessionariaId?: string;
 }
@@ -92,27 +99,35 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
     const [saving, setSaving] = useState<Record<string, boolean>>({});
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [importReport, setImportReport] = useState<{ successes: any[]; errors: any[] } | null>(null);
+    const [page, setPage] = useState(1);
+    const [hasNextPage, setHasNextPage] = useState(false);
+    const [exporting, setExporting] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const tableRef = useRef<HTMLDivElement>(null);
 
     const queryStatus = status === 'todos' ? '' : status;
+
+    const buildCatalogUrl = useCallback((targetPage: number, limit: number) => {
+        const params = new URLSearchParams({ limit: String(limit), page: String(targetPage) });
+        if (search.trim()) params.set('search', search.trim());
+        if (queryStatus) params.set('status', queryStatus);
+        if (concessionariaId) params.set('concessionariaId', concessionariaId);
+        return `/api/dealership/pricing-catalog?${params.toString()}`;
+    }, [queryStatus, search, concessionariaId]);
 
     const loadCatalog = useCallback(async () => {
         setLoading(true);
         setError(null);
 
         try {
-            const params = new URLSearchParams({ limit: '500' });
-            if (search.trim()) params.set('search', search.trim());
-            if (queryStatus) params.set('status', queryStatus);
-            if (concessionariaId) params.set('concessionariaId', concessionariaId);
-
-            const res = await fetch(`/api/dealership/pricing-catalog?${params.toString()}`);
+            const res = await fetch(buildCatalogUrl(page, PAGE_SIZE));
             const data: PricingResponse = await res.json();
 
             if (!res.ok) {
                 if (data.code === 'BRAND_NOT_LINKED') {
                     setRows([]);
                     setTotal(0);
+                    setHasNextPage(false);
                     setConcessionariaInfo(null);
                     setError('Nenhuma marca foi vinculada a esta concessionária. Solicite ao operador a associação da marca.');
                     return;
@@ -122,6 +137,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
 
             setRows(data.data || []);
             setTotal(data.total || 0);
+            setHasNextPage(Boolean(data.hasNextPage));
             setBackendActiveCount(typeof data.activeCount === 'number' ? data.activeCount : null);
             setTotalQuantidade(typeof data.totalQuantidade === 'number' ? data.totalQuantidade : 0);
             setConcessionariaInfo(data.concessionaria || null);
@@ -132,7 +148,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
         } finally {
             setLoading(false);
         }
-    }, [queryStatus, search, concessionariaId]);
+    }, [buildCatalogUrl, page]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -142,9 +158,25 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
         return () => clearTimeout(timer);
     }, [loadCatalog]);
 
+    // Filtros mudaram: a página atual pode não existir no novo resultado.
+    useEffect(() => {
+        setPage(1);
+    }, [search, queryStatus, concessionariaId]);
+
+    const handlePageChange = (nextPage: number) => {
+        const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
+        const target = Math.min(Math.max(1, nextPage), lastPage);
+        if (target === page) return;
+        setPage(target);
+        tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+
     const clientActiveCount = useMemo(() => rows.filter(row => row.ativo).length, [rows]);
     const activeCount = backendActiveCount ?? clientActiveCount;
     const inactiveCount = total - activeCount;
+
+    const allPageRowsSelected = rows.length > 0 && rows.every(row => selectedIds.has(row.variationId));
+    const somePageRowsSelected = rows.some(row => selectedIds.has(row.variationId));
 
     const updateRowFields = async (row: PricingRow, rawPriceValue: string, newStatusVeiculo?: string, rawQuantidadeValue?: string, rawPrazoValue?: string) => {
         const rawTrimmed = rawPriceValue.trim();
@@ -270,12 +302,18 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
         }
     };
 
+    // Seleciona/desmarca apenas a página visível, preservando o que já foi
+    // marcado em outras páginas.
     const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.checked) {
-            setSelectedIds(new Set(rows.map(r => r.variationId)));
-        } else {
-            setSelectedIds(new Set());
-        }
+        const checked = e.target.checked;
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            for (const row of rows) {
+                if (checked) next.add(row.variationId);
+                else next.delete(row.variationId);
+            }
+            return next;
+        });
     };
 
     const handleSelectRow = (id: string, checked: boolean) => {
@@ -285,15 +323,47 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
         setSelectedIds(next);
     };
 
-    const handleExportCSV = () => {
+    // A tabela é paginada, então a planilha não pode sair apenas das linhas
+    // visíveis: busca todas as páginas do filtro atual antes de gerar o CSV.
+    const fetchAllRows = async () => {
+        const all: PricingRow[] = [];
+        let currentPage = 1;
+
+        while (true) {
+            const res = await fetch(buildCatalogUrl(currentPage, EXPORT_PAGE_SIZE));
+            const data: PricingResponse = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Erro ao carregar catálogo para exportação');
+
+            all.push(...(data.data || []));
+            if (!data.hasNextPage || (data.data || []).length === 0) break;
+            currentPage += 1;
+        }
+
+        return all;
+    };
+
+    const handleExportCSV = async () => {
+        setExporting(true);
+        setError(null);
+
+        let exportRows: PricingRow[];
+        try {
+            exportRows = await fetchAllRows();
+        } catch (err: any) {
+            setError(err?.message || 'Erro ao exportar catálogo');
+            return;
+        } finally {
+            setExporting(false);
+        }
+
         const headers = [
-            'dataEntrada', 'modelo', 'transmissao', 'combustivel', 'cor', 'ano', 'opcionais', 
-            'preco', 'status', 'observacoes', 'cidade', 'estado', 'frete', 'telefone', 
+            'dataEntrada', 'modelo', 'transmissao', 'combustivel', 'cor', 'ano', 'opcionais',
+            'preco', 'status', 'observacoes', 'cidade', 'estado', 'frete', 'telefone',
             'concession', 'nome contato', 'operador'
         ];
         const csvRows = [headers.join(';')]; // Using semicolon to avoid issues in Brazil's Excel
-        
-        for (const row of rows) {
+
+        for (const row of exportRows) {
             const qtd = row.quantidade || 0;
             // If quantity is 0, we'll export 1 row as inactive template so the user can fill it.
             const iterations = qtd > 0 ? qtd : 1;
@@ -497,8 +567,8 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                     </div>
                 ) : (
                     <div className={styles.csvActions}>
-                        <button onClick={handleExportCSV} className={styles.actionBtn}>
-                            <FaFileExport /> Baixar Planilha Base
+                        <button onClick={handleExportCSV} className={styles.actionBtn} disabled={exporting}>
+                            <FaFileExport /> {exporting ? 'Gerando planilha...' : 'Baixar Planilha Base'}
                         </button>
                         <button onClick={() => fileInputRef.current?.click()} className={styles.actionBtn}>
                             <FaFileImport /> Importar CSV
@@ -542,14 +612,17 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
 
             {error && <div className={styles.error}>{error}</div>}
 
-            <div className={styles.tableShell}>
+            <div className={styles.tableShell} ref={tableRef}>
                 <table className={styles.table}>
                     <thead>
                         <tr>
                             <th style={{ width: '40px', textAlign: 'center' }}>
                                 <input
                                     type="checkbox"
-                                    checked={rows.length > 0 && selectedIds.size === rows.length}
+                                    checked={allPageRowsSelected}
+                                    ref={input => {
+                                        if (input) input.indeterminate = !allPageRowsSelected && somePageRowsSelected;
+                                    }}
                                     onChange={handleSelectAll}
                                 />
                             </th>
@@ -723,6 +796,18 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                     </tbody>
                 </table>
             </div>
+
+            {total > 0 && (
+                <Pagination
+                    currentPage={page}
+                    totalItems={total}
+                    itemsPerPage={PAGE_SIZE}
+                    onPageChange={handlePageChange}
+                    loading={loading}
+                    hasNextPage={hasNextPage}
+                />
+            )}
+
             {importReport && (
                 <div className={styles.modalOverlay} onClick={() => setImportReport(null)}>
                     <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
