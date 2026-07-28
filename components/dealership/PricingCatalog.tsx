@@ -459,8 +459,9 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                 body: JSON.stringify({ updates }),
             });
 
-            if (!res.ok) throw new Error('Erro ao processar inativação em massa');
-            
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || 'Erro ao processar inativação em massa');
+
             setSelectedIds(new Set());
             await loadCatalog();
         } catch (err: any) {

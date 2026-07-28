@@ -8,7 +8,28 @@ import VehicleVariation from '@/models/VehicleVariation';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 
+const ADMIN_PROFILES = new Set(['admin', 'administrador', 'gerente', 'operador', 'operator', 'administrativo']);
+const DEALERSHIP_PROFILES = new Set(['concessionaria', 'dealership']);
+
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+async function resolveConcessionaria(session: any, request: Request) {
+    const profile = session?.user?.profile;
+    const requestedId = (new URL(request.url).searchParams.get('concessionariaId') || '').trim();
+
+    if (profile && ADMIN_PROFILES.has(profile) && requestedId) {
+        if (!mongoose.Types.ObjectId.isValid(requestedId)) return null;
+        return Concessionaria.findById(requestedId);
+    }
+
+    if (profile && DEALERSHIP_PROFILES.has(profile)) {
+        const user = await User.findOne({ email: session.user.email }).select('dealershipId');
+        if (!user?.dealershipId) return null;
+        return Concessionaria.findById(user.dealershipId);
+    }
+
+    return null;
+}
 
 function buildBrandMatch(concessionaria: any) {
     const orConditions = [];
@@ -60,22 +81,12 @@ export async function PATCH(request: Request) {
         }
 
         await connectDB();
-        
-        const { searchParams } = new URL(request.url);
-        let concessionariaId = searchParams.get('concessionariaId');
-        
-        const currentProfile = session.user?.profile;
-        if (currentProfile === 'dealership') {
-            const user = await User.findOne({ email: session.user.email });
-            if (!user?.dealershipId) {
-                return NextResponse.json({ error: 'Usuário não tem concessionária vinculada' }, { status: 403 });
-            }
-            concessionariaId = user.dealershipId.toString();
-        }
 
-        if (!concessionariaId) {
-            return NextResponse.json({ error: 'ID da concessionária é obrigatório' }, { status: 400 });
+        const concessionaria = await resolveConcessionaria(session, request);
+        if (!concessionaria) {
+            return NextResponse.json({ error: 'Concessionária não encontrada ou acesso não permitido' }, { status: 403 });
         }
+        const concessionariaId = concessionaria._id;
 
         const body = await request.json();
         const items = body.items; // Array of items from CSV
@@ -83,11 +94,18 @@ export async function PATCH(request: Request) {
 
         // Handle mass deactivation by variationId (e.g., "Zerar Selecionados")
         if (Array.isArray(updates) && updates.length > 0) {
-            const bulkOps = updates.map((u: { variationId: string; preco: number }) => {
-                const precoValue = u.preco > 0 ? u.preco : null;
+            const validUpdates = updates.filter(
+                (u: { variationId?: string }) => !!u?.variationId && mongoose.Types.ObjectId.isValid(u.variationId)
+            );
+
+            if (validUpdates.length === 0) {
+                return NextResponse.json({ error: 'Nenhum veículo válido informado' }, { status: 400 });
+            }
+
+            const bulkOps = validUpdates.map((u: { variationId: string; preco: number }) => {
                 const ativo = typeof u.preco === 'number' && u.preco > 0;
                 const $set: any = {
-                    preco: precoValue,
+                    preco: ativo ? u.preco : null,
                     ativo,
                     updatedAt: new Date(),
                 };
@@ -98,7 +116,7 @@ export async function PATCH(request: Request) {
                 return {
                     updateOne: {
                         filter: {
-                            concessionariaId: new mongoose.Types.ObjectId(concessionariaId),
+                            concessionariaId,
                             variationId: new mongoose.Types.ObjectId(u.variationId),
                         },
                         update: { $set },
@@ -107,13 +125,13 @@ export async function PATCH(request: Request) {
                 };
             });
 
-            if (bulkOps.length > 0) {
-                await DealerVehiclePrice.bulkWrite(bulkOps);
-            }
+            const result = await DealerVehiclePrice.bulkWrite(bulkOps);
 
             return NextResponse.json({
                 success: true,
-                message: `${bulkOps.length} veículos inativados com sucesso.`,
+                matched: result.matchedCount,
+                modified: result.modifiedCount,
+                message: `${result.modifiedCount} veículos inativados com sucesso.`,
             });
         }
 
@@ -134,11 +152,6 @@ export async function PATCH(request: Request) {
         const groupedItems = Array.from(groupedMap.values());
 
         // 2. Fetch all variations for the brand
-        const concessionaria = await Concessionaria.findById(concessionariaId);
-        if (!concessionaria) {
-            return NextResponse.json({ error: 'Concessionária não encontrada' }, { status: 404 });
-        }
-
         const brandMatch = buildBrandMatch(concessionaria);
         if (!brandMatch) {
             return NextResponse.json({ error: 'Concessionária sem marca vinculada' }, { status: 400 });
@@ -186,8 +199,8 @@ export async function PATCH(request: Request) {
                 
                 bulkOps.push({
                     updateOne: {
-                        filter: { 
-                            concessionariaId: new mongoose.Types.ObjectId(concessionariaId),
+                        filter: {
+                            concessionariaId,
                             variationId: matched._id
                         },
                         update: {
