@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildLeadWhatsAppUrl } from '@/lib/utils/leadWhatsApp';
+import { buildLeadWhatsAppUrl, formatBrazilPhone, normalizeBrazilWhatsAppNumber } from '@/lib/utils/leadWhatsApp';
 
 describe('leadWhatsApp utils', () => {
     it('builds a seller WhatsApp URL with lead details', () => {
@@ -27,5 +27,26 @@ describe('leadWhatsApp utils', () => {
         });
 
         expect(url).toContain('https://wa.me/5511999999999?text=');
+    });
+
+    it('normaliza fixo e celular para o formato com DDI', () => {
+        expect(normalizeBrazilWhatsAppNumber('3133702302')).toBe('553133702302');
+        expect(normalizeBrazilWhatsAppNumber('11926384826')).toBe('5511926384826');
+        expect(normalizeBrazilWhatsAppNumber('(31) 3370-2302')).toBe('553133702302');
+        expect(normalizeBrazilWhatsAppNumber('553133702302')).toBe('553133702302');
+    });
+
+    it('aplica máscara em fixo (10 dígitos) e celular (11), com ou sem DDI', () => {
+        expect(formatBrazilPhone('3133702302')).toBe('(31) 3370-2302');
+        expect(formatBrazilPhone('553133702302')).toBe('(31) 3370-2302');
+        expect(formatBrazilPhone('11926384826')).toBe('(11) 92638-4826');
+        expect(formatBrazilPhone('5511926384826')).toBe('(11) 92638-4826');
+        expect(formatBrazilPhone('(31) 3370-2302')).toBe('(31) 3370-2302');
+    });
+
+    it('devolve o valor original quando não reconhece o formato', () => {
+        expect(formatBrazilPhone('123')).toBe('123');
+        expect(formatBrazilPhone('')).toBe('');
+        expect(formatBrazilPhone(null)).toBe('');
     });
 });

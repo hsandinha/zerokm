@@ -12,8 +12,11 @@ import { PlansSection, type PlanData } from '@/components/lp/PlansSection';
 import { FloatingWhatsAppClient } from '@/components/lp/FloatingWhatsAppClient';
 import connectDB from '@/lib/mongodb';
 import PlanModel from '@/models/Plan';
-import Vehicle from '@/models/Vehicle';
+import DealerVehiclePrice from '@/models/DealerVehiclePrice';
+import VehicleVariation from '@/models/VehicleVariation';
 import mongoose from 'mongoose';
+import { formatBrazilPhone, normalizeBrazilWhatsAppNumber } from '@/lib/utils/leadWhatsApp';
+import { buildHomeStockPipeline, mapHomeStockSummary, EMPTY_HOME_STOCK } from '@/lib/utils/homeStock';
 
 export const metadata = {
     title: 'CNV — Comércio Nacional de Veículos 0km',
@@ -181,35 +184,15 @@ export default async function LandingPage() {
         }];
     }
 
-    // Dashboard hero — real data from DB
-    type TopModel = { name: string; estado: string; avgPrice: number; count: number };
-    let dashData = {
-        totalVehicles: 0,
-        totalValue: 0,
-        totalStates: 0,
-        topModels: [] as TopModel[],
-    };
+    // Painel "Ao vivo": estoque real, mesma fonte que o cliente vê no catálogo.
+    let dashData = { ...EMPTY_HOME_STOCK };
     try {
         await connectDB();
-        const [vcCount, vcValue, vcStates, vcTop] = await Promise.all([
-            Vehicle.countDocuments(),
-            Vehicle.aggregate([{ $group: { _id: null, total: { $sum: '$preco' } } }]),
-            Vehicle.distinct('estado'),
-            Vehicle.aggregate([
-                { $group: { _id: '$modelo', count: { $sum: 1 }, avgPrice: { $avg: '$preco' }, estado: { $first: '$estado' } } },
-                { $sort: { count: -1 } },
-                { $limit: 4 },
-            ]),
+        const [resumo, variacoesAtivas] = await Promise.all([
+            DealerVehiclePrice.aggregate(buildHomeStockPipeline()),
+            VehicleVariation.countDocuments({ ativo: true }),
         ]);
-        dashData.totalVehicles = vcCount;
-        dashData.totalValue = vcValue[0]?.total ?? 0;
-        dashData.totalStates = vcStates.length;
-        dashData.topModels = vcTop.map((m: any) => ({
-            name: m._id as string,
-            estado: (m.estado as string ?? '').slice(0, 2).toUpperCase(),
-            avgPrice: m.avgPrice as number,
-            count: m.count as number,
-        }));
+        dashData = mapHomeStockSummary(resumo, variacoesAtivas);
     } catch {
         // keep zeros — UI handles empty gracefully
     }
@@ -242,6 +225,10 @@ export default async function LandingPage() {
     } catch {
         // use default contact
     }
+
+    // Origem única do WhatsApp da página: mesma config que o disparo de lead usa.
+    const whatsappNumber = normalizeBrazilWhatsAppNumber(contactConfig.whatsapp);
+    const whatsappUrl = whatsappNumber ? `https://wa.me/${whatsappNumber}` : null;
 
     const marqueeItems = [...MARQUEE, ...MARQUEE];
 
@@ -339,11 +326,11 @@ export default async function LandingPage() {
                                 </div>
                             </div>
                             <div className={styles.dashProgressRow}>
-                                <span className={styles.dashProgressLabel}>Consultas hoje</span>
+                                <span className={styles.dashProgressLabel}>Catálogo precificado</span>
                                 <div className={styles.dashProgressTrack}>
-                                    <div className={styles.dashProgressFill} style={{ width: '74%' }} />
+                                    <div className={styles.dashProgressFill} style={{ width: `${dashData.pricedPct}%` }} />
                                 </div>
-                                <span className={styles.dashProgressPct}>74%</span>
+                                <span className={styles.dashProgressPct}>{dashData.pricedPct}%</span>
                             </div>
                             <div className={styles.dashVehicleList}>
                                 {dashData.topModels.length > 0 ? dashData.topModels.map((v, i) => (
@@ -565,10 +552,12 @@ export default async function LandingPage() {
                     </ScrollReveal>
                     <ScrollReveal delay={150}>
                         <LandingFAQ items={FAQ_ITEMS} />
-                        <p className={styles.faqContact}>
-                            Não encontrou sua resposta?{' '}
-                            <a href="https://wa.me/5511926384826" target="_blank" rel="noopener noreferrer" className={styles.faqLink}>Fale conosco</a>
-                        </p>
+                        {whatsappUrl && (
+                            <p className={styles.faqContact}>
+                                Não encontrou sua resposta?{' '}
+                                <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className={styles.faqLink}>Fale conosco</a>
+                            </p>
+                        )}
                     </ScrollReveal>
                 </div>
             </section>
@@ -586,7 +575,9 @@ export default async function LandingPage() {
                                 <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
                             </svg>
                         </OpenModalButton>
-                        <a href="https://wa.me/5511926384826" target="_blank" rel="noopener noreferrer" className={styles.heroCtaSecondary}>Falar com vendas</a>
+                        {whatsappUrl && (
+                            <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className={styles.heroCtaSecondary}>Falar com vendas</a>
+                        )}
                     </div>
                     <div className={styles.ctaTrust}>
                         <span className={styles.ctaTrustItem}>🔒 SSL &amp; LGPD</span>
@@ -621,20 +612,11 @@ export default async function LandingPage() {
                             </div>
                             <div className={styles.footerCol}>
                                 <h4 className={styles.footerColTitle}>Contato</h4>
-                                {contactConfig.whatsapp && (() => {
-                                    const raw = contactConfig.whatsapp.replace(/\D/g, '');
-                                    let formatted = contactConfig.whatsapp;
-                                    if (raw.length === 13 && raw.startsWith('55')) {
-                                        formatted = `(${raw.substring(2, 4)}) ${raw.substring(4, 9)}-${raw.substring(9)}`;
-                                    } else if (raw.length === 11) {
-                                        formatted = `(${raw.substring(0, 2)}) ${raw.substring(2, 7)}-${raw.substring(7)}`;
-                                    }
-                                    return (
-                                        <a href={`https://wa.me/${contactConfig.whatsapp}`} target="_blank" rel="noopener noreferrer" className={styles.footerLink}>
-                                            {formatted}
-                                        </a>
-                                    );
-                                })()}
+                                {whatsappUrl && (
+                                    <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className={styles.footerLink}>
+                                        {formatBrazilPhone(contactConfig.whatsapp)}
+                                    </a>
+                                )}
                                 {contactConfig.email_general && <a href={`mailto:${contactConfig.email_general}`} className={styles.footerLink}>{contactConfig.email_general}</a>}
                                 {contactConfig.address && <span className={styles.footerContactInfo}>{contactConfig.address}</span>}
                                 {contactConfig.business_hours && <span className={styles.footerContactInfo}>{contactConfig.business_hours}</span>}
@@ -653,7 +635,7 @@ export default async function LandingPage() {
             </footer>
             <RegisterModals />
             <LegalModals />
-            {contactConfig.whatsapp && <FloatingWhatsAppClient whatsappNumber={contactConfig.whatsapp} />}
+            {whatsappNumber && <FloatingWhatsAppClient whatsappNumber={whatsappNumber} />}
         </div>
     );
 }
