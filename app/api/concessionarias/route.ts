@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Concessionaria from '@/models/Concessionaria';
-import Vehicle from '@/models/Vehicle';
 import DealerVehiclePrice from '@/models/DealerVehiclePrice';
 import VehicleVariation from '@/models/VehicleVariation';
 import User from '@/models/User';
@@ -177,21 +176,14 @@ export async function GET() {
             query.operadorId = dbUser._id;
         }
 
-        // Buscar concessionárias e estatísticas de veículos em paralelo
-        const [concessionarias, vehicleStats, priceStats] = await Promise.all([
+        // Estoque e atividade saem de DealerVehiclePrice, ligado por
+        // concessionariaId. A fonte anterior era a coleção legada Vehicle,
+        // casada pelo NOME da concessionária — o que errava sempre que o nome
+        // cadastrado divergia do digitado no veículo, e ficou congelada quando
+        // a coleção parou de receber dados.
+        const [concessionarias, priceStats] = await Promise.all([
             Concessionaria.find(query).sort({ nome: 1 }),
-            Vehicle.aggregate([
-                {
-                    $group: {
-                        _id: "$concessionaria",
-                        count: { $sum: 1 },
-                        lastUpdate: { $max: "$updatedAt" }
-                    }
-                }
-            ]),
             DealerVehiclePrice.aggregate([
-                { $match: { ativo: true } },
-                // Preços cujo modelo foi removido do catálogo mestre não contam como ativos
                 {
                     $lookup: {
                         from: VehicleVariation.collection.name,
@@ -200,34 +192,43 @@ export async function GET() {
                         as: 'variation',
                     }
                 },
-                { $match: { 'variation.ativo': true } },
+                { $unwind: { path: '$variation', preserveNullAndEmptyArrays: true } },
                 {
                     $group: {
                         _id: "$concessionariaId",
-                        count: { $sum: { $ifNull: ["$quantidade", 0] } }
+                        // Estoque: só preço ativo cujo modelo continua no catálogo mestre.
+                        unidades: {
+                            $sum: {
+                                $cond: [
+                                    { $and: ['$ativo', { $eq: ['$variation.ativo', true] }] },
+                                    { $ifNull: ["$quantidade", 0] },
+                                    0,
+                                ]
+                            }
+                        },
+                        // Atividade: qualquer mexida conta, inclusive zerar estoque.
+                        ultimaAtualizacao: { $max: "$updatedAt" },
                     }
                 }
             ])
         ]);
 
         const statsMap = new Map(
-            vehicleStats.map(stat => [stat._id, { count: stat.count, lastUpdate: stat.lastUpdate }])
-        );
-
-        const priceStatsMap = new Map(
-            priceStats.map(stat => [stat._id.toString(), stat.count])
+            priceStats.map(stat => [
+                stat._id?.toString(),
+                { unidades: stat.unidades ?? 0, ultimaAtualizacao: stat.ultimaAtualizacao ?? null },
+            ])
         );
 
         const serialized = concessionarias.map(c => {
             const base = serializeConcessionaria(c);
-            const stats = statsMap.get(base.nome) || { count: 0, lastUpdate: null };
-            const ativos = priceStatsMap.get(base.id) || 0;
+            const stats = statsMap.get(base.id) || { unidades: 0, ultimaAtualizacao: null };
 
             return {
                 ...base,
-                totalVeiculos: stats.count,
-                ultimaAtualizacao: stats.lastUpdate,
-                totalAtivos: ativos
+                totalVeiculos: stats.unidades,
+                ultimaAtualizacao: stats.ultimaAtualizacao,
+                totalAtivos: stats.unidades
             };
         });
 

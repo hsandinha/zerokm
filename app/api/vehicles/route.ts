@@ -32,10 +32,6 @@ export async function GET(request: Request) {
         }
 
         await connectDB();
-        
-        // Ensure models are registered for lookup
-        require('@/models/VehicleVariation');
-        require('@/models/Concessionaria');
 
         const { searchParams } = new URL(request.url);
         const effectiveProfile = getEffectiveProfile(session, searchParams.get('accessProfile'));
@@ -105,7 +101,11 @@ export async function GET(request: Request) {
                          sortKey === 'modelo' ? 'variation.modelo' :
                          sortKey === 'ano' ? 'variation.anoModelo' : 'updatedAt';
 
-        const matchStage: any = { ativo: true };
+        // Anúncio só entra na vitrine se o modelo continua no catálogo mestre.
+        // Sem isso, preços ativos presos em variação inativa ficavam visíveis
+        // aqui e para o cliente, mas invisíveis na aba Preços da concessionária
+        // (que filtra ativo: true) — ela não conseguia corrigir nem tirar do ar.
+        const matchStage: any = { ativo: true, 'variation.ativo': true };
 
         // Aplica filtros exatos se existirem
         if (searchParams.get('status')) matchStage['statusVeiculo'] = searchParams.get('status');
@@ -169,7 +169,7 @@ export async function GET(request: Request) {
             // 1. Join with Variation
             {
                 $lookup: {
-                    from: 'vehiclevariations',
+                    from: VehicleVariation.collection.name,
                     localField: 'variationId',
                     foreignField: '_id',
                     as: 'variation'
@@ -180,7 +180,7 @@ export async function GET(request: Request) {
             // 2. Join with Concessionaria
             {
                 $lookup: {
-                    from: 'concessionarias',
+                    from: Concessionaria.collection.name,
                     localField: 'concessionariaId',
                     foreignField: '_id',
                     as: 'concessionariaInfo'
