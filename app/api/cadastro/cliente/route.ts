@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { adminAuth } from '@/lib/firebase-admin';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import { createFreeTrialWindow } from '@/lib/utils/freeTrial';
+import { createOrAdoptFirebaseUser, persistOrRollbackFirebaseUser } from '@/lib/utils/signup';
 
 function cleanDigits(v: string) {
     return v.replace(/\D/g, '');
@@ -64,18 +64,16 @@ export async function POST(request: Request) {
             );
         }
 
-        const userRecord = await adminAuth.createUser({
+        const account = await createOrAdoptFirebaseUser({
             email: email.toLowerCase().trim(),
             password,
             displayName: String(nome).trim(),
-            emailVerified: false,
-            disabled: false,
         });
 
         const freeTrial = createFreeTrialWindow();
 
-        await User.create({
-            firebaseUid: userRecord.uid,
+        await persistOrRollbackFirebaseUser(account, () => User.create({
+            firebaseUid: account.uid,
             email: email.toLowerCase().trim(),
             displayName: String(nome).trim(),
             phoneNumber: cleanDigits(celular || telefone || '') || undefined,
@@ -94,7 +92,7 @@ export async function POST(request: Request) {
                 state: String(uf || '').toUpperCase().trim(),
                 zipCode: cleanDigits(cep || ''),
             } : undefined,
-        });
+        }));
 
         return NextResponse.json({ success: true, message: 'Conta criada com sucesso!' }, { status: 201 });
     } catch (error: any) {

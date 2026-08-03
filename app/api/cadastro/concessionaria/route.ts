@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { adminAuth } from '@/lib/firebase-admin';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import Concessionaria from '@/models/Concessionaria';
 import Marca from '@/models/Marca';
+import { createOrAdoptFirebaseUser, persistOrRollbackFirebaseUser } from '@/lib/utils/signup';
 
 export async function POST(request: Request) {
     try {
@@ -65,16 +65,17 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Marca selecionada não encontrada' }, { status: 400 });
         }
 
-        // Criar usuário no Firebase
-        const userRecord = await adminAuth.createUser({
+        // Credencial no Firebase — adota registro órfão de tentativa anterior
+        const account = await createOrAdoptFirebaseUser({
             email: email.toLowerCase().trim(),
             password,
             displayName: String(nomeFantasia).trim(),
-            emailVerified: false,
-            disabled: false,
         });
 
-        // Criar concessionária no MongoDB
+        // Concessionária + usuário no Mongo. Se o usuário falhar, a
+        // concessionária recém-criada é removida junto e o helper desfaz a
+        // credencial: ou o cadastro fica inteiro, ou não sobra rastro.
+        await persistOrRollbackFirebaseUser(account, async () => {
         const concessionaria = await Concessionaria.create({
             nome: String(nomeFantasia).trim(),
             razaoSocial: razaoSocial ? String(razaoSocial).trim() : undefined,
@@ -100,16 +101,23 @@ export async function POST(request: Request) {
             dataCadastro: new Date(),
         });
 
-        // Criar usuário no MongoDB vinculado à concessionária
-        await User.create({
-            firebaseUid: userRecord.uid,
-            email: email.toLowerCase().trim(),
-            displayName: String(nomeFantasia).trim(),
-            allowedProfiles: ['concessionaria'],
-            defaultProfile: 'concessionaria',
-            dealershipId: (concessionaria._id as any).toString(),
-            forcePasswordChange: false,
-            credits: 0,
+        try {
+            await User.create({
+                firebaseUid: account.uid,
+                email: email.toLowerCase().trim(),
+                displayName: String(nomeFantasia).trim(),
+                allowedProfiles: ['concessionaria'],
+                defaultProfile: 'concessionaria',
+                dealershipId: (concessionaria._id as any).toString(),
+                forcePasswordChange: false,
+                credits: 0,
+            });
+        } catch (userError) {
+            await Concessionaria.deleteOne({ _id: concessionaria._id }).catch(cleanupError => {
+                console.error('[signup] Falha ao remover concessionária órfã', cleanupError);
+            });
+            throw userError;
+        }
         });
 
         return NextResponse.json(

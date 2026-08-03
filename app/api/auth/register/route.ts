@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { adminAuth } from '@/lib/firebase-admin';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import { createFreeTrialWindow } from '@/lib/utils/freeTrial';
+import { createOrAdoptFirebaseUser, persistOrRollbackFirebaseUser } from '@/lib/utils/signup';
 
 export async function POST(request: Request) {
     try {
@@ -21,31 +21,32 @@ export async function POST(request: Request) {
 
         await connectDB();
 
-        const existing = await User.findOne({ email: email.toLowerCase().trim() });
+        const normalizedEmail = email.toLowerCase().trim();
+        const normalizedName = String(displayName).trim();
+
+        const existing = await User.findOne({ email: normalizedEmail });
         if (existing) {
             return NextResponse.json({ error: 'Este e-mail já está cadastrado' }, { status: 409 });
         }
 
-        const userRecord = await adminAuth.createUser({
-            email: email.toLowerCase().trim(),
+        const account = await createOrAdoptFirebaseUser({
+            email: normalizedEmail,
             password,
-            displayName: String(displayName).trim(),
-            emailVerified: false,
-            disabled: false
+            displayName: normalizedName,
         });
 
         const freeTrial = createFreeTrialWindow();
 
-        await User.create({
-            firebaseUid: userRecord.uid,
-            email: email.toLowerCase().trim(),
-            displayName: String(displayName).trim(),
+        await persistOrRollbackFirebaseUser(account, () => User.create({
+            firebaseUid: account.uid,
+            email: normalizedEmail,
+            displayName: normalizedName,
             allowedProfiles: ['gratis'],
             defaultProfile: 'gratis',
             forcePasswordChange: false,
             credits: 0,
             ...freeTrial
-        });
+        }));
 
         return NextResponse.json({ success: true, message: 'Conta criada com sucesso!' }, { status: 201 });
     } catch (error: any) {
