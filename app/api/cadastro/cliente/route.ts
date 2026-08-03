@@ -2,7 +2,12 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import { createFreeTrialWindow } from '@/lib/utils/freeTrial';
-import { createOrAdoptFirebaseUser, persistOrRollbackFirebaseUser } from '@/lib/utils/signup';
+import {
+    createOrAdoptFirebaseUser,
+    firebaseSignupErrorResponse,
+    normalizeSignupEmail,
+    persistOrRollbackFirebaseUser,
+} from '@/lib/utils/signup';
 
 function cleanDigits(v: string) {
     return v.replace(/\D/g, '');
@@ -37,7 +42,8 @@ export async function POST(request: Request) {
         if (typeof password !== 'string' || password.length < 6) {
             return NextResponse.json({ error: 'A senha deve ter pelo menos 6 caracteres' }, { status: 400 });
         }
-        if (typeof email !== 'string' || !email.includes('@')) {
+        const normalizedEmail = normalizeSignupEmail(email);
+        if (!normalizedEmail) {
             return NextResponse.json({ error: 'E-mail inválido' }, { status: 400 });
         }
 
@@ -51,7 +57,7 @@ export async function POST(request: Request) {
 
         await connectDB();
 
-        const existingEmail = await User.findOne({ email: email.toLowerCase().trim() });
+        const existingEmail = await User.findOne({ email: normalizedEmail });
         if (existingEmail) {
             return NextResponse.json({ error: 'Este e-mail já está cadastrado' }, { status: 409 });
         }
@@ -65,7 +71,7 @@ export async function POST(request: Request) {
         }
 
         const account = await createOrAdoptFirebaseUser({
-            email: email.toLowerCase().trim(),
+            email: normalizedEmail,
             password,
             displayName: String(nome).trim(),
         });
@@ -74,7 +80,7 @@ export async function POST(request: Request) {
 
         await persistOrRollbackFirebaseUser(account, () => User.create({
             firebaseUid: account.uid,
-            email: email.toLowerCase().trim(),
+            email: normalizedEmail,
             displayName: String(nome).trim(),
             phoneNumber: cleanDigits(celular || telefone || '') || undefined,
             cpf: docClean,     // stores CPF or CNPJ
@@ -97,8 +103,9 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, message: 'Conta criada com sucesso!' }, { status: 201 });
     } catch (error: any) {
         console.error('Erro ao cadastrar cliente:', error);
-        if (error.code === 'auth/email-already-exists') {
-            return NextResponse.json({ error: 'Este e-mail já está cadastrado' }, { status: 409 });
+        const mapeado = firebaseSignupErrorResponse(error);
+        if (mapeado) {
+            return NextResponse.json({ error: mapeado.error }, { status: mapeado.status });
         }
         return NextResponse.json({ error: 'Erro interno ao criar conta' }, { status: 500 });
     }

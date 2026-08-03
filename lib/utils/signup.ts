@@ -1,5 +1,44 @@
 import { adminAuth } from '@/lib/firebase-admin';
 
+// Sem espaços, com domínio e TLD. `includes('@')` deixava passar coisas como
+// "fulano@gmail com" (espaço no lugar do ponto, erro comum de digitação no
+// WhatsApp): a rota aceitava, o Firebase recusava com auth/invalid-email e o
+// cliente recebia "Erro interno ao criar conta".
+// Cada rótulo do domínio precisa ter conteúdo (barra "gmail..com") e o TLD ao
+// menos dois caracteres.
+const EMAIL_REGEX = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)*\.[^\s@.]{2,}$/;
+
+/** Devolve o e-mail normalizado, ou null se não for um endereço válido. */
+export function normalizeSignupEmail(value: unknown): string | null {
+    if (typeof value !== 'string') return null;
+    const email = value.trim().toLowerCase();
+    return EMAIL_REGEX.test(email) ? email : null;
+}
+
+/**
+ * Traduz erro do Firebase para resposta útil. Antes, só
+ * 'auth/email-already-exists' era tratado e todo o resto virava 500 genérico —
+ * quem integra (bot do WhatsApp, formulário) não tinha como saber o que
+ * corrigir, e um e-mail malformado era relatado como problema do servidor.
+ */
+export function firebaseSignupErrorResponse(error: any): { error: string; status: number } | null {
+    switch (error?.code) {
+        case 'auth/email-already-exists':
+            return { error: 'Este e-mail já está cadastrado', status: 409 };
+        case 'auth/invalid-email':
+            return { error: 'E-mail inválido', status: 400 };
+        case 'auth/invalid-password':
+        case 'auth/weak-password':
+            return { error: 'A senha deve ter pelo menos 6 caracteres', status: 400 };
+        case 'auth/invalid-display-name':
+            return { error: 'Nome inválido', status: 400 };
+        case 'auth/invalid-phone-number':
+            return { error: 'Telefone inválido', status: 400 };
+        default:
+            return null;
+    }
+}
+
 export interface FirebaseAccountInput {
     email: string;
     password: string;

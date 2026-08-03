@@ -2,7 +2,12 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import { createFreeTrialWindow } from '@/lib/utils/freeTrial';
-import { createOrAdoptFirebaseUser, persistOrRollbackFirebaseUser } from '@/lib/utils/signup';
+import {
+    createOrAdoptFirebaseUser,
+    firebaseSignupErrorResponse,
+    normalizeSignupEmail,
+    persistOrRollbackFirebaseUser,
+} from '@/lib/utils/signup';
 
 export async function POST(request: Request) {
     try {
@@ -15,13 +20,13 @@ export async function POST(request: Request) {
         if (typeof password !== 'string' || password.length < 6) {
             return NextResponse.json({ error: 'A senha deve ter pelo menos 6 caracteres' }, { status: 400 });
         }
-        if (typeof email !== 'string' || !email.includes('@')) {
+        const normalizedEmail = normalizeSignupEmail(email);
+        if (!normalizedEmail) {
             return NextResponse.json({ error: 'E-mail inválido' }, { status: 400 });
         }
 
         await connectDB();
 
-        const normalizedEmail = email.toLowerCase().trim();
         const normalizedName = String(displayName).trim();
 
         const existing = await User.findOne({ email: normalizedEmail });
@@ -51,8 +56,9 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, message: 'Conta criada com sucesso!' }, { status: 201 });
     } catch (error: any) {
         console.error('Erro ao registrar usuário:', error);
-        if (error.code === 'auth/email-already-exists') {
-            return NextResponse.json({ error: 'Este e-mail já está cadastrado' }, { status: 409 });
+        const mapeado = firebaseSignupErrorResponse(error);
+        if (mapeado) {
+            return NextResponse.json({ error: mapeado.error }, { status: mapeado.status });
         }
         return NextResponse.json({ error: 'Erro interno ao criar conta' }, { status: 500 });
     }

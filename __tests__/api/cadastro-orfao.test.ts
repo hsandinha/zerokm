@@ -134,6 +134,33 @@ describe('POST /api/auth/register', () => {
         expect(await User.findOne({ email: EMAIL })).not.toBeNull();
     });
 
+    it('recusa e-mail malformado antes de chamar o Firebase', async () => {
+        // Caso real do WhatsApp: espaço no lugar do ponto. Passava pelo
+        // includes('@'), o Firebase recusava e virava 500 "Erro interno".
+        const res = await cadastrar({ ...payload, email: 'brunobuiu@gmail com' });
+
+        expect(res.status).toBe(400);
+        expect((await res.json()).error).toBe('E-mail inválido');
+        expect(fb.criados).toEqual([]);
+    });
+
+    it.each([
+        'semarroba.com',
+        'sem@dominio',
+        'com espaco@gmail.com',
+        'fulano@gmail..com ',
+    ])('recusa "%s" com 400', async (email) => {
+        expect((await cadastrar({ ...payload, email })).status).toBe(400);
+        expect(fb.criados).toEqual([]);
+    });
+
+    it('normaliza maiúsculas e espaços nas bordas', async () => {
+        const res = await cadastrar({ ...payload, email: '  BrunoBuiu@Gmail.COM ' });
+
+        expect(res.status).toBe(201);
+        expect(await User.findOne({ email: EMAIL })).not.toBeNull();
+    });
+
     it('não apaga credencial preexistente quando adota e o Mongo falha', async () => {
         fb.porEmail.set(EMAIL, { uid: 'uid-orfao' });
         vi.spyOn(User, 'create').mockRejectedValueOnce(new Error('mongo caiu'));

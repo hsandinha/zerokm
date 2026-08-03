@@ -3,7 +3,12 @@ import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import Concessionaria from '@/models/Concessionaria';
 import Marca from '@/models/Marca';
-import { createOrAdoptFirebaseUser, persistOrRollbackFirebaseUser } from '@/lib/utils/signup';
+import {
+    createOrAdoptFirebaseUser,
+    firebaseSignupErrorResponse,
+    normalizeSignupEmail,
+    persistOrRollbackFirebaseUser,
+} from '@/lib/utils/signup';
 
 export async function POST(request: Request) {
     try {
@@ -44,11 +49,15 @@ export async function POST(request: Request) {
         if (typeof password !== 'string' || password.length < 6) {
             return NextResponse.json({ error: 'A senha deve ter pelo menos 6 caracteres' }, { status: 400 });
         }
+        const normalizedEmail = normalizeSignupEmail(email);
+        if (!normalizedEmail) {
+            return NextResponse.json({ error: 'E-mail inválido' }, { status: 400 });
+        }
 
         await connectDB();
 
         // Verificar e-mail duplicado
-        const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
+        const existingUser = await User.findOne({ email: normalizedEmail });
         if (existingUser) {
             return NextResponse.json({ error: 'Este e-mail já está cadastrado' }, { status: 409 });
         }
@@ -67,7 +76,7 @@ export async function POST(request: Request) {
 
         // Credencial no Firebase — adota registro órfão de tentativa anterior
         const account = await createOrAdoptFirebaseUser({
-            email: email.toLowerCase().trim(),
+            email: normalizedEmail,
             password,
             displayName: String(nomeFantasia).trim(),
         });
@@ -83,13 +92,13 @@ export async function POST(request: Request) {
             marca: marcaDoc.nome || (marca ? String(marca).trim() : undefined),
             cnpj: cnpjClean,
             inscricaoEstadual: inscricaoEstadual || undefined,
-            email: email.toLowerCase().trim(),
+            email: normalizedEmail,
             telefone: telefone ? String(telefone).replace(/\D/g, '') : '',
             celular: celular ? String(celular).replace(/\D/g, '') : undefined,
             contato: String(nomeResponsavel).trim(),
             nomeResponsavel: String(nomeResponsavel).trim(),
             telefoneResponsavel: String(telefoneResponsavel).replace(/\D/g, ''),
-            emailResponsavel: email.toLowerCase().trim(),
+            emailResponsavel: normalizedEmail,
             endereco: endereco ? String(endereco).trim() : '',
             numero: numero ? String(numero).trim() : '',
             complemento: complemento || undefined,
@@ -104,7 +113,7 @@ export async function POST(request: Request) {
         try {
             await User.create({
                 firebaseUid: account.uid,
-                email: email.toLowerCase().trim(),
+                email: normalizedEmail,
                 displayName: String(nomeFantasia).trim(),
                 allowedProfiles: ['concessionaria'],
                 defaultProfile: 'concessionaria',
@@ -126,8 +135,9 @@ export async function POST(request: Request) {
         );
     } catch (error: any) {
         console.error('Erro ao cadastrar concessionária:', error);
-        if (error.code === 'auth/email-already-exists') {
-            return NextResponse.json({ error: 'Este e-mail já está cadastrado' }, { status: 409 });
+        const mapeado = firebaseSignupErrorResponse(error);
+        if (mapeado) {
+            return NextResponse.json({ error: mapeado.error }, { status: mapeado.status });
         }
         return NextResponse.json({ error: 'Erro interno ao criar cadastro' }, { status: 500 });
     }
