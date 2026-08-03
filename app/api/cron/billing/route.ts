@@ -104,16 +104,36 @@ function getExpiryKey(expiresAt: unknown): string {
 }
 
 async function processUpcomingBoletoRenewals(now: Date) {
+    // Gerar boleto cria cobrança de verdade no Mercado Pago. Sem canal de envio
+    // configurado, o cliente seria cobrado sem receber o documento — pior que
+    // não gerar. Melhor parar aqui e deixar o motivo explícito no log.
+    if (!process.env.RESEND_API_KEY) {
+        console.error(
+            '[cron/billing] RESEND_API_KEY ausente — nenhum boleto de renovação foi gerado. ' +
+            'Configure a variável para que os boletos voltem a ser emitidos e enviados.',
+        );
+        return { candidates: 0, generated: 0, emailsSent: 0, emailsFailed: 0, skipped: 0, blocked: 'RESEND_API_KEY ausente' };
+    }
+
     const fiveDaysFromNow = new Date(now.getTime() + FIVE_DAYS_MS);
+    // Quem paga por boleto quase nunca tem activationMethod 'boleto': quando o
+    // admin ativa a assinatura pelo CRM, esse campo vira 'manual' (registra QUEM
+    // ativou), enquanto o boleto fica em paymentMethod (registra COMO paga).
+    // Filtrar só por activationMethod devolvia lista vazia todas as noites —
+    // nenhum boleto de renovação foi gerado desde que o cron existe.
     const boletoUsers = await User.find({
         'subscription.status': 'active',
-        'subscription.activationMethod': 'boleto',
+        $or: [
+            { 'subscription.activationMethod': 'boleto' },
+            { 'subscription.paymentMethod': 'boleto' },
+        ],
         'subscription.expiresAt': { $gt: now, $lte: fiveDaysFromNow },
         isInvitee: { $ne: true },
     }).lean();
 
     let generated = 0;
     let emailsSent = 0;
+    let emailsFailed = 0;
     let skipped = 0;
 
     for (const user of boletoUsers) {
@@ -233,10 +253,22 @@ async function processUpcomingBoletoRenewals(now: Date) {
                 $set: { boletoEmailSentAt: new Date() },
             });
             emailsSent++;
+        } else {
+            // Boleto emitido e não entregue é pior que boleto não emitido: o
+            // cliente é cobrado sem receber nada. Sem RESEND_API_KEY o sendEmail
+            // devolve skipped e antes isso passava em silêncio.
+            emailsFailed++;
+            console.error('[cron/billing] Boleto gerado mas o e-mail NÃO foi enviado:', {
+                userId: user._id,
+                email: user.email,
+                paymentId: (payment as any)._id?.toString(),
+                motivo: emailRes.error,
+                configuracaoAusente: emailRes.skipped === true,
+            });
         }
     }
 
-    return { candidates: boletoUsers.length, generated, emailsSent, skipped };
+    return { candidates: boletoUsers.length, generated, emailsSent, emailsFailed, skipped };
 }
 
 export async function GET(request: Request) {
