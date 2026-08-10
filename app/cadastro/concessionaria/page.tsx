@@ -1,4 +1,5 @@
 'use client';
+import { validateDocumento } from '@/lib/utils/cpf';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -139,8 +140,8 @@ export default function CadastroConcessionariaPage() {
         if (step === 1) {
             if (!form.nomeFantasia.trim()) return 'Nome fantasia é obrigatório.';
             if (!form.marcaId) return 'Selecione a marca representada pela concessionária.';
-            const cnpjDigits = form.cnpj.replace(/\D/g, '');
-            if (cnpjDigits.length !== 14) return 'CNPJ deve ter 14 dígitos.';
+            const cnpjError = validateDocumento('pj', form.cnpj);
+            if (cnpjError) return cnpjError;
             if (!form.telefone.replace(/\D/g, '')) return 'Telefone é obrigatório.';
         }
         if (step === 2) {

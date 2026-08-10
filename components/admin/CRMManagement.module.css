@@ -229,8 +229,15 @@
 .clientGridHeader,
 .clientGridRow {
     display: grid;
-    grid-template-columns: minmax(220px, 1.45fr) minmax(220px, 1.2fr) minmax(130px, 0.7fr) minmax(145px, 0.8fr) minmax(122px, 0.55fr);
-    column-gap: 1.25rem;
+    /* Cliente · Cadastro · Assinatura · Financeiro · Responsável · Ação */
+    grid-template-columns:
+        minmax(210px, 1.35fr)
+        minmax(96px, 0.5fr)
+        minmax(210px, 1.15fr)
+        minmax(126px, 0.65fr)
+        minmax(140px, 0.75fr)
+        minmax(120px, 0.5fr);
+    column-gap: 1rem;
 }
 
 .clientGridHeader {
@@ -292,11 +299,31 @@
 }
 
 .gridIdentity,
+.gridCreated,
 .gridSubscription,
 .gridPayment,
 .gridSeller,
 .gridActions {
     min-width: 0;
+}
+
+.gridCreated {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.createdDate {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text);
+    white-space: nowrap;
+}
+
+.createdAgo {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
 }
 
 .gridIdentity,
@@ -512,11 +539,19 @@
 @media (max-width: 1180px) {
     .clientGridHeader,
     .clientGridRow {
-        grid-template-columns: minmax(210px, 1.35fr) minmax(205px, 1.2fr) minmax(145px, 0.75fr) minmax(118px, 0.5fr);
+        /* Cliente · Cadastro · Assinatura · Responsável · Ação */
+        grid-template-columns:
+            minmax(200px, 1.3fr)
+            minmax(92px, 0.45fr)
+            minmax(200px, 1.15fr)
+            minmax(138px, 0.7fr)
+            minmax(116px, 0.5fr);
     }
 
+    /* Financeiro é a 4ª coluna desde que Cadastro entrou — antes era a 3ª, e o
+       índice desatualizado esconderia a coluna errada. */
     .gridPayment,
-    .clientGridHeader > :nth-child(3) {
+    .clientGridHeader > :nth-child(4) {
         display: none;
     }
 }

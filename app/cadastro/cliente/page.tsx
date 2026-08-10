@@ -1,4 +1,5 @@
 'use client';
+import { validateDocumento } from '@/lib/utils/cpf';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -116,9 +117,8 @@ export default function CadastroClientePage() {
     function validateStep(): string | null {
         if (step === 1) {
             if (!form.nome.trim()) return 'Nome é obrigatório.';
-            const digits = form.documento.replace(/\D/g, '');
-            if (form.tipo === 'pf' && digits.length !== 11) return 'CPF deve ter 11 dígitos.';
-            if (form.tipo === 'pj' && digits.length !== 14) return 'CNPJ deve ter 14 dígitos.';
+            const docError = validateDocumento(form.tipo, form.documento);
+            if (docError) return docError;
             if (!form.telefone.replace(/\D/g, '')) return 'Telefone é obrigatório.';
         }
         if (step === 2) {

@@ -3,6 +3,7 @@ import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import Concessionaria from '@/models/Concessionaria';
 import Marca from '@/models/Marca';
+import { validateDocumento } from '@/lib/utils/cpf';
 import {
     createOrAdoptFirebaseUser,
     firebaseSignupErrorResponse,
@@ -64,6 +65,10 @@ export async function POST(request: Request) {
 
         // Verificar CNPJ duplicado
         const cnpjClean = cnpj.replace(/\D/g, '');
+        const cnpjError = validateDocumento('pj', cnpjClean);
+        if (cnpjError) {
+            return NextResponse.json({ error: cnpjError }, { status: 400 });
+        }
         const existingCnpj = await Concessionaria.findOne({ cnpj: cnpjClean });
         if (existingCnpj) {
             return NextResponse.json({ error: 'Este CNPJ já está cadastrado' }, { status: 409 });

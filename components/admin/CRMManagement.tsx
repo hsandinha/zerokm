@@ -60,7 +60,7 @@ interface CRMSummary {
 }
 
 type FilterTab = 'all' | 'active' | 'expired' | 'no_plan' | 'cortesia';
-type SortKey = 'createdAt' | 'displayName' | 'daysUntilExpiry' | 'status';
+type SortKey = 'createdAt' | 'displayName' | 'daysUntilExpiry' | 'status' | 'payment' | 'vendedor';
 
 const STATUS_LABELS: Record<CRMClient['status'], string> = {
     active: 'Ativo',
@@ -610,6 +610,15 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
         }
     };
 
+    const getPaymentInfo = (client: CRMClient): PaymentInfo | null => {
+        if (client.status !== 'active' && client.status !== 'expired') return null;
+        if (client.activationMethod === 'cortesia') return { kind: 'courtesy', label: '🎁 Cortesia' };
+        if (client.paymentMethod === 'pix' || client.activationMethod === 'pix') return { kind: 'pix', label: 'PIX' };
+        if (client.paymentMethod === 'boleto' || client.activationMethod === 'boleto') return { kind: 'boleto', label: 'Boleto' };
+        if (client.paymentMethod === 'card' || client.activationMethod === 'card') return { kind: 'card', label: 'Cartão' };
+        return { kind: 'unlinked', label: 'Não associado' };
+    };
+
     const filtered = useMemo(() => {
         let list = [...clients];
 
@@ -628,49 +637,74 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
             );
         }
 
-        list.sort((a, b) => {
-            let va: any, vb: any;
-            if (sortKey === 'createdAt') {
-                va = new Date(a.createdAt).getTime();
-                vb = new Date(b.createdAt).getTime();
-            } else if (sortKey === 'displayName') {
-                va = a.displayName.toLowerCase();
-                vb = b.displayName.toLowerCase();
-            } else if (sortKey === 'daysUntilExpiry') {
-                va = a.daysUntilExpiry ?? 9999;
-                vb = b.daysUntilExpiry ?? 9999;
-            } else if (sortKey === 'status') {
-                const order = { expired: 0, no_plan: 1, active: 2 };
-                va = order[a.status];
-                vb = order[b.status];
+        // Valor comparável de cada coluna. Texto sempre em minúsculas e ausência
+        // sempre no fim (independente da direção), senão "sem vendedor" e
+        // "sem pagamento" embaralham o topo da lista.
+        const valorDe = (c: CRMClient): string | number => {
+            switch (sortKey) {
+                case 'createdAt':
+                    return new Date(c.createdAt).getTime() || 0;
+                case 'displayName':
+                    return (c.displayName || c.email || '').toLowerCase();
+                case 'daysUntilExpiry':
+                    return c.daysUntilExpiry ?? Number.POSITIVE_INFINITY;
+                case 'status': {
+                    const ordem: Record<CRMClient['status'], number> = { expired: 0, no_plan: 1, active: 2 };
+                    return ordem[c.status];
+                }
+                case 'payment':
+                    // O rótulo começa com emoji em alguns casos ("🎁 Cortesia"),
+                    // e emoji ordena depois de qualquer letra. Compara pelo texto.
+                    return getPaymentInfo(c)?.label.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase() ?? '';
+                case 'vendedor':
+                    return (vendedores.find(v => v.id === c.vendedorId)?.displayName ?? '').toLowerCase();
+                default:
+                    return 0;
             }
+        };
+
+        list.sort((a, b) => {
+            const va = valorDe(a);
+            const vb = valorDe(b);
+            // Vazio vai para o fim nos dois sentidos.
+            const aVazio = va === '' || va === Number.POSITIVE_INFINITY;
+            const bVazio = vb === '' || vb === Number.POSITIVE_INFINITY;
+            if (aVazio !== bVazio) return aVazio ? 1 : -1;
             if (va < vb) return sortAsc ? -1 : 1;
             if (va > vb) return sortAsc ? 1 : -1;
             return 0;
         });
 
         return list;
-    }, [clients, filterTab, search, sortKey, sortAsc]);
+    }, [clients, filterTab, search, sortKey, sortAsc, vendedores]);
 
     const handleSort = (key: SortKey) => {
         if (sortKey === key) setSortAsc(p => !p);
-        else { setSortKey(key); setSortAsc(true); }
+        // Data começa da mais recente: o uso da coluna é ver quem acabou de
+        // entrar. Nas demais, A→Z / menor→maior é o esperado.
+        else { setSortKey(key); setSortAsc(key !== 'createdAt'); }
     };
 
     const sortIcon = (key: SortKey) => sortKey === key ? (sortAsc ? ' ▲' : ' ▼') : '';
+
+    const ariaSort = (key: SortKey): 'ascending' | 'descending' | 'none' =>
+        sortKey === key ? (sortAsc ? 'ascending' : 'descending') : 'none';
 
     const formatDate = (iso: string | null) => {
         if (!iso) return '—';
         return new Date(iso).toLocaleDateString('pt-BR');
     };
 
-    const getPaymentInfo = (client: CRMClient): PaymentInfo | null => {
-        if (client.status !== 'active' && client.status !== 'expired') return null;
-        if (client.activationMethod === 'cortesia') return { kind: 'courtesy', label: '🎁 Cortesia' };
-        if (client.paymentMethod === 'pix' || client.activationMethod === 'pix') return { kind: 'pix', label: 'PIX' };
-        if (client.paymentMethod === 'boleto' || client.activationMethod === 'boleto') return { kind: 'boleto', label: 'Boleto' };
-        if (client.paymentMethod === 'card' || client.activationMethod === 'card') return { kind: 'card', label: 'Cartão' };
-        return { kind: 'unlinked', label: 'Não associado' };
+    /** "hoje", "3 dias", "2 meses" — mostra o ritmo de entrada sem fazer conta. */
+    const tempoDesde = (iso: string | null) => {
+        if (!iso) return '';
+        const dias = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+        if (!Number.isFinite(dias) || dias < 0) return '';
+        if (dias === 0) return 'hoje';
+        if (dias === 1) return 'ontem';
+        if (dias < 30) return `há ${dias} dias`;
+        const meses = Math.floor(dias / 30);
+        return meses === 1 ? 'há 1 mês' : `há ${meses} meses`;
     };
 
     const selectedAssignPlan = assignModal
@@ -786,15 +820,23 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
 
             {/* Client grid */}
             <div className={styles.resultsSection}>
-                <div className={styles.clientGridHeader}>
-                    <button className={styles.gridSort} onClick={() => handleSort('displayName')}>
+                <div className={styles.clientGridHeader} role="row">
+                    <button className={styles.gridSort} onClick={() => handleSort('displayName')} aria-sort={ariaSort('displayName')}>
                         Cliente{sortIcon('displayName')}
                     </button>
-                    <button className={styles.gridSort} onClick={() => handleSort('daysUntilExpiry')}>
+                    <button className={styles.gridSort} onClick={() => handleSort('createdAt')} aria-sort={ariaSort('createdAt')}>
+                        Cadastro{sortIcon('createdAt')}
+                    </button>
+                    <button className={styles.gridSort} onClick={() => handleSort('daysUntilExpiry')} aria-sort={ariaSort('daysUntilExpiry')}>
                         Assinatura{sortIcon('daysUntilExpiry')}
                     </button>
-                    <span className={styles.gridHeaderLabel}>Financeiro</span>
-                    <span className={styles.gridHeaderLabel}>Responsável</span>
+                    <button className={styles.gridSort} onClick={() => handleSort('payment')} aria-sort={ariaSort('payment')}>
+                        Financeiro{sortIcon('payment')}
+                    </button>
+                    <button className={styles.gridSort} onClick={() => handleSort('vendedor')} aria-sort={ariaSort('vendedor')}>
+                        Responsável{sortIcon('vendedor')}
+                    </button>
+                    {/* Ação é botão, não tem dado para ordenar. */}
                     <span className={styles.gridHeaderLabel}>Ação</span>
                 </div>
 
@@ -857,6 +899,12 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                             <span>{profileCompletion}%</span>
                                         </div>
                                     </div>
+                                </div>
+
+                                <div className={styles.gridCreated}>
+                                    <span className={styles.mobileLabel}>Cadastro</span>
+                                    <strong className={styles.createdDate}>{formatDate(client.createdAt)}</strong>
+                                    <span className={styles.createdAgo}>{tempoDesde(client.createdAt)}</span>
                                 </div>
 
                                 <div className={styles.gridSubscription}>

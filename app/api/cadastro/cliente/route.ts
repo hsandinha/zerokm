@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import { createFreeTrialWindow } from '@/lib/utils/freeTrial';
+import { validateDocumento } from '@/lib/utils/cpf';
 import {
     createOrAdoptFirebaseUser,
     firebaseSignupErrorResponse,
@@ -47,12 +48,14 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'E-mail inválido' }, { status: 400 });
         }
 
+        // Conferir só a quantidade de dígitos deixava passar qualquer sequência
+        // (inclusive 111.111.111-11). O documento é usado depois para emitir
+        // cobrança no Mercado Pago, que recusa CPF inválido — a conta nascia
+        // impossível de cobrar.
         const docClean = cleanDigits(documento);
-        if (tipo === 'pf' && docClean.length !== 11) {
-            return NextResponse.json({ error: 'CPF deve ter 11 dígitos' }, { status: 400 });
-        }
-        if (tipo === 'pj' && docClean.length !== 14) {
-            return NextResponse.json({ error: 'CNPJ deve ter 14 dígitos' }, { status: 400 });
+        const docError = validateDocumento(tipo === 'pj' ? 'pj' : 'pf', docClean);
+        if (docError) {
+            return NextResponse.json({ error: docError }, { status: 400 });
         }
 
         await connectDB();
