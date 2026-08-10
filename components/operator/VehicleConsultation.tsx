@@ -8,6 +8,7 @@ import { useTablesDatabase } from '../../lib/hooks/useTablesDatabase';
 import { useIsMobile } from '../../lib/hooks/useIsMobile';
 import { Vehicle, VehicleService } from '../../lib/services/vehicleService';
 import { TransportadoraService, Transportadora } from '../../lib/services/transportadoraService';
+import { TRANSPORTADORA_PARCEIRA, telefoneTransportadora, whatsappTransportadora } from '../../lib/utils/transportadora';
 import { AddVehicleModal } from './AddVehicleModal';
 import styles from './VehicleConsultation.module.css';
 import modalStyles from './TablesManagement.module.css';
@@ -1204,6 +1205,19 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                         totalQuantidade={totalQuantidade}
                     />
 
+                    <div className={styles.freteBanner}>
+                        <span className={styles.freteBannerLabel}>Transportadora parceira</span>
+                        <span className={styles.freteBannerNome}>{TRANSPORTADORA_PARCEIRA.nome}</span>
+                        <a
+                            href={whatsappTransportadora()}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={styles.freteBannerContato}
+                        >
+                            <FaWhatsapp aria-hidden="true" /> {telefoneTransportadora()}
+                        </a>
+                    </div>
+
                     <div className={styles.resultsSection}>
                         {effectiveViewMode === 'table' ? (
                             <VehicleTable
@@ -1303,10 +1317,19 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                             </button>
                         </div>
                         <div className={modalStyles.form}>
+                            <div className={styles.freteBanner}>
+                                <span className={styles.freteBannerLabel}>Transportadora</span>
+                                <span className={styles.freteBannerNome}>{TRANSPORTADORA_PARCEIRA.nome}</span>
+                                <a
+                                    href={whatsappTransportadora(`frete para ${freteModal.estado}`)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={styles.freteBannerContato}
+                                >
+                                    <FaWhatsapp aria-hidden="true" /> {telefoneTransportadora()}
+                                </a>
+                            </div>
                             <div className={styles.tableContainer} style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                                <span className={styles.totalBadge}>
-                                    Veículos Disponíveis ({totalQuantidade})
-                                </span>
                                 <table className={styles.table}>
                                     <thead>
                                         <tr>

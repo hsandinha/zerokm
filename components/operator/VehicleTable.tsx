@@ -5,6 +5,7 @@ import { HighlightText } from '../HighlightText';
 import { getStatusColor } from './VehicleGrid';
 import { EditableTextCell, EditableSelectCell, EditableAutocompleteCell, EditableYearCell, EditableCurrencyCell, EditableNumberCell } from './EditableCells';
 import { FaWhatsapp } from 'react-icons/fa';
+import { TRANSPORTADORA_PARCEIRA, telefoneTransportadora, whatsappTransportadora } from '../../lib/utils/transportadora';
 import styles from './VehicleConsultation.module.css';
 
 interface VehicleTableProps {
@@ -122,6 +123,9 @@ export function VehicleTable({
                                 FRETE {sortConfig.key === 'frete' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                             </th>
                         )}
+                        {/* Visível para todos os perfis, inclusive cliente e
+                            concessionária — é o canal de cotação de frete. */}
+                        <th className={styles.tableHeader}>TRANSPORTADORA</th>
                         {role !== 'client' && role !== 'gratis' && (
                             <th className={styles.tableHeader} onClick={() => handleSort('operador')} style={{ cursor: 'pointer' }}>
                                 OPERADOR {sortConfig.key === 'operador' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
@@ -280,6 +284,22 @@ export function VehicleTable({
                                     />
                                 </td>
                             )}
+                            <td className={styles.tableCell}>
+                                <a
+                                    href={whatsappTransportadora(
+                                        [vehicle.marca, vehicle.modelo, vehicle.cor, vehicle.estado && `para ${vehicle.estado}`]
+                                            .filter(Boolean).join(' ')
+                                    )}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={styles.transportadoraTag}
+                                    title={`Falar com a ${TRANSPORTADORA_PARCEIRA.nome} no WhatsApp`}
+                                    onClick={event => event.stopPropagation()}
+                                >
+                                    <span className={styles.transportadoraNome}>{TRANSPORTADORA_PARCEIRA.nome}</span>
+                                    <span className={styles.transportadoraFone}>{telefoneTransportadora()}</span>
+                                </a>
+                            </td>
                             {role !== 'client' && role !== 'gratis' && (
                                 <td className={styles.tableCell}>
                                     {isClientReadOnly ? (
