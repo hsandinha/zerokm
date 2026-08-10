@@ -117,6 +117,31 @@ export default function LeadDetailModal({ leadId, onClose, onSaved }: Props) {
     }
   };
 
+  const handleMoveToTrash = async () => {
+    if (!lead) return;
+    if (!confirm(`Mover "${lead.name}" para a lixeira? Ele sai do quadro, mas pode ser restaurado.`)) return;
+
+    setSaving(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/crm/leads/${leadId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ativo: false }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Não foi possível mover para a lixeira');
+      }
+      onSaved();
+      onClose();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleAddTask = async () => {
     if (!newTaskTitle.trim() || !newTaskDue) {
       setError('Informe a descrição e a data da tarefa');
@@ -370,6 +395,15 @@ export default function LeadDetailModal({ leadId, onClose, onSaved }: Props) {
         </div>
 
         <div style={{ padding: '16px 20px', borderTop: '1px solid var(--color-highlight)', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+          {/* Vai para a lixeira, não apaga: o histórico segue disponível para restaurar. */}
+          <button
+            onClick={handleMoveToTrash}
+            disabled={!lead || saving}
+            title="Mover para a lixeira"
+            style={{ marginRight: 'auto', background: 'transparent', color: '#B91C1C', padding: '10px 16px', borderRadius: '8px', fontWeight: 600, border: '1px solid #FCA5A5', cursor: (!lead || saving) ? 'not-allowed' : 'pointer', opacity: (!lead || saving) ? 0.5 : 1 }}
+          >
+            🗑️ Mover para lixeira
+          </button>
           <button onClick={onClose} style={{ background: 'transparent', color: 'var(--color-text-muted)', padding: '10px 16px', borderRadius: '8px', fontWeight: 600, border: '1px solid var(--color-highlight)', cursor: 'pointer' }}>
             Fechar
           </button>

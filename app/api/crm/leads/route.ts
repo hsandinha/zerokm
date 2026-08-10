@@ -31,14 +31,20 @@ export async function GET(request: Request) {
         const stageId = url.searchParams.get('stageId');
         const ownerId = url.searchParams.get('ownerId');
 
+        // ?trash=true lista a lixeira. O período continua valendo nos dois
+        // casos, senão a lixeira ignoraria o filtro de datas do cabeçalho.
+        const trash = url.searchParams.get('trash') === 'true';
+
         const filter: Record<string, any> = {
             concessionariaId: scope.concessionariaId,
-            ativo: true,
+            ativo: !trash,
             ...periodFilter(period),
         };
         if (tags.length) filter.tags = { $in: tags };
         if (stageId) filter.stageId = stageId;
-        if (ownerId) filter.ownerId = ownerId;
+        // "none" = leads sem responsável, que são os que o gestor precisa distribuir.
+        if (ownerId === 'none') filter.ownerId = null;
+        else if (ownerId) filter.ownerId = ownerId;
 
         const leads = await Lead.find(filter).sort({ createdAt: -1 });
 
@@ -92,7 +98,13 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Não é possível criar um lead direto em uma fase de perda' }, { status: 400 });
         }
 
-        const tags = Array.isArray(body.tags) && body.tags.length ? body.tags : classifyLeadTags(firstMessage);
+        // O filtro de origem do quadro trabalha sobre `tags`. Sem transformar a
+        // origem escolhida em tag, o lead cadastrado à mão como "Indicação" ou
+        // "Vera I.A" nunca apareceria ao filtrar por essa origem.
+        const tagsAutomaticas = classifyLeadTags(firstMessage);
+        const tags = Array.isArray(body.tags) && body.tags.length
+            ? body.tags
+            : (tagsAutomaticas.length ? tagsAutomaticas : (source ? [source] : []));
 
         const newLead = await Lead.create({
             name,

@@ -3,6 +3,7 @@ import connectDB from '@/lib/mongodb';
 import Lead from '@/models/Lead';
 import LeadStage from '@/models/LeadStage';
 import LeadEvent from '@/models/LeadEvent';
+import LeadTask from '@/models/LeadTask';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { resolveCrmScope } from '@/lib/utils/crmScope';
@@ -89,6 +90,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         if ('name' in body && body.name) lead.name = body.name;
         if ('phone' in body && body.phone) lead.phone = body.phone;
         if ('email' in body) lead.email = body.email;
+        // Lixeira: `ativo: false` some do quadro mas preserva histórico,
+        // tarefas e eventos — restaurar é só voltar para true.
+        if ('ativo' in body) lead.ativo = body.ativo === true;
 
         // Atuação humana pausa a IA de atendimento: volta 1h depois, dentro do horário comercial
         lead.iaPausedAt = new Date();
@@ -99,6 +103,50 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         return NextResponse.json(serializeLead(lead));
     } catch (error: any) {
         console.error('Erro ao atualizar lead:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
+
+/**
+ * Exclusão definitiva — só para quem já está na lixeira.
+ *
+ * Mandar para a lixeira é PATCH { ativo: false }; este DELETE apaga de vez o
+ * lead e o que pende dele. Recusar quando ainda está ativo evita que um clique
+ * errado no quadro destrua histórico sem passar pela lixeira.
+ */
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+    try {
+        await connectDB();
+
+        const session = await getServerSession(authOptions);
+        const scope = await resolveCrmScope(session);
+        if (!scope.ok) {
+            return NextResponse.json({ error: scope.error }, { status: scope.status });
+        }
+
+        const { concessionariaId } = scope;
+        const { id } = await params;
+
+        const lead = await Lead.findOne({ _id: id, concessionariaId });
+        if (!lead) {
+            return NextResponse.json({ error: 'Lead não encontrado' }, { status: 404 });
+        }
+        if (lead.ativo) {
+            return NextResponse.json(
+                { error: 'Mova o lead para a lixeira antes de excluir definitivamente' },
+                { status: 400 },
+            );
+        }
+
+        await Promise.all([
+            LeadTask.deleteMany({ leadId: lead._id }),
+            LeadEvent.deleteMany({ leadId: lead._id }),
+        ]);
+        await lead.deleteOne();
+
+        return NextResponse.json({ success: true });
+    } catch (error: any) {
+        console.error('Erro ao excluir lead:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

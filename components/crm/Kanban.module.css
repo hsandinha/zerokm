@@ -29,12 +29,43 @@
     padding-bottom: 8px;
 }
 
+/*
+ * A faixa de colunas rola dentro da própria altura, presa à viewport.
+ *
+ * Antes ela crescia junto com a coluna mais cheia, e a barra horizontal ficava
+ * no rodapé desse bloco — com muitos leads era preciso descer a página inteira
+ * até o fim, arrastar de lado e voltar ao topo para ver o resultado.
+ */
 .columns {
     -webkit-overflow-scrolling: touch;
+    max-height: calc(100vh - 240px);
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: auto;
+    scrollbar-color: #9CA3AF #E5E7EB;
+}
+
+.columns::-webkit-scrollbar {
+    height: 12px;
+}
+
+.columns::-webkit-scrollbar-track {
+    background: #E5E7EB;
+    border-radius: 6px;
+}
+
+.columns::-webkit-scrollbar-thumb {
+    background: #9CA3AF;
+    border-radius: 6px;
+}
+
+.columns::-webkit-scrollbar-thumb:hover {
+    background: #6B7280;
 }
 
 .column {
     width: 320px;
+    max-height: 100%;
 }
 
 @media (max-width: 768px) {

@@ -44,13 +44,26 @@ const tasks = [
     { id: 't1', title: 'Ligar para negociar entrada', dueAt: '2026-07-20T14:00:00.000Z', done: false, doneAt: null, createdBy: 'ana@cnv.com', createdAt: '2026-07-01T12:00:00.000Z' },
 ];
 
+const descartados = [
+    {
+        id: 'l9', name: 'Lead Descartado', phone: '11999998888', email: null,
+        tags: ['Indicação'], stageId: 's1', ownerId: null, ownerName: 'Bruna',
+        lostReason: null, notes: null, source: 'Indicação', createdAt: '2026-06-01T12:00:00.000Z',
+    },
+];
+
 const json = (data: any) => Promise.resolve({ ok: true, json: () => Promise.resolve(data) } as Response);
 
+let chamadas: { url: string; method: string; body: any }[];
+
 beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn((url: string) => {
+    chamadas = [];
+    vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => {
+        chamadas.push({ url, method: init?.method ?? 'GET', body: init?.body ? JSON.parse(init.body as string) : null });
         if (url.startsWith('/api/crm/stages')) return json({ data: stages });
         if (url.startsWith('/api/crm/leads/l1/tasks')) return json({ data: tasks });
         if (url.startsWith('/api/crm/leads/l1')) return json({ data: leadDetail });
+        if (url.includes('trash=true')) return json({ data: descartados });
         if (url.startsWith('/api/crm/leads')) return json({ data: leads });
         if (url.startsWith('/api/crm/reports')) return json({ data: report });
         if (url.startsWith('/api/crm/tags')) return json({ data: ['Meta - Público Aberto'] });
@@ -75,7 +88,8 @@ describe('KanbanBoard', () => {
         expect(screen.getByText('Hebert Sandinha')).toBeInTheDocument();
         // A tag aparece duas vezes: no card do lead e como opção do filtro de origem.
         expect(screen.getAllByText('Meta - Público Aberto').length).toBeGreaterThanOrEqual(2);
-        expect(screen.getByText('Ana')).toBeInTheDocument();
+        // Mesma coisa com o responsável, que agora também é opção do filtro de vendedor.
+        expect(screen.getAllByText('Ana').length).toBeGreaterThanOrEqual(1);
     });
 
     it('alterna para os relatórios', async () => {
@@ -118,5 +132,90 @@ describe('KanbanBoard', () => {
 
         expect(screen.getByLabelText('Data inicial')).toBeInTheDocument();
         expect(screen.getByLabelText('Data final')).toBeInTheDocument();
+    });
+    it('oferece as novas origens ao cadastrar um lead à mão', async () => {
+        render(<KanbanBoard />);
+        fireEvent.click(await screen.findByRole('button', { name: /Novo Lead/ }));
+
+        const origem = await screen.findByDisplayValue('Manual');
+        const opcoes = Array.from(origem.querySelectorAll('option')).map(o => o.textContent);
+        expect(opcoes).toEqual(['Manual', 'Vera I.A', 'Indicação', 'Prospecção interna']);
+    });
+
+    it('filtra os leads por vendedor', async () => {
+        render(<KanbanBoard />);
+        const filtro = await screen.findByLabelText('Filtrar por responsável');
+
+        fireEvent.change(filtro, { target: { value: 'u1' } });
+        await waitFor(() => {
+            expect(chamadas.some(c => c.url.includes('/api/crm/leads?') && c.url.includes('ownerId=u1'))).toBe(true);
+        });
+    });
+
+    it('permite filtrar quem está sem responsável', async () => {
+        render(<KanbanBoard />);
+        const filtro = await screen.findByLabelText('Filtrar por responsável');
+
+        fireEvent.change(filtro, { target: { value: 'none' } });
+        await waitFor(() => {
+            expect(chamadas.some(c => c.url.includes('ownerId=none'))).toBe(true);
+        });
+    });
+
+    it('lista os leads descartados na lixeira', async () => {
+        render(<KanbanBoard />);
+        fireEvent.click(await screen.findByRole('button', { name: /Lixeira/ }));
+
+        expect(await screen.findByText('Lead Descartado')).toBeInTheDocument();
+        // O lead ativo não aparece na lixeira.
+        expect(screen.queryByText('Hebert Sandinha')).not.toBeInTheDocument();
+    });
+
+    it('mostra no botão quantos leads estão na lixeira', async () => {
+        render(<KanbanBoard />);
+        expect(await screen.findByRole('button', { name: /Lixeira \(1\)/ })).toBeInTheDocument();
+    });
+
+    it('restaura um lead da lixeira', async () => {
+        render(<KanbanBoard />);
+        fireEvent.click(await screen.findByRole('button', { name: /Lixeira/ }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Restaurar' }));
+
+        await waitFor(() => {
+            const patch = chamadas.find(c => c.method === 'PATCH' && c.url.includes('/api/crm/leads/l9'));
+            expect(patch?.body).toEqual({ ativo: true });
+        });
+    });
+
+    it('exclui definitivamente após confirmação', async () => {
+        vi.stubGlobal('confirm', vi.fn(() => true));
+        render(<KanbanBoard />);
+        fireEvent.click(await screen.findByRole('button', { name: /Lixeira/ }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Excluir definitivamente' }));
+
+        await waitFor(() => {
+            expect(chamadas.some(c => c.method === 'DELETE' && c.url.includes('/api/crm/leads/l9'))).toBe(true);
+        });
+    });
+
+    it('não exclui quando a confirmação é recusada', async () => {
+        vi.stubGlobal('confirm', vi.fn(() => false));
+        render(<KanbanBoard />);
+        fireEvent.click(await screen.findByRole('button', { name: /Lixeira/ }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Excluir definitivamente' }));
+
+        expect(chamadas.some(c => c.method === 'DELETE')).toBe(false);
+    });
+
+    it('manda o lead para a lixeira pelo modal de detalhe', async () => {
+        vi.stubGlobal('confirm', vi.fn(() => true));
+        render(<KanbanBoard />);
+        fireEvent.click(await screen.findByTitle('Abrir lead'));
+        fireEvent.click(await screen.findByRole('button', { name: /Mover para lixeira/ }));
+
+        await waitFor(() => {
+            const patch = chamadas.find(c => c.method === 'PATCH' && c.url.includes('/api/crm/leads/l1'));
+            expect(patch?.body).toEqual({ ativo: false });
+        });
     });
 });

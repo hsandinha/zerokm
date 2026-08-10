@@ -23,14 +23,14 @@ import LeadDetailModal from './LeadDetailModal';
 import FunnelFilters, { FilterState } from './FunnelFilters';
 import RadarCards from './RadarCards';
 import ReportsPanel from './ReportsPanel';
-import { Lead, ReportData, Stage } from './types';
+import { Lead, Owner, ReportData, Stage } from './types';
 import styles from './Kanban.module.css';
 
 export type { Lead, Stage } from './types';
 
-type View = 'funil' | 'relatorios';
+type View = 'funil' | 'relatorios' | 'lixeira';
 
-const INITIAL_FILTERS: FilterState = { preset: 'all', from: '', to: '', tag: '' };
+const INITIAL_FILTERS: FilterState = { preset: 'all', from: '', to: '', tag: '', ownerId: '' };
 
 function buildQuery(filters: FilterState) {
   const params = new URLSearchParams({ preset: filters.preset });
@@ -39,6 +39,7 @@ function buildQuery(filters: FilterState) {
     if (filters.to) params.set('to', filters.to);
   }
   if (filters.tag) params.set('tags', filters.tag);
+  if (filters.ownerId) params.set('ownerId', filters.ownerId);
   return params.toString();
 }
 
@@ -53,6 +54,8 @@ export default function KanbanBoard() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [report, setReport] = useState<ReportData | null>(null);
   const [tags, setTags] = useState<string[]>([]);
+  const [owners, setOwners] = useState<Owner[]>([]);
+  const [trashed, setTrashed] = useState<Lead[]>([]);
 
   const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
   const [searchQuery, setSearchQuery] = useState('');
@@ -72,26 +75,32 @@ export default function KanbanBoard() {
     setLoading(true);
     setError('');
     try {
-      const [stagesRes, leadsRes, reportRes, tagsRes] = await Promise.all([
+      const [stagesRes, leadsRes, reportRes, tagsRes, ownersRes, trashRes] = await Promise.all([
         fetch('/api/crm/stages'),
         fetch(`/api/crm/leads?${query}`),
         fetch(`/api/crm/reports?${query}`),
         fetch('/api/crm/tags'),
+        fetch('/api/crm/owners'),
+        fetch(`/api/crm/leads?${query}&trash=true`),
       ]);
 
       if (!stagesRes.ok || !leadsRes.ok) throw new Error('Não foi possível carregar o funil');
 
-      const [stagesData, leadsData, reportData, tagsData] = await Promise.all([
+      const [stagesData, leadsData, reportData, tagsData, ownersData, trashData] = await Promise.all([
         stagesRes.json(),
         leadsRes.json(),
         reportRes.ok ? reportRes.json() : Promise.resolve({ data: null }),
         tagsRes.ok ? tagsRes.json() : Promise.resolve({ data: [] }),
+        ownersRes.ok ? ownersRes.json() : Promise.resolve({ data: [] }),
+        trashRes.ok ? trashRes.json() : Promise.resolve({ data: [] }),
       ]);
 
       setStages(stagesData.data || []);
       setLeads(leadsData.data || []);
       setReport(reportData.data || null);
       setTags(tagsData.data || []);
+      setOwners(ownersData.data || []);
+      setTrashed(trashData.data || []);
     } catch (err: any) {
       setError(err.message || 'Erro ao carregar o CRM');
     } finally {
@@ -126,6 +135,38 @@ export default function KanbanBoard() {
       fetchData();
     } catch (err: any) {
       setLeads(previous);
+      setError(err.message);
+    }
+  };
+
+  /** Lixeira: some do quadro sem perder histórico. `ativo` volta a true ao restaurar. */
+  const setLeadAtivo = async (leadId: string, ativo: boolean) => {
+    try {
+      const res = await fetch(`/api/crm/leads/${leadId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ativo }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Falha ao atualizar o lead');
+      }
+      fetchData();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
+  const excluirDefinitivo = async (lead: Lead) => {
+    if (!confirm(`Excluir "${lead.name}" definitivamente? O histórico e as tarefas vão junto.`)) return;
+    try {
+      const res = await fetch(`/api/crm/leads/${lead.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Falha ao excluir o lead');
+      }
+      fetchData();
+    } catch (err: any) {
       setError(err.message);
     }
   };
@@ -187,6 +228,9 @@ export default function KanbanBoard() {
           <div style={{ display: 'flex', gap: '4px' }}>
             <button onClick={() => setView('funil')} style={toggleButton(view === 'funil')}>Funil</button>
             <button onClick={() => setView('relatorios')} style={toggleButton(view === 'relatorios')}>Relatórios</button>
+            <button onClick={() => setView('lixeira')} style={toggleButton(view === 'lixeira')}>
+              🗑️ Lixeira{trashed.length > 0 ? ` (${trashed.length})` : ''}
+            </button>
           </div>
           <button
             onClick={() => setIsStageModalOpen(true)}
@@ -211,12 +255,51 @@ export default function KanbanBoard() {
         </div>
       )}
 
-      <FunnelFilters filters={filters} tags={tags} onChange={setFilters} />
+      <FunnelFilters filters={filters} tags={tags} owners={owners} onChange={setFilters} />
 
       <RadarCards report={report} loading={loading && !report} />
 
       {view === 'relatorios' ? (
         <ReportsPanel report={report} loading={loading && !report} />
+      ) : view === 'lixeira' ? (
+        <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '20px' }}>
+          <h2 style={{ margin: '0 0 4px', fontSize: '1.1rem', color: '#111827' }}>Lixeira</h2>
+          <p style={{ margin: '0 0 16px', color: '#6B7280', fontSize: '0.875rem' }}>
+            Leads removidos do quadro. O histórico fica guardado até a exclusão definitiva.
+          </p>
+          {trashed.length === 0 ? (
+            <p style={{ color: '#9CA3AF', margin: 0 }}>A lixeira está vazia.</p>
+          ) : (
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {trashed.map(lead => (
+                <li
+                  key={lead.id}
+                  style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', border: '1px solid #E5E7EB', borderRadius: '10px', padding: '12px 16px' }}
+                >
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <strong style={{ color: '#111827' }}>{lead.name}</strong>
+                    <div style={{ color: '#6B7280', fontSize: '0.85rem' }}>
+                      {lead.phone}{lead.ownerName ? ` · ${lead.ownerName}` : ''}
+                      {lead.tags.length ? ` · ${lead.tags.join(', ')}` : ''}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setLeadAtivo(lead.id, true)}
+                    style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid #3B82F6', background: '#FFFFFF', color: '#1D4ED8', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    Restaurar
+                  </button>
+                  <button
+                    onClick={() => excluirDefinitivo(lead)}
+                    style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#B91C1C', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    Excluir definitivamente
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       ) : stages.length === 0 ? (
         <div style={{ background: '#FFFFFF', border: '1px dashed #D1D5DB', borderRadius: '12px', padding: '48px 24px', textAlign: 'center' }}>
           <p style={{ color: '#6B7280', marginTop: 0 }}>Seu funil ainda não tem fases.</p>

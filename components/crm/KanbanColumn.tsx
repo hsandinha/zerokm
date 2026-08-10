@@ -15,7 +15,7 @@ interface Props {
 }
 
 export default function KanbanColumn({ stage, leads, onOpenLead }: Props) {
-  const { setNodeRef } = useDroppable({ id: stage.id });
+  const { setNodeRef, isOver } = useDroppable({ id: stage.id });
 
   return (
     <div className={styles.column} style={{ display: 'flex', flexDirection: 'column', flexShrink: 0, background: 'transparent', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
@@ -34,19 +34,43 @@ export default function KanbanColumn({ stage, leads, onOpenLead }: Props) {
         </span>
       </div>
 
+      {/* A área de drop ocupa toda a altura da coluna. Antes ela encolhia até o
+          tamanho do conteúdo, e numa etapa vazia sobrava uma faixa de poucos
+          pixels — soltar o card ali quase nunca acertava o alvo. */}
       <div
         ref={setNodeRef}
-        style={{ flex: 1, padding: '16px 12px', overflowY: 'auto', minHeight: '150px', background: '#F9FAFB' }}
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '16px 12px',
+          overflowY: 'auto',
+          minHeight: '320px',
+          background: isOver ? '#EFF6FF' : '#F9FAFB',
+          transition: 'background 0.15s ease',
+        }}
       >
         <SortableContext
           id={stage.id}
           items={leads.map(l => l.id)}
           strategy={verticalListSortingStrategy}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1 }}>
             {leads.length === 0 ? (
-                <div style={{ padding: '24px', textAlign: 'center', color: '#9CA3AF', fontSize: '0.875rem', border: '1px dashed #D1D5DB', borderRadius: '8px' }}>
-                    Sem leads nesta etapa
+                <div style={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: '260px',
+                  padding: '24px',
+                  textAlign: 'center',
+                  color: isOver ? '#1D4ED8' : '#9CA3AF',
+                  fontSize: '0.875rem',
+                  border: `1px dashed ${isOver ? '#3B82F6' : '#D1D5DB'}`,
+                  borderRadius: '8px',
+                }}>
+                    {isOver ? 'Solte aqui' : 'Sem leads nesta etapa'}
                 </div>
             ) : (
                 leads.map((lead) => (

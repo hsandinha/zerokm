@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Stage } from './types';
 import { MdClose } from 'react-icons/md';
+import { MANUAL_LEAD_SOURCES } from '@/lib/utils/leadTags';
 
 interface Props {
   stages: Stage[];
@@ -96,6 +97,19 @@ export default function AddLeadModal({ stages, onClose, onRefresh }: Props) {
               onChange={(e) => setEmail(e.target.value)}
               style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--color-highlight)', color: 'var(--color-text)', borderRadius: '8px', padding: '10px 12px', outline: 'none' }}
             />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-muted)', marginBottom: '8px' }}>Origem</label>
+            <select
+              value={source}
+              onChange={(e) => setSource(e.target.value)}
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--color-highlight)', color: 'var(--color-text)', borderRadius: '8px', padding: '10px 12px', outline: 'none' }}
+            >
+              {MANUAL_LEAD_SOURCES.map(origem => (
+                <option key={origem} value={origem} style={{ color: '#000' }}>{origem}</option>
+              ))}
+            </select>
           </div>
 
           <div>

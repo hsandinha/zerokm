@@ -8,11 +8,13 @@ export interface FilterState {
   from: string;
   to: string;
   tag: string;
+  ownerId: string;
 }
 
 interface Props {
   filters: FilterState;
   tags: string[];
+  owners: { id: string; name: string }[];
   onChange: (next: FilterState) => void;
 }
 
@@ -33,7 +35,7 @@ const dateInput: React.CSSProperties = {
   color: '#111827', background: '#FFFFFF', fontSize: '0.875rem',
 };
 
-export default function FunnelFilters({ filters, tags, onChange }: Props) {
+export default function FunnelFilters({ filters, tags, owners, onChange }: Props) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
       {PERIOD_PRESETS.map(({ value, label }) => (
@@ -67,7 +69,20 @@ export default function FunnelFilters({ filters, tags, onChange }: Props) {
         </div>
       )}
 
-      <div style={{ marginLeft: 'auto' }}>
+      <div style={{ marginLeft: 'auto', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+        <select
+          aria-label="Filtrar por responsável"
+          value={filters.ownerId}
+          onChange={(e) => onChange({ ...filters, ownerId: e.target.value })}
+          style={{ ...dateInput, padding: '8px 12px', minWidth: '190px' }}
+        >
+          <option value="">Todos os vendedores</option>
+          <option value="none">Sem responsável</option>
+          {owners.map(owner => (
+            <option key={owner.id} value={owner.id}>{owner.name}</option>
+          ))}
+        </select>
+
         <select
           aria-label="Filtrar por origem"
           value={filters.tag}
