@@ -327,7 +327,10 @@ export async function PATCH(request: Request) {
                     quantidade: body.quantidade !== undefined ? body.quantidade : undefined,
                     prazo,
                     coresDisponiveis: Array.isArray(body.coresDisponiveis) ? body.coresDisponiveis : [],
-                    observacoes: normalizeText(body.observacoes) || undefined,
+                    // Sem o `|| undefined`: string vazia precisa chegar ao banco,
+                    // senão apagar a observação na tela não tem efeito nenhum —
+                    // o Mongoose descarta os campos undefined do $set.
+                    observacoes: 'observacoes' in body ? normalizeText(body.observacoes) : undefined,
                     statusVeiculo: normalizeText(body.statusVeiculo) || undefined,
                 },
             },

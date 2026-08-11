@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { formatPrazo, parsePrazo, prazoParaInput } from '@/lib/utils/prazo';
 
 export interface EditableCurrencyCellProps {
     value?: number;
@@ -520,6 +521,77 @@ export function EditableNumberCell({ value, onSave, min = 0 }: EditableNumberCel
             title="Clique para editar"
         >
             {value !== undefined ? value : '-'}
+        </div>
+    );
+}
+
+interface EditablePrazoCellProps {
+    value: number | null | undefined;
+    onSave: (value: number | null) => void;
+}
+
+/**
+ * Prazo de entrega editável na própria linha, como preço e quantidade.
+ *
+ * Aceita "Pronta Entrega" (que vale 0) além do número de dias — é assim que o
+ * catálogo da concessionária e o CSV já tratam o campo, e a lista suspensa
+ * evita que cada pessoa escreva a expressão de um jeito.
+ */
+export function EditablePrazoCell({ value, onSave }: EditablePrazoCellProps) {
+    const [isEditing, setIsEditing] = useState(false);
+    const [localValue, setLocalValue] = useState<string>('');
+
+    useEffect(() => {
+        setLocalValue(prazoParaInput(value));
+    }, [value]);
+
+    const commit = () => {
+        setIsEditing(false);
+        const parsed = parsePrazo(localValue);
+        if (parsed !== (value ?? null)) {
+            onSave(parsed);
+        }
+    };
+
+    if (isEditing) {
+        return (
+            <>
+                <input
+                    autoFocus
+                    type="text"
+                    list="prazo-sugestoes"
+                    value={localValue}
+                    onChange={(e) => setLocalValue(e.target.value)}
+                    onBlur={commit}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') commit();
+                        if (e.key === 'Escape') {
+                            setLocalValue(prazoParaInput(value));
+                            setIsEditing(false);
+                        }
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    placeholder="dias ou Pronta Entrega"
+                    style={{ width: '120px', padding: '4px', borderRadius: '4px', border: '1px solid #ccc', color: '#000', textAlign: 'center' }}
+                />
+                <datalist id="prazo-sugestoes">
+                    <option value="Pronta Entrega" />
+                </datalist>
+            </>
+        );
+    }
+
+    return (
+        <div
+            onClick={(e) => {
+                e.stopPropagation();
+                setLocalValue(prazoParaInput(value));
+                setIsEditing(true);
+            }}
+            style={{ cursor: 'pointer', minHeight: '20px', minWidth: '60px', borderBottom: '1px dashed #ccc', textAlign: 'center' }}
+            title="Clique para editar"
+        >
+            {formatPrazo(value)}
         </div>
     );
 }

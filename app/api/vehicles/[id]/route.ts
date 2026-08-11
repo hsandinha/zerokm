@@ -45,6 +45,23 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
             updateData.observacoes = body.observacoes;
         }
 
+        // Prazo de entrega: 0 = pronta entrega, null limpa o campo. Sem este
+        // bloco a edição na Consulta de Veículos era aceita na tela e descartada
+        // aqui, porque o PUT só olhava preço, quantidade e observações.
+        if (body.prazo !== undefined) {
+            const prazo = body.prazo === null || body.prazo === '' ? null : Number(body.prazo);
+            if (prazo !== null && (!Number.isFinite(prazo) || prazo < 0)) {
+                return NextResponse.json({ error: 'Prazo inválido' }, { status: 400 });
+            }
+            updateData.prazo = prazo;
+        }
+
+        // Preço zerado desativa o registro; manter prazo seria prometer entrega
+        // de um veículo que saiu do catálogo.
+        if (updateData.ativo === false) {
+            updateData.prazo = null;
+        }
+
         if (Object.keys(updateData).length === 0) {
             return NextResponse.json({ message: 'Nada a atualizar' });
         }

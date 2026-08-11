@@ -3,7 +3,8 @@ import { Vehicle } from '../../lib/services/vehicleService';
 import { calculateDaysSinceUpdate, formatDate, getUpdateStatusColor } from '../../lib/utils/formatters';
 import { HighlightText } from '../HighlightText';
 import { getStatusColor } from './VehicleGrid';
-import { EditableTextCell, EditableSelectCell, EditableAutocompleteCell, EditableYearCell, EditableCurrencyCell, EditableNumberCell } from './EditableCells';
+import { EditableTextCell, EditableSelectCell, EditableAutocompleteCell, EditableYearCell, EditableCurrencyCell, EditableNumberCell, EditablePrazoCell } from './EditableCells';
+import { formatPrazo } from '../../lib/utils/prazo';
 import { FaWhatsapp } from 'react-icons/fa';
 import { TRANSPORTADORA_PARCEIRA, telefoneTransportadora, whatsappTransportadora } from '../../lib/utils/transportadora';
 import styles from './VehicleConsultation.module.css';
@@ -249,7 +250,14 @@ export function VehicleTable({
                                 )}
                             </td>
                             <td className={styles.tableCell}>
-                                {vehicle.prazo === 0 ? 'Pronta Entrega' : vehicle.prazo ? `${vehicle.prazo} dias` : '-'}
+                                {isClientReadOnly && !canEditPriceAndNotes ? (
+                                    formatPrazo(vehicle.prazo)
+                                ) : (
+                                    <EditablePrazoCell
+                                        value={vehicle.prazo}
+                                        onSave={(newValue) => handleUpdateVehicleField(vehicle, 'prazo', newValue)}
+                                    />
+                                )}
                             </td>
                             {role !== 'dealership' && role !== 'gratis' && (
                                 <td className={styles.tableCell}>

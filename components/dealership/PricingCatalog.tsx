@@ -61,6 +61,19 @@ function formatCurrency(value: number | null | undefined) {
     });
 }
 
+/**
+ * "Pronta Entrega" e 0 significam a mesma coisa; qualquer outro número é a
+ * quantidade de dias. Usado na digitação da tela e na importação do CSV, para
+ * as duas entradas entenderem o campo do mesmo jeito.
+ */
+function parsePrazo(value: string | undefined | null): number | null {
+    const norm = (value ?? '').trim().toLowerCase();
+    if (norm === '') return null;
+    if (norm === 'pronta entrega' || norm === 'pronta' || norm === '0') return 0;
+    const dias = parseInt(norm, 10);
+    return Number.isFinite(dias) && dias >= 0 ? dias : null;
+}
+
 function parseCurrency(value: string) {
     const trimmed = value.trim();
     if (!trimmed) return null;
@@ -96,6 +109,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
     const [draftStatuses, setDraftStatuses] = useState<Record<string, string>>({});
     const [draftQuantities, setDraftQuantities] = useState<Record<string, string>>({});
     const [draftPrazos, setDraftPrazos] = useState<Record<string, string>>({});
+    const [draftObs, setDraftObs] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState<Record<string, boolean>>({});
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [importReport, setImportReport] = useState<{ successes: any[]; errors: any[] } | null>(null);
@@ -143,6 +157,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
             setConcessionariaInfo(data.concessionaria || null);
             setDraftPrices({});
             setDraftPrazos({});
+            setDraftObs({});
         } catch (err: any) {
             setError(err?.message || 'Erro ao carregar catálogo');
         } finally {
@@ -178,7 +193,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
     const allPageRowsSelected = rows.length > 0 && rows.every(row => selectedIds.has(row.variationId));
     const somePageRowsSelected = rows.some(row => selectedIds.has(row.variationId));
 
-    const updateRowFields = async (row: PricingRow, rawPriceValue: string, newStatusVeiculo?: string, rawQuantidadeValue?: string, rawPrazoValue?: string) => {
+    const updateRowFields = async (row: PricingRow, rawPriceValue: string, newStatusVeiculo?: string, rawQuantidadeValue?: string, rawPrazoValue?: string, rawObsValue?: string) => {
         const rawTrimmed = rawPriceValue.trim();
         const preco = parseCurrency(rawPriceValue);
         const statusVeiculo = newStatusVeiculo !== undefined ? newStatusVeiculo : (row.statusVeiculo || 'A faturar');
@@ -197,19 +212,14 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
         }
 
         const prazoRawStr = rawPrazoValue !== undefined ? rawPrazoValue : (draftPrazos[row.variationId] ?? String(row.prazo ?? ''));
-        const prazoNorm = prazoRawStr.trim().toLowerCase();
-        let prazo: number | null = null;
-        if (prazoNorm === 'pronta entrega' || prazoNorm === 'pronta' || prazoNorm === '0') {
-            prazo = 0;
-        } else if (prazoNorm !== '') {
-            prazo = parseInt(prazoNorm, 10);
-            if (isNaN(prazo)) prazo = null;
-        }
+        let prazo = parsePrazo(prazoRawStr);
 
         if (preco === null || preco === 0) {
             prazo = null;
             setDraftPrazos(prev => ({ ...prev, [row.variationId]: '' }));
         }
+
+        const observacoes = (rawObsValue !== undefined ? rawObsValue : (draftObs[row.variationId] ?? row.observacoes ?? '')).trim();
 
         if (rawTrimmed && preco === null && rawTrimmed !== '0' && rawTrimmed !== '0,00') {
             setError('Preço inválido. Use apenas números, vírgula e ponto.');
@@ -233,6 +243,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                     frete: row.frete,
                     quantidade,
                     prazo,
+                    observacoes,
                     statusVeiculo
                 }),
             });
@@ -247,6 +258,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                     frete: data.frete ?? item.frete,
                     quantidade: data.quantidade ?? item.quantidade,
                     prazo: data.prazo ?? item.prazo,
+                    observacoes: data.observacoes ?? '',
                     statusVeiculo: data.statusVeiculo,
                     ativo: data.ativo,
                     status: data.status,
@@ -280,13 +292,14 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
         }
     };
 
-    const moveToNextField = (index: number, currentCol: 'preco' | 'qtd' | 'prazo' | 'status') => {
-        let nextCol: 'preco' | 'qtd' | 'prazo' | 'status' | null = null;
+    const moveToNextField = (index: number, currentCol: 'preco' | 'qtd' | 'prazo' | 'obs' | 'status') => {
+        let nextCol: 'preco' | 'qtd' | 'prazo' | 'obs' | 'status' | null = null;
         let targetIndex = index;
 
         if (currentCol === 'preco') nextCol = 'qtd';
         else if (currentCol === 'qtd') nextCol = 'prazo';
-        else if (currentCol === 'prazo') nextCol = 'status';
+        else if (currentCol === 'prazo') nextCol = 'obs';
+        else if (currentCol === 'obs') nextCol = 'status';
         else if (currentCol === 'status') {
             nextCol = 'preco';
             targetIndex = index + 1;
@@ -358,7 +371,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
 
         const headers = [
             'dataEntrada', 'modelo', 'transmissao', 'combustivel', 'cor', 'ano', 'opcionais',
-            'preco', 'status', 'observacoes', 'cidade', 'estado', 'frete', 'telefone',
+            'preco', 'prazo', 'status', 'observacoes', 'cidade', 'estado', 'frete', 'telefone',
             'concession', 'nome contato', 'operador'
         ];
         const csvRows = [headers.join(';')]; // Using semicolon to avoid issues in Brazil's Excel
@@ -383,6 +396,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                 `"${anoFormatado}"`,
                 `"${row.opcionais || ''}"`,
                 precoAtual,
+                `"${row.prazo === 0 ? 'Pronta Entrega' : (row.prazo ?? '')}"`,
                 `"${row.statusVeiculo || 'A faturar'}"`,
                 `"${row.observacoes || ''}"`,
                 `"${concessionariaInfo?.cidade || ''}"`,
@@ -430,6 +444,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
             preco: headerLine.findIndex(h => h === 'preco' || h === 'preço' || h.includes('novo_preco') || h.includes('preco_atual')),
             status: headerLine.findIndex(h => h === 'status' || h.includes('novo_status')),
             obs: headerLine.findIndex(h => h.includes('observacoes') || h.includes('observações')),
+            prazo: headerLine.findIndex(h => h.includes('prazo')),
             frete: headerLine.findIndex(h => h.includes('frete')),
         };
         
@@ -473,6 +488,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                     opcionais: getCol(idx.opcionais),
                     preco: parsed || 0,
                     statusVeiculo: getCol(idx.status),
+                    prazo: parsePrazo(getCol(idx.prazo)),
                     observacoes: getCol(idx.obs),
                     frete: parseCurrency(getCol(idx.frete) || '') || 0,
                 });
@@ -636,17 +652,18 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                             <th>Preço</th>
                             <th style={{ width: '80px' }}>Qtd</th>
                             <th style={{ width: '80px' }}>Prazo</th>
+                            <th style={{ minWidth: '150px' }}>Observações</th>
                             <th>Status</th>
                         </tr>
                     </thead>
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan={11} className={styles.empty}>Carregando catálogo...</td>
+                                <td colSpan={12} className={styles.empty}>Carregando catálogo...</td>
                             </tr>
                         ) : rows.length === 0 ? (
                             <tr>
-                                <td colSpan={11} className={styles.empty}>Nenhuma variação encontrada.</td>
+                                <td colSpan={12} className={styles.empty}>Nenhuma variação encontrada.</td>
                             </tr>
                         ) : rows.map((row, index) => {
                             const inputValue = draftPrices[row.variationId] ?? formatCurrency(row.preco);
@@ -759,6 +776,29 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                                         <datalist id={`prazo-options-${row.variationId}`}>
                                             <option value="Pronta Entrega" />
                                         </datalist>
+                                    </td>
+                                    <td>
+                                        <input
+                                            data-row-index={index}
+                                            data-col="obs"
+                                            type="text"
+                                            value={draftObs[row.variationId] ?? row.observacoes ?? ''}
+                                            disabled={isSaving}
+                                            className={styles.priceInput}
+                                            placeholder="Ex.: pronta entrega, sem troca"
+                                            title={row.observacoes || ''}
+                                            onChange={event => setDraftObs(prev => ({
+                                                ...prev,
+                                                [row.variationId]: event.target.value,
+                                            }))}
+                                            onBlur={event => updateRowFields(row, draftPrices[row.variationId] ?? formatCurrency(row.preco), undefined, undefined, undefined, event.target.value)}
+                                            onKeyDown={event => {
+                                                if (event.key === 'Enter') {
+                                                    event.preventDefault();
+                                                    updateRowFields(row, draftPrices[row.variationId] ?? formatCurrency(row.preco), undefined, undefined, undefined, event.currentTarget.value).then(() => moveToNextField(index, 'obs'));
+                                                }
+                                            }}
+                                        />
                                     </td>
                                     <td>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'flex-start' }}>

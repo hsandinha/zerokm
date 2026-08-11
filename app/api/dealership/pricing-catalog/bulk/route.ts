@@ -212,7 +212,11 @@ export async function PATCH(request: Request) {
                                 observacoes: item.observacoes || null,
                                 frete: item.frete > 0 ? item.frete : null,
                                 updatedAt: new Date(),
-                                ...(ativo ? {} : { prazo: null })
+                                // Prazo do CSV só vale para item ativo; sem preço
+                                // o registro é zerado e o prazo vai junto.
+                                ...(ativo
+                                    ? (typeof item.prazo === 'number' ? { prazo: item.prazo } : {})
+                                    : { prazo: null })
                             }
                         },
                         upsert: true
