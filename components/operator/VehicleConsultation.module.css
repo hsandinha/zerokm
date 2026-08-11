@@ -1495,6 +1495,18 @@
     border-bottom-color: #f59e0b;
 }
 
+.freteTabelaAcao {
+    font-size: 0.62rem;
+    font-weight: 600;
+    color: #f59e0b;
+    opacity: 0.85;
+}
+
+.freteTabela:hover .freteTabelaAcao {
+    opacity: 1;
+    text-decoration: underline;
+}
+
 .freteVazio {
     font-size: 0.8rem;
     color: var(--color-text-muted);

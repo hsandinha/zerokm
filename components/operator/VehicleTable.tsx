@@ -314,6 +314,9 @@ export function VehicleTable({
                                                 <span className={styles.freteTabelaValor}>
                                                     R$ {tabela.min.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                                 </span>
+                                                <span className={styles.freteTabelaAcao}>
+                                                    clique para ver os valores{vehicle.estado ? ` de ${vehicle.estado}` : ''} ›
+                                                </span>
                                             </button>
                                         );
                                     })()}
