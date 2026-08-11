@@ -1466,20 +1466,36 @@
     }
 }
 
-.freteTabelaHint {
-    display: block;
-    margin-top: 4px;
+.freteTabela {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
     padding: 0;
     border: none;
     background: transparent;
-    color: #f59e0b;
-    font-size: 0.7rem;
-    font-weight: 600;
     text-align: left;
     cursor: pointer;
     white-space: nowrap;
 }
 
-.freteTabelaHint:hover {
-    text-decoration: underline;
+.freteTabelaPrefixo {
+    font-size: 0.65rem;
+    color: var(--color-text-muted);
+}
+
+.freteTabelaValor {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text);
+    border-bottom: 1px dashed var(--color-text-muted);
+}
+
+.freteTabela:hover .freteTabelaValor {
+    color: #f59e0b;
+    border-bottom-color: #f59e0b;
+}
+
+.freteVazio {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
 }

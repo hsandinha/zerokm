@@ -290,25 +290,30 @@ export function VehicleTable({
                             </td>
                             {!['dealership', 'client', 'gratis'].includes(role || '') && (
                                 <td className={styles.tableCell}>
-                                    <EditableCurrencyCell
-                                        value={vehicle.frete}
-                                        onSave={(newValue) => handleUpdateVehicleField(vehicle, 'frete', newValue ?? 0)}
-                                    />
-                                    {/* Sem frete próprio no anúncio, mostra o da tabela por
-                                        estado. É "a partir de" porque cada estado tem faixas
-                                        (porte do carro, capital/interior) e o veículo não
-                                        guarda o porte — o clique abre todas as opções. */}
-                                    {!vehicle.frete && (() => {
+                                    {/* Sem frete próprio no anúncio, a coluna mostra o valor da
+                                        tabela do estado — nunca R$ 0,00, que sugeria frete
+                                        grátis. É "a partir de" porque cada estado tem faixas
+                                        (porte do carro, capital/interior) e o veículo não guarda
+                                        o porte; o clique abre todas as opções. */}
+                                    {vehicle.frete ? (
+                                        <EditableCurrencyCell
+                                            value={vehicle.frete}
+                                            onSave={(newValue) => handleUpdateVehicleField(vehicle, 'frete', newValue ?? 0)}
+                                        />
+                                    ) : (() => {
                                         const tabela = getFreteTabela?.(vehicle.estado);
-                                        if (!tabela) return null;
+                                        if (!tabela) return <span className={styles.freteVazio}>Sem tabela</span>;
                                         return (
                                             <button
                                                 type="button"
                                                 onClick={(e) => { e.stopPropagation(); onFreteTabelaClick?.(vehicle.estado); }}
-                                                className={styles.freteTabelaHint}
+                                                className={styles.freteTabela}
                                                 title={`Ver as ${tabela.count} faixas de frete para ${vehicle.estado}`}
                                             >
-                                                tabela: a partir de R$ {tabela.min.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                <span className={styles.freteTabelaPrefixo}>a partir de</span>
+                                                <span className={styles.freteTabelaValor}>
+                                                    R$ {tabela.min.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                </span>
                                             </button>
                                         );
                                     })()}
