@@ -35,6 +35,8 @@ interface VehicleTableProps {
     handleUpdatePreco: (vehicle: Vehicle, newValue: number | undefined) => void;
     handleLocationClick: (vehicle: Vehicle) => void;
     onWhatsApp: (vehicle: Vehicle) => void;
+    getFreteTabela?: (estado?: string) => { min: number; count: number } | null;
+    onFreteTabelaClick?: (estado?: string) => void;
 }
 
 export function VehicleTable({
@@ -62,6 +64,8 @@ export function VehicleTable({
     handleUpdatePreco,
     handleLocationClick,
     onWhatsApp,
+    getFreteTabela,
+    onFreteTabelaClick,
 }: VehicleTableProps) {
     const canEditPriceAndNotes = ['admin', 'administrador', 'administrativo', 'operator', 'operador', 'gerente'].includes(role || '');
     
@@ -290,6 +294,24 @@ export function VehicleTable({
                                         value={vehicle.frete}
                                         onSave={(newValue) => handleUpdateVehicleField(vehicle, 'frete', newValue ?? 0)}
                                     />
+                                    {/* Sem frete próprio no anúncio, mostra o da tabela por
+                                        estado. É "a partir de" porque cada estado tem faixas
+                                        (porte do carro, capital/interior) e o veículo não
+                                        guarda o porte — o clique abre todas as opções. */}
+                                    {!vehicle.frete && (() => {
+                                        const tabela = getFreteTabela?.(vehicle.estado);
+                                        if (!tabela) return null;
+                                        return (
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); onFreteTabelaClick?.(vehicle.estado); }}
+                                                className={styles.freteTabelaHint}
+                                                title={`Ver as ${tabela.count} faixas de frete para ${vehicle.estado}`}
+                                            >
+                                                tabela: a partir de R$ {tabela.min.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                            </button>
+                                        );
+                                    })()}
                                 </td>
                             )}
                             <td className={styles.tableCell}>

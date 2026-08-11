@@ -470,6 +470,28 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
         };
     };
 
+    /**
+     * Frete da tabela por estado, para a linha do veículo.
+     *
+     * A tabela tem várias faixas por estado (porte do carro, capital/interior),
+     * e o veículo não guarda o porte — então mostrar um valor único seria chute.
+     * Devolvemos o menor como "a partir de", e o clique abre as opções.
+     */
+    const getFreteTabela = (estado?: string) => {
+        const { items } = getFreteInfo(estado || '');
+        if (items.length === 0) return null;
+        return {
+            min: Math.min(...items.map(i => i.valor)),
+            count: items.length,
+        };
+    };
+
+    const handleFreteTabelaClick = (estado?: string) => {
+        const { items } = getFreteInfo(estado || '');
+        if (items.length === 0) return;
+        setFreteModal({ isOpen: true, items, estado: estado || '' });
+    };
+
     const handleUpdateOpcionais = async (vehicle: Vehicle, newValue: string) => {
         try {
             if (!vehicle.id) return;
@@ -1245,6 +1267,8 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                                 handleUpdatePreco={handleUpdatePreco}
                                 handleLocationClick={handleLocationClick}
                                 onWhatsApp={handleWhatsAppClick}
+                                getFreteTabela={getFreteTabela}
+                                onFreteTabelaClick={handleFreteTabelaClick}
                             />
                         ) : (
                             <VehicleGrid

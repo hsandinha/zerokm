@@ -1465,3 +1465,21 @@
         margin-left: 0;
     }
 }
+
+.freteTabelaHint {
+    display: block;
+    margin-top: 4px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: #f59e0b;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.freteTabelaHint:hover {
+    text-decoration: underline;
+}
