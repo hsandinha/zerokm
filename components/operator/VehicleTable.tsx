@@ -7,6 +7,7 @@ import { EditableTextCell, EditableSelectCell, EditableAutocompleteCell, Editabl
 import { formatPrazo } from '../../lib/utils/prazo';
 import { FaWhatsapp } from 'react-icons/fa';
 import { TRANSPORTADORA_PARCEIRA, telefoneTransportadora, whatsappTransportadora } from '../../lib/utils/transportadora';
+import { gerarCotacaoPdf } from '../../lib/utils/cotacaoPdf';
 import styles from './VehicleConsultation.module.css';
 
 interface VehicleTableProps {
@@ -37,6 +38,7 @@ interface VehicleTableProps {
     onWhatsApp: (vehicle: Vehicle) => void;
     getFreteTabela?: (estado?: string) => { min: number; count: number } | null;
     onFreteTabelaClick?: (estado?: string) => void;
+    nomeCliente?: string;
 }
 
 export function VehicleTable({
@@ -66,6 +68,7 @@ export function VehicleTable({
     onWhatsApp,
     getFreteTabela,
     onFreteTabelaClick,
+    nomeCliente,
 }: VehicleTableProps) {
     const canEditPriceAndNotes = ['admin', 'administrador', 'administrativo', 'operator', 'operador', 'gerente'].includes(role || '');
     
@@ -123,7 +126,11 @@ export function VehicleTable({
                         <th className={styles.tableHeader} onClick={() => handleSort('observacoes')} style={{ cursor: 'pointer' }}>
                             OBSERVAÇÕES {sortConfig.key === 'observacoes' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                         </th>
-                        {!['dealership', 'client', 'gratis'].includes(role || '') && (
+                        {/* Frete vem da tabela por estado: interessa a quem compra, não a
+                            quem vende. Visível para a equipe e para o cliente pagante;
+                            concessionária e teste grátis não veem. Editar segue restrito
+                            à equipe. Mesma regra da coluna UF. */}
+                        {role !== 'dealership' && role !== 'gratis' && (
                             <th className={styles.tableHeader} onClick={() => handleSort('frete')} style={{ cursor: 'pointer' }}>
                                 FRETE {sortConfig.key === 'frete' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                             </th>
@@ -288,7 +295,7 @@ export function VehicleTable({
                                     />
                                 )}
                             </td>
-                            {!['dealership', 'client', 'gratis'].includes(role || '') && (
+                            {role !== 'dealership' && role !== 'gratis' && (
                                 <td className={styles.tableCell}>
                                     {/* Sem frete próprio no anúncio, a coluna mostra o valor da
                                         tabela do estado — nunca R$ 0,00, que sugeria frete
@@ -296,10 +303,14 @@ export function VehicleTable({
                                         (porte do carro, capital/interior) e o veículo não guarda
                                         o porte; o clique abre todas as opções. */}
                                     {vehicle.frete ? (
-                                        <EditableCurrencyCell
-                                            value={vehicle.frete}
-                                            onSave={(newValue) => handleUpdateVehicleField(vehicle, 'frete', newValue ?? 0)}
-                                        />
+                                        canEditPriceAndNotes ? (
+                                            <EditableCurrencyCell
+                                                value={vehicle.frete}
+                                                onSave={(newValue) => handleUpdateVehicleField(vehicle, 'frete', newValue ?? 0)}
+                                            />
+                                        ) : (
+                                            <span>R$ {vehicle.frete.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                        )
                                     ) : (() => {
                                         const tabela = getFreteTabela?.(vehicle.estado);
                                         if (!tabela) return <span className={styles.freteVazio}>Sem tabela</span>;
@@ -377,6 +388,43 @@ export function VehicleTable({
                                         >
                                             📍
                                         </span>
+                                        {role !== 'gratis' && (
+                                            <span
+                                                className={styles.pdfButton}
+                                                title="Gerar cotação em PDF"
+                                                onClick={() => {
+                                                    const aberto = gerarCotacaoPdf({
+                                                        veiculo: {
+                                                            marca: vehicle.marca,
+                                                            modelo: vehicle.modelo,
+                                                            cor: vehicle.cor,
+                                                            ano: vehicle.ano,
+                                                            combustivel: vehicle.combustivel,
+                                                            transmissao: vehicle.transmissao,
+                                                            opcionais: vehicle.opcionais,
+                                                            observacoes: vehicle.observacoes,
+                                                            estado: vehicle.estado,
+                                                            prazo: vehicle.prazo,
+                                                            imagemUrl: vehicle.imagemUrl,
+                                                        },
+                                                        // Mesmo preço que este perfil enxerga na tela.
+                                                        preco: calculateClientPrice(vehicle),
+                                                        nomeCliente: nomeCliente || 'Cliente',
+                                                        freteEstimado: getFreteTabela?.(vehicle.estado)?.min ?? null,
+                                                        transportadora: {
+                                                            nome: TRANSPORTADORA_PARCEIRA.nome,
+                                                            telefone: telefoneTransportadora(),
+                                                        },
+                                                    });
+                                                    if (!aberto) alert('Libere os pop-ups deste site para gerar a cotação.');
+                                                }}
+                                                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                role="button"
+                                                tabIndex={0}
+                                            >
+                                                📄
+                                            </span>
+                                        )}
                                         {role !== 'gratis' && (
                                             <span
                                                 className={styles.whatsappButton}

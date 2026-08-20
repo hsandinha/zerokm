@@ -20,6 +20,8 @@ export interface Vehicle {
     nomeContato: string;
     operador: string;
     concessionaria?: string;
+    /** Foto da variação, associada no Catálogo. */
+    imagemUrl?: string;
 
     // Campos opcionais mantidos por compatibilidade ou uso futuro
     fotos?: string[];

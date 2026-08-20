@@ -1269,6 +1269,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                                 onWhatsApp={handleWhatsAppClick}
                                 getFreteTabela={getFreteTabela}
                                 onFreteTabelaClick={handleFreteTabelaClick}
+                                nomeCliente={session?.user?.name || (session?.user as any)?.displayName || session?.user?.email || ''}
                             />
                         ) : (
                             <VehicleGrid

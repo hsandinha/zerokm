@@ -50,4 +50,18 @@ const BannerSchema: Schema = new Schema({
     ctaText: { type: String },
 }, { timestamps: true });
 
+/**
+ * Banner vencido é apagado pelo próprio Mongo 10 dias depois do vencimento.
+ *
+ * O deactivateExpiredBanners só marca `isActive: false` — o documento ficava
+ * para sempre. Como a imagem é gravada em base64, 631 banners vencidos já
+ * ocupavam 80 MB parados. O índice TTL resolve no banco: não depende de cron
+ * saudável nem de alguém abrir a listagem.
+ *
+ * O TTL age sobre `expiresAt`; documentos sem essa data nunca são removidos.
+ */
+export const BANNER_TTL_APOS_VENCIMENTO_S = 10 * 24 * 60 * 60;
+
+BannerSchema.index({ expiresAt: 1 }, { expireAfterSeconds: BANNER_TTL_APOS_VENCIMENTO_S });
+
 export default mongoose.models.Banner || mongoose.model<IBanner>('Banner', BannerSchema);

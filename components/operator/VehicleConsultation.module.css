@@ -1511,3 +1511,14 @@
     font-size: 0.8rem;
     color: var(--color-text-muted);
 }
+
+.pdfButton {
+    font-size: 17px;
+    line-height: 1;
+    transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+.pdfButton:hover {
+    transform: scale(1.15);
+    filter: brightness(1.2);
+}

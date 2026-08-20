@@ -36,6 +36,7 @@ interface VehicleVariation {
     concessionaria?: string;
     nomeContato?: string;
     operador?: string;
+    imagemUrl?: string;
     ativo: boolean;
 }
 
@@ -185,6 +186,47 @@ export function CatalogVariationsManagement() {
         setForm(EMPTY_FORM);
         setEditingId(null);
         setFeedback(null);
+    };
+
+    /**
+     * A foto é guardada como URL, não como arquivo.
+     *
+     * O campo imagemUrl já existia no modelo e nunca foi usado. Base64 no banco
+     * está descartado de propósito: os 958 banners guardados assim já ocupam
+     * 115 MB dos 143 MB do banco, e as 27 mil variações passariam de 3 GB —
+     * fora que o catálogo faz $lookup sobre a coleção inteira a cada consulta.
+     */
+    const [fotoModal, setFotoModal] = useState<{ variation: VehicleVariation; url: string } | null>(null);
+    const [savingFoto, setSavingFoto] = useState(false);
+
+    const handleSaveFoto = async () => {
+        if (!fotoModal) return;
+        const url = fotoModal.url.trim();
+        if (url && !/^https?:\/\//i.test(url)) {
+            setFeedback({ type: 'error', message: 'O link da foto precisa começar com http:// ou https://' });
+            return;
+        }
+
+        setSavingFoto(true);
+        setFeedback(null);
+        try {
+            const res = await fetch(`/api/catalog/variations/${fotoModal.variation.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ imagemUrl: url }),
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.error || 'Não foi possível salvar a foto');
+            }
+            setVariations(prev => prev.map(v => v.id === fotoModal.variation.id ? { ...v, imagemUrl: url || undefined } : v));
+            setFotoModal(null);
+            setFeedback({ type: 'success', message: url ? 'Foto vinculada à variação.' : 'Foto removida da variação.' });
+        } catch (err: any) {
+            setFeedback({ type: 'error', message: err.message });
+        } finally {
+            setSavingFoto(false);
+        }
     };
 
     const handleEdit = (variation: VehicleVariation) => {
@@ -614,6 +656,13 @@ export function CatalogVariationsManagement() {
                                     <td>{variation.opcionais || '-'}</td>
                                     <td>
                                         <div className={styles.rowActions}>
+                                            <button
+                                                className={styles.iconButton}
+                                                onClick={() => setFotoModal({ variation, url: variation.imagemUrl || '' })}
+                                                title={variation.imagemUrl ? 'Trocar foto do veículo' : 'Adicionar foto do veículo'}
+                                            >
+                                                {variation.imagemUrl ? '🖼️' : '📷'}
+                                            </button>
                                             <button 
                                                 className={styles.iconButton} 
                                                 onClick={() => handleEdit(variation)}
@@ -724,6 +773,57 @@ export function CatalogVariationsManagement() {
                                 disabled={importCommitting || importPreview.summary.importable === 0}
                             >
                                 {importCommitting ? 'Importando...' : `Confirmar ${importPreview.summary.importable} novas`}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {fotoModal && (
+                <div className={styles.modalBackdrop} role="dialog" aria-modal="true" aria-labelledby="foto-modal-title">
+                    <div className={styles.modal} style={{ maxWidth: '540px' }}>
+                        <div className={styles.modalHeader}>
+                            <h3 id="foto-modal-title">Foto do veículo</h3>
+                            <p>
+                                {fotoModal.variation.marca} {fotoModal.variation.modelo}
+                                {fotoModal.variation.cor ? ` · ${fotoModal.variation.cor}` : ''}
+                            </p>
+                        </div>
+
+                        <div className={styles.formGrid} style={{ padding: '20px' }}>
+                            <label className={styles.wideField}>
+                                Link da foto
+                                <input
+                                    type="url"
+                                    autoFocus
+                                    value={fotoModal.url}
+                                    onChange={e => setFotoModal({ ...fotoModal, url: e.target.value })}
+                                    onKeyDown={e => { if (e.key === 'Enter') handleSaveFoto(); }}
+                                    placeholder="https://..."
+                                />
+                            </label>
+                            <p className={styles.fotoHint}>
+                                Cole o endereço de uma imagem já hospedada. Deixe em branco para remover a foto.
+                            </p>
+
+                            {fotoModal.url.trim() && (
+                                <div className={styles.fotoPreview}>
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                        src={fotoModal.url.trim()}
+                                        alt={`Pré-visualização de ${fotoModal.variation.modelo}`}
+                                        onError={e => { (e.currentTarget as HTMLImageElement).dataset.erro = '1'; }}
+                                        onLoad={e => { delete (e.currentTarget as HTMLImageElement).dataset.erro; }}
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        <div className={styles.modalFooter}>
+                            <button className={styles.secondaryButton} onClick={() => setFotoModal(null)} disabled={savingFoto}>
+                                Cancelar
+                            </button>
+                            <button className={styles.primaryButton} onClick={handleSaveFoto} disabled={savingFoto}>
+                                {savingFoto ? 'Salvando...' : 'Salvar foto'}
                             </button>
                         </div>
                     </div>
