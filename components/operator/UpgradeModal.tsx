@@ -741,7 +741,9 @@ export function UpgradeModal({ onClose, initialPlanId, initialBilling, locked = 
                     {flow === 'card_pending' && <h2 className={styles.headerTitle}>⏳ Pagamento em Análise</h2>}
                     {flow === 'processing' && <h2 className={styles.headerTitle}>Processando...</h2>}
                     {subtitle && flow === 'plans' && <p className={styles.headerSubtitle}>{subtitle}</p>}
-                    {showLogout && (
+                    {/* Modal trancado precisa de saída: quem não vai pagar agora
+                        sai da conta em vez de ficar preso atrás do overlay. */}
+                    {(showLogout || locked) && (
                         <button
                             onClick={() => signOut({ callbackUrl: '/' })}
                             style={{
