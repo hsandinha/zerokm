@@ -20,7 +20,7 @@ export const authOptions: AuthOptions = {
                 if (token) {
                     try {
                         const decodedToken = await adminAuth.verifyIdToken(token);
-                        const { profiles, canViewLocation, credits, profileCompletion, daysUntilExpiry, subscriptionPlanId, subscriptionExpiresAt, subscriptionBillingType, freeTrialExpiresAt, freeTrialExpired, profileVersion } = await getUserAllowedProfiles(decodedToken.email || '');
+                        const { profiles, canViewLocation, credits, profileCompletion, daysUntilExpiry, subscriptionPlanId, subscriptionExpiresAt, subscriptionBillingType, freeTrialExpiresAt, freeTrialExpired, profileVersion, displayName } = await getUserAllowedProfiles(decodedToken.email || '');
 
                         // Generate new session token and update DB
                         const sessionToken = randomUUID();
@@ -31,7 +31,9 @@ export const authOptions: AuthOptions = {
                         return {
                             id: decodedToken.uid,
                             email: decodedToken.email,
-                            name: decodedToken.name || decodedToken.email?.split('@')[0],
+                            // O nome canônico vive no Mongo (users.displayName) — é o que o
+                            // CRM edita. O token do Firebase é só fallback de primeiro login.
+                            name: displayName || decodedToken.name || decodedToken.email?.split('@')[0],
                             image: decodedToken.picture,
                             selectedProfile: selectedProfile, // Pass selected profile to user object
                             allowedProfiles: profiles,
@@ -114,6 +116,7 @@ export const authOptions: AuthOptions = {
                         subscriptionPlanId: fresh.subscriptionPlanId,
                         subscriptionExpiresAt: fresh.subscriptionExpiresAt,
                         subscriptionBillingType: fresh.subscriptionBillingType,
+                        name: fresh.displayName ?? token.name,
                         profileVersion,
                     };
                 }

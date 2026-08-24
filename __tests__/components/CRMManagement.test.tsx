@@ -1,5 +1,14 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+// As server actions puxam Mongo e Firebase no import — fora do Next isso
+// explode. O grid não as exercita; a aba Acessos tem os handlers mockados.
+vi.mock('@/app/dashboard/admin/users/actions', () => ({
+    getUserAccessStatus: vi.fn(async () => ({ success: true, disabled: false, allowedProfiles: ['cliente'] })),
+    updateUserProfiles: vi.fn(async () => ({ success: true })),
+    toggleUserStatus: vi.fn(async () => ({ success: true })),
+    deleteUser: vi.fn(async () => ({ success: true })),
+}));
+
 import { CRMManagement } from '@/components/admin/CRMManagement';
 
 const cliente = (over: Record<string, unknown>) => ({

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { AdminUser, listAllUsers, updateUserProfiles, toggleUserStatus, createUser, deleteUser } from './actions';
 import { UserProfile } from '@/lib/types/auth';
+import { toggleProfileSelection } from '@/lib/utils/userProfiles';
 import { ConcessionariaService, Concessionaria } from '@/lib/services/concessionariaService';
 import styles from './UsersTable.module.css';
 
@@ -118,32 +119,8 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableP
         }
     };
 
-    const DIRETIVO_PROFILES = ['administrador', 'gerente', 'marketing'];
-    const OPERACIONAL_PROFILES = ['operador', 'vendedor', 'administrativo'];
-    const CLIENT_PROFILES = ['cliente', 'gratis'];
-
     const toggleNewUserProfile = (profile: UserProfile) => {
-        const currentProfiles = newUser.allowedProfiles;
-        let next = [...currentProfiles];
-
-        if (DIRETIVO_PROFILES.includes(profile)) {
-            next = next.filter(p => !DIRETIVO_PROFILES.includes(p));
-            if (!currentProfiles.includes(profile)) next.push(profile);
-        } else if (OPERACIONAL_PROFILES.includes(profile)) {
-            next = next.filter(p => !OPERACIONAL_PROFILES.includes(p));
-            if (!currentProfiles.includes(profile)) next.push(profile);
-        } else if (CLIENT_PROFILES.includes(profile)) {
-            next = next.filter(p => !CLIENT_PROFILES.includes(p));
-            if (!currentProfiles.includes(profile)) next.push(profile);
-        } else {
-            if (currentProfiles.includes(profile)) {
-                next = next.filter(p => p !== profile);
-            } else {
-                next.push(profile);
-            }
-        }
-
-        setNewUser({ ...newUser, allowedProfiles: next });
+        setNewUser({ ...newUser, allowedProfiles: toggleProfileSelection(newUser.allowedProfiles, profile) });
     };
 
     const [selectedDealershipId, setSelectedDealershipId] = useState<string>('');
@@ -196,26 +173,7 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableP
     };
 
     const toggleProfile = (profile: UserProfile) => {
-        let next = [...selectedProfiles];
-
-        if (DIRETIVO_PROFILES.includes(profile)) {
-            next = next.filter(p => !DIRETIVO_PROFILES.includes(p));
-            if (!selectedProfiles.includes(profile)) next.push(profile);
-        } else if (OPERACIONAL_PROFILES.includes(profile)) {
-            next = next.filter(p => !OPERACIONAL_PROFILES.includes(p));
-            if (!selectedProfiles.includes(profile)) next.push(profile);
-        } else if (CLIENT_PROFILES.includes(profile)) {
-            next = next.filter(p => !CLIENT_PROFILES.includes(p));
-            if (!selectedProfiles.includes(profile)) next.push(profile);
-        } else {
-            if (selectedProfiles.includes(profile)) {
-                next = next.filter(p => p !== profile);
-            } else {
-                next.push(profile);
-            }
-        }
-
-        setSelectedProfiles(next);
+        setSelectedProfiles(toggleProfileSelection(selectedProfiles, profile));
     };
 
     const getProfileBadgeClass = (profile: string) => {

@@ -27,7 +27,7 @@ export async function GET() {
     const users = await User.find({
         allowedProfiles: { $in: ['gratis', 'cliente'] },
     })
-        .select('displayName email phoneNumber allowedProfiles credits subscription createdAt creditCard address cpf isInvitee vendedorId freeTrialStartedAt freeTrialExpiresAt')
+        .select('displayName email phoneNumber allowedProfiles credits subscription createdAt creditCard address cpf isInvitee vendedorId freeTrialStartedAt freeTrialExpiresAt firebaseUid')
         .sort({ createdAt: -1 })
         .lean();
 
@@ -86,6 +86,7 @@ export async function GET() {
             paymentMethod: sub?.paymentMethod || null,
             billingType: sub?.billingType || null,
             createdAt: u.createdAt,
+            firebaseUid: u.firebaseUid || null,
             hasCard: !!(u.creditCard?.mpCardId),
             cardBrand: u.creditCard?.brand || null,
             cardLastFour: u.creditCard?.lastFour || null,

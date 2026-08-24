@@ -114,7 +114,7 @@ export default function AdminDashboard() {
 
     const allTabs = [
         { id: 'visao-geral', label: 'Visão Geral', icon: '📊' },
-        { id: 'usuarios', label: 'Usuários', icon: '👥' },
+        { id: 'usuarios', label: 'Equipe', icon: '👥' },
         { id: 'veiculos', label: 'Veículos', icon: '🚗' },
         { id: 'estoque-concessionarias', label: 'Estoque Cons.', icon: '🏢' },
         { id: 'catalogo', label: 'Catálogo', icon: '📚' },
@@ -147,9 +147,9 @@ export default function AdminDashboard() {
             case 'usuarios':
                 return (
                     <div className={styles.contentArea}>
-                        <h2 className={styles.title}>Gerenciamento de Usuários</h2>
+                        <h2 className={styles.title}>Equipe</h2>
                         <p className={styles.subtitle} style={{ marginBottom: '1.5rem' }}>
-                            Controle quem tem acesso ao sistema e seus níveis de permissão.
+                            Acessos e permissões da equipe interna. Clientes são geridos no CRM.
                         </p>
                         <UsersTable onViewInCRM={(email) => { setActiveTab('crm'); setCrmHighlightEmail(email); }} />
                     </div>

@@ -7,7 +7,7 @@ import Invite from '@/models/Invite';
 import { calculateProfileCompletion } from '@/lib/utils/profileCompletion';
 import { createExpiredFreeTrialWindow, isFreeTrialExpired } from '@/lib/utils/freeTrial';
 
-export async function getUserAllowedProfiles(email: string): Promise<{ profiles: UserProfile[], forcePasswordChange: boolean, canViewLocation: boolean, credits: number, profileCompletion: number, daysUntilExpiry: number | null, subscriptionPlanId: string | null, subscriptionExpiresAt: string | null, subscriptionBillingType: 'monthly' | 'annual' | null, freeTrialExpiresAt: string | null, freeTrialExpired: boolean, profileVersion: number }> {
+export async function getUserAllowedProfiles(email: string): Promise<{ profiles: UserProfile[], forcePasswordChange: boolean, canViewLocation: boolean, credits: number, profileCompletion: number, daysUntilExpiry: number | null, subscriptionPlanId: string | null, subscriptionExpiresAt: string | null, subscriptionBillingType: 'monthly' | 'annual' | null, freeTrialExpiresAt: string | null, freeTrialExpired: boolean, profileVersion: number, displayName: string | null }> {
     try {
         await connectDB();
         const userRecord = await adminAuth.getUserByEmail(email);
@@ -169,13 +169,14 @@ export async function getUserAllowedProfiles(email: string): Promise<{ profiles:
             freeTrialExpiresAt: freeTrialExpiresAt?.toISOString() ?? null,
             freeTrialExpired,
             profileVersion: user?.profileVersion ?? 0,
+            displayName: user?.displayName || null,
         };
     } catch (error) {
         console.error('Error fetching user profiles:', error);
         // Fallback logic in case of DB error
         let profiles: UserProfile[] = ['operador'];
         if (email.includes('admin')) profiles = ['administrador'];
-        return { profiles, forcePasswordChange: false, canViewLocation: false, credits: 0, profileCompletion: 0, daysUntilExpiry: null, subscriptionPlanId: null, subscriptionExpiresAt: null, subscriptionBillingType: null, freeTrialExpiresAt: null, freeTrialExpired: false, profileVersion: 0 };
+        return { profiles, forcePasswordChange: false, canViewLocation: false, credits: 0, profileCompletion: 0, daysUntilExpiry: null, subscriptionPlanId: null, subscriptionExpiresAt: null, subscriptionBillingType: null, freeTrialExpiresAt: null, freeTrialExpired: false, profileVersion: 0, displayName: null };
     }
 }
 

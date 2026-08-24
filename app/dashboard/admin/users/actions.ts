@@ -6,6 +6,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
+import { isClientOnly } from '@/lib/utils/userProfiles';
 import Invite from '@/models/Invite';
 
 const USER_MANAGEMENT_PROFILES = ['admin', 'administrador', 'administrativo'];
@@ -90,10 +91,16 @@ export async function listAllUsers(): Promise<AdminUser[]> {
                 invitedUsers = invitedUsersMap.get(uidStr);
             }
 
+            // Cliente puro (só cliente/gratis) é gerido no CRM — a tela de
+            // usuários passou a ser exclusiva da equipe interna.
+            if (isClientOnly(userData?.allowedProfiles)) continue;
+
             users.push({
                 uid: userRecord.uid,
                 email: userRecord.email || '',
-                displayName: userRecord.displayName,
+                // Mongo é a fonte canônica do nome (é o que o CRM edita);
+                // o Firebase só cobre usuário ainda sem documento no banco.
+                displayName: userData?.displayName || userRecord.displayName,
                 photoURL: userRecord.photoURL,
                 disabled: userRecord.disabled,
                 lastSignInTime: userRecord.metadata.lastSignInTime,
@@ -239,5 +246,25 @@ export async function deleteUser(uid: string) {
     } catch (error: any) {
         console.error('Error deleting user:', error);
         return { success: false, error: error.message || 'Failed to delete user' };
+    }
+}
+
+/**
+ * Estado de acesso de um usuário, para a seção Acessos do CRM.
+ * O `disabled` vive só no Firebase Auth; a listagem do CRM vem do Mongo e não
+ * o carrega — o modal busca sob demanda ao abrir.
+ */
+export async function getUserAccessStatus(uid: string): Promise<{ success: boolean; disabled?: boolean; allowedProfiles?: string[]; error?: string }> {
+    try {
+        if (!(await canManageUsers())) {
+            return { success: false, error: 'Unauthorized' };
+        }
+        const record = await adminAuth.getUser(uid);
+        await connectDB();
+        const doc = await User.findOne({ firebaseUid: uid }).select('allowedProfiles').lean() as any;
+        return { success: true, disabled: record.disabled, allowedProfiles: doc?.allowedProfiles ?? [] };
+    } catch (error: any) {
+        console.error('Error fetching access status:', error);
+        return { success: false, error: error?.message || 'Falha ao consultar acesso' };
     }
 }

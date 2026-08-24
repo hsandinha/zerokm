@@ -2,6 +2,9 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react';
 import styles from './CRMManagement.module.css';
+import { getUserAccessStatus, updateUserProfiles, toggleUserStatus, deleteUser } from '@/app/dashboard/admin/users/actions';
+import { toggleProfileSelection, DIRETIVO_PROFILES, OPERACIONAL_PROFILES, CLIENT_PROFILES } from '@/lib/utils/userProfiles';
+import type { UserProfile } from '@/lib/types/auth';
 
 interface CRMClient {
     id: string;
@@ -29,6 +32,7 @@ interface CRMClient {
     paymentMethod?: 'pix' | 'boleto' | 'card' | null;
     billingType: 'monthly' | 'annual' | null;
     createdAt: string;
+    firebaseUid?: string | null;
     hasCard: boolean;
     cardBrand?: string | null;
     cardLastFour?: string | null;
@@ -191,7 +195,11 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
     }, [highlightEmail, clients]);
 
     // Modal tabs & client edit
-    const [modalTab, setModalTab] = useState<'dados' | 'assinatura'>('dados');
+    const [modalTab, setModalTab] = useState<'dados' | 'assinatura' | 'acessos'>('dados');
+    // Acessos do usuário (Firebase): carregados sob demanda ao abrir a aba.
+    const [acesso, setAcesso] = useState<{ disabled: boolean; profiles: UserProfile[] } | null>(null);
+    const [acessoLoading, setAcessoLoading] = useState(false);
+    const [acessoMsg, setAcessoMsg] = useState<{ ok: boolean; texto: string } | null>(null);
     const [editMode, setEditMode] = useState(false);
     const [editClientError, setEditClientError] = useState<string | null>(null);
     const [editSavingClient, setEditSavingClient] = useState(false);
@@ -271,6 +279,9 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
     const openClientModal = (client: CRMClient) => {
         setSelectedClient(client);
         setModalTab('dados');
+        // Acessos são por usuário: zera para não vazar o estado do cliente anterior.
+        setAcesso(null);
+        setAcessoMsg(null);
         setEditMode(false);
         setEditClientError(null);
         setEditForm(null);
@@ -617,6 +628,64 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
         if (client.paymentMethod === 'boleto' || client.activationMethod === 'boleto') return { kind: 'boleto', label: 'Boleto' };
         if (client.paymentMethod === 'card' || client.activationMethod === 'card') return { kind: 'card', label: 'Cartão' };
         return { kind: 'unlinked', label: 'Não associado' };
+    };
+
+    const carregarAcesso = async (client: CRMClient) => {
+        if (!client.firebaseUid) {
+            setAcessoMsg({ ok: false, texto: 'Usuário sem vínculo com o Firebase — acesso não gerenciável por aqui.' });
+            return;
+        }
+        setAcessoLoading(true);
+        setAcessoMsg(null);
+        const r = await getUserAccessStatus(client.firebaseUid);
+        if (r.success) {
+            setAcesso({ disabled: !!r.disabled, profiles: (r.allowedProfiles ?? []) as UserProfile[] });
+        } else {
+            setAcessoMsg({ ok: false, texto: r.error || 'Falha ao consultar o acesso.' });
+        }
+        setAcessoLoading(false);
+    };
+
+    const alternarStatusAcesso = async (client: CRMClient) => {
+        if (!client.firebaseUid || !acesso) return;
+        const novo = !acesso.disabled;
+        if (!confirm(`${novo ? 'Desativar' : 'Ativar'} o acesso de ${client.displayName || client.email}?`)) return;
+        setAcessoLoading(true);
+        const r = await toggleUserStatus(client.firebaseUid, novo);
+        if (r.success) {
+            setAcesso({ ...acesso, disabled: novo });
+            setAcessoMsg({ ok: true, texto: novo ? 'Acesso desativado.' : 'Acesso reativado.' });
+        } else {
+            setAcessoMsg({ ok: false, texto: 'Não foi possível alterar o status.' });
+        }
+        setAcessoLoading(false);
+    };
+
+    const salvarPerfisAcesso = async (client: CRMClient) => {
+        if (!client.firebaseUid || !acesso) return;
+        setAcessoLoading(true);
+        const r = await updateUserProfiles(client.firebaseUid, acesso.profiles);
+        if (r.success) {
+            setAcessoMsg({ ok: true, texto: 'Perfis atualizados. Se o cliente perdeu os perfis de cliente, ele passa a aparecer só na tela Equipe.' });
+            reloadClients();
+        } else {
+            setAcessoMsg({ ok: false, texto: 'Não foi possível salvar os perfis.' });
+        }
+        setAcessoLoading(false);
+    };
+
+    const excluirUsuario = async (client: CRMClient) => {
+        if (!client.firebaseUid) return;
+        if (!confirm(`ATENÇÃO: excluir permanentemente ${client.displayName || client.email}?\n\nRemove login, perfil e histórico de assinatura. Não pode ser desfeito.`)) return;
+        setAcessoLoading(true);
+        const r = await deleteUser(client.firebaseUid);
+        if (r.success) {
+            setSelectedClient(null);
+            reloadClients();
+        } else {
+            setAcessoMsg({ ok: false, texto: r.error || 'Não foi possível excluir.' });
+            setAcessoLoading(false);
+        }
     };
 
     const filtered = useMemo(() => {
@@ -1005,6 +1074,12 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                             >
                                 Assinatura & Ações
                             </button>
+                            <button
+                                className={`${styles.clientModalTab} ${modalTab === 'acessos' ? styles.clientModalTabActive : ''}`}
+                                onClick={() => { setModalTab('acessos'); if (!acesso) carregarAcesso(selectedClient); }}
+                            >
+                                Acessos
+                            </button>
                         </div>
 
                         {/* Body */}
@@ -1371,6 +1446,72 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                             <strong>🔄 Oportunidade de renovação:</strong> Plano expirado há {selectedClient.daysUntilExpiry !== null ? Math.abs(selectedClient.daysUntilExpiry) : '?'} dia(s). Excelente momento para reativar.
                                         </div>
                                     )}
+                                </div>
+                            )}
+
+                            {/* ── Acessos tab ── */}
+                            {modalTab === 'acessos' && (
+                                <div>
+                                    <div className={styles.clientSection}>
+                                        <div className={styles.clientSectionHeader}>
+                                            <span className={styles.clientSectionTitle}>Acesso ao sistema</span>
+                                        </div>
+
+                                        {acessoMsg && (
+                                            <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', fontWeight: 600, color: acessoMsg.ok ? '#16a34a' : '#dc2626' }}>{acessoMsg.texto}</p>
+                                        )}
+
+                                        {acessoLoading && !acesso ? (
+                                            <p style={{ color: 'var(--color-text-muted)' }}>Consultando acesso…</p>
+                                        ) : acesso ? (
+                                            <>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                                                    <span className={styles.statusBadge} style={{ background: acesso.disabled ? '#dc262622' : '#16a34a22', color: acesso.disabled ? '#dc2626' : '#16a34a', border: `1px solid ${acesso.disabled ? '#dc2626' : '#16a34a'}` }}>
+                                                        {acesso.disabled ? 'Login desativado' : 'Login ativo'}
+                                                    </span>
+                                                    <button className={styles.actionBtn} disabled={acessoLoading} onClick={() => alternarStatusAcesso(selectedClient)}>
+                                                        {acesso.disabled ? 'Reativar acesso' : 'Desativar acesso'}
+                                                    </button>
+                                                </div>
+
+                                                <div className={styles.clientSectionHeader}>
+                                                    <span className={styles.clientSectionTitle}>Perfis</span>
+                                                </div>
+                                                <p style={{ margin: '0 0 0.5rem', fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
+                                                    cliente/gratis são controlados pela assinatura. Conceder perfil de equipe faz a pessoa aparecer também na tela Equipe; o vínculo de concessionária é concluído lá.
+                                                </p>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                                                    {[...DIRETIVO_PROFILES, ...OPERACIONAL_PROFILES, 'concessionaria' as UserProfile, ...CLIENT_PROFILES].map(perfil => (
+                                                        <label key={perfil} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', border: '1px solid var(--color-highlight)', borderRadius: '9999px', cursor: 'pointer', fontSize: '0.8rem' }}>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={acesso.profiles.includes(perfil)}
+                                                                onChange={() => setAcesso({ ...acesso, profiles: toggleProfileSelection(acesso.profiles, perfil) })}
+                                                            />
+                                                            {perfil}
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                                <button className={styles.actionBtn} disabled={acessoLoading} onClick={() => salvarPerfisAcesso(selectedClient)}>
+                                                    Salvar perfis
+                                                </button>
+
+                                                <div className={styles.clientSectionHeader} style={{ marginTop: '1.5rem' }}>
+                                                    <span className={styles.clientSectionTitle} style={{ color: '#dc2626' }}>Zona de risco</span>
+                                                </div>
+                                                <button
+                                                    className={styles.actionBtn}
+                                                    style={{ borderColor: '#dc2626', color: '#dc2626' }}
+                                                    disabled={acessoLoading}
+                                                    onClick={() => excluirUsuario(selectedClient)}
+                                                >
+                                                    Excluir usuário definitivamente
+                                                </button>
+                                            </>
+                                        ) : !acessoMsg ? (
+                                            <button className={styles.actionBtn} onClick={() => carregarAcesso(selectedClient)}>Carregar acesso</button>
+                                        ) : null}
+                                    </div>
                                 </div>
                             )}
                         </div>
