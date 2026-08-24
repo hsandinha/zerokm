@@ -1478,10 +1478,20 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                                     <span className={styles.clientSectionTitle}>Perfis</span>
                                                 </div>
                                                 <p style={{ margin: '0 0 0.5rem', fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
-                                                    cliente/gratis são controlados pela assinatura. Conceder perfil de equipe faz a pessoa aparecer também na tela Equipe; o vínculo de concessionária é concluído lá.
+                                                    Conceder perfil de equipe faz a pessoa aparecer também na tela Equipe; o vínculo de concessionária é concluído lá.
                                                 </p>
+                                                {/* cliente/gratis não são clicáveis em lugar nenhum: quem
+                                                    concede e retira é a assinatura (atribuir plano, trial,
+                                                    pagamento). Aqui só informam o estado atual. */}
+                                                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                                                    {CLIENT_PROFILES.filter(p => acesso.profiles.includes(p)).map(perfil => (
+                                                        <span key={perfil} className={styles.statusBadge} style={{ background: '#f43f5e22', color: '#f43f5e', border: '1px solid #f43f5e' }}>
+                                                            {perfil} · via assinatura
+                                                        </span>
+                                                    ))}
+                                                </div>
                                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                                                    {[...DIRETIVO_PROFILES, ...OPERACIONAL_PROFILES, 'concessionaria' as UserProfile, ...CLIENT_PROFILES].map(perfil => (
+                                                    {[...DIRETIVO_PROFILES, ...OPERACIONAL_PROFILES, 'concessionaria' as UserProfile].map(perfil => (
                                                         <label key={perfil} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', border: '1px solid var(--color-highlight)', borderRadius: '9999px', cursor: 'pointer', fontSize: '0.8rem' }}>
                                                             <input
                                                                 type="checkbox"

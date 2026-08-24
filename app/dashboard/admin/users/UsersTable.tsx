@@ -452,25 +452,6 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableP
                                         Concessionária
                                     </label>
                                 </div>
-
-                                {/* Grupo 4: Cliente */}
-                                <div style={{ marginBottom: '0.5rem', padding: '0.75rem', border: '1px solid #334155', borderRadius: '8px', background: 'rgba(244,63,94,0.06)' }}>
-                                    <p style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: '#f43f5e', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>Cliente — escolha um</p>
-                                    <div style={{ display: 'flex', gap: '1.5rem' }}>
-                                        {['cliente', 'gratis'].map(p => (
-                                            <label key={p} className={styles.checkboxLabel} style={{ cursor: 'pointer' }}>
-                                                <input
-                                                    type="radio"
-                                                    name="newCliente"
-                                                    checked={newUser.allowedProfiles.includes(p as UserProfile)}
-                                                    onClick={() => toggleNewUserProfile(p as UserProfile)}
-                                                    readOnly
-                                                />
-                                                {p === 'gratis' ? 'Grátis' : 'Cliente'}
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
                             </div>
 
                             {newUser.allowedProfiles.includes('concessionaria') && (
@@ -578,25 +559,11 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableP
                             </label>
                         </div>
 
-                        {/* Grupo 4: Cliente */}
-                        <div style={{ marginBottom: '1rem', padding: '0.75rem', border: '1px solid #334155', borderRadius: '8px', background: 'rgba(244,63,94,0.06)' }}>
-                            <p style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: '#f43f5e', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>Cliente — escolha um</p>
-                            <div style={{ display: 'flex', gap: '1.5rem' }}>
-                                {['cliente', 'gratis'].map(p => (
-                                    <label key={p} className={styles.checkboxLabel} style={{ cursor: 'pointer' }}>
-                                        <input
-                                            type="radio"
-                                            name="editCliente"
-                                            checked={selectedProfiles.includes(p as UserProfile)}
-                                            onClick={() => toggleProfile(p as UserProfile)}
-                                            readOnly
-                                        />
-                                        {p === 'gratis' ? 'Grátis' : 'Cliente'}
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-
+                        {(selectedProfiles.includes('cliente') || selectedProfiles.includes('gratis')) && (
+                            <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0 0 0.75rem' }}>
+                                Este usuário também tem perfil de {selectedProfiles.includes('cliente') ? 'cliente' : 'teste grátis'} — esse acesso é controlado pela assinatura, no CRM.
+                            </p>
+                        )}
                         {selectedProfiles.includes('concessionaria') && (
                             <div className={styles.formGroup} style={{ marginTop: '1rem' }}>
                                 <label className={styles.label}>Vincular Concessionária</label>
