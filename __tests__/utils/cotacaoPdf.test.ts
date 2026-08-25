@@ -32,23 +32,10 @@ describe('cotação em PDF', () => {
         expect(html).not.toContain('R$ 104.990,00');
     });
 
-    it('mostra o frete como estimativa e fora do total', () => {
-        const html = montarCotacaoHtml({
-            ...base,
-            freteEstimado: 1400,
-            transportadora: { nome: 'Primo Transportes', telefone: '(11) 91035-9987' },
-        });
-        expect(html).toContain('Frete não incluso');
-        expect(html).toContain('A partir de R$ 1.400,00');
-        expect(html).toContain('Primo Transportes');
-        expect(html).toContain('(11) 91035-9987');
-        // O total continua sendo só o veículo.
-        expect(html).toContain('<span>TOTAL</span><span>R$ 104.990,00</span>');
-    });
-
-    it('omite o aviso de frete quando não há tabela para o estado', () => {
-        const html = montarCotacaoHtml({ ...base, freteEstimado: null });
-        expect(html).not.toContain('Frete não incluso');
+    it('não menciona frete em lugar nenhum', () => {
+        const html = montarCotacaoHtml(base).toLowerCase();
+        expect(html).not.toContain('frete');
+        expect(html).not.toContain('transportadora');
     });
 
     it('usa a foto associada no catálogo', () => {

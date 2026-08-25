@@ -410,11 +410,6 @@ export function VehicleTable({
                                                         // Mesmo preço que este perfil enxerga na tela.
                                                         preco: calculateClientPrice(vehicle),
                                                         nomeCliente: nomeCliente || 'Cliente',
-                                                        freteEstimado: getFreteTabela?.(vehicle.estado)?.min ?? null,
-                                                        transportadora: {
-                                                            nome: TRANSPORTADORA_PARCEIRA.nome,
-                                                            telefone: telefoneTransportadora(),
-                                                        },
                                                     });
                                                     if (!aberto) alert('Libere os pop-ups deste site para gerar a cotação.');
                                                 }}

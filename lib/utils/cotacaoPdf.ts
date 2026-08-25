@@ -27,9 +27,6 @@ export interface CotacaoParams {
     /** Preço já com a margem aplicada — o mesmo número que o cliente vê no grid. */
     preco: number;
     nomeCliente: string;
-    /** Frete de referência da tabela do estado, quando houver. Nunca somado ao total. */
-    freteEstimado?: number | null;
-    transportadora?: { nome: string; telefone: string } | null;
 }
 
 const brl = (valor: number) =>
@@ -53,7 +50,7 @@ function secao(titulo: string, conteudo: string): string {
     return `<section class="bloco"><h3>${escapar(titulo)}</h3><p>${escapar(conteudo)}</p></section>`;
 }
 
-export function montarCotacaoHtml({ veiculo, preco, nomeCliente, freteEstimado, transportadora }: CotacaoParams): string {
+export function montarCotacaoHtml({ veiculo, preco, nomeCliente }: CotacaoParams): string {
     const hoje = new Date().toLocaleDateString('pt-BR');
     const titulo = [veiculo.marca, veiculo.modelo].filter(Boolean).join(' ').toUpperCase();
     const prazoTexto = veiculo.prazo === 0
@@ -118,10 +115,6 @@ export function montarCotacaoHtml({ veiculo, preco, nomeCliente, freteEstimado, 
         <div class="item total"><span></span><span>${brl(preco)}</span></div>
       </div>
 
-      ${freteEstimado
-        ? `<p class="nota"><strong>Frete não incluso.</strong> A partir de ${brl(freteEstimado)} para ${escapar(veiculo.estado || 'o estado de origem')}.
-             ${transportadora ? `Transportadora parceira: ${escapar(transportadora.nome)} — ${escapar(transportadora.telefone)}.` : ''}</p>`
-        : ''}
       <p class="nota">Cotação emitida em ${hoje}. Valores sujeitos a confirmação e à disponibilidade do veículo.</p>
     </div>
   </div>
