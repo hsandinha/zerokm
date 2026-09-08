@@ -15,6 +15,8 @@ export interface IVehicleVariation extends Document {
     motor?: string;
     carroceria?: string;
     portas?: number;
+    /** Cilindrada em cc. Só faz sentido para moto. */
+    cilindrada?: number;
     opcionais?: string;
     opcionaisPadrao?: string[];
     preco?: number;
@@ -54,6 +56,7 @@ const VehicleVariationSchema: Schema = new Schema({
     motor: { type: String, trim: true },
     carroceria: { type: String, trim: true },
     portas: { type: Number },
+    cilindrada: { type: Number },
     opcionais: { type: String, trim: true },
     opcionaisPadrao: { type: [String], default: [] },
     preco: { type: Number },

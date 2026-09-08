@@ -3,6 +3,7 @@ import { VehicleService } from './vehicleService';
 export interface Marca {
     id?: string;
     nome: string;
+    tipoVeiculo?: 'carro' | 'moto' | 'caminhao' | 'utilitario';
     createdAt?: Date | string;
     updatedAt?: Date | string;
 }

@@ -3,6 +3,10 @@ export interface Vehicle {
     id?: string;
     dataEntrada: Date | string;
     modelo: string;
+    /** Segmento da vitrine. Ausente em registros antigos = 'carro'. */
+    tipoVeiculo?: 'carro' | 'moto' | 'caminhao' | 'utilitario';
+    /** Cilindrada em cc (moto). */
+    cilindrada?: number;
     transmissao: 'Manual' | 'Automático' | 'CVT';
     combustivel: 'Flex' | 'Gasolina' | 'Etanol' | 'Diesel' | 'Elétrico' | 'Híbrido';
     cor: string;
@@ -55,6 +59,8 @@ export interface VehiclePaginationOptions {
     accessProfile?: string;
     searchTerm?: string;
     filters?: {
+        /** 'carro' | 'moto'. Vazio ou 'todos' = sem filtro de segmento. */
+        tipo?: string;
         status?: string;
         cor?: string;
         combustivel?: string;
@@ -193,6 +199,7 @@ export class VehicleService {
                 params.set('sortDir', sortConfig.direction);
             }
 
+            if (filters.tipo && filters.tipo !== 'todos') params.set('tipo', filters.tipo);
             if (filters.status) params.set('status', filters.status);
             if (filters.cor) params.set('cor', filters.cor);
             if (filters.combustivel) params.set('combustivel', filters.combustivel);

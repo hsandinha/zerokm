@@ -144,8 +144,10 @@ export async function GET(request: Request) {
         const skip = (page - 1) * limit;
         const search = normalizeText(searchParams.get('search'));
         const status = normalizeText(searchParams.get('status'));
+        const tipo = normalizeText(searchParams.get('tipo'));
 
         const variationMatch: any = { ativo: true };
+        if (tipo && tipo !== 'todos') variationMatch.tipoVeiculo = tipo;
         
         // Add brand match logic to the match query properly
         if (brandMatch.$or) {

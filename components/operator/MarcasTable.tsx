@@ -18,6 +18,13 @@ const formatDate = (dateString: string | Date | undefined) => {
     }
 };
 
+const TIPO_LABELS: Record<string, string> = {
+    carro: 'Carro',
+    moto: 'Moto',
+    caminhao: 'Caminhão',
+    utilitario: 'Utilitário',
+};
+
 export function MarcasTable() {
     const { addMarca, updateMarca, deleteMarca } = useTablesDatabase();
 
@@ -34,7 +41,7 @@ export function MarcasTable() {
 
     const [showForm, setShowForm] = useState(false);
     const [editingMarca, setEditingMarca] = useState<Marca | null>(null);
-    const [formData, setFormData] = useState({ nome: '' });
+    const [formData, setFormData] = useState<{ nome: string; tipoVeiculo: 'carro' | 'moto' | 'caminhao' | 'utilitario' }>({ nome: '', tipoVeiculo: 'carro' });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -75,7 +82,8 @@ export function MarcasTable() {
             if (editingMarca && editingMarca.id) {
                 // Atualizar marca existente
                 const success = await updateMarca(editingMarca.id, {
-                    nome: formData.nome.toUpperCase()
+                    nome: formData.nome.toUpperCase(),
+                    tipoVeiculo: formData.tipoVeiculo,
                 });
 
                 if (success) {
@@ -88,7 +96,8 @@ export function MarcasTable() {
             } else {
                 // Adicionar nova marca
                 const success = await addMarca({
-                    nome: formData.nome.toUpperCase()
+                    nome: formData.nome.toUpperCase(),
+                    tipoVeiculo: formData.tipoVeiculo,
                 });
 
                 if (success) {
@@ -112,7 +121,7 @@ export function MarcasTable() {
 
     const handleEdit = (marca: Marca) => {
         setEditingMarca(marca);
-        setFormData({ nome: marca.nome });
+        setFormData({ nome: marca.nome, tipoVeiculo: marca.tipoVeiculo || 'carro' });
         setShowForm(true);
     };
 
@@ -143,7 +152,7 @@ export function MarcasTable() {
     const closeForm = () => {
         setShowForm(false);
         setEditingMarca(null);
-        setFormData({ nome: '' });
+        setFormData({ nome: '', tipoVeiculo: 'carro' });
     };
 
     const handleAddClick = () => {
@@ -152,7 +161,7 @@ export function MarcasTable() {
             return;
         }
         setEditingMarca(null);
-        setFormData({ nome: '' });
+        setFormData({ nome: '', tipoVeiculo: 'carro' });
         setShowForm(true);
     };
 
@@ -166,6 +175,11 @@ export function MarcasTable() {
             key: 'nome',
             label: 'Nome da Marca',
             render: (marca) => <span className={styles.marcaName}>{marca.nome}</span>
+        },
+        {
+            key: 'tipoVeiculo',
+            label: 'Tipo',
+            render: (marca) => TIPO_LABELS[marca.tipoVeiculo || 'carro'] || marca.tipoVeiculo
         },
         {
             key: 'createdAt',
@@ -202,11 +216,27 @@ export function MarcasTable() {
                     type="text"
                     id="nome"
                     value={formData.nome}
-                    onChange={(e) => setFormData({ nome: e.target.value })}
+                    onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
                     placeholder="Ex: TOYOTA"
                     required
                     className={styles.input}
                 />
+            </div>
+
+            <div className={styles.formGroup}>
+                <label htmlFor="tipoVeiculo">Tipo de veículo</label>
+                <select
+                    id="tipoVeiculo"
+                    value={formData.tipoVeiculo}
+                    onChange={(e) => setFormData(prev => ({ ...prev, tipoVeiculo: e.target.value as typeof prev.tipoVeiculo }))}
+                    className={styles.input}
+                >
+                    <option value="carro">Carro</option>
+                    <option value="moto">Moto</option>
+                    <option value="caminhao">Caminhão</option>
+                    <option value="utilitario">Utilitário</option>
+                </select>
+                <small style={{ opacity: 0.7 }}>Vira o padrão das variações novas dessa marca. Marca que vende carro e moto (ex.: SUZUKI) fica como Carro e o tipo é ajustado por variação.</small>
             </div>
 
             <div className={styles.modalActions}>

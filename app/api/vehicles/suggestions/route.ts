@@ -35,6 +35,7 @@ export async function GET(request: Request) {
         const searchTerm = searchParams.get('searchTerm') || '';
         const limitParam = parseInt(searchParams.get('limit') || '10');
         const sortByCount = searchParams.get('sortByCount') === 'true';
+        const tipo = searchParams.get('tipo');
         const effectiveProfile = getEffectiveProfile(session, searchParams.get('accessProfile'));
 
         const defaultFields = ['modelo', 'cor', 'ano', 'status', 'combustivel', 'transmissao', 'opcionais'];

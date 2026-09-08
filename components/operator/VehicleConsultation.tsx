@@ -17,7 +17,7 @@ import { UpgradeModal } from './UpgradeModal';
 import { FaWhatsapp } from 'react-icons/fa';
 import { VehicleGrid, getStatusColor } from './VehicleGrid';
 import { VehicleTable } from './VehicleTable';
-import { VehicleSidebar } from './VehicleSidebar';
+import { VehicleSidebar, TipoSegmento } from './VehicleSidebar';
 import { VehicleFiltersBar } from './VehicleFiltersBar';
 import { VehicleActionsHeader } from './VehicleActionsHeader';
 
@@ -242,6 +242,10 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
     };
 
     const [filters, setFilters] = useState<FiltersState>(() => ({ ...INITIAL_FILTERS }));
+    // Segmento da vitrine (Todos / Carros 0KM / Motos 0KM). Não é um filtro
+    // comum: "Limpar filtros" não mexe nele, e trocar de segmento zera o
+    // modelo selecionado porque a lista de modelos da sidebar muda junto.
+    const [tipoVeiculo, setTipoVeiculo] = useState<TipoSegmento>('todos');
     const [knownColors, setKnownColors] = useState<string[]>([]);
     const [availableModels, setAvailableModels] = useState<string[]>([]);
     const [modelSearch, setModelSearch] = useState('');
@@ -284,7 +288,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                 page: 1,
                 itemsPerPage: 100000,
                 searchTerm: searchTerm,
-                filters: filters,
+                filters: { ...filters, tipo: tipoVeiculo },
                 sortConfig: sortConfig.key ? sortConfig : undefined
             });
 
@@ -394,9 +398,24 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
             }
         };
 
+        loadColors();
+
+        // Carregar transportadoras
+        TransportadoraService.getAllTransportadoras()
+            .then(data => setTransportadoras(data.filter(t => t.ativo)))
+            .catch(err => console.error('Erro ao carregar transportadoras:', err));
+
+        return () => abortController.abort();
+    }, []);
+
+    // Modelos da sidebar: recarrega quando o segmento muda (carro/moto têm listas distintas)
+    useEffect(() => {
+        const abortController = new AbortController();
         const loadModels = async () => {
             try {
-                const res = await fetch(`/api/vehicles/suggestions?fields=modelo&limit=1000&accessProfile=${encodeURIComponent(role || '')}`, { signal: abortController.signal });
+                const params = new URLSearchParams({ fields: 'modelo', limit: '1000', accessProfile: role || '' });
+                if (tipoVeiculo !== 'todos') params.set('tipo', tipoVeiculo);
+                const res = await fetch(`/api/vehicles/suggestions?${params.toString()}`, { signal: abortController.signal });
                 if (!res.ok) return;
                 const data = await res.json();
                 if (data.suggestions?.modelo) {
@@ -412,16 +431,21 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                 }
             }
         };
-
-        loadColors();
         loadModels();
-
-        // Carregar transportadoras
-        TransportadoraService.getAllTransportadoras()
-            .then(data => setTransportadoras(data.filter(t => t.ativo)))
-            .catch(err => console.error('Erro ao carregar transportadoras:', err));
-
         return () => abortController.abort();
+    }, [role, tipoVeiculo]);
+
+    const handleTipoChange = useCallback((next: TipoSegmento) => {
+        setTipoVeiculo(prev => {
+            if (prev === next) return prev;
+            // modelo selecionado pertence ao segmento anterior
+            setSelectedModel(null);
+            setModelSearch('');
+            setFocusedModelIndex(-1);
+            setFilters(current => (current.modelo ? { ...current, modelo: '' } : current));
+            setCurrentPage(1);
+            return next;
+        });
     }, []);
 
     // Carregar dados paginados do servidor
@@ -435,7 +459,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                     page: currentPage,
                     itemsPerPage: itemsPerPage === -1 ? 1000 : itemsPerPage,
                     searchTerm: effectiveSearch,
-                    filters,
+                    filters: { ...filters, tipo: tipoVeiculo },
                     sortConfig: sortConfig.key ? sortConfig : undefined
                 });
             } catch (error) {
@@ -449,7 +473,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
         }, 700);
 
         return () => clearTimeout(timeoutId);
-    }, [currentPage, itemsPerPage, searchTerm, filters, sortConfig, getVehiclesPaginated]);
+    }, [currentPage, itemsPerPage, searchTerm, filters, tipoVeiculo, sortConfig, getVehiclesPaginated]);
 
     const getFreteInfo = (estado: string) => {
         if (!estado) return { count: 0, items: [], value: 0 };
@@ -667,7 +691,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                 continue;
             }
 
-            const prefixPattern = new RegExp(`^(${allowedFields.join('|')}|modelo|preco):(.+)$`, 'i');
+            const prefixPattern = new RegExp(`^(${allowedFields.join('|')}|modelo|preco|tipo):(.+)$`, 'i');
             const prefixMatch = trimmed.match(prefixPattern);
             if (prefixMatch) {
                 const [, key, rawValue] = prefixMatch;
@@ -733,6 +757,14 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                     case 'preco': {
                         residualTokens.push(trimmed);
                         warnings.push('Prefixo preco não é aplicado na busca do servidor.');
+                        break;
+                    }
+                    case 'tipo': {
+                        const t = normalizeString(value);
+                        if (t.startsWith('moto')) handleTipoChange('moto');
+                        else if (t.startsWith('carro')) handleTipoChange('carro');
+                        else if (t === 'todos' || t === 'todas') handleTipoChange('todos');
+                        else warnings.push(`Tipo "${value}" não reconhecido. Use tipo:carro, tipo:moto ou tipo:todos.`);
                         break;
                     }
                     default: {
@@ -873,7 +905,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
         if (filtersChanged || searchChanged) {
             setCurrentPage(1);
         }
-    }, [vehicles, normalizedColorMap, filters, selectedModel, role, session]);
+    }, [vehicles, normalizedColorMap, filters, selectedModel, role, session, handleTipoChange]);
 
     // Auto-aplicar busca com debounce quando usuário digita (detecta coluna automaticamente)
     useEffect(() => {
@@ -1201,6 +1233,8 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
 
             <div className={styles.splitLayout}>
                 <VehicleSidebar
+                    tipoVeiculo={tipoVeiculo}
+                    setTipoVeiculo={handleTipoChange}
                     modelSearch={modelSearch}
                     setModelSearch={setModelSearch}
                     handleModelSearchKeyDown={handleModelSearchKeyDown}

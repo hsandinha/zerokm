@@ -24,7 +24,7 @@ export function buildBoletoEmail({ customerName, planName, amount, dueDate, bole
     const name = customerName?.trim() || 'cliente';
     const due = formatDate(dueDate);
     const amountLabel = formatCurrency(amount);
-    const subject = `Seu boleto Zero KM vence em ${due}`;
+    const subject = `Seu boleto CNV vence em ${due}`;
     const text = [
         `Olá, ${name}.`,
         `Geramos o boleto de renovação do plano ${planName}, no valor de ${amountLabel}.`,
@@ -37,7 +37,7 @@ export function buildBoletoEmail({ customerName, planName, amount, dueDate, bole
     const html = `
         <div style="font-family:Arial,sans-serif;background:#f6f8fb;padding:24px;color:#111827">
             <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:8px;padding:24px;border:1px solid #e5e7eb">
-                <h1 style="font-size:20px;margin:0 0 12px;color:#111827">Boleto de renovação Zero KM</h1>
+                <h1 style="font-size:20px;margin:0 0 12px;color:#111827">Boleto de renovação CNV</h1>
                 <p style="font-size:15px;line-height:1.5;margin:0 0 16px">Olá, ${name}.</p>
                 <p style="font-size:15px;line-height:1.5;margin:0 0 16px">
                     Geramos o boleto de renovação do plano <strong>${planName}</strong>.

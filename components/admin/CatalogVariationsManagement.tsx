@@ -1,11 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import styles from './CatalogVariationsManagement.module.css';
 
 interface Marca {
     id: string;
     nome: string;
+    tipoVeiculo?: 'carro' | 'moto' | 'caminhao' | 'utilitario';
 }
 
 interface VehicleVariation {
@@ -24,6 +25,7 @@ interface VehicleVariation {
     motor?: string;
     carroceria?: string;
     portas?: number;
+    cilindrada?: number;
     opcionais?: string;
     opcionaisPadrao?: string[];
     preco?: number;
@@ -40,9 +42,19 @@ interface VehicleVariation {
     ativo: boolean;
 }
 
+const TIPO_LABELS: Record<string, string> = {
+    carro: 'Carro',
+    moto: 'Moto',
+    caminhao: 'Caminhão',
+    utilitario: 'Utilitário',
+};
+
 type VariationForm = {
     marca: string;
     modelo: string;
+    /** '' = herdar da marca (o servidor decide). */
+    tipoVeiculo: string;
+    cilindrada: string;
     ano: string;
     combustivel: string;
     cor: string;
@@ -102,6 +114,8 @@ type ImportPreview = {
 const EMPTY_FORM: VariationForm = {
     marca: '',
     modelo: '',
+    tipoVeiculo: '',
+    cilindrada: '',
     ano: '',
     combustivel: '',
     cor: '',
@@ -131,6 +145,7 @@ export function CatalogVariationsManagement() {
     const [form, setForm] = useState<VariationForm>(EMPTY_FORM);
     const [search, setSearch] = useState('');
     const [brandFilter, setBrandFilter] = useState('');
+    const [tipoFilter, setTipoFilter] = useState('');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [importSourceType, setImportSourceType] = useState<'googleSheets' | 'csv'>('googleSheets');
@@ -158,12 +173,13 @@ export function CatalogVariationsManagement() {
         const params = new URLSearchParams({ limit: '500' });
         if (search.trim()) params.set('search', search.trim());
         if (brandFilter) params.set('marcaId', brandFilter);
+        if (tipoFilter) params.set('tipo', tipoFilter);
 
         const res = await fetch(`/api/catalog/variations?${params.toString()}`);
         if (!res.ok) throw new Error('Erro ao carregar catálogo');
         const data = await res.json();
         setVariations(Array.isArray(data.data) ? data.data : []);
-    }, [brandFilter, search]);
+    }, [brandFilter, tipoFilter, search]);
 
     const loadAll = useCallback(async () => {
         setLoading(true);
@@ -233,6 +249,8 @@ export function CatalogVariationsManagement() {
         setForm({
             marca: variation.marca,
             modelo: variation.modelo,
+            tipoVeiculo: variation.tipoVeiculo || 'carro',
+            cilindrada: variation.cilindrada ? String(variation.cilindrada) : '',
             ano: variation.ano || variation.anoModelo?.toString() || '',
             combustivel: variation.combustivel || '',
             cor: variation.cor || '',
@@ -305,6 +323,13 @@ export function CatalogVariationsManagement() {
         );
     };
 
+    // Tipo que vai valer: o escolhido no form, senão o da marca digitada, senão carro.
+    const effectiveTipo = useMemo(() => {
+        if (form.tipoVeiculo) return form.tipoVeiculo;
+        const nome = form.marca.trim().toLowerCase();
+        return marcas.find(m => m.nome.toLowerCase() === nome)?.tipoVeiculo || 'carro';
+    }, [form.tipoVeiculo, form.marca, marcas]);
+
     const saveVariation = async (event: React.FormEvent) => {
         event.preventDefault();
         setSaving(true);
@@ -321,7 +346,9 @@ export function CatalogVariationsManagement() {
             const payload = {
                 marca: form.marca,
                 modelo: form.modelo,
-                tipoVeiculo: 'carro',
+                // '' = não manda: no POST o servidor herda da marca; no PUT mantém o atual.
+                ...(form.tipoVeiculo ? { tipoVeiculo: form.tipoVeiculo } : {}),
+                ...(effectiveTipo === 'moto' ? { cilindrada: form.cilindrada || undefined } : {}),
                 ano: form.ano,
                 combustivel: form.combustivel,
                 cor: form.cor,
@@ -524,6 +551,34 @@ export function CatalogVariationsManagement() {
                         </label>
 
                         <label>
+                            Tipo
+                            <select
+                                value={form.tipoVeiculo}
+                                onChange={event => setForm(prev => ({ ...prev, tipoVeiculo: event.target.value }))}
+                            >
+                                <option value="">Automático pela marca ({TIPO_LABELS[effectiveTipo] || effectiveTipo})</option>
+                                <option value="carro">Carro</option>
+                                <option value="moto">Moto</option>
+                                <option value="caminhao">Caminhão</option>
+                                <option value="utilitario">Utilitário</option>
+                            </select>
+                        </label>
+
+                        {effectiveTipo === 'moto' && (
+                            <label>
+                                Cilindrada (cc)
+                                <input
+                                    type="number"
+                                    min={50}
+                                    step={1}
+                                    value={form.cilindrada}
+                                    onChange={event => setForm(prev => ({ ...prev, cilindrada: event.target.value }))}
+                                    placeholder="Ex.: 160"
+                                />
+                            </label>
+                        )}
+
+                        <label>
                             Ano
                             <input
                                 value={form.ano}
@@ -605,6 +660,13 @@ export function CatalogVariationsManagement() {
                                 <option key={marca.id} value={marca.id}>{marca.nome}</option>
                             ))}
                         </select>
+                        <select value={tipoFilter} onChange={event => setTipoFilter(event.target.value)}>
+                            <option value="">Todos os tipos</option>
+                            <option value="carro">Carros</option>
+                            <option value="moto">Motos</option>
+                            <option value="caminhao">Caminhões</option>
+                            <option value="utilitario">Utilitários</option>
+                        </select>
                     </div>
                 </div>
 
@@ -620,6 +682,7 @@ export function CatalogVariationsManagement() {
                                     />
                                 </th>
                                 <th>Marca</th>
+                                <th>Tipo</th>
                                 <th>Modelo</th>
                                 <th>Ano</th>
                                 <th>Combustível</th>
@@ -632,11 +695,11 @@ export function CatalogVariationsManagement() {
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={9} className={styles.empty}>Carregando...</td>
+                                    <td colSpan={10} className={styles.empty}>Carregando...</td>
                                 </tr>
                             ) : variations.length === 0 ? (
                                 <tr>
-                                    <td colSpan={9} className={styles.empty}>Nenhuma variação encontrada.</td>
+                                    <td colSpan={10} className={styles.empty}>Nenhuma variação encontrada.</td>
                                 </tr>
                             ) : variations.map(variation => (
                                 <tr key={variation.id} className={selectedVariations.includes(variation.id) ? styles.selectedRow : ''}>
@@ -648,6 +711,10 @@ export function CatalogVariationsManagement() {
                                         />
                                     </td>
                                     <td>{variation.marca}</td>
+                                    <td>
+                                        {TIPO_LABELS[variation.tipoVeiculo] || variation.tipoVeiculo}
+                                        {variation.tipoVeiculo === 'moto' && variation.cilindrada ? ` · ${variation.cilindrada}cc` : ''}
+                                    </td>
                                     <td><strong>{variation.modelo}</strong></td>
                                     <td>{getAnoLabel(variation)}</td>
                                     <td>{variation.combustivel || '-'}</td>

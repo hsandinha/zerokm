@@ -12,7 +12,7 @@ export async function sendEmail({ to, subject, html, text }: SendEmailParams): P
         return { ok: false, skipped: true, error: 'RESEND_API_KEY não configurado' };
     }
 
-    const from = process.env.RESEND_FROM_EMAIL || 'Zero KM <noreply@meuzerokilometro.com.br>';
+    const from = process.env.RESEND_FROM_EMAIL || 'CNV <noreply@cnv0km.com.br>';
 
     const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',

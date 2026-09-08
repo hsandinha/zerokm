@@ -8,11 +8,12 @@ export async function GET() {
     try {
         await connectDB();
 
-        const marcas = await Marca.find({}).sort({ nome: 1 }).select('nome').lean();
+        const marcas = await Marca.find({}).sort({ nome: 1 }).select('nome tipoVeiculo').lean();
 
         return NextResponse.json(marcas.map((marca: any) => ({
             id: marca._id.toString(),
             nome: marca.nome,
+            tipoVeiculo: marca.tipoVeiculo || 'carro',
         })));
     } catch (error: any) {
         console.error('Erro ao buscar marcas públicas:', error);

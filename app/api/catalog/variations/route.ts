@@ -109,9 +109,11 @@ export async function GET(request: Request) {
         const search = normalizeText(searchParams.get('search'));
         const marca = normalizeText(searchParams.get('marca'));
         const marcaId = normalizeText(searchParams.get('marcaId'));
+        const tipo = normalizeText(searchParams.get('tipo'));
         const activeParam = searchParams.get('active');
 
         const query: any = {};
+        if (tipo && tipo !== 'todos') query.tipoVeiculo = tipo;
         if (activeParam !== 'all') query.ativo = activeParam === 'false' ? false : true;
         if (marcaId) query.marcaId = marcaId;
         if (marca) query.marca = { $regex: `^${escapeRegex(marca)}$`, $options: 'i' };
@@ -174,7 +176,8 @@ export async function POST(request: Request) {
             marca: marca.nome,
             modelo,
             codigoFipe: normalizeText(body.codigoFipe) || undefined,
-            tipoVeiculo: body.tipoVeiculo || 'carro',
+            // Sem tipo explícito, herda o da marca (HONDA MOTOS → moto).
+            tipoVeiculo: normalizeText(body.tipoVeiculo) || (marca as any)?.tipoVeiculo || 'carro',
             ano: normalizeText(body.ano) || undefined,
             anoModelo: parseNumber(body.anoModelo) || anoComposto.anoModelo,
             anoFabricacao: parseNumber(body.anoFabricacao) || anoComposto.anoFabricacao,
@@ -184,6 +187,7 @@ export async function POST(request: Request) {
             motor: normalizeText(body.motor) || undefined,
             carroceria: normalizeText(body.carroceria) || undefined,
             portas: parseNumber(body.portas),
+            cilindrada: parseNumber(body.cilindrada),
             opcionais: normalizeText(body.opcionais) || undefined,
             opcionaisPadrao: Array.isArray(body.opcionaisPadrao)
                 ? body.opcionaisPadrao

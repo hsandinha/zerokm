@@ -107,7 +107,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
             }
         }
 
-        const numberFields = ['anoModelo', 'anoFabricacao', 'portas', 'preco', 'frete'];
+        const numberFields = ['anoModelo', 'anoFabricacao', 'portas', 'cilindrada', 'preco', 'frete'];
         for (const field of numberFields) {
             if (Object.prototype.hasOwnProperty.call(body, field)) {
                 update[field] = parseNumber(body[field]);

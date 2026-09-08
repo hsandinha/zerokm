@@ -108,6 +108,9 @@ export async function GET(request: Request) {
         const matchStage: any = { ativo: true, 'variation.ativo': true };
 
         // Aplica filtros exatos se existirem
+        // Segmento da vitrine (Carros 0KM / Motos 0KM). 'todos' ou ausente = sem filtro.
+        const tipo = searchParams.get('tipo');
+        if (tipo && tipo !== 'todos') matchStage['variation.tipoVeiculo'] = tipo;
         if (searchParams.get('status')) matchStage['statusVeiculo'] = searchParams.get('status');
         if (searchParams.get('combustivel')) matchStage['variation.combustivel'] = searchParams.get('combustivel');
         if (searchParams.get('transmissao')) matchStage['variation.transmissao'] = searchParams.get('transmissao');
@@ -232,6 +235,8 @@ export async function GET(request: Request) {
                 // Mapped from Variation
                 marca: v.marca,
                 modelo: v.modelo,
+                tipoVeiculo: v.tipoVeiculo || 'carro',
+                cilindrada: v.cilindrada,
                 ano: v.ano || String(v.anoModelo),
                 anoModelo: v.anoModelo,
                 anoFabricacao: v.anoFabricacao,

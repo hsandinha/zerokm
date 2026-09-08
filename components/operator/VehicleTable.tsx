@@ -158,6 +158,7 @@ export function VehicleTable({
 
                             {!selectedModel && (
                                 <td className={styles.tableCell}>
+                                    {vehicle.tipoVeiculo === 'moto' && <span className={styles.tipoBadge} title="Moto 0KM">MOTO</span>}
                                     {isClientReadOnly ? (
                                         <HighlightText text={vehicle.modelo} searchTerm={pendingSearchTerm} />
                                     ) : (

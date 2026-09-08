@@ -17,7 +17,8 @@ type ParsedImportItem = {
     marca: string;
     modelo: string;
     codigoFipe?: string;
-    tipoVeiculo: TipoVeiculo;
+    /** undefined = coluna ausente/vazia no CSV; na gravação herda o tipo da marca. */
+    tipoVeiculo?: TipoVeiculo;
     ano?: string;
     anoModelo?: number;
     anoFabricacao?: number;
@@ -27,6 +28,7 @@ type ParsedImportItem = {
     motor?: string;
     carroceria?: string;
     portas?: number;
+    cilindrada?: number;
     opcionais?: string;
     opcionaisPadrao: string[];
     preco?: number;
@@ -62,6 +64,7 @@ const FIELD_ALIASES = {
     motor: ['motor'],
     carroceria: ['carroceria', 'body'],
     portas: ['portas', 'porta'],
+    cilindrada: ['cilindrada', 'cilindradas', 'cc', 'cilindrada (cc)'],
     opcionaisPadrao: ['opcionais', 'opcionaispadrao', 'opcionais padrão', 'itens', 'equipamentos'],
     preco: ['preco', 'preço', 'valor', 'valor venda'],
     statusVeiculo: ['status', 'situacao', 'situação'],
@@ -243,8 +246,9 @@ function parseNumberish(value: unknown) {
     return parseNumber(normalizeText(value));
 }
 
-function normalizeTipoVeiculo(value: string): TipoVeiculo {
+function normalizeTipoVeiculo(value: string): TipoVeiculo | undefined {
     const normalized = normalizeKeyPart(value);
+    if (!normalized) return undefined;
     if (normalized.includes('moto')) return 'moto';
     if (normalized.includes('caminhao') || normalized.includes('caminhonete')) return 'caminhao';
     if (normalized.includes('utilitario') || normalized.includes('suv')) return 'utilitario';
@@ -347,6 +351,7 @@ function normalizeItem(rowNumber: number, record: Record<string, string>, defaul
         motor: getField(record, FIELD_ALIASES.motor) || undefined,
         carroceria: getField(record, FIELD_ALIASES.carroceria) || undefined,
         portas: parseNumber(getField(record, FIELD_ALIASES.portas)),
+        cilindrada: parseNumber(getField(record, FIELD_ALIASES.cilindrada)),
         opcionais: rawOpcionais || undefined,
         opcionaisPadrao: parseOptionals(rawOpcionais),
         preco: parseNumber(getField(record, FIELD_ALIASES.preco)),
@@ -503,6 +508,7 @@ function sanitizeCommitItem(rawItem: any): ParsedImportItem {
         motor: normalizeText(rawItem.motor) || undefined,
         carroceria: normalizeText(rawItem.carroceria) || undefined,
         portas: parseNumberish(rawItem.portas),
+        cilindrada: parseNumberish(rawItem.cilindrada),
         opcionais: rawOpcionais || undefined,
         opcionaisPadrao: Array.isArray(rawItem.opcionaisPadrao)
             ? rawItem.opcionaisPadrao.map(normalizeText).filter(Boolean)
@@ -572,7 +578,7 @@ async function commitRows(rawItems: any[], createdBy?: string | null) {
                 marca: marca.nome,
                 modelo: row.modelo,
                 codigoFipe: row.codigoFipe,
-                tipoVeiculo: row.tipoVeiculo,
+                tipoVeiculo: row.tipoVeiculo || (marca as any).tipoVeiculo || 'carro',
                 ano: row.ano,
                 anoModelo: row.anoModelo,
                 anoFabricacao: row.anoFabricacao,
@@ -582,6 +588,7 @@ async function commitRows(rawItems: any[], createdBy?: string | null) {
                 motor: row.motor,
                 carroceria: row.carroceria,
                 portas: row.portas,
+                cilindrada: row.cilindrada,
                 opcionais: row.opcionais,
                 opcionaisPadrao: row.opcionaisPadrao,
                 preco: row.preco,

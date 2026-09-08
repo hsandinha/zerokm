@@ -103,6 +103,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
     const [concessionariaInfo, setConcessionariaInfo] = useState<PricingResponse['concessionaria'] | null>(null);
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState<PricingStatus>('todos');
+    const [tipo, setTipo] = useState<'todos' | 'carro' | 'moto'>('todos');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [draftPrices, setDraftPrices] = useState<Record<string, string>>({});
@@ -125,9 +126,10 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
         const params = new URLSearchParams({ limit: String(limit), page: String(targetPage) });
         if (search.trim()) params.set('search', search.trim());
         if (queryStatus) params.set('status', queryStatus);
+        if (tipo !== 'todos') params.set('tipo', tipo);
         if (concessionariaId) params.set('concessionariaId', concessionariaId);
         return `/api/dealership/pricing-catalog?${params.toString()}`;
-    }, [queryStatus, search, concessionariaId]);
+    }, [queryStatus, search, tipo, concessionariaId]);
 
     const loadCatalog = useCallback(async () => {
         setLoading(true);
@@ -176,7 +178,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
     // Filtros mudaram: a página atual pode não existir no novo resultado.
     useEffect(() => {
         setPage(1);
-    }, [search, queryStatus, concessionariaId]);
+    }, [search, queryStatus, tipo, concessionariaId]);
 
     const handlePageChange = (nextPage: number) => {
         const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -607,6 +609,23 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                     placeholder="Buscar modelo, cor, FIPE..."
                     className={styles.search}
                 />
+
+                <div className={styles.segmented} aria-label="Tipo de veículo">
+                    {([
+                        ['todos', 'Todos'],
+                        ['carro', 'Carros'],
+                        ['moto', 'Motos'],
+                    ] as Array<['todos' | 'carro' | 'moto', string]>).map(([value, label]) => (
+                        <button
+                            key={`tipo-${value}`}
+                            type="button"
+                            className={`${styles.segment} ${tipo === value ? styles.segmentActive : ''}`}
+                            onClick={() => setTipo(value)}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
 
                 <div className={styles.segmented}>
                     {([
