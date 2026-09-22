@@ -28,6 +28,18 @@ export interface IConcessionaria extends Document {
     ativo: boolean;
     dataCadastro: Date;
     webhookSecret?: string;
+    /** Plano pago pela loja para anunciar repasse. Ver lib/utils/planoRepasse.ts. */
+    planoRepasse?: {
+        planId?: mongoose.Types.ObjectId;
+        planName?: string;
+        status?: 'active' | 'inactive' | 'cancelled';
+        billingType?: 'monthly' | 'annual';
+        expiresAt?: Date | null;
+        activationMethod?: 'manual' | 'cortesia' | 'pix' | 'boleto' | 'card';
+        activatedAt?: Date | null;
+        activatedBy?: string;
+        lastPaymentId?: string;
+    };
     createdAt: Date;
     updatedAt: Date;
 }
@@ -59,7 +71,18 @@ const ConcessionariaSchema: Schema = new Schema({
     observacoes: { type: String },
     ativo: { type: Boolean, default: true },
     dataCadastro: { type: Date, default: Date.now },
-    webhookSecret: { type: String }
+    webhookSecret: { type: String },
+    planoRepasse: {
+        planId: { type: Schema.Types.ObjectId, ref: 'Plan' },
+        planName: { type: String },
+        status: { type: String, enum: ['active', 'inactive', 'cancelled'] },
+        billingType: { type: String, enum: ['monthly', 'annual'] },
+        expiresAt: { type: Date, default: null },
+        activationMethod: { type: String, enum: ['manual', 'cortesia', 'pix', 'boleto', 'card'] },
+        activatedAt: { type: Date, default: null },
+        activatedBy: { type: String },
+        lastPaymentId: { type: String },
+    },
 }, {
     timestamps: true
 });

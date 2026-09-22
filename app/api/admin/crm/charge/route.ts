@@ -7,6 +7,7 @@ import User from '../../../../../models/User';
 import Plan from '../../../../../models/Plan';
 import Payment from '../../../../../models/Payment';
 import Transaction from '../../../../../models/Transaction';
+import { isPlanoConcessionaria } from '@/lib/utils/planoRepasse';
 
 export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
@@ -34,6 +35,9 @@ export async function POST(req: NextRequest) {
 
     const plan = await Plan.findById(planId).lean() as any;
     if (!plan) return NextResponse.json({ error: 'Plano não encontrado.' }, { status: 404 });
+    if (isPlanoConcessionaria(plan)) {
+        return NextResponse.json({ error: 'Este plano é exclusivo para concessionárias.' }, { status: 400 });
+    }
 
     // Cobrar via cartão salvo (usando CVV salvo)
     const payRes = await chargeCustomerCard({

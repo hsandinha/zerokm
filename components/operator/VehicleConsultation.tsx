@@ -23,6 +23,7 @@ import { VehicleActionsHeader } from './VehicleActionsHeader';
 
 import { BRAZIL_STATES, STATUS_OPTIONS, YEAR_REGEX, fuelLookup, statusLookup, transmissionLookup } from '../../lib/utils/constants';
 import { calculateDaysSinceUpdate, formatDate, formatDateForInput, getUpdateStatusColor, normalizeString } from '../../lib/utils/formatters';
+import { formatKm } from '../../lib/utils/repasse';
 
 interface VehicleConsultationProps {
     onClose?: () => void;
@@ -307,7 +308,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
             } else if (format === 'csv') {
                 // Generate CSV
                 const headers = [
-                    'Modelo', 'Transmissão', 'Combustível', 'Cor', 'Ano',
+                    'Origem', 'Modelo', 'Transmissão', 'Combustível', 'Cor', 'Ano', 'KM',
                     'Opcionais', 'Preço Compra', 'Status',
                     'Data Entrada', 'Cidade', 'Estado', 'Concessionária',
                     'Operador', 'Contato', 'Observações'
@@ -326,11 +327,13 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                         };
 
                         return [
+                            escapeCsv(v.origem === 'repasse' ? 'Repasse' : '0KM'),
                             escapeCsv(v.modelo),
                             escapeCsv(v.transmissao),
                             escapeCsv(v.combustivel),
                             escapeCsv(v.cor),
                             escapeCsv(v.ano),
+                            escapeCsv(v.origem === 'repasse' ? v.km : 0),
                             escapeCsv(v.opcionais),
                             escapeCsv((v.preco || 0).toFixed(2)),
                             escapeCsv(v.status),
@@ -763,8 +766,9 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                         const t = normalizeString(value);
                         if (t.startsWith('moto')) handleTipoChange('moto');
                         else if (t.startsWith('carro')) handleTipoChange('carro');
+                        else if (t.startsWith('repasse') || t.startsWith('usado') || t.startsWith('seminovo')) handleTipoChange('repasse');
                         else if (t === 'todos' || t === 'todas') handleTipoChange('todos');
-                        else warnings.push(`Tipo "${value}" não reconhecido. Use tipo:carro, tipo:moto ou tipo:todos.`);
+                        else warnings.push(`Tipo "${value}" não reconhecido. Use tipo:carro, tipo:moto, tipo:repasse ou tipo:todos.`);
                         break;
                     }
                     default: {
@@ -985,8 +989,12 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
 
         // Remove non-numeric characters
         const phone = vehicle.telefone.replace(/\D/g, '');
+        const preco = `R$ ${calculateClientPrice(vehicle).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        // Repasse não tem foto nem placa no sistema: o lojista pede direto à loja.
         const message = encodeURIComponent(
-            `Olá, tenho interesse no veículo ${vehicle.modelo} ${vehicle.cor} ${vehicle.ano} (R$ ${calculateClientPrice(vehicle).toLocaleString('pt-BR', { minimumFractionDigits: 2 })})`
+            vehicle.origem === 'repasse'
+                ? `Olá, vi na CNV o repasse ${[vehicle.marca, vehicle.modelo, vehicle.cor, vehicle.ano].filter(Boolean).join(' ')}, ${formatKm(vehicle.km)} (${preco}). Pode me enviar fotos e a placa?`
+                : `Olá, tenho interesse no veículo ${vehicle.modelo} ${vehicle.cor} ${vehicle.ano} (${preco})`
         );
 
         window.open(`https://wa.me/55${phone}?text=${message}`, '_blank');
@@ -1277,6 +1285,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                     <div className={styles.resultsSection}>
                         {effectiveViewMode === 'table' ? (
                             <VehicleTable
+                                showKm={tipoVeiculo === 'todos' || tipoVeiculo === 'repasse'}
                                 vehicles={displayVehicles}
                                 selectedIds={selectedIds}
                                 selectedModel={selectedModel}

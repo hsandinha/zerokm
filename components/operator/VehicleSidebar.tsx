@@ -1,18 +1,14 @@
 import React, { RefObject } from 'react';
 import styles from './VehicleConsultation.module.css';
 
-export type TipoSegmento = 'todos' | 'carro' | 'moto';
+export type TipoSegmento = 'todos' | 'carro' | 'moto' | 'repasse';
 
-/**
- * Segmentos da vitrine. "Repasse" já aparece desabilitado de propósito: a
- * tela é a mesma para os três produtos, e o lojista vê o roadmap. Quando o
- * repasse existir, basta trocar `disabled` e o valor passa a filtrar.
- */
-export const TIPO_SEGMENTOS: Array<{ value: TipoSegmento | 'repasse'; label: string; disabled?: boolean; hint?: string }> = [
+/** Segmentos da vitrine. "Todos" junta 0KM e repasse na mesma lista. */
+export const TIPO_SEGMENTOS: Array<{ value: TipoSegmento; label: string; disabled?: boolean; hint?: string }> = [
     { value: 'todos', label: 'Todos' },
     { value: 'carro', label: 'Carros 0KM' },
     { value: 'moto', label: 'Motos 0KM' },
-    { value: 'repasse', label: 'Repasse', disabled: true, hint: 'Em breve' },
+    { value: 'repasse', label: 'Repasse' },
 ];
 
 interface VehicleSidebarProps {
@@ -52,7 +48,7 @@ export function VehicleSidebar({
                         disabled={seg.disabled}
                         title={seg.hint}
                         className={`${styles.tipoSegmentoItem} ${tipoVeiculo === seg.value ? styles.tipoSegmentoActive : ''}`}
-                        onClick={() => { if (!seg.disabled) setTipoVeiculo(seg.value as TipoSegmento); }}
+                        onClick={() => { if (!seg.disabled) setTipoVeiculo(seg.value); }}
                     >
                         {seg.label}
                         {seg.hint && <span className={styles.tipoSegmentoHint}>{seg.hint}</span>}

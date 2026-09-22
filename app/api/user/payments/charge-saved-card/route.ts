@@ -9,6 +9,7 @@ import Payment from '@/models/Payment';
 import Transaction from '@/models/Transaction';
 import { validateCPF } from '@/lib/utils/cpf';
 import { chargeCustomerCard, getPayment, mpGet, mpPut } from '@/lib/mercadopago';
+import { isPlanoConcessionaria } from '@/lib/utils/planoRepasse';
 
 export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
@@ -60,6 +61,9 @@ export async function POST(req: NextRequest) {
 
     const plan = await Plan.findById(planId);
     if (!plan) return NextResponse.json({ error: 'Plano não encontrado' }, { status: 404 });
+    if (isPlanoConcessionaria(plan)) {
+        return NextResponse.json({ error: 'Este plano é exclusivo para concessionárias.' }, { status: 400 });
+    }
 
     // Math for total sum exactly as Cron does
     let inviteesFee = 0;

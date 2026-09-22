@@ -2,10 +2,14 @@
 
 import { useState, useEffect } from 'react';
 
+type Publico = 'cliente' | 'concessionaria';
+
 interface Plan {
     id?: string;
     name: string;
     description: string;
+    /** Planos antigos vêm sem o campo: são do lojista. */
+    publico?: Publico;
     type: 'monthly' | 'credits';
     credits: number | null;
     price: number;
@@ -30,6 +34,7 @@ interface Plan {
 interface PlanForm {
     name: string;
     description: string;
+    publico: Publico;
     type: 'monthly' | 'credits';
     credits: string;
     price: string;
@@ -41,13 +46,14 @@ interface PlanForm {
 }
 
 const emptyForm: PlanForm = {
-    name: '', description: '', type: 'credits', credits: '', price: '',
+    name: '', description: '', publico: 'cliente', type: 'credits', credits: '', price: '',
     annualPrice: '', invitePrice: '', featuresText: '', popular: false, active: true
 };
 
 const planToForm = (p: Plan): PlanForm => ({
     name: p.name ?? '',
     description: p.description ?? '',
+    publico: p.publico === 'concessionaria' ? 'concessionaria' : 'cliente',
     type: p.type,
     credits: p.credits != null ? String(p.credits) : '',
     price: p.price != null ? String(p.price) : '',
@@ -139,18 +145,20 @@ export function PlansManagement() {
             return;
         }
 
+        const isConcessionaria = form.publico === 'concessionaria';
         const payload = {
             name: form.name.trim(),
             description: form.description.trim(),
-            type: form.type,
-            credits,
+            publico: form.publico,
+            type: isConcessionaria ? 'monthly' : form.type,
+            credits: isConcessionaria ? null : credits,
             price,
             annualPrice,
-            invitePrice: invitePrice ?? 0,
+            invitePrice: isConcessionaria ? 0 : (invitePrice ?? 0),
             // As linhas só são aparadas aqui: fazer isso a cada tecla apagava o
             // espaço recém-digitado e engolia a linha em branco do Enter.
             features: form.featuresText.split('\n').map(s => s.trim()).filter(Boolean),
-            popular: form.popular,
+            popular: isConcessionaria ? false : form.popular,
             active: form.active,
         };
 
@@ -201,7 +209,7 @@ export function PlansManagement() {
                 <div>
                     <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>Gerenciamento de Planos</h2>
                     <p style={{ margin: '4px 0 0', color: '#6b7280', fontSize: '0.875rem' }}>
-                        Configure planos mensais e pacotes de créditos para usuários Grátis
+                        Planos do lojista (mensal ou créditos) e planos da concessionária para anunciar repasse
                     </p>
                 </div>
                 <button
@@ -247,7 +255,15 @@ export function PlansManagement() {
                                         {plan.description}
                                     </div>
                                 )}
-                                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '6px', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                    <span style={{
+                                        background: plan.publico === 'concessionaria' ? '#ede9fe' : '#f3f4f6',
+                                        color: plan.publico === 'concessionaria' ? '#5b21b6' : '#374151',
+                                        borderRadius: '999px', padding: '2px 10px',
+                                        fontSize: '0.75rem', fontWeight: 700
+                                    }}>
+                                        {plan.publico === 'concessionaria' ? '🏢 Concessionária · repasse' : '🧑‍💼 Lojista'}
+                                    </span>
                                     <span style={{
                                         background: plan.type === 'monthly' ? '#dbeafe' : '#fef9c3',
                                         color: plan.type === 'monthly' ? '#1e40af' : '#854d0e',
@@ -370,6 +386,28 @@ export function PlansManagement() {
                             </div>
                             <div>
                                 <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: '#374151' }}>
+                                    Para quem é o plano *
+                                </label>
+                                <select
+                                    value={form.publico}
+                                    onChange={e => {
+                                        const publico = e.target.value as Publico;
+                                        setForm(f => ({ ...f, publico, ...(publico === 'concessionaria' ? { type: 'monthly' as const } : {}) }));
+                                    }}
+                                    style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
+                                >
+                                    <option value="cliente">🧑‍💼 Lojista (acesso à vitrine)</option>
+                                    <option value="concessionaria">🏢 Concessionária (anunciar repasse)</option>
+                                </select>
+                                {form.publico === 'concessionaria' && (
+                                    <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: '#6b7280' }}>
+                                        A concessionária contrata no painel Estoque e Preços, aba Repasse, e paga por PIX. Sempre mensal, com opção anual. Não aparece na landing nem para o lojista.
+                                    </p>
+                                )}
+                            </div>
+                            {form.publico === 'cliente' && (
+                            <div>
+                                <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: '#374151' }}>
                                     Tipo *
                                 </label>
                                 <select
@@ -381,7 +419,8 @@ export function PlansManagement() {
                                     <option value="monthly">📅 Plano Mensal (ilimitado)</option>
                                 </select>
                             </div>
-                            {form.type === 'credits' && (
+                            )}
+                            {form.publico === 'cliente' && form.type === 'credits' && (
                                 <div>
                                     <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: '#374151' }}>
                                         Quantidade de créditos *
@@ -454,9 +493,12 @@ export function PlansManagement() {
                                     style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '0.875rem', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }}
                                 />
                                 <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: '#6b7280' }}>
-                                    Aparece como lista de benefícios no card do plano na LP.
+                                    {form.publico === 'concessionaria'
+                                        ? 'Aparece na tela de contratação do painel da concessionária.'
+                                        : 'Aparece como lista de benefícios no card do plano na LP.'}
                                 </p>
                             </div>
+                            {form.publico === 'cliente' && (<>
                             <div>
                                 <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: '#374151' }}>
                                     Preço por convidado (R$/mês)
@@ -484,6 +526,7 @@ export function PlansManagement() {
                                     Destacar como “Mais popular” na LP
                                 </span>
                             </label>
+                            </>)}
                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                                 <input
                                     type="checkbox"

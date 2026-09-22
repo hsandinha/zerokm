@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Concessionaria } from '../../lib/services/concessionariaService';
-import { PricingCatalog } from '../dealership/PricingCatalog';
+import { DealerInventory } from '../dealership/DealerInventory';
 import styles from './AdminDealershipVehicles.module.css';
 
 export function AdminDealershipVehicles() {
@@ -31,7 +31,7 @@ export function AdminDealershipVehicles() {
         <div className={styles.container}>
             <div className={styles.header}>
                 <h2>Gestão de Veículos das Concessionárias</h2>
-                <p>Selecione uma concessionária para visualizar e gerenciar o catálogo de preços ativos e inativos.</p>
+                <p>Selecione uma concessionária para gerenciar o catálogo 0KM e os veículos de repasse.</p>
                 
                 <div className={styles.selectWrapper}>
                     <select
@@ -52,7 +52,7 @@ export function AdminDealershipVehicles() {
 
             {selectedId ? (
                 <div className={styles.catalogWrapper}>
-                    <PricingCatalog concessionariaId={selectedId} />
+                    <DealerInventory key={selectedId} concessionariaId={selectedId} />
                 </div>
             ) : (
                 <div className={styles.emptyState}>

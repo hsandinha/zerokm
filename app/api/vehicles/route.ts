@@ -5,6 +5,9 @@ import User from '@/models/User';
 import Concessionaria from '@/models/Concessionaria';
 import DealerVehiclePrice from '@/models/DealerVehiclePrice';
 import VehicleVariation from '@/models/VehicleVariation';
+import RepasseVehicle from '@/models/RepasseVehicle';
+import { REPASSE_STATUS_VITRINE } from '@/lib/utils/repasse';
+import { filtroPlanoRepasseAtivo } from '@/lib/utils/planoRepasse';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { createExpiredFreeTrialWindow, isFreeTrialExpired } from '@/lib/utils/freeTrial';
@@ -23,6 +26,75 @@ const getEffectiveProfile = (session: any, requestedProfile?: string | null) => 
 
     return currentProfile;
 };
+
+/**
+ * Estágios que deixam um veículo de repasse com o mesmo formato do documento
+ * 0KM depois dos $lookup (variation / concessionariaInfo / operadorInfo). Assim
+ * o $match, a ordenação e a serialização abaixo valem para os dois sem
+ * nenhum caminho especial.
+ *
+ * Só entra repasse de concessionária com plano de repasse em dia. Vencido, os
+ * anúncios saem da vitrine sem ser apagados e voltam quando a loja renova.
+ */
+function repasseAsVitrineStages(now: Date = new Date()) {
+    return [
+        { $match: { ativo: true, status: { $in: REPASSE_STATUS_VITRINE } } },
+        {
+            $lookup: {
+                from: Concessionaria.collection.name,
+                localField: 'concessionariaId',
+                foreignField: '_id',
+                as: 'concessionariaInfo',
+            },
+        },
+        { $unwind: { path: '$concessionariaInfo', preserveNullAndEmptyArrays: true } },
+        { $match: filtroPlanoRepasseAtivo('concessionariaInfo.', now) },
+        {
+            $lookup: {
+                from: 'users',
+                localField: 'concessionariaInfo.operadorId',
+                foreignField: '_id',
+                as: 'operadorInfo',
+            },
+        },
+        { $unwind: { path: '$operadorInfo', preserveNullAndEmptyArrays: true } },
+        {
+            $project: {
+                _id: 1,
+                origem: { $literal: 'repasse' },
+                concessionariaId: 1,
+                concessionariaInfo: 1,
+                operadorInfo: 1,
+                preco: 1,
+                frete: { $literal: 0 },
+                quantidade: { $literal: 1 },
+                // Usado está no pátio: Pronta Entrega.
+                prazo: { $literal: 0 },
+                coresDisponiveis: { $literal: [] },
+                observacoes: 1,
+                statusVeiculo: '$status',
+                ativo: { $literal: true },
+                km: 1,
+                createdAt: 1,
+                updatedAt: 1,
+                variation: {
+                    _id: '$_id',
+                    ativo: { $literal: true },
+                    tipoVeiculo: '$tipoVeiculo',
+                    marca: '$marca',
+                    modelo: '$modelo',
+                    ano: '$ano',
+                    anoModelo: '$anoModelo',
+                    anoFabricacao: '$anoFabricacao',
+                    combustivel: '$combustivel',
+                    transmissao: '$transmissao',
+                    cor: '$cor',
+                    opcionais: '$opcionais',
+                },
+            },
+        },
+    ];
+}
 
 export async function GET(request: Request) {
     try {
@@ -108,9 +180,10 @@ export async function GET(request: Request) {
         const matchStage: any = { ativo: true, 'variation.ativo': true };
 
         // Aplica filtros exatos se existirem
-        // Segmento da vitrine (Carros 0KM / Motos 0KM). 'todos' ou ausente = sem filtro.
-        const tipo = searchParams.get('tipo');
-        if (tipo && tipo !== 'todos') matchStage['variation.tipoVeiculo'] = tipo;
+        // Segmento da vitrine. carro/moto = só 0KM daquele tipo; repasse = só
+        // usados; 'todos' ou ausente = 0KM + repasse na mesma lista.
+        const tipo = searchParams.get('tipo') || 'todos';
+        if (tipo === 'carro' || tipo === 'moto') matchStage['variation.tipoVeiculo'] = tipo;
         if (searchParams.get('status')) matchStage['statusVeiculo'] = searchParams.get('status');
         if (searchParams.get('combustivel')) matchStage['variation.combustivel'] = searchParams.get('combustivel');
         if (searchParams.get('transmissao')) matchStage['variation.transmissao'] = searchParams.get('transmissao');
@@ -201,7 +274,13 @@ export async function GET(request: Request) {
                 }
             },
             { $unwind: { path: '$operadorInfo', preserveNullAndEmptyArrays: true } },
-            
+            { $addFields: { origem: 'novo' } },
+
+            // 2.6. Em "Todos", os usados entram na mesma lista, já no mesmo formato.
+            ...(tipo === 'todos'
+                ? [{ $unionWith: { coll: RepasseVehicle.collection.name, pipeline: repasseAsVitrineStages() } }]
+                : []),
+
             // 3. Match filters
             { $match: matchStage },
             
@@ -216,7 +295,12 @@ export async function GET(request: Request) {
             }
         ];
 
-        const [aggregationResult] = await DealerVehiclePrice.aggregate(pipeline);
+        // Segmento Repasse: começa direto na coleção de usados. Troca os estágios
+        // de junção do 0KM pelos do repasse e mantém $match/ordenação/paginação.
+        const matchIndex = pipeline.findIndex(stage => '$match' in stage);
+        const [aggregationResult] = tipo === 'repasse'
+            ? await RepasseVehicle.aggregate([...repasseAsVitrineStages(), ...pipeline.slice(matchIndex)])
+            : await DealerVehiclePrice.aggregate(pipeline);
         
         const data = aggregationResult.data || [];
         const total = aggregationResult.totalCount[0]?.count || 0;
@@ -227,9 +311,13 @@ export async function GET(request: Request) {
             const v = doc.variation;
             const c = doc.concessionariaInfo || {};
             
+            const isRepasse = doc.origem === 'repasse';
             return {
                 id: doc._id.toString(), // The ID of the price record becomes the main ID to interact with
-                variationId: v._id.toString(),
+                // Repasse não tem variação de catálogo: o id acima é do próprio usado.
+                variationId: isRepasse ? undefined : v._id.toString(),
+                origem: isRepasse ? 'repasse' : 'novo',
+                km: isRepasse ? doc.km : 0,
                 concessionariaId: c._id?.toString(),
                 
                 // Mapped from Variation

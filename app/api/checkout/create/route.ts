@@ -7,6 +7,7 @@ import Plan from '../../../../models/Plan';
 import User from '../../../../models/User';
 import Payment from '../../../../models/Payment';
 import Invite from '../../../../models/Invite';
+import { isPlanoConcessionaria } from '@/lib/utils/planoRepasse';
 
 export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
@@ -28,6 +29,9 @@ export async function POST(req: NextRequest) {
     const plan = await Plan.findById(planId);
     if (!plan || !plan.active) {
         return NextResponse.json({ error: 'Plano não encontrado ou inativo' }, { status: 404 });
+    }
+    if (isPlanoConcessionaria(plan)) {
+        return NextResponse.json({ error: 'Este plano é exclusivo para concessionárias.' }, { status: 400 });
     }
 
     const user = await User.findOne({ firebaseUid: session.user.uid });

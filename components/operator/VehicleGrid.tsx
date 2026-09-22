@@ -3,6 +3,7 @@ import { Vehicle } from '../../lib/services/vehicleService';
 import { calculateDaysSinceUpdate, formatDate, getUpdateStatusColor } from '../../lib/utils/formatters';
 import { FaWhatsapp } from 'react-icons/fa';
 import { EditableCurrencyCell, EditableTextCell, EditableNumberCell } from './EditableCells';
+import { formatKm } from '../../lib/utils/repasse';
 import styles from './VehicleConsultation.module.css';
 
 export function getStatusColor(status: string | undefined) {
@@ -14,6 +15,11 @@ export function getStatusColor(status: string | undefined) {
         case 'licenciado':
             return styles.statusSold;
         case 'pedido de fábrica':
+            return styles.statusReserved;
+        // Repasse (lib/utils/repasse.ts)
+        case 'disponível':
+            return styles.statusAvailable;
+        case 'reservado':
             return styles.statusReserved;
         default:
             return styles.statusDefault;
@@ -35,7 +41,9 @@ interface VehicleCardProps {
 }
 
 export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsApp, onLocationClick, role = 'operator', canViewLocation = false, onUpdatePreco, onUpdateObservacoes, onUpdateQuantidade }: VehicleCardProps) {
-    const canEditPriceAndNotes = ['admin', 'administrador', 'administrativo', 'operator', 'operador', 'gerente'].includes(role || '');
+    const isRepasse = vehicle.origem === 'repasse';
+    // Usado se edita no painel Repasse da concessionária, não aqui.
+    const canEditPriceAndNotes = !isRepasse && ['admin', 'administrador', 'administrativo', 'operator', 'operador', 'gerente'].includes(role || '');
     
     const calculateClientPrice = () => {
         const basePrice = vehicle.preco || 0;
@@ -48,7 +56,10 @@ export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsA
     return (
         <div className={styles.vehicleCard}>
             <div className={styles.cardHeader}>
-                <h4 className={styles.cardTitle}>{vehicle.modelo}</h4>
+                <h4 className={styles.cardTitle}>
+                    {isRepasse && <span style={{ fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.05em', padding: '1px 6px', borderRadius: 4, marginRight: 6, background: 'var(--color-highlight)', color: 'var(--color-text)', verticalAlign: 'middle' }}>REPASSE</span>}
+                    {vehicle.modelo}
+                </h4>
                 <span className={`${styles.statusBadge} ${getStatusColor(vehicle.status)}`}>
                     {vehicle.status}
                 </span>
@@ -63,6 +74,12 @@ export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsA
                     <span className={styles.cardLabel}>Ano:</span>
                     <span className={styles.cardValue}>{vehicle.ano}</span>
                 </div>
+                {isRepasse && (
+                    <div className={styles.cardRow}>
+                        <span className={styles.cardLabel}>KM:</span>
+                        <span className={styles.cardValue}>{formatKm(vehicle.km)}</span>
+                    </div>
+                )}
                 <div className={styles.cardRow}>
                     <span className={styles.cardLabel}>UF:</span>
                     <span className={styles.cardValue}>{vehicle.estado}</span>

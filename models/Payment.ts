@@ -3,6 +3,8 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 export interface IPayment extends Document {
     userId: mongoose.Types.ObjectId;
     planId?: mongoose.Types.ObjectId;
+    /** Preenchido no pagamento do plano de repasse (quem comprou foi a loja). */
+    concessionariaId?: mongoose.Types.ObjectId;
     mpPaymentId: string;
     mpPreferenceId?: string;
     mpPreapprovalId?: string;
@@ -37,6 +39,7 @@ export interface IPayment extends Document {
 const PaymentSchema: Schema = new Schema({
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     planId: { type: Schema.Types.ObjectId, ref: 'Plan' },
+    concessionariaId: { type: Schema.Types.ObjectId, ref: 'Concessionaria', index: true },
     mpPaymentId: { type: String, unique: true, sparse: true },
     mpPreferenceId: { type: String },
     mpPreapprovalId: { type: String, index: true },

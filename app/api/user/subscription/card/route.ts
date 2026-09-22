@@ -16,6 +16,7 @@ import {
     getPublicBaseUrl,
     normalizeBillingType,
 } from '@/lib/services/mercadoPagoSubscriptionService';
+import { isPlanoConcessionaria } from '@/lib/utils/planoRepasse';
 
 async function cancelPreviousPreapproval(preapprovalId?: string) {
     if (!preapprovalId) return;
@@ -70,6 +71,9 @@ export async function POST(req: NextRequest) {
     const plan = await Plan.findById(planId);
     if (!plan || !plan.active || plan.type !== 'monthly') {
         return NextResponse.json({ error: 'Plano inválido para assinatura recorrente.' }, { status: 404 });
+    }
+    if (isPlanoConcessionaria(plan)) {
+        return NextResponse.json({ error: 'Este plano é exclusivo para concessionárias.' }, { status: 400 });
     }
 
     const activeInvitesCount = await Invite.countDocuments({

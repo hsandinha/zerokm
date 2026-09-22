@@ -225,7 +225,8 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
 
         fetch('/api/admin/plans')
             .then(r => r.json())
-            .then(data => setPlans((Array.isArray(data) ? data : []).filter((p: Plan) => p.active)))
+            // CRM ativa assinatura de lojista: plano de concessionária fica de fora.
+            .then(data => setPlans((Array.isArray(data) ? data : []).filter((p: Plan) => p.active && (p as any).publico !== 'concessionaria')))
             .catch(() => { /* plans are optional, silently ignore */ });
 
         // Load vendedores

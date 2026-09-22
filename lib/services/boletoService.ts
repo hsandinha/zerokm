@@ -1,4 +1,5 @@
 import { mpPost } from '@/lib/mercadopago';
+import { validateCNPJ, validateCPF } from '@/lib/utils/cpf';
 import { calculateSubscriptionAmount, getPublicBaseUrl, normalizeBillingType } from '@/lib/services/mercadoPagoSubscriptionService';
 import type { BillingType } from '@/lib/services/mercadoPagoSubscriptionService';
 
@@ -40,9 +41,24 @@ export function getBoletoExpirationDate(preferredDate?: Date | null): Date {
     return minimum;
 }
 
+/**
+ * Documento do pagador para o Mercado Pago.
+ *
+ * O cadastro guarda CPF ou CNPJ no mesmo campo `cpf` (ver app/api/cadastro/cliente),
+ * e a maioria dos assinantes é loja, logo CNPJ. O MP aceita os dois em boleto
+ * (GET /v1/identification_types devolve CPF 11 e CNPJ 14); exigir 11 dígitos
+ * barrava 17 dos 24 assinantes de boleto e nenhum deles recebia a cobrança.
+ */
+export function getPayerIdentification(documento: unknown): { type: 'CPF' | 'CNPJ'; number: string } | null {
+    const digits = cleanDigits(documento);
+    if (digits.length === 11 && validateCPF(digits)) return { type: 'CPF', number: digits };
+    if (digits.length === 14 && validateCNPJ(digits)) return { type: 'CNPJ', number: digits };
+    return null;
+}
+
 export function validateBoletoProfile(user: any): string | null {
     if (!user?.email) return 'E-mail obrigatório para gerar boleto.';
-    if (cleanDigits(user.cpf).length !== 11) return 'CPF válido obrigatório para gerar boleto.';
+    if (!getPayerIdentification(user?.cpf)) return 'CPF ou CNPJ válido obrigatório para gerar boleto.';
     if (!user.address?.zipCode) return 'CEP obrigatório para gerar boleto.';
     if (!user.address?.street) return 'Rua obrigatória para gerar boleto.';
     if (!user.address?.number) return 'Número obrigatório para gerar boleto.';
@@ -66,7 +82,7 @@ export async function createBoletoPayment({
     const billingLabel = normalizedBilling === 'annual' ? 'Anual' : 'Mensal';
     const { basePrice, inviteUnitPrice, totalAmount } = calculateSubscriptionAmount(plan, normalizedBilling, inviteesCount);
     const { firstName, lastName } = splitName(user.displayName || '');
-    const cpfDigits = cleanDigits(user.cpf);
+    const identification = getPayerIdentification(user.cpf);
     const phoneDigits = cleanDigits(user.phoneNumber);
     const phoneObj = phoneDigits.length >= 10
         ? { area_code: phoneDigits.slice(0, 2), number: phoneDigits.slice(2) }
@@ -111,7 +127,7 @@ export async function createBoletoPayment({
             email: user.email,
             ...(firstName ? { first_name: firstName } : {}),
             ...(lastName ? { last_name: lastName } : {}),
-            identification: { type: 'CPF', number: cpfDigits },
+            ...(identification ? { identification } : {}),
             address,
             ...(phoneObj ? { phone: phoneObj } : {}),
         },

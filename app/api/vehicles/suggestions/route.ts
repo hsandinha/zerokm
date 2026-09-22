@@ -4,6 +4,9 @@ import User from '@/models/User';
 import Concessionaria from '@/models/Concessionaria';
 import VehicleVariation from '@/models/VehicleVariation';
 import DealerVehiclePrice from '@/models/DealerVehiclePrice';
+import RepasseVehicle from '@/models/RepasseVehicle';
+import { REPASSE_STATUS_VITRINE } from '@/lib/utils/repasse';
+import { filtroPlanoRepasseAtivo } from '@/lib/utils/planoRepasse';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 
@@ -35,7 +38,19 @@ export async function GET(request: Request) {
         const searchTerm = searchParams.get('searchTerm') || '';
         const limitParam = parseInt(searchParams.get('limit') || '10');
         const sortByCount = searchParams.get('sortByCount') === 'true';
-        const tipo = searchParams.get('tipo');
+        // Segmento da vitrine: carro/moto = catálogo 0KM daquele tipo;
+        // repasse = só usados; todos/ausente = catálogo 0KM + usados.
+        const tipo = searchParams.get('tipo') || 'todos';
+        const incluiNovos = tipo !== 'repasse';
+        const incluiRepasse = tipo === 'repasse' || tipo === 'todos';
+        // Campos que existem no usado. 'status' fica de fora: o do usado
+        // (Disponível/Reservado) não é o mesmo vocabulário do 0KM.
+        const repasseFields = new Set(['modelo', 'cor', 'anoModelo', 'combustivel', 'transmissao', 'opcionais', 'marca']);
+        // Mesma regra da vitrine: só lojas com plano de repasse em dia. Calculado
+        // uma vez, fora do laço de campos.
+        const lojasComPlano = incluiRepasse
+            ? await Concessionaria.find(filtroPlanoRepasseAtivo()).distinct('_id')
+            : [];
         const effectiveProfile = getEffectiveProfile(session, searchParams.get('accessProfile'));
 
         const defaultFields = ['modelo', 'cor', 'ano', 'status', 'combustivel', 'transmissao', 'opcionais'];
@@ -69,6 +84,7 @@ export async function GET(request: Request) {
             
             if (variationFields.has(actualField)) {
                 let query: any = { ativo: true };
+                if (tipo === 'carro' || tipo === 'moto') query.tipoVeiculo = tipo;
                 
                 // If restricted, we should ideally only suggest variations they have prices for.
                 // For performance, we can just do a general distinct, or query DealerVehiclePrice first.
@@ -80,18 +96,33 @@ export async function GET(request: Request) {
                     query._id = { $in: activePrices };
                 }
 
-                if (sortByCount) {
-                    const pipeline: any[] = [
-                        { $match: query },
-                        { $group: { _id: `$${actualField}`, count: { $sum: 1 } } },
-                        { $sort: { count: -1 } },
-                        { $limit: limitParam }
-                    ];
-                    const aggregation = await VehicleVariation.aggregate(pipeline);
-                    filtered = aggregation.map(item => String(item._id));
-                } else {
-                    const distinctValues = await VehicleVariation.distinct(actualField, query).catch(() => []);
-                    filtered = distinctValues.map(v => String(v)).filter(Boolean);
+                if (incluiNovos) {
+                    if (sortByCount) {
+                        const pipeline: any[] = [
+                            { $match: query },
+                            { $group: { _id: `$${actualField}`, count: { $sum: 1 } } },
+                            { $sort: { count: -1 } },
+                            { $limit: limitParam }
+                        ];
+                        const aggregation = await VehicleVariation.aggregate(pipeline);
+                        filtered = aggregation.map(item => String(item._id));
+                    } else {
+                        const distinctValues = await VehicleVariation.distinct(actualField, query).catch(() => []);
+                        filtered = distinctValues.map(v => String(v)).filter(Boolean);
+                    }
+                }
+
+                if (incluiRepasse && repasseFields.has(actualField)) {
+                    const repasseQuery: any = { ativo: true, status: { $in: REPASSE_STATUS_VITRINE }, concessionariaId: { $in: lojasComPlano } };
+                    if (restrictedDealershipId) {
+                        repasseQuery.concessionariaId = lojasComPlano.some(id => String(id) === String(restrictedDealershipId))
+                            ? restrictedDealershipId
+                            : { $in: [] };
+                    }
+                    const usados = await RepasseVehicle.distinct(actualField, repasseQuery).catch(() => []);
+                    const merged = new Set(filtered);
+                    for (const value of usados) if (value !== null && value !== undefined && value !== '') merged.add(String(value));
+                    filtered = Array.from(merged);
                 }
             } else if (concessionariaFields.has(actualField)) {
                 // Map 'estado' -> 'uf', 'concessionaria' -> 'nome'

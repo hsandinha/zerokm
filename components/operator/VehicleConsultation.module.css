@@ -1585,3 +1585,9 @@
     transform: scale(1.15);
     filter: brightness(1.2);
 }
+
+/* Etiqueta REPASSE: mesma forma da MOTO, cor neutra para não competir com o preço */
+.tipoBadgeRepasse {
+    background: var(--color-highlight);
+    color: var(--color-text);
+}

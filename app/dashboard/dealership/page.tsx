@@ -13,7 +13,7 @@ import KanbanBoard from '../../../components/crm/KanbanBoard';
 import { MobileTabBar } from '../../../components/mobile/MobileTabBar';
 import styles from './dealership.module.css';
 import { MeusAnuncios } from '../../../components/dealership/MeusAnuncios';
-import { PricingCatalog } from '../../../components/dealership/PricingCatalog';
+import { DealerInventory } from '../../../components/dealership/DealerInventory';
 import { StockReminderModal } from '../../../components/dealership/StockReminderModal';
 
 import { Concessionaria } from '../../../lib/services/concessionariaService';
@@ -121,7 +121,7 @@ export default function DealershipDashboard() {
     const tabs = [
         { id: 'visao-geral', label: 'Visão Geral', icon: '📊' },
         { id: 'veiculos', label: 'Meus Veículos', icon: '🚗' },
-        { id: 'precos', label: 'Preços', icon: '💰' },
+        { id: 'precos', label: 'Estoque e Preços', icon: '💰' },
         { id: 'perfil', label: 'Meu Perfil', icon: '🏢' },
         { id: 'crm', label: 'CRM', icon: '🎯' },
         { id: 'anuncios', label: 'Meus Anúncios', icon: '🖼️' }
@@ -136,7 +136,7 @@ export default function DealershipDashboard() {
             case 'precos':
                 return (
                     <div className={styles.contentArea}>
-                        <PricingCatalog />
+                        <DealerInventory />
                     </div>
                 );
             case 'crm':

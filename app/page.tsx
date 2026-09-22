@@ -153,7 +153,8 @@ export default async function LandingPage() {
 
     try {
         await connectDB();
-        const dbPlans = await PlanModel.find({ active: true }).sort({ price: 1 }).lean();
+        // Planos de concessionária (repasse) não são vendidos na landing do lojista.
+        const dbPlans = await PlanModel.find({ active: true, publico: { $ne: 'concessionaria' } }).sort({ price: 1 }).lean();
         PLANS = dbPlans.map((p, i) => {
             const annualPrice = ((p as any).annualPrice as number | null | undefined) ?? null;
             const features = ((p as any).features as string[] | undefined) ?? [];

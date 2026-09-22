@@ -5,6 +5,7 @@ import { HighlightText } from '../HighlightText';
 import { getStatusColor } from './VehicleGrid';
 import { EditableTextCell, EditableSelectCell, EditableAutocompleteCell, EditableYearCell, EditableCurrencyCell, EditableNumberCell, EditablePrazoCell } from './EditableCells';
 import { formatPrazo } from '../../lib/utils/prazo';
+import { formatKm } from '../../lib/utils/repasse';
 import { FaWhatsapp } from 'react-icons/fa';
 import { TRANSPORTADORA_PARCEIRA, telefoneTransportadora, whatsappTransportadora } from '../../lib/utils/transportadora';
 import { gerarCotacaoPdf } from '../../lib/utils/cotacaoPdf';
@@ -39,6 +40,8 @@ interface VehicleTableProps {
     getFreteTabela?: (estado?: string) => { min: number; count: number } | null;
     onFreteTabelaClick?: (estado?: string) => void;
     nomeCliente?: string;
+    /** Mostra a coluna KM (segmentos Todos e Repasse). */
+    showKm?: boolean;
 }
 
 export function VehicleTable({
@@ -69,6 +72,7 @@ export function VehicleTable({
     getFreteTabela,
     onFreteTabelaClick,
     nomeCliente,
+    showKm = false,
 }: VehicleTableProps) {
     const canEditPriceAndNotes = ['admin', 'administrador', 'administrativo', 'operator', 'operador', 'gerente'].includes(role || '');
     
@@ -103,6 +107,9 @@ export function VehicleTable({
                         <th className={styles.tableHeader} onClick={() => handleSort('ano')} style={{ cursor: 'pointer' }}>
                             ANO {sortConfig.key === 'ano' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                         </th>
+                        {showKm && (
+                            <th className={styles.tableHeader}>KM</th>
+                        )}
                         <th className={`${styles.tableHeader} ${styles.colOpcionais}`} onClick={() => handleSort('opcionais')} style={{ cursor: 'pointer' }}>
                             OPCIONAIS {sortConfig.key === 'opcionais' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                         </th>
@@ -153,13 +160,20 @@ export function VehicleTable({
                     </tr>
                 </thead>
                 <tbody>
-                    {vehicles.map((vehicle) => (
+                    {vehicles.map((vehicle) => {
+                        // Usado se edita no painel Repasse da concessionária; a edição
+                        // inline daqui grava na tabela de preços 0KM e não o acharia.
+                        const isRepasse = vehicle.origem === 'repasse';
+                        const rowReadOnly = isClientReadOnly || isRepasse;
+                        const rowCanEdit = canEditPriceAndNotes && !isRepasse;
+                        return (
                         <tr key={vehicle.id} className={styles.tableRow}>
 
                             {!selectedModel && (
                                 <td className={styles.tableCell}>
-                                    {vehicle.tipoVeiculo === 'moto' && <span className={styles.tipoBadge} title="Moto 0KM">MOTO</span>}
-                                    {isClientReadOnly ? (
+                                    {isRepasse && <span className={`${styles.tipoBadge} ${styles.tipoBadgeRepasse}`} title="Usado de repasse">REPASSE</span>}
+                                    {vehicle.tipoVeiculo === 'moto' && <span className={styles.tipoBadge} title={isRepasse ? 'Moto' : 'Moto 0KM'}>MOTO</span>}
+                                    {rowReadOnly ? (
                                         <HighlightText text={vehicle.modelo} searchTerm={pendingSearchTerm} />
                                     ) : (
                                         <EditableAutocompleteCell
@@ -172,7 +186,7 @@ export function VehicleTable({
                                 </td>
                             )}
                             <td className={styles.tableCell}>
-                                {isClientReadOnly ? (
+                                {rowReadOnly ? (
                                     <HighlightText text={vehicle.transmissao} searchTerm={pendingSearchTerm} />
                                 ) : (
                                     <EditableSelectCell
@@ -184,7 +198,7 @@ export function VehicleTable({
                                 )}
                             </td>
                             <td className={styles.tableCell}>
-                                {isClientReadOnly ? (
+                                {rowReadOnly ? (
                                     <HighlightText text={vehicle.combustivel} searchTerm={pendingSearchTerm} />
                                 ) : (
                                     <EditableSelectCell
@@ -196,7 +210,7 @@ export function VehicleTable({
                                 )}
                             </td>
                             <td className={styles.tableCell}>
-                                {isClientReadOnly ? (
+                                {rowReadOnly ? (
                                     <HighlightText text={vehicle.cor} searchTerm={pendingSearchTerm} />
                                 ) : (
                                     <EditableTextCell
@@ -207,7 +221,7 @@ export function VehicleTable({
                                 )}
                             </td>
                             <td className={styles.tableCell}>
-                                {isClientReadOnly ? (
+                                {rowReadOnly ? (
                                     <HighlightText text={vehicle.ano} searchTerm={pendingSearchTerm} />
                                 ) : (
                                     <EditableYearCell
@@ -216,8 +230,13 @@ export function VehicleTable({
                                     />
                                 )}
                             </td>
+                            {showKm && (
+                                <td className={styles.tableCell} style={{ whiteSpace: 'nowrap' }}>
+                                    {isRepasse ? formatKm(vehicle.km) : '0 km'}
+                                </td>
+                            )}
                             <td className={`${styles.tableCell} ${styles.colOpcionais}`}>
-                                {isClientReadOnly ? (
+                                {rowReadOnly ? (
                                     <HighlightText text={vehicle.opcionais} searchTerm={pendingSearchTerm} />
                                 ) : (
                                     <EditableTextCell
@@ -228,7 +247,7 @@ export function VehicleTable({
                                 )}
                             </td>
                             <td className={styles.tableCell}>
-                                {isClientReadOnly && !canEditPriceAndNotes ? (
+                                {rowReadOnly && !rowCanEdit ? (
                                     vehicle.quantidade || 0
                                 ) : (
                                     <EditableNumberCell
@@ -238,7 +257,7 @@ export function VehicleTable({
                                 )}
                             </td>
                             <td className={styles.tableCell}>
-                                {isClientReadOnly && !canEditPriceAndNotes ? (
+                                {rowReadOnly && !rowCanEdit ? (
                                     `R$ ${calculateClientPrice(vehicle).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
                                 ) : (
                                     <EditableCurrencyCell
@@ -248,7 +267,7 @@ export function VehicleTable({
                                 )}
                             </td>
                             <td className={styles.tableCell}>
-                                {isClientReadOnly ? (
+                                {rowReadOnly ? (
                                     <span className={`${styles.statusBadge} ${getStatusColor(vehicle.status)}`}>
                                         {vehicle.status}
                                     </span>
@@ -262,7 +281,7 @@ export function VehicleTable({
                                 )}
                             </td>
                             <td className={styles.tableCell}>
-                                {isClientReadOnly && !canEditPriceAndNotes ? (
+                                {rowReadOnly && !rowCanEdit ? (
                                     formatPrazo(vehicle.prazo)
                                 ) : (
                                     <EditablePrazoCell
@@ -273,7 +292,7 @@ export function VehicleTable({
                             </td>
                             {role !== 'dealership' && role !== 'gratis' && (
                                 <td className={styles.tableCell}>
-                                    {isClientReadOnly ? (
+                                    {rowReadOnly ? (
                                         <HighlightText text={vehicle.estado} searchTerm={pendingSearchTerm} />
                                     ) : (
                                         <EditableAutocompleteCell
@@ -286,7 +305,7 @@ export function VehicleTable({
                                 </td>
                             )}
                             <td className={styles.tableCell}>
-                                {isClientReadOnly && !canEditPriceAndNotes ? (
+                                {rowReadOnly && !rowCanEdit ? (
                                     <HighlightText text={vehicle.observacoes} searchTerm={pendingSearchTerm} />
                                 ) : (
                                     <EditableTextCell
@@ -304,7 +323,7 @@ export function VehicleTable({
                                         (porte do carro, capital/interior) e o veículo não guarda
                                         o porte; o clique abre todas as opções. */}
                                     {vehicle.frete ? (
-                                        canEditPriceAndNotes ? (
+                                        rowCanEdit ? (
                                             <EditableCurrencyCell
                                                 value={vehicle.frete}
                                                 onSave={(newValue) => handleUpdateVehicleField(vehicle, 'frete', newValue ?? 0)}
@@ -352,7 +371,7 @@ export function VehicleTable({
                             </td>
                             {role !== 'client' && role !== 'gratis' && (
                                 <td className={styles.tableCell}>
-                                    {isClientReadOnly ? (
+                                    {rowReadOnly ? (
                                         <HighlightText text={vehicle.operador} searchTerm={pendingSearchTerm} />
                                     ) : (
                                         vehicle.operador || '-'
@@ -403,7 +422,9 @@ export function VehicleTable({
                                                             combustivel: vehicle.combustivel,
                                                             transmissao: vehicle.transmissao,
                                                             opcionais: vehicle.opcionais,
-                                                            observacoes: vehicle.observacoes,
+                                                            observacoes: isRepasse
+                                                                ? [`Usado: ${formatKm(vehicle.km)}`, vehicle.observacoes].filter(Boolean).join(' · ')
+                                                                : vehicle.observacoes,
                                                             estado: vehicle.estado,
                                                             prazo: vehicle.prazo,
                                                             imagemUrl: vehicle.imagemUrl,
@@ -437,7 +458,8 @@ export function VehicleTable({
                                 </td>
                             )}
                         </tr>
-                    ))}
+                        );
+                    })}
                 </tbody>
             </table>
         </div>

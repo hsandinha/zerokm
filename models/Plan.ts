@@ -3,6 +3,12 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 export interface IPlan extends Document {
     name: string;
     description?: string;
+    /**
+     * Quem compra. 'cliente' = lojista (planos antigos, sem o campo, também).
+     * 'concessionaria' = plano para a loja anunciar repasse; nunca aparece
+     * para o lojista (landing, checkout, CRM). Ver lib/utils/planoRepasse.ts.
+     */
+    publico: 'cliente' | 'concessionaria';
     type: 'monthly' | 'credits';
     credits?: number | null;
     price: number;
@@ -18,6 +24,7 @@ export interface IPlan extends Document {
 const PlanSchema: Schema = new Schema({
     name: { type: String, required: true },
     description: { type: String },
+    publico: { type: String, enum: ['cliente', 'concessionaria'], default: 'cliente', index: true },
     type: { type: String, enum: ['monthly', 'credits'], required: true },
     credits: { type: Number, default: null },
     price: { type: Number, required: true },

@@ -6,9 +6,9 @@ import Plan from '@/models/Plan';
 import User from '@/models/User';
 import Invite from '@/models/Invite';
 import Payment from '@/models/Payment';
-import { validateCPF } from '@/lib/utils/cpf';
 import { createBoletoPayment, getBoletoExpirationDate, validateBoletoProfile } from '@/lib/services/boletoService';
 import { normalizeBillingType } from '@/lib/services/mercadoPagoSubscriptionService';
+import { isPlanoConcessionaria } from '@/lib/utils/planoRepasse';
 
 export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
@@ -30,16 +30,17 @@ export async function POST(req: NextRequest) {
     if (!plan || !plan.active || plan.type !== 'monthly') {
         return NextResponse.json({ error: 'Plano não encontrado ou inativo' }, { status: 404 });
     }
+    if (isPlanoConcessionaria(plan)) {
+        return NextResponse.json({ error: 'Este plano é exclusivo para concessionárias.' }, { status: 400 });
+    }
 
     const user = await User.findOne({ firebaseUid: session.user.uid });
     if (!user) {
         return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
     }
 
-    if (!user.cpf || !validateCPF(user.cpf)) {
-        return NextResponse.json({ error: 'Completar seu perfil com um CPF válido é obrigatório para boleto.' }, { status: 400 });
-    }
-
+    // A regra do documento vive em validateBoletoProfile (aceita CPF e CNPJ):
+    // uma segunda checagem aqui barrava as lojas, que são PJ.
     const profileError = validateBoletoProfile(user);
     if (profileError) {
         return NextResponse.json({ error: profileError }, { status: 400 });

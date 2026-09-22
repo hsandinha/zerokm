@@ -14,6 +14,7 @@ import {
     parseSubscriptionExternalReference,
 } from '../../../../lib/services/mercadoPagoSubscriptionService';
 import Banner from '../../../../models/Banner';
+import { DEALER_PLAN_PREFIX, processarPagamentoPlanoRepasse } from '@/lib/services/planoRepasseService';
 
 /**
  * Webhook do Mercado Pago
@@ -408,6 +409,16 @@ export async function POST(req: NextRequest) {
 
         // Extrair referência externa: firebaseUid:planId:billingType
         const externalRef: string = payment.external_reference || '';
+
+        // Plano de repasse da concessionária: fluxo próprio. Tem que vir antes do
+        // parse abaixo, que leria "DEALERPLAN" como firebaseUid e, se achasse
+        // alguém, ativaria assinatura de lojista (perfil "cliente") no usuário.
+        if (externalRef.startsWith(DEALER_PLAN_PREFIX)) {
+            await connectDB();
+            await processarPagamentoPlanoRepasse(payment, String(paymentId));
+            return NextResponse.json({ ok: true });
+        }
+
         const parts = externalRef.split(':');
         let firebaseUid = parts[0] || '';
         let planId = parts[1] || '';

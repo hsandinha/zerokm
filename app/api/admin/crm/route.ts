@@ -9,6 +9,7 @@ import Payment from '../../../../models/Payment';
 import { calculateProfileCompletion } from '../../../../lib/utils/profileCompletion';
 import { calculateSubscriptionExpiry, parseSubscriptionStartDate } from '../../../../lib/utils/subscriptionDates';
 import { isFreeTrialExpired } from '../../../../lib/utils/freeTrial';
+import { isPlanoConcessionaria } from '@/lib/utils/planoRepasse';
 
 export async function GET() {
     const session = await getServerSession(authOptions);
@@ -171,6 +172,9 @@ export async function PATCH(request: Request) {
 
     const plan = await Plan.findById(planId).lean() as any;
     if (!plan) return NextResponse.json({ error: 'Plano não encontrado.' }, { status: 404 });
+    if (isPlanoConcessionaria(plan)) {
+        return NextResponse.json({ error: 'Este plano é exclusivo para concessionárias.' }, { status: 400 });
+    }
 
     const isAnnual = paymentFrequency === 'annual';
     const durationDays = plan.type === 'monthly' ? (isAnnual ? 365 : 30) : null;

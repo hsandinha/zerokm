@@ -7,6 +7,10 @@ export interface Vehicle {
     tipoVeiculo?: 'carro' | 'moto' | 'caminhao' | 'utilitario';
     /** Cilindrada em cc (moto). */
     cilindrada?: number;
+    /** 'repasse' = usado de lib/utils/repasse; ausente/'novo' = 0KM. */
+    origem?: 'novo' | 'repasse';
+    /** Quilometragem. 0 para 0KM. */
+    km?: number;
     transmissao: 'Manual' | 'Automático' | 'CVT';
     combustivel: 'Flex' | 'Gasolina' | 'Etanol' | 'Diesel' | 'Elétrico' | 'Híbrido';
     cor: string;
@@ -59,7 +63,7 @@ export interface VehiclePaginationOptions {
     accessProfile?: string;
     searchTerm?: string;
     filters?: {
-        /** 'carro' | 'moto'. Vazio ou 'todos' = sem filtro de segmento. */
+        /** 'carro' | 'moto' | 'repasse'. Vazio ou 'todos' = 0KM + repasse. */
         tipo?: string;
         status?: string;
         cor?: string;
