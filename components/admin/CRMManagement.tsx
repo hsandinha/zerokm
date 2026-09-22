@@ -694,6 +694,10 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
 
         if (filterTab === 'cortesia') {
             list = list.filter(c => c.activationMethod === 'cortesia' && c.status === 'active');
+        } else if (filterTab === 'active') {
+            // Cortesia tem aba própria: repetir aqui inflava "Plano ativo" e
+            // misturava quem paga com quem foi bonificado.
+            list = list.filter(c => c.status === 'active' && c.activationMethod !== 'cortesia');
         } else if (filterTab !== 'all') {
             list = list.filter(c => c.status === filterTab);
         }

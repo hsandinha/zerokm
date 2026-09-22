@@ -102,7 +102,8 @@ export async function GET() {
 
     const summary = {
         total: clients.length,
-        active: clients.filter(c => c.status === 'active').length,
+        // Paga de fato: cortesia é contada no card próprio, não aqui.
+        active: clients.filter(c => c.status === 'active' && c.activationMethod !== 'cortesia').length,
         expired: clients.filter(c => c.status === 'expired').length,
         no_plan: clients.filter(c => c.status === 'no_plan').length,
         cortesia: clients.filter(c => c.activationMethod === 'cortesia' && c.status === 'active').length,

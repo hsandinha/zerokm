@@ -12,6 +12,7 @@ import { ConfigContext } from '../../../lib/contexts/ConfigContext';
 import UserMenu from '../../../components/UserMenu';
 import { PlansManagement } from '../../../components/settings/PlansManagement';
 import { CRMManagement } from '../../../components/admin/CRMManagement';
+import { CobrancasManagement } from '../../../components/admin/CobrancasManagement';
 import { ConfiguracoesManagement } from '../../../components/admin/ConfiguracoesManagement';
 import { BannersManagement } from '@/components/admin/BannersManagement';
 import IntegrationsPanel from '@/components/admin/IntegrationsPanel';
@@ -36,7 +37,7 @@ const VehicleConsultation = dynamic<any>(
     }
 );
 
-type TabType = 'visao-geral' | 'usuarios' | 'veiculos' | 'estoque-concessionarias' | 'catalogo' | 'concessionarias' | 'transportadoras' | 'tabelas' | 'margem' | 'configuracoes' | 'planos' | 'crm' | 'funil' | 'integracoes' | 'banners';
+type TabType = 'visao-geral' | 'usuarios' | 'veiculos' | 'estoque-concessionarias' | 'catalogo' | 'concessionarias' | 'transportadoras' | 'tabelas' | 'margem' | 'configuracoes' | 'planos' | 'cobrancas' | 'crm' | 'funil' | 'integracoes' | 'banners';
 
 export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState<TabType>('visao-geral');
@@ -123,6 +124,7 @@ export default function AdminDashboard() {
         { id: 'tabelas', label: 'Tabelas', icon: '📋' },
         { id: 'configuracoes', label: 'Configurações', icon: '⚙️' },
         { id: 'planos', label: 'Planos', icon: '💳' },
+        { id: 'cobrancas', label: 'Cobranças', icon: '🧾' },
         { id: 'crm', label: 'CRM', icon: '🎯' },
         { id: 'funil', label: 'Leads', icon: <MdFilterAlt size={18} /> },
         { id: 'integracoes', label: 'Integrações', icon: '🔌' },
@@ -196,6 +198,12 @@ export default function AdminDashboard() {
                 return (
                     <div className={styles.contentArea}>
                         <PlansManagement />
+                    </div>
+                );
+            case 'cobrancas':
+                return (
+                    <div className={styles.contentArea}>
+                        <CobrancasManagement />
                     </div>
                 );
             case 'crm':

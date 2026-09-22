@@ -25,6 +25,10 @@ export interface IPayment extends Document {
     boletoUrl?: string;
     boletoBarcode?: string;
     boletoEmailSentAt?: Date;
+    /** Destinatário e id no Resend do último envio, para a tela de Cobranças. */
+    boletoEmailTo?: string;
+    boletoEmailId?: string;
+    boletoEmailError?: string | null;
     // Payer info
     payerEmail?: string;
     payerName?: string;
@@ -65,6 +69,9 @@ const PaymentSchema: Schema = new Schema({
     boletoUrl: { type: String },
     boletoBarcode: { type: String },
     boletoEmailSentAt: { type: Date },
+    boletoEmailTo: { type: String },
+    boletoEmailId: { type: String },
+    boletoEmailError: { type: String, default: null },
     // Payer
     payerEmail: { type: String },
     payerName: { type: String },

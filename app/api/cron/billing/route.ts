@@ -7,8 +7,7 @@ import Payment from '@/models/Payment';
 import Transaction from '@/models/Transaction';
 import { chargeCustomerCard, mpPut } from '@/lib/mercadopago';
 import { createBoletoPayment, getBoletoExpirationDate, validateBoletoProfile } from '@/lib/services/boletoService';
-import { buildBoletoEmail } from '@/lib/email/boletoEmail';
-import { sendEmail } from '@/lib/email/sendEmail';
+import { enviarBoletoPorEmail } from '@/lib/services/boletoEmailService';
 
 export const maxDuration = 60;
 
@@ -230,33 +229,19 @@ async function processUpcomingBoletoRenewals(now: Date) {
             continue;
         }
 
-        const emailContent = buildBoletoEmail({
-            customerName: user.displayName,
-            planName: plan.name,
-            amount: (payment as any).amount || 0,
-            dueDate: (payment as any).mpDateCreated
+        const emailRes = await enviarBoletoPorEmail({
+            payment,
+            para: user.email,
+            nomeCliente: user.displayName,
+            nomePlano: plan.name,
+            vencimento: (payment as any).mpDateCreated
                 ? getBoletoExpirationDate(new Date(user.subscription.expiresAt))
                 : new Date(user.subscription.expiresAt),
-            boletoUrl: (payment as any).boletoUrl,
-            barcode: (payment as any).boletoBarcode,
-        });
-
-        const emailRes = await sendEmail({
-            to: user.email,
-            subject: emailContent.subject,
-            html: emailContent.html,
-            text: emailContent.text,
         });
 
         if (emailRes.ok) {
-            await Payment.findByIdAndUpdate((payment as any)._id, {
-                $set: { boletoEmailSentAt: new Date() },
-            });
             emailsSent++;
         } else {
-            // Boleto emitido e não entregue é pior que boleto não emitido: o
-            // cliente é cobrado sem receber nada. Sem RESEND_API_KEY o sendEmail
-            // devolve skipped e antes isso passava em silêncio.
             emailsFailed++;
             console.error('[cron/billing] Boleto gerado mas o e-mail NÃO foi enviado:', {
                 userId: user._id,
