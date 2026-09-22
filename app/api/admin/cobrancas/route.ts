@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import connectDB from '@/lib/mongodb';
+import mongoose from 'mongoose';
 import Payment from '@/models/Payment';
 import Plan from '@/models/Plan';
 import User from '@/models/User';
@@ -16,7 +17,7 @@ const escapeRegex = (v: string) => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const LIMITE_STATUS_EMAIL = 30;
 
 /**
- * GET /api/admin/cobrancas?tipo=boleto&status=&search=&limit=
+ * GET /api/admin/cobrancas?userId=&status=&search=&limit=&tudo=true
  *
  * Cobranças enviadas pelo sistema, com o boleto para reabrir e a situação do
  * e-mail. Serve o atendimento: o cliente liga dizendo que não recebeu, e a
@@ -35,8 +36,15 @@ export async function GET(request: Request) {
         const status = searchParams.get('status')?.trim() || '';
         const search = searchParams.get('search')?.trim() || '';
         const semEmail = searchParams.get('semEmail') === 'true';
+        const userId = searchParams.get('userId')?.trim() || '';
+        // Na aba Financeiro do cliente interessa todo o histórico, não só boleto.
+        const tudo = searchParams.get('tudo') === 'true';
 
-        const query: any = { method: { $in: ['bolbradesco', 'ticket'] } };
+        const query: any = tudo ? {} : { method: { $in: ['bolbradesco', 'ticket'] } };
+        if (userId) {
+            if (!mongoose.Types.ObjectId.isValid(userId)) return NextResponse.json({ data: [], total: 0 });
+            query.userId = new mongoose.Types.ObjectId(userId);
+        }
         if (status) query.status = status;
         if (semEmail) query.boletoEmailSentAt = { $in: [null, undefined] };
 

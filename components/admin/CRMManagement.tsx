@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react';
 import styles from './CRMManagement.module.css';
+import { ClienteFinanceiro } from './ClienteFinanceiro';
 import { getUserAccessStatus, updateUserProfiles, toggleUserStatus, deleteUser } from '@/app/dashboard/admin/users/actions';
 import { toggleProfileSelection, DIRETIVO_PROFILES, OPERACIONAL_PROFILES, CLIENT_PROFILES } from '@/lib/utils/userProfiles';
 import type { UserProfile } from '@/lib/types/auth';
@@ -195,7 +196,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
     }, [highlightEmail, clients]);
 
     // Modal tabs & client edit
-    const [modalTab, setModalTab] = useState<'dados' | 'assinatura' | 'acessos'>('dados');
+    const [modalTab, setModalTab] = useState<'dados' | 'assinatura' | 'financeiro' | 'acessos'>('dados');
     // Acessos do usuário (Firebase): carregados sob demanda ao abrir a aba.
     const [acesso, setAcesso] = useState<{ disabled: boolean; profiles: UserProfile[] } | null>(null);
     const [acessoLoading, setAcessoLoading] = useState(false);
@@ -844,26 +845,24 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
 
             {/* Summary cards */}
             <div className={styles.summaryGrid}>
-                <div className={`${styles.summaryCard} ${styles.cardTotal}`} onClick={() => setFilterTab('all')}>
-                    <div className={styles.summaryValue}>{summary.total}</div>
-                    <div className={styles.summaryLabel}>Total de clientes</div>
-                </div>
-                <div className={`${styles.summaryCard} ${styles.cardActive}`} onClick={() => setFilterTab('active')}>
-                    <div className={styles.summaryValue}>{summary.active}</div>
-                    <div className={styles.summaryLabel}>✅ Plano ativo</div>
-                </div>
-                <div className={`${styles.summaryCard} ${styles.cardExpired}`} onClick={() => setFilterTab('expired')}>
-                    <div className={styles.summaryValue}>{summary.expired}</div>
-                    <div className={styles.summaryLabel}>🔴 Expirados</div>
-                </div>
-                <div className={`${styles.summaryCard} ${styles.cardNoPlan}`} onClick={() => setFilterTab('no_plan')}>
-                    <div className={styles.summaryValue}>{summary.no_plan}</div>
-                    <div className={styles.summaryLabel}>🎯 Leads sem plano</div>
-                </div>
-                <div className={`${styles.summaryCard} ${styles.cardCortesia}`} onClick={() => setFilterTab('cortesia')}>
-                    <div className={styles.summaryValue}>{summary.cortesia}</div>
-                    <div className={styles.summaryLabel}>🎁 Cortesia ativa</div>
-                </div>
+                {([
+                    { tab: 'all' as FilterTab, cls: styles.cardTotal, valor: summary.total, label: 'Total de clientes' },
+                    { tab: 'active' as FilterTab, cls: styles.cardActive, valor: summary.active, label: 'Plano ativo' },
+                    { tab: 'expired' as FilterTab, cls: styles.cardExpired, valor: summary.expired, label: 'Expirados' },
+                    { tab: 'no_plan' as FilterTab, cls: styles.cardNoPlan, valor: summary.no_plan, label: 'Leads sem plano' },
+                    { tab: 'cortesia' as FilterTab, cls: styles.cardCortesia, valor: summary.cortesia, label: 'Cortesia ativa' },
+                ]).map(card => (
+                    <button
+                        key={card.tab}
+                        type="button"
+                        className={`${styles.summaryCard} ${card.cls} ${filterTab === card.tab ? styles.summaryCardActive : ''}`}
+                        onClick={() => setFilterTab(card.tab)}
+                        aria-pressed={filterTab === card.tab}
+                    >
+                        <span className={styles.summaryValue}>{card.valor}</span>
+                        <span className={styles.summaryLabel}><span className={styles.summaryDot} aria-hidden="true" />{card.label}</span>
+                    </button>
+                ))}
             </div>
 
             {/* Filters */}
@@ -879,7 +878,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                 : tab === 'active' ? 'Ativos'
                                 : tab === 'expired' ? 'Expirados'
                                 : tab === 'no_plan' ? 'Sem plano'
-                                : '🎁 Cortesia'}
+                                : 'Cortesia'}
                         </button>
                     ))}
                 </div>
@@ -948,7 +947,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                         {(client.status === 'expired' || client.status === 'no_plan') && (
                                             <span className={styles.alertDot} title={client.status === 'expired' ? 'Plano expirado' : 'Sem plano'}>●</span>
                                         )}
-                                        {isExpiringSoon && <span className={styles.warnDot} title={`Expira em ${client.daysUntilExpiry} dia(s)`}>⚠️</span>}
+                                        {isExpiringSoon && <span className={styles.warnDot} title={`Expira em ${client.daysUntilExpiry} dia(s)`}>●</span>}
                                     </div>
                                     <span className={styles.clientEmail}>{client.email}</span>
                                     <div className={styles.clientMetaRow}>
@@ -989,14 +988,17 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                         </span>
                                         {client.billingType === 'annual' && <span className={styles.billingBadge}>Anual</span>}
                                     </div>
-                                    <strong className={styles.planName}>{client.planName || 'Nenhum plano atribuído'}</strong>
-                                    <span className={`${styles.accessMeta} ${client.status === 'expired' ? styles.accessExpired : isExpiringSoon ? styles.accessWarning : ''}`}>
-                                        {client.planType === 'credits'
-                                            ? `${client.credits} créditos disponíveis`
-                                            : client.expiresAt
-                                                ? `${client.status === 'expired' ? 'Expirou' : 'Expira'} em ${formatDate(client.expiresAt)}${client.daysUntilExpiry !== null ? ` · ${client.daysUntilExpiry >= 0 ? `${client.daysUntilExpiry}d restantes` : `${Math.abs(client.daysUntilExpiry)}d atrás`}` : ''}`
-                                                : 'Sem data de expiração'}
-                                    </span>
+                                    {/* Sem plano, a etiqueta acima já diz tudo: repetir
+                                        "Nenhum plano atribuído" e "Sem data de expiração"
+                                        enchia a linha de texto sem informação. */}
+                                    {client.planName && <strong className={styles.planName}>{client.planName}</strong>}
+                                    {(client.planType === 'credits' || client.expiresAt) && (
+                                        <span className={`${styles.accessMeta} ${client.status === 'expired' ? styles.accessExpired : isExpiringSoon ? styles.accessWarning : ''}`}>
+                                            {client.planType === 'credits'
+                                                ? `${client.credits} créditos disponíveis`
+                                                : `${client.status === 'expired' ? 'Expirou' : 'Expira'} em ${formatDate(client.expiresAt)}${client.daysUntilExpiry !== null ? ` · ${client.daysUntilExpiry >= 0 ? `${client.daysUntilExpiry}d restantes` : `${Math.abs(client.daysUntilExpiry)}d atrás`}` : ''}`}
+                                        </span>
+                                    )}
                                 </div>
 
                                 <div className={styles.gridPayment}>
@@ -1053,14 +1055,30 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                 {(selectedClient.displayName || selectedClient.email)[0].toUpperCase()}
                             </div>
                             <div className={styles.clientModalHeaderInfo}>
-                                <h3 className={styles.clientModalName}>{selectedClient.displayName || '(sem nome)'}</h3>
+                                <div className={styles.clientModalTitleRow}>
+                                    <h3 className={styles.clientModalName}>{selectedClient.displayName || '(sem nome)'}</h3>
+                                    <span className={styles.statusBadge} style={{ background: STATUS_COLORS[selectedClient.status] + '22', color: STATUS_COLORS[selectedClient.status], border: `1px solid ${STATUS_COLORS[selectedClient.status]}` }}>
+                                        {STATUS_LABELS[selectedClient.status]}
+                                    </span>
+                                </div>
                                 <div className={styles.clientModalSubInfo}>
                                     <span>{selectedClient.email}</span>
-                                    {selectedClient.phoneNumber && <span>• {selectedClient.phoneNumber}</span>}
+                                    {selectedClient.phoneNumber && <span>{selectedClient.phoneNumber}</span>}
                                 </div>
-                                <span className={styles.statusBadge} style={{ background: STATUS_COLORS[selectedClient.status] + '22', color: STATUS_COLORS[selectedClient.status], border: `1px solid ${STATUS_COLORS[selectedClient.status]}` }}>
-                                    {STATUS_LABELS[selectedClient.status]}
-                                </span>
+                                {/* O essencial no cabeçalho: antes era preciso trocar de
+                                    aba para saber plano e vencimento. */}
+                                <div className={styles.headerFacts}>
+                                    <span className={styles.fact}>
+                                        <em>Plano</em>{selectedClient.planName || 'Sem plano'}
+                                    </span>
+                                    <span className={styles.fact}>
+                                        <em>{selectedClient.status === 'expired' ? 'Expirou' : 'Expira'}</em>
+                                        {selectedClient.expiresAt ? formatDate(selectedClient.expiresAt) : '—'}
+                                    </span>
+                                    <span className={styles.fact}>
+                                        <em>Pagamento</em>{getPaymentInfo(selectedClient)?.label.replace(/^[^ ]+ /, '') || 'Sem pagamento'}
+                                    </span>
+                                </div>
                             </div>
                             <button className={styles.closeBtn} onClick={() => setSelectedClient(null)}>✕</button>
                         </div>
@@ -1078,6 +1096,12 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                 onClick={() => setModalTab('assinatura')}
                             >
                                 Assinatura & Ações
+                            </button>
+                            <button
+                                className={`${styles.clientModalTab} ${modalTab === 'financeiro' ? styles.clientModalTabActive : ''}`}
+                                onClick={() => setModalTab('financeiro')}
+                            >
+                                Financeiro
                             </button>
                             <button
                                 className={`${styles.clientModalTab} ${modalTab === 'acessos' ? styles.clientModalTabActive : ''}`}
@@ -1366,7 +1390,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                                 href={emailLink(selectedClient.email, selectedClient.displayName, selectedClient.status)}
                                                 className={`${styles.detailBtn} ${styles.btnEmailLg}`}
                                             >
-                                                ✉️ Enviar Email
+                                                Enviar e-mail
                                             </a>
                                             {!selectedClient.isInvitee && (
                                                 <button
@@ -1376,7 +1400,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                                         setSelectedClient(null);
                                                     }}
                                                 >
-                                                    📋 Atribuir Plano
+                                                    Atribuir plano
                                                 </button>
                                             )}
                                             {!selectedClient.isInvitee && (
@@ -1391,7 +1415,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                                         setSelectedClient(null);
                                                     }}
                                                 >
-                                                    👥 Gerenciar Convidados
+                                                    Gerenciar convidados
                                                     {selectedClient.inviteCount > 0 && ` (${selectedClient.inviteCount})`}
                                                 </button>
                                             )}
@@ -1405,7 +1429,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                                         handleChargeCard(c);
                                                     }}
                                                 >
-                                                    {chargingId === selectedClient.id ? '⏳ Processando...' : '💳 Cobrar Cartão'}
+                                                    {chargingId === selectedClient.id ? 'Processando...' : 'Cobrar cartão'}
                                                 </button>
                                             )}
                                             {selectedClient.profileCompletion < 100 && (
@@ -1414,7 +1438,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                                     className={`${styles.detailBtn} ${styles.btnProfileLg}`}
                                                     onClick={() => setSelectedClient(null)}
                                                 >
-                                                    📩 Solicitar Conclusão ({selectedClient.profileCompletion}%)
+                                                    Solicitar conclusão ({selectedClient.profileCompletion}%)
                                                 </a>
                                             )}
                                             {selectedClient.profileType === 'gratis' && (
@@ -1423,7 +1447,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                                     disabled={renewingTrialId === selectedClient.id}
                                                     onClick={() => handleRenewFreeTrial(selectedClient)}
                                                 >
-                                                    {renewingTrialId === selectedClient.id ? '⏳ Renovando...' : '🔄 Renovar 24h'}
+                                                    {renewingTrialId === selectedClient.id ? 'Renovando...' : 'Renovar 24h'}
                                                 </button>
                                             )}
                                             {renewTrialResult && selectedClient && (
@@ -1443,14 +1467,24 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
 
                                     {selectedClient.status === 'no_plan' && (
                                         <div className={styles.conversionTip}>
-                                            <strong>🎯 Dica de conversão:</strong> Este cliente se cadastrou mas ainda não assinou nenhum plano. Entre em contato e ofereça um período de teste ou desconto.
+                                            <strong>Dica de conversão:</strong> Este cliente se cadastrou mas ainda não assinou nenhum plano. Entre em contato e ofereça um período de teste ou desconto.
                                         </div>
                                     )}
                                     {selectedClient.status === 'expired' && (
                                         <div className={styles.renewalTip}>
-                                            <strong>🔄 Oportunidade de renovação:</strong> Plano expirado há {selectedClient.daysUntilExpiry !== null ? Math.abs(selectedClient.daysUntilExpiry) : '?'} dia(s). Excelente momento para reativar.
+                                            <strong>Oportunidade de renovação:</strong> Plano expirado há {selectedClient.daysUntilExpiry !== null ? Math.abs(selectedClient.daysUntilExpiry) : '?'} dia(s). Excelente momento para reativar.
                                         </div>
                                     )}
+                                </div>
+                            )}
+
+                            {/* ── Financeiro tab ── */}
+                            {modalTab === 'financeiro' && (
+                                <div className={styles.clientSection}>
+                                    <div className={styles.clientSectionHeader}>
+                                        <span className={styles.clientSectionTitle}>Cobranças e envios</span>
+                                    </div>
+                                    <ClienteFinanceiro userId={selectedClient.id} />
                                 </div>
                             )}
 
@@ -1539,7 +1573,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                 <div className={styles.overlay} onClick={() => setAssignModal(null)}>
                     <div className={styles.detailPanel} onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
                         <button className={styles.closeBtn} onClick={() => setAssignModal(null)}>✕</button>
-                        <h3 className={styles.detailName} style={{ marginBottom: '0.25rem' }}>📋 Atribuir Plano</h3>
+                        <h3 className={styles.detailName} style={{ marginBottom: '0.25rem' }}>Atribuir plano</h3>
                         <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
                             {assignModal.client.displayName || assignModal.client.email}
                         </p>
