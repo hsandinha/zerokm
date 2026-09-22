@@ -1508,7 +1508,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                                     <span className={styles.statusBadge} style={{ background: acesso.disabled ? '#dc262622' : '#16a34a22', color: acesso.disabled ? '#dc2626' : '#16a34a', border: `1px solid ${acesso.disabled ? '#dc2626' : '#16a34a'}` }}>
                                                         {acesso.disabled ? 'Login desativado' : 'Login ativo'}
                                                     </span>
-                                                    <button className={styles.actionBtn} disabled={acessoLoading} onClick={() => alternarStatusAcesso(selectedClient)}>
+                                                    <button className={styles.textBtn} disabled={acessoLoading} onClick={() => alternarStatusAcesso(selectedClient)}>
                                                         {acesso.disabled ? 'Reativar acesso' : 'Desativar acesso'}
                                                     </button>
                                                 </div>
@@ -1541,7 +1541,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                                         </label>
                                                     ))}
                                                 </div>
-                                                <button className={styles.actionBtn} disabled={acessoLoading} onClick={() => salvarPerfisAcesso(selectedClient)}>
+                                                <button className={styles.textBtn} disabled={acessoLoading} onClick={() => salvarPerfisAcesso(selectedClient)}>
                                                     Salvar perfis
                                                 </button>
 
@@ -1549,8 +1549,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                                     <span className={styles.clientSectionTitle} style={{ color: '#dc2626' }}>Zona de risco</span>
                                                 </div>
                                                 <button
-                                                    className={styles.actionBtn}
-                                                    style={{ borderColor: '#dc2626', color: '#dc2626' }}
+                                                    className={`${styles.textBtn} ${styles.textBtnDanger}`}
                                                     disabled={acessoLoading}
                                                     onClick={() => excluirUsuario(selectedClient)}
                                                 >
@@ -1558,7 +1557,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                                 </button>
                                             </>
                                         ) : !acessoMsg ? (
-                                            <button className={styles.actionBtn} onClick={() => carregarAcesso(selectedClient)}>Carregar acesso</button>
+                                            <button className={styles.textBtn} onClick={() => carregarAcesso(selectedClient)}>Carregar acesso</button>
                                         ) : null}
                                     </div>
                                 </div>

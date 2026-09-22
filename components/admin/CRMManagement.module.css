@@ -789,6 +789,45 @@
     align-items: center;
 }
 
+/* Botão de texto. A aba Acessos usava .actionBtn, que é um círculo de 28px
+   para ícone: o rótulo vazava do botão e passava por cima do que estava ao lado. */
+.textBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 0.9rem;
+    border: 1px solid var(--color-highlight);
+    border-radius: 8px;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.textBtn:hover:not(:disabled) {
+    border-color: var(--color-accent);
+}
+
+.textBtn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.textBtnDanger {
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.4);
+}
+
+.textBtnDanger:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: #ef4444;
+}
+
 .actionBtn {
     display: inline-flex;
     align-items: center;
