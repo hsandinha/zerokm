@@ -16,6 +16,9 @@ type Cobranca = {
     criadoEm: string;
     boletoUrl: string | null;
     boletoBarcode: string | null;
+    origem: 'sistema' | 'painel';
+    podeReenviar: boolean;
+    clienteConfirmado?: boolean;
     email: {
         enviadoEm: string | null;
         para: string;
@@ -59,6 +62,7 @@ export function CobrancasManagement() {
     const [reenviando, setReenviando] = useState<string | null>(null);
     const [aviso, setAviso] = useState<string | null>(null);
     const [copiado, setCopiado] = useState<string | null>(null);
+    const [avisoMP, setAvisoMP] = useState<string | null>(null);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -71,6 +75,7 @@ export function CobrancasManagement() {
             const body = await res.json();
             if (!res.ok) throw new Error(body.error || 'Erro ao carregar cobranças');
             setRows(body.data || []);
+            setAvisoMP(body.avisoMP || null);
         } catch (err: any) {
             setError(err?.message || 'Erro ao carregar cobranças');
         } finally {
@@ -127,7 +132,7 @@ export function CobrancasManagement() {
         <div className={styles.container}>
             <div className={styles.header}>
                 <h2>Cobranças por boleto</h2>
-                <p>Boletos emitidos pelo sistema, com a situação do e-mail. Use para atender quem diz que não recebeu.</p>
+                <p>Boletos do sistema e os emitidos no painel do Mercado Pago, com a situação do e-mail. O status vem do Mercado Pago a cada abertura desta tela.</p>
             </div>
 
             <div className={styles.filters}>
@@ -155,6 +160,7 @@ export function CobrancasManagement() {
             </div>
 
             {error && <div className={styles.erro}>{error}</div>}
+            {avisoMP && <div className={styles.erro}>{avisoMP} Os status abaixo podem estar desatualizados.</div>}
             {aviso && <div className={styles.aviso}>{aviso}</div>}
 
             <div className={styles.tableShell}>
@@ -180,7 +186,14 @@ export function CobrancasManagement() {
                             return (
                                 <tr key={row.id}>
                                     <td>
-                                        <div className={styles.cliente}>{row.cliente}</div>
+                                        <div className={styles.cliente}>
+                                            {row.cliente}
+                                            {row.origem === 'painel' && (
+                                                <span className={`${styles.badge} ${styles.badgeNeutro}`} title="Emitido direto no painel do Mercado Pago" style={{ marginLeft: 6 }}>
+                                                    {row.clienteConfirmado ? 'Painel MP' : 'Painel MP · cliente incerto'}
+                                                </span>
+                                            )}
+                                        </div>
                                         <div className={styles.muted}>{row.clienteEmail}</div>
                                         {row.assinaturaExpiraEm && (
                                             <div className={styles.muted}>assinatura vence {data(row.assinaturaExpiraEm)}</div>
@@ -191,7 +204,9 @@ export function CobrancasManagement() {
                                     <td style={{ whiteSpace: 'nowrap' }}>{data(row.criadoEm)}</td>
                                     <td><span className={`${styles.badge} ${(styles as any)[sp.cls]}`}>{sp.label}</span></td>
                                     <td>
-                                        {badgeEmail(row)}
+                                        {row.origem === 'painel' ? (
+                                            <span className={`${styles.badge} ${styles.badgeNeutro}`}>Fora do sistema</span>
+                                        ) : badgeEmail(row)}
                                         <div className={styles.muted}>{row.email.para || '-'}</div>
                                         <div className={styles.muted}>{row.email.enviadoEm ? dataHora(row.email.enviadoEm) : 'nunca enviado'}</div>
                                         {row.email.erro && <div className={styles.muted}>{row.email.erro}</div>}
@@ -208,14 +223,20 @@ export function CobrancasManagement() {
                                                     {copiado === row.id ? 'Copiado!' : 'Copiar código'}
                                                 </button>
                                             )}
-                                            <button
-                                                type="button"
-                                                className={`${styles.btn} ${styles.btnPrimario}`}
-                                                onClick={() => reenviar(row)}
-                                                disabled={reenviando === row.id || !row.boletoUrl}
-                                            >
-                                                {reenviando === row.id ? 'Enviando...' : 'Reenviar e-mail'}
-                                            </button>
+                                            {row.podeReenviar ? (
+                                                <button
+                                                    type="button"
+                                                    className={`${styles.btn} ${styles.btnPrimario}`}
+                                                    onClick={() => reenviar(row)}
+                                                    disabled={reenviando === row.id || !row.boletoUrl}
+                                                >
+                                                    {reenviando === row.id ? 'Enviando...' : 'Reenviar e-mail'}
+                                                </button>
+                                            ) : (
+                                                <span className={styles.muted} title="Cobrança criada fora do sistema: não temos o cadastro para enviar">
+                                                    envio pelo painel
+                                                </span>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>

@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import connectDB from '@/lib/mongodb';
 import RepasseVehicle from '@/models/RepasseVehicle';
+import VehicleVariation from '@/models/VehicleVariation';
 import { canTouchDealership, resolveDealershipScope } from '@/lib/services/dealershipScope';
 import { serializeRepasse, validateRepasse } from '@/lib/utils/repasse';
 
@@ -30,7 +31,7 @@ async function loadOwned(request: Request, id: string) {
 /**
  * PATCH /api/dealership/repasse/:id — edição parcial (inclui troca de status).
  * Não exige plano ativo: com o plano vencido os anúncios já saem da vitrine,
- * e a loja precisa conseguir marcar Vendido ou corrigir antes de renovar.
+ * e a loja precisa conseguir corrigir ou remover antes de renovar.
  */
 export async function PATCH(request: Request, { params }: Params) {
     try {
@@ -43,14 +44,25 @@ export async function PATCH(request: Request, { params }: Params) {
         const { data, errors } = validateRepasse(body, true);
         if (errors.length) return NextResponse.json({ error: errors.join(' '), errors }, { status: 400 });
 
+        // Mesma regra do cadastro ao trocar o modelo na edição.
+        if (data.modelo && data.modelo !== doc.modelo && body?.foraDoCatalogo !== true) {
+            const existe = await VehicleVariation.exists({ modelo: data.modelo, ativo: true });
+            if (!existe) {
+                return NextResponse.json({
+                    error: `"${data.modelo}" não está no catálogo. Escolha um modelo da lista ou marque "modelo fora do catálogo".`,
+                    code: 'MODELO_FORA_DO_CATALOGO',
+                }, { status: 400 });
+            }
+        }
+
         const $set: Record<string, any> = {};
         const $unset: Record<string, ''> = {};
         for (const [key, value] of Object.entries(data)) {
             if (value === undefined) $unset[key] = '';
             else $set[key] = value;
         }
-        if (data.status && data.status !== doc.status) {
-            $set.vendidoEm = data.status === 'Vendido' ? new Date() : null;
+        if (Object.prototype.hasOwnProperty.call(body, 'foraDoCatalogo')) {
+            $set.foraDoCatalogo = body.foraDoCatalogo === true;
         }
 
         const update: Record<string, any> = {};
@@ -66,14 +78,18 @@ export async function PATCH(request: Request, { params }: Params) {
     }
 }
 
-/** DELETE /api/dealership/repasse/:id — exclusão lógica (ativo: false). */
+/**
+ * DELETE /api/dealership/repasse/:id — remove o anúncio (ativo: false).
+ * É o caminho de quando o carro é vendido: sai da vitrine e da lista da loja,
+ * mas fica no banco para histórico.
+ */
 export async function DELETE(request: Request, { params }: Params) {
     try {
         const { id } = await params;
         const loaded = await loadOwned(request, id);
         if (!loaded.ok) return loaded.error;
 
-        await RepasseVehicle.findByIdAndUpdate(loaded.doc._id, { $set: { ativo: false } });
+        await RepasseVehicle.findByIdAndUpdate(loaded.doc._id, { $set: { ativo: false, removidoEm: new Date() } });
         return NextResponse.json({ ok: true });
     } catch (error: any) {
         console.error('[repasse] DELETE', error);

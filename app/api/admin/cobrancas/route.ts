@@ -7,10 +7,12 @@ import Payment from '@/models/Payment';
 import Plan from '@/models/Plan';
 import User from '@/models/User';
 import { consultarStatusEmail } from '@/lib/services/boletoEmailService';
+import { acharClientePorNome, buscarBoletosNoMP, nomeNaDescricao, sincronizarStatus } from '@/lib/services/cobrancasService';
 
 export const dynamic = 'force-dynamic';
 
-const STAFF = new Set(['admin', 'administrador', 'administrativo', 'gerente', 'operador', 'operator']);
+// Sem 'gerente': cobrança é dado financeiro do cliente.
+const STAFF = new Set(['admin', 'administrador', 'administrativo', 'operador', 'operator']);
 const escapeRegex = (v: string) => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** Quantos e-mails consultamos no Resend por página. Uma chamada por boleto. */
@@ -60,6 +62,21 @@ export async function GET(request: Request) {
         }
 
         const pagamentos = await Payment.find(query).sort({ createdAt: -1 }).limit(limit).lean();
+
+        // Mercado Pago é a fonte da verdade do boleto: corrige o status do que
+        // temos e traz o que foi emitido no painel, fora do sistema.
+        // A consulta ao MP vale para as duas telas: corrigir status importa
+        // tanto na lista geral quanto na ficha do cliente.
+        const { porId: noMP, erro: erroMP } = await buscarBoletosNoMP();
+        const corrigidos = await sincronizarStatus(pagamentos, noMP);
+        for (const p of pagamentos as any[]) {
+            const mp = noMP.get(String(p.mpPaymentId));
+            if (mp) {
+                p.status = mp.status;
+                p.boletoUrl = p.boletoUrl || mp.boletoUrl;
+                p.boletoBarcode = p.boletoBarcode || mp.boletoBarcode;
+            }
+        }
         const userIds = [...new Set(pagamentos.map((p: any) => p.userId?.toString()).filter(Boolean))];
         const planIds = [...new Set(pagamentos.map((p: any) => p.planId?.toString()).filter(Boolean))];
 
@@ -78,8 +95,7 @@ export async function GET(request: Request) {
             statusEmails.set(p.boletoEmailId, r.status);
         }));
 
-        return NextResponse.json({
-            data: pagamentos.map((p: any) => {
+        const nossos = pagamentos.map((p: any) => {
                 const u = p.userId ? mapUser.get(p.userId.toString()) : null;
                 return {
                     id: p._id.toString(),
@@ -96,6 +112,8 @@ export async function GET(request: Request) {
                     // é o documento que o cliente pede de volta.
                     boletoUrl: p.boletoUrl || null,
                     boletoBarcode: p.boletoBarcode || null,
+                    origem: 'sistema' as const,
+                    podeReenviar: true,
                     email: {
                         enviadoEm: p.boletoEmailSentAt || null,
                         para: p.boletoEmailTo || u?.email || p.payerEmail || '',
@@ -104,9 +122,53 @@ export async function GET(request: Request) {
                         situacao: p.boletoEmailId ? statusEmails.get(p.boletoEmailId) ?? null : null,
                     },
                 };
-            }),
-            total: pagamentos.length,
+        });
+
+        // Emitidos no painel do MP: aparecem em modo leitura, com o cliente
+        // deduzido da descrição ("Cobrança para X"). Sem dono provável, fica
+        // "não identificado" — apontar o cliente errado numa cobrança é pior.
+        const idsNossos = new Set(pagamentos.map((p: any) => String(p.mpPaymentId)));
+        // Só na lista geral: dentro da ficha de um cliente não dá para afirmar
+        // que um boleto solto do painel é dele.
+        const candidatos = userId ? [] : [...noMP.values()].filter(b => !idsNossos.has(b.id) && !b.externalReference);
+        const foraDoSistema = candidatos.length > 0
+            ? await (async () => {
+                const clientes = await User.find({ displayName: { $exists: true, $ne: '' } })
+                    .select('displayName email phoneNumber subscription.expiresAt').lean();
+                return candidatos.map((b: any) => {
+                    const dono = acharClientePorNome(b.descricao, clientes as any[]);
+                    return {
+                        id: `mp:${b.id}`,
+                        mpPaymentId: b.id,
+                        cliente: (dono as any)?.displayName || nomeNaDescricao(b.descricao) || 'Não identificado',
+                        clienteEmail: (dono as any)?.email || '',
+                        clienteTelefone: (dono as any)?.phoneNumber || '',
+                        assinaturaExpiraEm: (dono as any)?.subscription?.expiresAt || null,
+                        clienteConfirmado: Boolean(dono),
+                        plano: b.descricao || '-',
+                        valor: b.valor,
+                        status: b.status,
+                        criadoEm: b.criadoEm,
+                        boletoUrl: b.boletoUrl,
+                        boletoBarcode: b.boletoBarcode,
+                        origem: 'painel' as const,
+                        podeReenviar: false,
+                        email: { enviadoEm: null, para: (dono as any)?.email || '', id: null, erro: null, situacao: null },
+                    };
+                });
+            })()
+            : [];
+
+        const data = [...nossos, ...foraDoSistema]
+            .filter(row => !status || row.status === status)
+            .sort((a, b) => new Date(b.criadoEm || 0).getTime() - new Date(a.criadoEm || 0).getTime());
+
+        return NextResponse.json({
+            data,
+            total: data.length,
             statusEmailConsultados: comEmailId.length,
+            statusCorrigidos: corrigidos,
+            avisoMP: erroMP || null,
         });
     } catch (error: any) {
         console.error('[cobrancas] GET', error);

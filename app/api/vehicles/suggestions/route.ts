@@ -44,7 +44,7 @@ export async function GET(request: Request) {
         const incluiNovos = tipo !== 'repasse';
         const incluiRepasse = tipo === 'repasse' || tipo === 'todos';
         // Campos que existem no usado. 'status' fica de fora: o do usado
-        // (Disponível/Reservado) não é o mesmo vocabulário do 0KM.
+        // (Disponível) não é o mesmo vocabulário do 0KM.
         const repasseFields = new Set(['modelo', 'cor', 'anoModelo', 'combustivel', 'transmissao', 'opcionais', 'marca']);
         // Mesma regra da vitrine: só lojas com plano de repasse em dia. Calculado
         // uma vez, fora do laço de campos.

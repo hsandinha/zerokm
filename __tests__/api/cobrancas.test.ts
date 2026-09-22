@@ -3,14 +3,21 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
 
-const { session, resend } = vi.hoisted(() => ({
+const { session, resend, mp } = vi.hoisted(() => ({
     session: { current: null as any },
     resend: { enviados: [] as any[], falhar: false, statusPorId: {} as Record<string, string> },
+    mp: { resultados: [] as any[], falhar: false },
 }));
 
 vi.mock('next-auth', () => ({ getServerSession: async () => session.current }));
 vi.mock('@/lib/authOptions', () => ({ authOptions: {} }));
 vi.mock('@/lib/mongodb', () => ({ default: async () => undefined }));
+// Mercado Pago é a fonte da verdade do status do boleto.
+vi.mock('@/lib/mercadopago', () => ({
+    searchPayments: async () => (mp.falhar
+        ? { ok: false, status: 500, data: {} }
+        : { ok: true, status: 200, data: { results: mp.resultados } }),
+}));
 vi.mock('@/lib/email/sendEmail', () => ({
     sendEmail: async (args: any) => {
         resend.enviados.push(args);
@@ -37,6 +44,8 @@ const PAG_PIX = new mongoose.Types.ObjectId();
 
 const admin = { user: { email: 'admin@cnv.com.br', profile: 'administrador' } };
 const lojista = { user: { email: 'lojista@cnv.com.br', profile: 'cliente' } };
+const gerente = { user: { email: 'gerente@cnv.com.br', profile: 'gerente' } };
+const operador = { user: { email: 'operador@cnv.com.br', profile: 'operador' } };
 
 const req = (path: string, init?: RequestInit) => new Request(`http://localhost${path}`, init);
 const params = (id: string) => ({ params: Promise.resolve({ id }) });
@@ -57,7 +66,19 @@ afterAll(async () => {
     await srv?.stop();
 });
 
+const boletoMP = (over: Record<string, unknown> = {}) => ({
+    id: 111, status: 'pending', payment_method_id: 'bolbradesco', transaction_amount: 699,
+    date_created: '2026-09-22T03:00:00.000Z', date_of_expiration: '2026-09-29T03:00:00.000Z',
+    description: 'Plano 1 - ACESSO TOTAL 0KM (Mensal) - Boleto',
+    external_reference: 'uid-1:p:monthly:boleto-renewal:2026-09-30',
+    transaction_details: { external_resource_url: 'https://mp/ticket/111' },
+    barcode: { content: '23793.38128 60007' },
+    ...over,
+});
+
 beforeEach(async () => {
+    mp.resultados = [boletoMP()];
+    mp.falhar = false;
     resend.enviados = [];
     resend.falhar = false;
     resend.statusPorId = {};
@@ -120,6 +141,57 @@ describe('GET /api/admin/cobrancas', () => {
         session.current = lojista;
         expect((await LISTAR(req('/api/admin/cobrancas'))).status).toBe(403);
     });
+
+    it('gerente não acessa cobranças; operador acessa', async () => {
+        session.current = gerente;
+        expect((await LISTAR(req('/api/admin/cobrancas'))).status).toBe(403);
+        session.current = operador;
+        expect((await LISTAR(req('/api/admin/cobrancas'))).status).toBe(200);
+    });
+
+    it('corrige no banco o status que mudou no Mercado Pago', async () => {
+        // Caso real: boleto cancelado no MP seguia "pendente" aqui.
+        mp.resultados = [boletoMP({ status: 'cancelled' })];
+        const body = await listar();
+        const linha = body.data.find((c: any) => c.mpPaymentId === '111');
+        expect(linha.status).toBe('cancelled');
+        expect(body.statusCorrigidos).toBe(1);
+        const noBanco = await db().collection('payments').findOne({ _id: PAG_BOLETO });
+        expect(noBanco?.status).toBe('cancelled');
+    });
+
+    it('mostra boleto emitido no painel do MP e identifica o cliente pelo nome', async () => {
+        mp.resultados = [boletoMP(), boletoMP({
+            id: 999, external_reference: null, transaction_amount: 350,
+            description: 'Cobrança para LOJA TESTE', transaction_details: { external_resource_url: 'https://mp/ticket/999' },
+        })];
+        const body = await listar();
+        const doPainel = body.data.find((c: any) => c.mpPaymentId === '999');
+        expect(doPainel).toMatchObject({ origem: 'painel', cliente: 'Loja Teste', clienteConfirmado: true, podeReenviar: false });
+        expect(doPainel.boletoUrl).toBe('https://mp/ticket/999');
+    });
+
+    it('sem cliente parecido, o boleto do painel fica com o nome da descrição', async () => {
+        mp.resultados = [boletoMP({ id: 888, external_reference: null, description: 'Cobrança para XYZ COMERCIO' })];
+        const body = await listar();
+        const doPainel = body.data.find((c: any) => c.mpPaymentId === '888');
+        expect(doPainel).toMatchObject({ cliente: 'XYZ COMERCIO', clienteConfirmado: false });
+    });
+
+    it('na ficha de um cliente não entram boletos soltos do painel', async () => {
+        mp.resultados = [boletoMP(), boletoMP({ id: 777, external_reference: null, description: 'Cobrança para LOJA TESTE' })];
+        session.current = admin;
+        const res = await LISTAR(req(`/api/admin/cobrancas?tudo=true&userId=${USER}`));
+        const body = await res.json();
+        expect(body.data.every((c: any) => c.origem === 'sistema')).toBe(true);
+    });
+
+    it('Mercado Pago fora do ar não derruba a tela', async () => {
+        mp.falhar = true;
+        const body = await listar();
+        expect(body.avisoMP).toMatch(/Mercado Pago/);
+        expect(body.data.length).toBeGreaterThan(0);
+    });
 });
 
 describe('POST /api/admin/cobrancas/:id/reenviar', () => {
@@ -166,6 +238,12 @@ describe('POST /api/admin/cobrancas/:id/reenviar', () => {
         expect(res.status).toBe(502);
         const doc = await db().collection('payments').findOne({ _id: PAG_BOLETO });
         expect(doc?.boletoEmailError).toBe('Falha do provedor');
+    });
+
+    it('gerente não reenvia', async () => {
+        session.current = gerente;
+        const res = await REENVIAR(req(`/api/admin/cobrancas/${PAG_BOLETO}/reenviar`, { method: 'POST' }), params(PAG_BOLETO.toString()));
+        expect(res.status).toBe(403);
     });
 
     it('lojista não reenvia', async () => {

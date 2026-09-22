@@ -13,6 +13,7 @@ import { GET, POST } from '@/app/api/dealership/repasse/route';
 import { PATCH, DELETE } from '@/app/api/dealership/repasse/[id]/route';
 import { GET as VITRINE } from '@/app/api/vehicles/route';
 import { GET as SUGESTOES } from '@/app/api/vehicles/suggestions/route';
+import { GET as MODELOS } from '@/app/api/catalog/modelos/route';
 
 let srv: MongoMemoryServer;
 
@@ -29,6 +30,8 @@ const donoB = { user: { email: 'loja-b@cnv.com.br', profile: 'concessionaria', a
 const donoSemPlano = { user: { email: 'loja-c@cnv.com.br', profile: 'concessionaria', allowedProfiles: ['concessionaria'] } };
 const lojista = { user: { email: 'lojista@cnv.com.br', profile: 'cliente', allowedProfiles: ['cliente'] } };
 
+// O modelo tem que existir no catálogo mestre: o cadastro só aceita texto
+// livre com a marcação explícita de "fora do catálogo".
 const onix = { marca: 'chevrolet', modelo: 'onix lt 1.0 turbo', ano: '19/20', km: '48.500', preco: '72.900,00', cor: 'prata' };
 
 function req(path: string, init?: RequestInit) {
@@ -59,6 +62,11 @@ beforeAll(async () => {
     await db.collection('vehiclevariations').insertMany([
         { _id: VAR_CARRO, marca: 'TOYOTA', modelo: 'COROLLA XEI', tipoVeiculo: 'carro', anoModelo: 2026, ativo: true },
         { _id: VAR_MOTO, marca: 'HONDA MOTOS', modelo: 'HONDA CG160 TITAN', tipoVeiculo: 'moto', anoModelo: 2026, ativo: true },
+        // Usados do teste precisam existir no catálogo para passar na validação.
+        { marca: 'CHEVROLET', modelo: 'ONIX LT 1.0 TURBO', tipoVeiculo: 'carro', anoModelo: 2026, ativo: true },
+        { marca: 'HONDA MOTOS', modelo: 'CG 160 FAN', tipoVeiculo: 'moto', anoModelo: 2026, ativo: true },
+        { marca: 'HYUNDAI', modelo: 'HB20 VENDIDO', tipoVeiculo: 'carro', anoModelo: 2026, ativo: true },
+        { marca: 'FIAT', modelo: 'ARGO DA LOJA B', tipoVeiculo: 'carro', anoModelo: 2026, ativo: true },
     ]);
     await db.collection('dealervehicleprices').insertMany([
         { concessionariaId: LOJA_A, variationId: VAR_CARRO, ativo: true, preco: 180_000, quantidade: 3, createdAt: new Date(), updatedAt: new Date() },
@@ -121,14 +129,14 @@ describe('painel da concessionária — /api/dealership/repasse', () => {
 
     it('lista só a própria loja, com contagem por status', async () => {
         await criarComoDonoA();
-        await criarComoDonoA({ ...onix, status: 'Reservado' });
+        await criarComoDonoA({ ...onix, km: '61.000' });
         session.current = donoB;
         await POST(req('/api/dealership/repasse', json('POST', onix)));
 
         session.current = donoA;
         const body = await (await GET(req('/api/dealership/repasse'))).json();
         expect(body.total).toBe(2);
-        expect(body.contagem).toEqual({ 'Disponível': 1, 'Reservado': 1, 'Vendido': 0 });
+        expect(body.contagem).toEqual({ 'Disponível': 2 });
     });
 
     it('concessionária ignora concessionariaId da query e não enxerga outra loja', async () => {
@@ -156,6 +164,33 @@ describe('painel da concessionária — /api/dealership/repasse', () => {
         expect((await edit.json()).km).toBe(50000);
     });
 
+    it('repasse só aceita o estado Disponível: vendido sai por remoção', async () => {
+        const { res, body } = await criarComoDonoA({ ...onix, status: 'Vendido' });
+        expect(res.status).toBe(400);
+        expect(body.error).toMatch(/remova o anúncio/);
+    });
+
+    it('modelo fora do catálogo é recusado', async () => {
+        const { res, body } = await criarComoDonoA({ ...onix, modelo: 'onix lt turbinado do zé' });
+        expect(res.status).toBe(400);
+        expect(body.code).toBe('MODELO_FORA_DO_CATALOGO');
+    });
+
+    it('modelo antigo passa quando marcado como fora do catálogo', async () => {
+        const { res, body } = await criarComoDonoA({ ...onix, modelo: 'gol g4 1.0', foraDoCatalogo: true });
+        expect(res.status).toBe(201);
+        expect(body).toMatchObject({ modelo: 'GOL G4 1.0', foraDoCatalogo: true });
+    });
+
+    it('trocar o modelo na edição segue a mesma regra', async () => {
+        const { body } = await criarComoDonoA();
+        session.current = donoA;
+        const ruim = await PATCH(req(`/api/dealership/repasse/${body.id}`, json('PATCH', { modelo: 'inventado xyz' })), params(body.id));
+        expect(ruim.status).toBe(400);
+        const bom = await PATCH(req(`/api/dealership/repasse/${body.id}`, json('PATCH', { modelo: 'COROLLA XEI' })), params(body.id));
+        expect((await bom.json()).modelo).toBe('COROLLA XEI');
+    });
+
     it('lojista não acessa o painel', async () => {
         session.current = lojista;
         expect((await GET(req('/api/dealership/repasse'))).status).toBe(403);
@@ -181,8 +216,11 @@ describe('vitrine — segmentos com repasse', () => {
 
     beforeEach(async () => {
         await criarComoDonoA();
-        await criarComoDonoA({ ...onix, modelo: 'CG 160 FAN', marca: 'HONDA', tipoVeiculo: 'moto', km: '12000', status: 'Reservado' });
-        await criarComoDonoA({ ...onix, modelo: 'HB20 VENDIDO', marca: 'HYUNDAI', status: 'Vendido' });
+        await criarComoDonoA({ ...onix, modelo: 'CG 160 FAN', marca: 'HONDA', tipoVeiculo: 'moto', km: '12000' });
+        // Vendido: a loja remove o anúncio, e ele some da vitrine.
+        const vendido = await criarComoDonoA({ ...onix, modelo: 'HB20 VENDIDO', marca: 'HYUNDAI' });
+        session.current = donoA;
+        await DELETE(req(`/api/dealership/repasse/${vendido.body.id}`, { method: 'DELETE' }), params(vendido.body.id));
     });
 
     it('Repasse mostra só usados visíveis, com km', async () => {
@@ -220,7 +258,8 @@ describe('vitrine — segmentos com repasse', () => {
             expect((await vitrine('tipo=repasse')).total).toBe(0);
             expect((await vitrine('tipo=todos')).total).toBe(2);
             session.current = donoA;
-            expect((await (await GET(req('/api/dealership/repasse'))).json()).total).toBe(3);
+            // O removido não conta: sobraram os dois anunciados.
+            expect((await (await GET(req('/api/dealership/repasse'))).json()).total).toBe(2);
         } finally {
             await db.collection('concessionarias').updateOne({ _id: LOJA_A }, { $set: { planoRepasse: planoEmDia() } });
         }
@@ -237,9 +276,16 @@ describe('vitrine — segmentos com repasse', () => {
         }
     });
 
-    it('busca e filtro de status valem para o usado', async () => {
+    it('busca vale para o usado', async () => {
         expect((await vitrine('search=onix')).data.map((v: any) => v.modelo)).toEqual(['ONIX LT 1.0 TURBO']);
-        expect((await vitrine('tipo=repasse&status=Reservado')).data.map((v: any) => v.modelo)).toEqual(['CG 160 FAN']);
+        expect((await vitrine('search=fan')).data.map((v: any) => v.modelo)).toEqual(['CG 160 FAN']);
+    });
+
+    it('anúncio removido sai da vitrine e da lista da loja', async () => {
+        expect((await vitrine('tipo=repasse')).data.find((v: any) => v.modelo === 'HB20 VENDIDO')).toBeUndefined();
+        session.current = donoA;
+        const lista = await (await GET(req('/api/dealership/repasse'))).json();
+        expect(lista.data.find((r: any) => r.modelo === 'HB20 VENDIDO')).toBeUndefined();
     });
 
     it('concessionária na vitrine vê o próprio repasse, não o de outra loja', async () => {
@@ -248,6 +294,30 @@ describe('vitrine — segmentos com repasse', () => {
         const res = await VITRINE(req('/api/vehicles?limit=50&tipo=repasse&accessProfile=concessionaria'));
         const body = await res.json();
         expect(body.data.map((v: any) => v.modelo)).toEqual(['ARGO DA LOJA B']);
+    });
+});
+
+describe('catálogo — lista de modelos para o cadastro de repasse', () => {
+    const buscar = async (qs: string) => {
+        session.current = donoA;
+        const res = await MODELOS(req(`/api/catalog/modelos?${qs}`));
+        expect(res.status).toBe(200);
+        return (await res.json()).modelos as string[];
+    };
+
+    it('filtra por texto digitado', async () => {
+        expect(await buscar('q=onix')).toEqual(['ONIX LT 1.0 TURBO']);
+        expect(await buscar('q=coro')).toEqual(['COROLLA XEI']);
+    });
+
+    it('filtra por marca e por tipo', async () => {
+        expect(await buscar('marca=HONDA MOTOS')).toEqual(['CG 160 FAN', 'HONDA CG160 TITAN']);
+        expect(await buscar('tipoVeiculo=moto')).toEqual(['CG 160 FAN', 'HONDA CG160 TITAN']);
+    });
+
+    it('exige estar logado', async () => {
+        session.current = null;
+        expect((await MODELOS(req('/api/catalog/modelos'))).status).toBe(401);
     });
 });
 
@@ -263,7 +333,9 @@ describe('sidebar — sugestões de modelo por segmento', () => {
     });
 
     it('Motos 0KM lista só modelos de moto (regressão)', async () => {
-        expect(await modelos('moto')).toEqual(['HONDA CG160 TITAN']);
+        const lista = await modelos('moto');
+        expect(lista.sort()).toEqual(['CG 160 FAN', 'HONDA CG160 TITAN']);
+        expect(lista).not.toContain('COROLLA XEI');
     });
 
     it('Repasse lista só modelos dos usados', async () => {
@@ -281,6 +353,8 @@ describe('sidebar — sugestões de modelo por segmento', () => {
     });
 
     it('Todos lista catálogo 0KM e usados', async () => {
-        expect((await modelos('todos')).sort()).toEqual(['COROLLA XEI', 'HONDA CG160 TITAN', 'ONIX LT 1.0 TURBO']);
+        const lista = await modelos('todos');
+        // Catálogo 0KM inteiro mais o modelo do usado cadastrado no beforeEach.
+        expect(lista.sort()).toEqual(['ARGO DA LOJA B', 'CG 160 FAN', 'COROLLA XEI', 'HB20 VENDIDO', 'HONDA CG160 TITAN', 'ONIX LT 1.0 TURBO']);
     });
 });

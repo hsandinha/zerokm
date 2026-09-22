@@ -1,16 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { FaPlus } from 'react-icons/fa';
 import { Pagination } from '../Pagination';
 import { PlanoRepasseCard } from './PlanoRepasseCard';
-import {
-    REPASSE_COMBUSTIVEIS,
-    REPASSE_STATUS,
-    REPASSE_TRANSMISSOES,
-    formatKm,
-    type RepasseStatus,
-} from '../../lib/utils/repasse';
+import { REPASSE_COMBUSTIVEIS, REPASSE_TRANSMISSOES, formatKm } from '../../lib/utils/repasse';
 import base from './PricingCatalog.module.css';
 import styles from './RepasseCatalog.module.css';
 
@@ -28,7 +22,6 @@ interface RepasseRow {
     opcionais: string;
     preco: number;
     observacoes: string;
-    status: RepasseStatus;
     updatedAt: string;
 }
 
@@ -44,7 +37,8 @@ type FormState = {
     opcionais: string;
     preco: string;
     observacoes: string;
-    status: RepasseStatus;
+    /** Modelo antigo que não existe mais no catálogo mestre. */
+    foraDoCatalogo: boolean;
 };
 
 const EMPTY_FORM: FormState = {
@@ -59,7 +53,7 @@ const EMPTY_FORM: FormState = {
     opcionais: '',
     preco: '',
     observacoes: '',
-    status: 'Disponível',
+    foraDoCatalogo: false,
 };
 
 const PAGE_SIZE = 50;
@@ -67,12 +61,6 @@ const PAGE_SIZE = 50;
 function formatCurrency(value: number | null | undefined) {
     if (!value) return '-';
     return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function statusClass(status: RepasseStatus) {
-    if (status === 'Disponível') return styles.statusDisponivel;
-    if (status === 'Reservado') return styles.statusReservado;
-    return styles.statusVendido;
 }
 
 export interface RepasseCatalogProps {
@@ -83,11 +71,11 @@ export interface RepasseCatalogProps {
 export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
     const [rows, setRows] = useState<RepasseRow[]>([]);
     const [total, setTotal] = useState(0);
-    const [contagem, setContagem] = useState<Record<string, number>>({ 'Disponível': 0, 'Reservado': 0, 'Vendido': 0 });
+    const [contagem, setContagem] = useState<Record<string, number>>({ 'Disponível': 0 });
     const [page, setPage] = useState(1);
     const [hasNextPage, setHasNextPage] = useState(false);
     const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState<'' | RepasseStatus>('');
+
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -98,6 +86,12 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
     const [saving, setSaving] = useState(false);
     const [rowSaving, setRowSaving] = useState<Record<string, boolean>>({});
     const [marcas, setMarcas] = useState<string[]>([]);
+    // Modelo sai do catálogo mestre: texto livre virava três grafias do mesmo
+    // carro e quebrava busca e filtros da vitrine.
+    const [modelos, setModelos] = useState<string[]>([]);
+    const [modelosAbertos, setModelosAbertos] = useState(false);
+    const [buscandoModelos, setBuscandoModelos] = useState(false);
+    const modeloBox = useRef<HTMLLabelElement>(null);
     // null = ainda carregando. Sem plano ativo a loja não cadastra repasse novo.
     const [planoAtivo, setPlanoAtivo] = useState<boolean | null>(null);
 
@@ -113,7 +107,6 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
         try {
             const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
             if (search.trim()) params.set('search', search.trim());
-            if (statusFilter) params.set('status', statusFilter);
             const res = await fetch(withScope(`/api/dealership/repasse?${params.toString()}`));
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Erro ao carregar repasse');
@@ -126,7 +119,7 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
         } finally {
             setLoading(false);
         }
-    }, [page, search, statusFilter, withScope]);
+    }, [page, search, withScope]);
 
     useEffect(() => {
         const timer = setTimeout(load, 250);
@@ -135,7 +128,7 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
 
     useEffect(() => {
         setPage(1);
-    }, [search, statusFilter, concessionariaId]);
+    }, [search, concessionariaId]);
 
     // Sugestão de marca: nomes do catálogo sem os sufixos operacionais ("- IPVA").
     useEffect(() => {
@@ -151,6 +144,40 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
             })
             .catch(() => setMarcas([]));
     }, []);
+
+    // Sugestões conforme digita, restritas à marca e ao tipo escolhidos.
+    useEffect(() => {
+        if (!formOpen || form.foraDoCatalogo) return;
+        const termo = form.modelo.trim();
+        const t = setTimeout(async () => {
+            setBuscandoModelos(true);
+            try {
+                const params = new URLSearchParams({ tipoVeiculo: form.tipoVeiculo, limit: '20' });
+                if (form.marca.trim()) params.set('marca', form.marca.trim());
+                if (termo) params.set('q', termo);
+                const res = await fetch(`/api/catalog/modelos?${params.toString()}`);
+                const body = await res.json();
+                setModelos(res.ok ? body.modelos || [] : []);
+            } catch {
+                setModelos([]);
+            } finally {
+                setBuscandoModelos(false);
+            }
+        }, 250);
+        return () => clearTimeout(t);
+    }, [formOpen, form.modelo, form.marca, form.tipoVeiculo, form.foraDoCatalogo]);
+
+    // Fecha a lista ao clicar fora.
+    useEffect(() => {
+        if (!modelosAbertos) return;
+        const fechar = (e: MouseEvent) => {
+            if (modeloBox.current && !modeloBox.current.contains(e.target as Node)) setModelosAbertos(false);
+        };
+        document.addEventListener('mousedown', fechar);
+        return () => document.removeEventListener('mousedown', fechar);
+    }, [modelosAbertos]);
+
+    const modeloNoCatalogo = modelos.some(m => m.toLowerCase() === form.modelo.trim().toLowerCase());
 
     const openNew = () => {
         setEditingId(null);
@@ -173,7 +200,7 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
             opcionais: row.opcionais || '',
             preco: row.preco ? row.preco.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '',
             observacoes: row.observacoes || '',
-            status: row.status,
+            foraDoCatalogo: Boolean((row as any).foraDoCatalogo),
         });
         setFormError(null);
         setFormOpen(true);
@@ -188,6 +215,10 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
 
     const submit = async (event: React.FormEvent) => {
         event.preventDefault();
+        if (!form.foraDoCatalogo && !modeloNoCatalogo) {
+            setFormError('Escolha um modelo da lista do catálogo. Se o carro é antigo e não aparece, marque "modelo fora do catálogo".');
+            return;
+        }
         setSaving(true);
         setFormError(null);
         try {
@@ -208,27 +239,8 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
         }
     };
 
-    const changeStatus = async (row: RepasseRow, status: RepasseStatus) => {
-        if (status === row.status) return;
-        setRowSaving(prev => ({ ...prev, [row.id]: true }));
-        try {
-            const res = await fetch(withScope(`/api/dealership/repasse/${row.id}`), {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status }),
-            });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.error || 'Erro ao alterar status');
-            await load();
-        } catch (err: any) {
-            setError(err?.message || 'Erro ao alterar status');
-        } finally {
-            setRowSaving(prev => ({ ...prev, [row.id]: false }));
-        }
-    };
-
     const remove = async (row: RepasseRow) => {
-        if (!window.confirm(`Excluir ${row.marca} ${row.modelo} do repasse?\n\nSe o carro foi vendido, prefira mudar o status para Vendido.`)) return;
+        if (!window.confirm(`Remover ${row.marca} ${row.modelo} do repasse?\n\nUse quando o carro for vendido ou sair do anúncio. Ele some da vitrine na hora.`)) return;
         setRowSaving(prev => ({ ...prev, [row.id]: true }));
         try {
             const res = await fetch(withScope(`/api/dealership/repasse/${row.id}`), { method: 'DELETE' });
@@ -242,11 +254,9 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
         }
     };
 
-    const naVitrine = (contagem['Disponível'] || 0) + (contagem['Reservado'] || 0);
+    const naVitrine = contagem['Disponível'] || 0;
     const set = <K extends keyof FormState>(key: K) => (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
         setForm(prev => ({ ...prev, [key]: event.target.value as FormState[K] }));
-
-    const statusTabs = useMemo(() => ([['', 'Todos'], ...REPASSE_STATUS.map(s => [s, s])] as Array<['' | RepasseStatus, string]>), []);
 
     return (
         <div className={base.container}>
@@ -254,13 +264,11 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
                 <div>
                     <h2 className={base.title}>Repasse</h2>
                     <p className={base.subtitle}>
-                        Usados recebidos na troca. Aparecem para os lojistas enquanto estiverem Disponíveis ou Reservados e o plano estiver em dia. Fotos e placa o lojista pede pelo WhatsApp.
+                        Usados recebidos na troca. Ficam visíveis para os lojistas enquanto o plano estiver em dia. Vendeu, remova o anúncio. Fotos e placa o lojista pede pelo WhatsApp.
                     </p>
                 </div>
                 <div className={base.summary}>
                     <span>{naVitrine} na vitrine</span>
-                    <span>{contagem['Reservado'] || 0} reservados</span>
-                    <span>{contagem['Vendido'] || 0} vendidos</span>
                 </div>
             </div>
 
@@ -300,9 +308,44 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
                                 {marcas.map(m => <option key={m} value={m} />)}
                             </datalist>
                         </label>
-                        <label>
+                        <label className={styles.comboWrap} ref={modeloBox}>
                             <span className={styles.required}>Modelo</span>
-                            <input value={form.modelo} onChange={set('modelo')} placeholder="Ex.: ONIX LT 1.0 TURBO" required />
+                            <input
+                                value={form.modelo}
+                                onChange={event => { setForm(prev => ({ ...prev, modelo: event.target.value })); setModelosAbertos(true); }}
+                                onFocus={() => setModelosAbertos(true)}
+                                placeholder={form.foraDoCatalogo ? 'Digite o modelo' : 'Digite para buscar no catálogo'}
+                                autoComplete="off"
+                                required
+                            />
+                            {!form.foraDoCatalogo && modelosAbertos && (
+                                <div className={styles.combo}>
+                                    {buscandoModelos && modelos.length === 0 && <span className={styles.comboVazio}>Buscando...</span>}
+                                    {!buscandoModelos && modelos.length === 0 && (
+                                        <span className={styles.comboVazio}>
+                                            Nenhum modelo do catálogo com esse texto{form.marca.trim() ? ` para ${form.marca.trim()}` : ''}.
+                                        </span>
+                                    )}
+                                    {modelos.map(m => (
+                                        <button
+                                            key={m}
+                                            type="button"
+                                            className={styles.comboItem}
+                                            onClick={() => { setForm(prev => ({ ...prev, modelo: m })); setModelosAbertos(false); }}
+                                        >
+                                            {m}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            <label className={styles.comboEscape}>
+                                <input
+                                    type="checkbox"
+                                    checked={form.foraDoCatalogo}
+                                    onChange={event => { setForm(prev => ({ ...prev, foraDoCatalogo: event.target.checked })); setModelosAbertos(false); }}
+                                />
+                                Modelo fora do catálogo (carro antigo)
+                            </label>
                         </label>
                         <label>
                             <span className={styles.required}>Ano</span>
@@ -334,12 +377,6 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
                                 {REPASSE_TRANSMISSOES.map(t => <option key={t} value={t}>{t}</option>)}
                             </select>
                         </label>
-                        <label>
-                            Status
-                            <select value={form.status} onChange={set('status')}>
-                                {REPASSE_STATUS.map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                        </label>
                         <label className={styles.wide}>
                             Opcionais
                             <input value={form.opcionais} onChange={set('opcionais')} placeholder="Ex.: multimídia, câmera de ré, rodas de liga" />
@@ -368,18 +405,6 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
                     placeholder="Buscar marca, modelo, cor..."
                     className={base.search}
                 />
-                <div className={base.segmented}>
-                    {statusTabs.map(([value, label]) => (
-                        <button
-                            key={label}
-                            type="button"
-                            className={`${base.segment} ${statusFilter === value ? base.segmentActive : ''}`}
-                            onClick={() => setStatusFilter(value)}
-                        >
-                            {label}
-                        </button>
-                    ))}
-                </div>
             </div>
 
             {error && <div className={base.error}>{error}</div>}
@@ -398,21 +423,20 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
                             <th>Câmbio</th>
                             <th>Preço</th>
                             <th style={{ minWidth: '150px' }}>Observações</th>
-                            <th style={{ minWidth: '130px' }}>Status</th>
                             <th>Ações</th>
                         </tr>
                     </thead>
                     <tbody>
                         {loading && rows.length === 0 ? (
-                            <tr><td colSpan={12} className={base.empty}>Carregando...</td></tr>
+                            <tr><td colSpan={11} className={base.empty}>Carregando...</td></tr>
                         ) : rows.length === 0 ? (
                             <tr>
-                                <td colSpan={12} className={base.empty}>
-                                    {search || statusFilter ? 'Nenhum repasse encontrado com esses filtros.' : 'Nenhum repasse cadastrado. Clique em "Adicionar repasse" para começar.'}
+                                <td colSpan={11} className={base.empty}>
+                                    {search ? 'Nenhum repasse encontrado com essa busca.' : 'Nenhum repasse cadastrado. Clique em "Adicionar repasse" para começar.'}
                                 </td>
                             </tr>
                         ) : rows.map(row => (
-                            <tr key={row.id} className={row.status === 'Vendido' ? styles.soldRow : ''}>
+                            <tr key={row.id}>
                                 <td><span className={styles.tipoTag}>{row.tipoVeiculo === 'moto' ? 'MOTO' : 'CARRO'}</span></td>
                                 <td>{row.marca}</td>
                                 <td><strong>{row.modelo}</strong></td>
@@ -424,19 +448,9 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
                                 <td style={{ whiteSpace: 'nowrap' }}>{formatCurrency(row.preco)}</td>
                                 <td title={row.observacoes}>{row.observacoes || '-'}</td>
                                 <td>
-                                    <select
-                                        value={row.status}
-                                        disabled={rowSaving[row.id]}
-                                        onChange={event => changeStatus(row, event.target.value as RepasseStatus)}
-                                        className={`${base.statusSelect} ${statusClass(row.status)}`}
-                                    >
-                                        {REPASSE_STATUS.map(s => <option key={s} value={s}>{s}</option>)}
-                                    </select>
-                                </td>
-                                <td>
                                     <div className={styles.rowActions}>
                                         <button type="button" className={styles.iconBtn} title="Editar" onClick={() => openEdit(row)} disabled={rowSaving[row.id]}>✏️</button>
-                                        <button type="button" className={styles.iconBtn} title="Excluir" onClick={() => remove(row)} disabled={rowSaving[row.id]}>🗑️</button>
+                                        <button type="button" className={styles.iconBtn} title="Remover do repasse (vendido ou fora de anúncio)" onClick={() => remove(row)} disabled={rowSaving[row.id]}>🗑️</button>
                                     </div>
                                 </td>
                             </tr>

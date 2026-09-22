@@ -8,7 +8,8 @@ import Plan from '@/models/Plan';
 import User from '@/models/User';
 import { enviarBoletoPorEmail } from '@/lib/services/boletoEmailService';
 
-const STAFF = new Set(['admin', 'administrador', 'administrativo', 'gerente', 'operador', 'operator']);
+// Sem 'gerente': cobrança é dado financeiro do cliente.
+const STAFF = new Set(['admin', 'administrador', 'administrativo', 'operador', 'operator']);
 
 /**
  * POST /api/admin/cobrancas/:id/reenviar  { email? }

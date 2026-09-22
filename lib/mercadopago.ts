@@ -77,6 +77,24 @@ export async function getPayment(paymentId: string | number) {
 /**
  * Cria uma assinatura recorrente nativa do Mercado Pago (preapproval).
  */
+/**
+ * Boletos e pagamentos criados numa janela de tempo, inclusive os emitidos
+ * direto no painel do Mercado Pago (que não passam pelo nosso banco).
+ * A busca já devolve status, link do boleto e linha digitável, então não é
+ * preciso uma chamada por pagamento.
+ */
+export async function searchPayments(params: { desde: Date; ate?: Date; limit?: number }) {
+    const qs = new URLSearchParams({
+        sort: 'date_created',
+        criteria: 'desc',
+        range: 'date_created',
+        begin_date: params.desde.toISOString(),
+        end_date: (params.ate || new Date(Date.now() + 864e5)).toISOString(),
+        limit: String(Math.min(100, params.limit || 100)),
+    });
+    return mpGet<{ results: any[]; paging?: { total: number } }>(`/v1/payments/search?${qs.toString()}`);
+}
+
 export async function createPreapproval(preapproval: object) {
     return mpPost('/preapproval', preapproval);
 }

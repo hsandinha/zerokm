@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import connectDB from '@/lib/mongodb';
 import RepasseVehicle from '@/models/RepasseVehicle';
+import VehicleVariation from '@/models/VehicleVariation';
 import { resolveDealershipScope } from '@/lib/services/dealershipScope';
 import { REPASSE_STATUS, serializeRepasse, validateRepasse } from '@/lib/utils/repasse';
 import { MSG_PLANO_REPASSE_INATIVO, isPlanoRepasseAtivo, serializePlanoRepasse } from '@/lib/utils/planoRepasse';
@@ -42,7 +43,7 @@ export async function GET(request: Request) {
             RepasseVehicle.aggregate([{ $match: baseCount }, { $group: { _id: '$status', n: { $sum: 1 } } }]),
         ]);
 
-        const contagem: Record<string, number> = { 'Disponível': 0, 'Reservado': 0, 'Vendido': 0 };
+        const contagem: Record<string, number> = { 'Disponível': 0 };
         for (const row of porStatus) contagem[row._id] = row.n;
 
         return NextResponse.json({
@@ -82,10 +83,23 @@ export async function POST(request: Request) {
         const { data, errors } = validateRepasse(body, false);
         if (errors.length) return NextResponse.json({ error: errors.join(' '), errors }, { status: 400 });
 
+        // Modelo vem do catálogo. Texto livre só com a marcação explícita, usada
+        // em carro antigo que saiu de linha e não existe mais no catálogo.
+        const foraDoCatalogo = body?.foraDoCatalogo === true;
+        if (!foraDoCatalogo && data.modelo) {
+            const existe = await VehicleVariation.exists({ modelo: data.modelo, ativo: true });
+            if (!existe) {
+                return NextResponse.json({
+                    error: `"${data.modelo}" não está no catálogo. Escolha um modelo da lista ou marque "modelo fora do catálogo".`,
+                    code: 'MODELO_FORA_DO_CATALOGO',
+                }, { status: 400 });
+            }
+        }
+
         const created = await RepasseVehicle.create({
             ...data,
+            foraDoCatalogo,
             concessionariaId: scope.concessionaria._id,
-            vendidoEm: data.status === 'Vendido' ? new Date() : null,
             createdBy: session.user?.email || undefined,
         });
         return NextResponse.json(serializeRepasse(created), { status: 201 });

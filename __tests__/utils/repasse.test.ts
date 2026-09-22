@@ -49,19 +49,22 @@ describe('repasse — validateRepasse', () => {
     });
 
     it('recusa status fora da lista e ano incoerente', () => {
-        expect(validateRepasse({ ...valido, status: 'A faturar' }).errors).toContain('Status deve ser Disponível, Reservado ou Vendido.');
+        expect(validateRepasse({ ...valido, status: 'A faturar' }).errors[0]).toMatch(/só tem o estado Disponível/);
+        // Vendido não é estado: o anúncio é removido.
+        expect(validateRepasse({ ...valido, status: 'Vendido' }).errors[0]).toMatch(/remova o anúncio/);
         expect(validateRepasse({ ...valido, ano: '18/20' }).errors[0]).toMatch(/fabricação/);
         expect(validateRepasse({ ...valido, ano: '1940' }).errors[0]).toMatch(/fora do intervalo/);
     });
 
     it('status aceita qualquer caixa e grava o canônico', () => {
-        expect(validateRepasse({ ...valido, status: 'vendido' }).data.status).toBe('Vendido');
+        expect(validateRepasse({ ...valido, status: 'disponível' }).data.status).toBe('Disponível');
+        expect(validateRepasse(valido).data.status).toBe('Disponível');
     });
 
     it('edição parcial só valida o que veio', () => {
-        const { data, errors } = validateRepasse({ status: 'Reservado' }, true);
+        const { data, errors } = validateRepasse({ km: '51.000' }, true);
         expect(errors).toEqual([]);
-        expect(data).toEqual({ status: 'Reservado' });
+        expect(data).toEqual({ km: 51000 });
     });
 
     it('edição com observação vazia remove a observação', () => {

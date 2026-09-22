@@ -131,14 +131,16 @@ export default function AdminDashboard() {
         { id: 'banners', label: 'Banners', icon: '🖼️' }
     ];
 
+    // Gerente não vê equipe, planos, carteira de clientes, leads, cobranças nem
+    // integrações. A API de cada uma também recusa o perfil: esconder o menu
+    // sozinho não protege nada.
+    const OCULTAS_GERENTE = new Set(['usuarios', 'planos', 'crm', 'funil', 'cobrancas', 'integracoes']);
+
     const tabs = allTabs.filter(tab => {
         if (userInfo.profile === 'marketing') {
             return tab.id === 'funil' || tab.id === 'integracoes';
         }
-        if (userInfo.profile === 'gerente' && tab.id === 'usuarios') return false;
-        if (userInfo.profile === 'gerente' && tab.id === 'planos') return false;
-        if (userInfo.profile === 'gerente' && tab.id === 'crm') return false;
-        if (userInfo.profile === 'gerente' && tab.id === 'funil') return false;
+        if (userInfo.profile === 'gerente') return !OCULTAS_GERENTE.has(tab.id);
         return true;
     });
 

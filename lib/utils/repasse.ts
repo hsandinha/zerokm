@@ -15,11 +15,15 @@
  * igual ao 0KM.
  */
 
-export const REPASSE_STATUS = ['Disponível', 'Reservado', 'Vendido'] as const;
+/**
+ * Repasse anunciado só tem um estado: disponível. Vendeu, sai do sistema —
+ * o anúncio é removido, não marcado. Guardar "vendido" e "reservado" só criava
+ * lista velha para a loja administrar e vitrine com carro que não existe mais.
+ */
+export const REPASSE_STATUS = ['Disponível'] as const;
 export type RepasseStatus = (typeof REPASSE_STATUS)[number];
 
-/** Status que aparecem na vitrine. Vendido sai sozinho. */
-export const REPASSE_STATUS_VITRINE: RepasseStatus[] = ['Disponível', 'Reservado'];
+export const REPASSE_STATUS_VITRINE: RepasseStatus[] = ['Disponível'];
 
 export const REPASSE_TIPOS = ['carro', 'moto'] as const;
 export type RepasseTipo = (typeof REPASSE_TIPOS)[number];
@@ -158,9 +162,8 @@ export function validateRepasse(input: RepasseInput, partial = false): { data: P
 
     if (has('status')) {
         const status = text(input.status) || 'Disponível';
-        const match = REPASSE_STATUS.find(s => s.toLowerCase() === status.toLowerCase());
-        if (match) data.status = match;
-        else errors.push('Status deve ser Disponível, Reservado ou Vendido.');
+        if (status.toLowerCase() === 'disponível'.toLowerCase()) data.status = 'Disponível';
+        else errors.push('Repasse só tem o estado Disponível. Quando vender, remova o anúncio.');
     }
 
     for (const key of ['cor', 'combustivel', 'transmissao', 'opcionais', 'observacoes'] as const) {
@@ -192,8 +195,8 @@ export function serializeRepasse(doc: any) {
         opcionais: obj.opcionais || '',
         preco: obj.preco,
         observacoes: obj.observacoes || '',
+        foraDoCatalogo: Boolean(obj.foraDoCatalogo),
         status: obj.status,
-        vendidoEm: obj.vendidoEm || null,
         createdAt: obj.createdAt,
         updatedAt: obj.updatedAt,
     };

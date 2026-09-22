@@ -22,10 +22,12 @@ export interface IRepasseVehicle extends Document {
     opcionais?: string;
     preco: number;
     observacoes?: string;
+    /** true = modelo digitado à mão, sem correspondência no catálogo mestre. */
+    foraDoCatalogo?: boolean;
     status: RepasseStatus;
-    vendidoEm?: Date | null;
-    /** false = excluído pela concessionária. Mantido para histórico. */
+    /** false = removido pela concessionária (vendeu ou desistiu). Fica no histórico. */
     ativo: boolean;
+    removidoEm?: Date | null;
     createdBy?: string;
     createdAt: Date;
     updatedAt: Date;
@@ -46,9 +48,10 @@ const RepasseVehicleSchema: Schema = new Schema({
     opcionais: { type: String, trim: true },
     preco: { type: Number, required: true, min: 0 },
     observacoes: { type: String, trim: true },
+    foraDoCatalogo: { type: Boolean, default: false },
     status: { type: String, enum: REPASSE_STATUS, default: 'Disponível', index: true },
-    vendidoEm: { type: Date, default: null },
     ativo: { type: Boolean, default: true, index: true },
+    removidoEm: { type: Date, default: null },
     createdBy: { type: String, trim: true },
 }, {
     timestamps: true,
