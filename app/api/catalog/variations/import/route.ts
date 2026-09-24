@@ -1,3 +1,4 @@
+import { enrichFipeRows } from '@/lib/services/fipeImport';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
@@ -17,6 +18,7 @@ type ParsedImportItem = {
     marca: string;
     modelo: string;
     codigoFipe?: string;
+    descricaoFipe?: string;
     /** undefined = coluna ausente/vazia no CSV; na gravação herda o tipo da marca. */
     tipoVeiculo?: TipoVeiculo;
     ano?: string;
@@ -54,7 +56,7 @@ const FIELD_ALIASES = {
     marca: ['marca', 'brand'],
     modelo: ['modelo', 'model', 'veiculo', 'veículo', 'nome'],
     codigoFipe: ['codigofipe', 'codigo fipe', 'código fipe', 'fipe', 'cod fipe'],
-    tipoVeiculo: ['tipo', 'tipo veiculo', 'tipo veículo', 'categoria'],
+    tipoVeiculo: ['tipoveiculo', 'tipo', 'tipo veiculo', 'tipo veículo', 'categoria'],
     ano: ['ano'],
     anoModelo: ['anomodelo', 'ano modelo'],
     anoFabricacao: ['anofabricacao', 'ano fabricação', 'ano fabricacao', 'ano fab'],
@@ -98,6 +100,11 @@ function normalizeKeyPart(value: unknown) {
         .trim()
         .toLowerCase()
         .replace(/\s+/g, ' ');
+}
+
+function buildFipeKey(item: { codigoFipe?: string; anoFabricacao?: number; anoModelo?: number; combustivel?: string; cor?: string; transmissao?: string; opcionais?: string }) {
+    if (!item.codigoFipe) return '';
+    return [item.codigoFipe.replace(/\D/g, ''), item.anoFabricacao, item.anoModelo, item.combustivel, item.cor, item.transmissao, item.opcionais].map(normalizeKeyPart).join('|');
 }
 
 function buildDuplicateKey(item: Pick<ParsedImportItem, 'marca' | 'modelo' | 'anoFabricacao' | 'anoModelo' | 'combustivel' | 'cor' | 'transmissao' | 'opcionais'>) {
@@ -406,8 +413,8 @@ async function markExistingRows(rows: ParsedImportItem[]) {
 
     const existing = await VehicleVariation.find({
         ativo: true,
-        marca: { $in: marcas },
-    }).select('marca modelo ano anoFabricacao anoModelo combustivel cor transmissao opcionais');
+        $or: [{ marca: { $in: marcas } }, { codigoFipe: { $in: validRows.map(row => row.codigoFipe).filter(Boolean) } }],
+    }).select('marca modelo codigoFipe ano anoFabricacao anoModelo combustivel cor transmissao opcionais');
 
     const existingKeys = new Set(existing.map((variation: any) => {
         let { anoFabricacao, anoModelo } = variation;
@@ -430,11 +437,14 @@ async function markExistingRows(rows: ParsedImportItem[]) {
         });
     }));
 
+    const existingFipeKeys = new Set(existing.map((row: any) => buildFipeKey(row)).filter(Boolean));
+    const seenFipe = new Set<string>();
     const seen = new Set<string>();
     return rows.map(row => {
         if (row.status === 'invalid') return row;
 
-        if (seen.has(row.duplicateKey)) {
+        const fipeKey = buildFipeKey(row);
+        if (seen.has(row.duplicateKey) || (fipeKey && seenFipe.has(fipeKey))) {
             return {
                 ...row,
                 status: 'duplicate' as ImportStatus,
@@ -443,8 +453,9 @@ async function markExistingRows(rows: ParsedImportItem[]) {
         }
 
         seen.add(row.duplicateKey);
+        if (fipeKey) seenFipe.add(fipeKey);
 
-        if (existingKeys.has(row.duplicateKey)) {
+        if (existingKeys.has(row.duplicateKey) || (fipeKey && existingFipeKeys.has(fipeKey))) {
             return {
                 ...row,
                 status: 'existing' as ImportStatus,
@@ -479,7 +490,14 @@ async function buildPreview(body: any) {
     if (!csvText) throw new Error('Informe um CSV ou um link de planilha.');
 
     const parsed = parseCsv(csvText);
-    const rows = parsed.map(row => normalizeItem(row.rowNumber, row.record, defaultBrand));
+    let rows = parsed.map(row => normalizeItem(row.rowNumber, row.record, defaultBrand));
+    if (body.consultarFipe === true) {
+        rows = await enrichFipeRows(rows);
+        rows = rows.map(row => {
+            const errors = row.errors.filter(error => !(error === 'Marca ausente.' && row.marca) && !(error === 'Modelo ausente.' && row.modelo));
+            return { ...row, errors, status: errors.length ? 'invalid' : 'new', duplicateKey: buildDuplicateKey(row) };
+        });
+    }
     const markedRows = await markExistingRows(rows);
 
     return {
@@ -498,6 +516,7 @@ function sanitizeCommitItem(rawItem: any): ParsedImportItem {
         marca: normalizeText(rawItem.marca),
         modelo: normalizeText(rawItem.modelo),
         codigoFipe: normalizeText(rawItem.codigoFipe) || undefined,
+        descricaoFipe: normalizeText(rawItem.descricaoFipe) || undefined,
         tipoVeiculo: normalizeTipoVeiculo(rawItem.tipoVeiculo),
         ano: normalizeText(rawItem.ano) || undefined,
         anoModelo: parseNumberish(rawItem.anoModelo),
@@ -578,6 +597,7 @@ async function commitRows(rawItems: any[], createdBy?: string | null) {
                 marca: marca.nome,
                 modelo: row.modelo,
                 codigoFipe: row.codigoFipe,
+                descricaoFipe: row.descricaoFipe,
                 tipoVeiculo: row.tipoVeiculo || (marca as any).tipoVeiculo || 'carro',
                 ano: row.ano,
                 anoModelo: row.anoModelo,

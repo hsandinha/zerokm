@@ -1,4 +1,5 @@
 'use client';
+import { FipeLookup } from '@/components/catalog/FipeLookup';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import styles from './CatalogVariationsManagement.module.css';
@@ -15,6 +16,7 @@ interface VehicleVariation {
     marca: string;
     modelo: string;
     codigoFipe?: string;
+    descricaoFipe?: string;
     tipoVeiculo: 'carro' | 'moto' | 'caminhao' | 'utilitario';
     ano?: string;
     anoModelo?: number;
@@ -50,6 +52,8 @@ const TIPO_LABELS: Record<string, string> = {
 };
 
 type VariationForm = {
+    codigoFipe: string;
+    descricaoFipe: string;
     marca: string;
     modelo: string;
     /** '' = herdar da marca (o servidor decide). */
@@ -70,6 +74,7 @@ type ImportPreviewItem = {
     marcaId?: string;
     modelo?: string;
     codigoFipe?: string;
+    descricaoFipe?: string;
     tipoVeiculo?: string;
     ano?: string;
     anoModelo?: number;
@@ -112,6 +117,7 @@ type ImportPreview = {
 };
 
 const EMPTY_FORM: VariationForm = {
+    codigoFipe: '', descricaoFipe: '',
     marca: '',
     modelo: '',
     tipoVeiculo: '',
@@ -140,6 +146,8 @@ function getAnoLabel(variation: Pick<VehicleVariation, 'ano' | 'anoModelo' | 'an
 }
 
 export function CatalogVariationsManagement() {
+    const [fipeReset, setFipeReset] = useState(0);
+    const [consultarFipe, setConsultarFipe] = useState(false);
     const [marcas, setMarcas] = useState<Marca[]>([]);
     const [variations, setVariations] = useState<VehicleVariation[]>([]);
     const [form, setForm] = useState<VariationForm>(EMPTY_FORM);
@@ -247,6 +255,7 @@ export function CatalogVariationsManagement() {
 
     const handleEdit = (variation: VehicleVariation) => {
         setForm({
+            codigoFipe: variation.codigoFipe || '', descricaoFipe: variation.descricaoFipe || '',
             marca: variation.marca,
             modelo: variation.modelo,
             tipoVeiculo: variation.tipoVeiculo || 'carro',
@@ -344,12 +353,15 @@ export function CatalogVariationsManagement() {
             }
 
             const payload = {
+                codigoFipe: form.codigoFipe, descricaoFipe: form.descricaoFipe,
                 marca: form.marca,
                 modelo: form.modelo,
                 // '' = não manda: no POST o servidor herda da marca; no PUT mantém o atual.
                 ...(form.tipoVeiculo ? { tipoVeiculo: form.tipoVeiculo } : {}),
                 ...(effectiveTipo === 'moto' ? { cilindrada: form.cilindrada || undefined } : {}),
                 ano: form.ano,
+                anoModelo: (() => { const part = form.ano.split(/[/-]/).pop()?.trim(); if (!part || !/^\d{2}(\d{2})?$/.test(part)) return null; return part.length === 2 ? 2000 + Number(part) : Number(part); })(),
+                anoFabricacao: (() => { const parts = form.ano.split(/[/-]/); const part = parts[0]?.trim(); if (parts.length < 2 || !/^\d{2}(\d{2})?$/.test(part)) return null; return part.length === 2 ? 2000 + Number(part) : Number(part); })(),
                 combustivel: form.combustivel,
                 cor: form.cor,
                 transmissao: form.transmissao,
@@ -369,6 +381,7 @@ export function CatalogVariationsManagement() {
             setFeedback({ type: 'success', message: `Variação ${editingId ? 'atualizada' : 'criada'} com sucesso.` });
             setForm(EMPTY_FORM);
             setEditingId(null);
+            setFipeReset(value => value + 1);
             await Promise.all([loadMarcas(), loadVariations()]);
         } catch (error: any) {
             setFeedback({ type: 'error', message: error?.message || `Erro ao ${editingId ? 'atualizar' : 'salvar'} variação` });
@@ -382,6 +395,7 @@ export function CatalogVariationsManagement() {
         if (!file) return;
 
         setFeedback(null);
+        setImportPreview(null);
         setImportCsvFileName(file.name);
         setImportCsvText(await file.text());
     };
@@ -393,6 +407,7 @@ export function CatalogVariationsManagement() {
         try {
             const payload = {
                 action: 'preview',
+                consultarFipe,
                 sourceType: importSourceType,
                 sheetUrl: importSourceType === 'googleSheets' ? importSheetUrl : undefined,
                 csvText: importSourceType === 'csv' ? importCsvText : undefined,
@@ -482,14 +497,14 @@ export function CatalogVariationsManagement() {
                             <button
                                 type="button"
                                 className={importSourceType === 'googleSheets' ? styles.segmentActive : ''}
-                                onClick={() => setImportSourceType('googleSheets')}
+                                onClick={() => { setImportSourceType('googleSheets'); setImportPreview(null); }}
                             >
                                 Google Sheets
                             </button>
                             <button
                                 type="button"
                                 className={importSourceType === 'csv' ? styles.segmentActive : ''}
-                                onClick={() => setImportSourceType('csv')}
+                                onClick={() => { setImportSourceType('csv'); setImportPreview(null); }}
                             >
                                 CSV
                             </button>
@@ -501,7 +516,7 @@ export function CatalogVariationsManagement() {
                             Link do Google Sheets
                             <input
                                 value={importSheetUrl}
-                                onChange={event => setImportSheetUrl(event.target.value)}
+                                onChange={event => { setImportSheetUrl(event.target.value); setImportPreview(null); }}
                                 placeholder="https://docs.google.com/spreadsheets/d/..."
                             />
                         </label>
@@ -514,10 +529,15 @@ export function CatalogVariationsManagement() {
                     )}
                 </div>
 
+            <label style={{ display: 'flex', gap: 8, margin: '12px 0', alignItems: 'center' }}>
+                <input type="checkbox" checked={consultarFipe} onChange={event => { setConsultarFipe(event.target.checked); setImportPreview(null); }} />
+                Consultar FIPE na prévia do CSV / planilha (código, tipo e ano-modelo)
+            </label>
+            <p className={styles.subtitle}>Preenche apenas campos vazios. Divergências aparecem na prévia. Sem código, mantém o cadastro manual. Até 40 consultas por prévia; linhas restantes podem ser vinculadas depois.</p>
                 <div className={styles.importActions}>
                     <p>Use as colunas: Marca, Modelo, Ano, Combustível, Cor, Câmbio e Opcionais.</p>
                     <button type="button" className={styles.secondaryButton} onClick={previewImport} disabled={importLoading || saving}>
-                        {importLoading ? 'Lendo...' : 'Pré-visualizar importação'}
+                        {importLoading ? 'Lendo e consultando...' : 'Pré-visualizar importação'}
                     </button>
                 </div>
             </div>
@@ -526,17 +546,24 @@ export function CatalogVariationsManagement() {
                 <form className={styles.panel} onSubmit={saveVariation}>
                     <div className={styles.panelHeader}>
                         <h3>{editingId ? 'Editar variação' : 'Nova variação'}</h3>
-                        <button type="button" className={styles.linkButton} onClick={resetForm}>
+                        <button type="button" className={styles.linkButton} onClick={() => { resetForm(); setFipeReset(value => value + 1); }}>
                             {editingId ? 'Cancelar edição' : 'Limpar'}
                         </button>
                     </div>
 
+                    <FipeLookup key={`${editingId || 'new'}-${fipeReset}`} onApply={(detail, tipo) => setForm(prev => ({ ...prev,
+                        marca: detail.brand, modelo: detail.model, descricaoFipe: detail.model, codigoFipe: detail.codeFipe,
+                        tipoVeiculo: tipo, combustivel: detail.fuel,
+                        ano: detail.modelYear === 32000 ? prev.ano : (prev.ano.includes('/') ? `${prev.ano.split('/')[0]}/${detail.modelYear}` : String(detail.modelYear)),
+                    }))} />
+                    {form.descricaoFipe && <p>Descrição FIPE: {form.descricaoFipe}</p>}
                     <div className={styles.formGrid}>
+                        <label>Código FIPE (opcional)<input value={form.codigoFipe} onChange={event => setForm(prev => ({ ...prev, codigoFipe: event.target.value, descricaoFipe: '' }))} placeholder="000000-0" /></label>
                         <label>
                             Marca
                             <input
                                 value={form.marca}
-                                onChange={event => setForm(prev => ({ ...prev, marca: event.target.value }))}
+                                onChange={event => setForm(prev => ({ ...prev, marca: event.target.value, codigoFipe: '', descricaoFipe: '' }))}
                                 placeholder="Ex.: Toyota"
                             />
                         </label>
@@ -554,7 +581,7 @@ export function CatalogVariationsManagement() {
                             Tipo
                             <select
                                 value={form.tipoVeiculo}
-                                onChange={event => setForm(prev => ({ ...prev, tipoVeiculo: event.target.value }))}
+                                onChange={event => setForm(prev => ({ ...prev, tipoVeiculo: event.target.value, codigoFipe: '', descricaoFipe: '' }))}
                             >
                                 <option value="">Automático pela marca ({TIPO_LABELS[effectiveTipo] || effectiveTipo})</option>
                                 <option value="carro">Carro</option>
@@ -800,8 +827,10 @@ export function CatalogVariationsManagement() {
                             <table className={styles.previewTable}>
                                 <thead>
                                     <tr>
+                                        <th>Linha / Situação</th>
                                         <th>Marca</th>
                                         <th>Modelo</th>
+                                        <th>FIPE / Revisão</th>
                                         <th>Ano</th>
                                         <th>Combustível</th>
                                         <th>Cor</th>
@@ -810,14 +839,16 @@ export function CatalogVariationsManagement() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {importPreview.rows.filter(row => row.status === 'new').length === 0 ? (
+                                    {importPreview.rows.length === 0 ? (
                                         <tr>
-                                            <td colSpan={7} className={styles.empty}>Nenhuma linha nova para importar.</td>
+                                            <td colSpan={9} className={styles.empty}>Nenhuma linha para importar.</td>
                                         </tr>
-                                    ) : importPreview.rows.filter(row => row.status === 'new').map((row, index) => (
+                                    ) : importPreview.rows.map((row, index) => (
                                         <tr key={`${row.rowNumber}-${index}`}>
+                                            <td>{row.rowNumber} · {{ new: 'Nova', existing: 'Existente', duplicate: 'Duplicada', invalid: 'Com erro' }[row.status]}</td>
                                             <td>{row.marca || '-'}</td>
                                             <td><strong>{row.modelo || '-'}</strong></td>
+                                            <td style={{ minWidth: 230, whiteSpace: 'normal' }}>{row.codigoFipe || 'Sem vínculo'}{[...row.errors, ...row.warnings].map((message, i) => <p key={i}>{message}</p>)}</td>
                                             <td>{row.ano || row.anoModelo || '-'}</td>
                                             <td>{row.combustivel || '-'}</td>
                                             <td>{row.cor || '-'}</td>

@@ -1,3 +1,4 @@
+import { catalogFipeIdentity } from '@/lib/services/catalogFipeIdentity';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
@@ -171,11 +172,17 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Modelo é obrigatório' }, { status: 400 });
         }
 
+        const identity = catalogFipeIdentity({ ...body, anoModelo: parseNumber(body.anoModelo) || anoComposto.anoModelo, anoFabricacao: parseNumber(body.anoFabricacao) || anoComposto.anoFabricacao });
+        if (identity) {
+            const existing = await VehicleVariation.findOne(identity);
+            if (existing) return NextResponse.json({ error: 'Já existe uma variação com este código FIPE, ano, combustível, cor e opcionais. Use o cadastro existente.', existingId: existing._id.toString() }, { status: 409 });
+        }
         const variation = await VehicleVariation.create({
             marcaId: marca._id,
             marca: marca.nome,
             modelo,
             codigoFipe: normalizeText(body.codigoFipe) || undefined,
+            descricaoFipe: normalizeText(body.descricaoFipe) || undefined,
             // Sem tipo explícito, herda o da marca (HONDA MOTOS → moto).
             tipoVeiculo: normalizeText(body.tipoVeiculo) || (marca as any)?.tipoVeiculo || 'carro',
             ano: normalizeText(body.ano) || undefined,

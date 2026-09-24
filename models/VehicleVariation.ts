@@ -5,6 +5,7 @@ export interface IVehicleVariation extends Document {
     marca: string;
     modelo: string;
     codigoFipe?: string;
+    descricaoFipe?: string;
     tipoVeiculo: 'carro' | 'moto' | 'caminhao' | 'utilitario';
     ano?: string;
     anoModelo?: number;
@@ -40,6 +41,7 @@ const VehicleVariationSchema: Schema = new Schema({
     marcaId: { type: Schema.Types.ObjectId, ref: 'Marca', index: true },
     marca: { type: String, required: true, trim: true, index: true },
     modelo: { type: String, required: true, trim: true, index: true },
+    descricaoFipe: { type: String, trim: true },
     codigoFipe: { type: String, trim: true, index: true },
     tipoVeiculo: {
         type: String,

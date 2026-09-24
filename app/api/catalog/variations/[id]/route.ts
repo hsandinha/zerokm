@@ -1,3 +1,4 @@
+import { catalogFipeIdentity } from '@/lib/services/catalogFipeIdentity';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
@@ -82,6 +83,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         const textFields = [
             'modelo',
             'codigoFipe',
+            'descricaoFipe',
             'tipoVeiculo',
             'ano',
             'combustivel',
@@ -103,14 +105,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
         for (const field of textFields) {
             if (Object.prototype.hasOwnProperty.call(body, field)) {
-                update[field] = normalizeText(body[field]) || undefined;
+                update[field] = ['codigoFipe', 'descricaoFipe'].includes(field) ? normalizeText(body[field]) : normalizeText(body[field]) || undefined;
             }
         }
 
         const numberFields = ['anoModelo', 'anoFabricacao', 'portas', 'cilindrada', 'preco', 'frete'];
         for (const field of numberFields) {
             if (Object.prototype.hasOwnProperty.call(body, field)) {
-                update[field] = parseNumber(body[field]);
+                update[field] = body[field] === null ? null : parseNumber(body[field]);
             }
         }
 
@@ -120,6 +122,16 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
         if (Array.isArray(body.opcionaisPadrao)) {
             update.opcionaisPadrao = body.opcionaisPadrao;
+        }
+
+        const current = await VehicleVariation.findById(id).lean();
+        if (!current) {
+            return NextResponse.json({ error: 'Variação não encontrada' }, { status: 404 });
+        }
+        const identity = catalogFipeIdentity({ ...current, ...update });
+        if (identity) {
+            const existing = await VehicleVariation.findOne({ ...identity, _id: { $ne: id } });
+            if (existing) return NextResponse.json({ error: 'Já existe outra variação com este código FIPE, ano, combustível, cor e opcionais.', existingId: existing._id.toString() }, { status: 409 });
         }
 
         const variation = await VehicleVariation.findByIdAndUpdate(id, { $set: update }, { new: true });
