@@ -77,7 +77,7 @@ export default function AdministrativoDashboard() {
 
     const renderContent = () => {
         switch (activeTab) {
-            case 'veiculos': return <VehicleConsultation role={effectiveRole} />;
+            case 'veiculos': return <VehicleConsultation role={effectiveRole} showBanners />;
             case 'estoque-concessionarias': return <AdminDealershipVehicles />;
             case 'catalogo': return <CatalogVariationsManagement />;
             case 'concessionarias': return <ConcessionariasManagement />;

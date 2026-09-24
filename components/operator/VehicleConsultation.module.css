@@ -1478,6 +1478,22 @@
     font-weight: 600;
 }
 
+/* O carrossel se estica para preencher o pai (width/height 100%), então quem
+   define o tamanho é este invólucro — as mesmas medidas do painel do lojista,
+   para o banner ser visto exatamente como ele é publicado. */
+.bannerCarouselWrapper {
+    width: 100%;
+    max-width: 750px;
+    height: 180px;
+    margin: 0 auto 0.85rem;
+}
+
+@media (max-width: 768px) {
+    .bannerCarouselWrapper {
+        height: 150px;
+    }
+}
+
 .freteBanner {
     display: flex;
     align-items: center;
