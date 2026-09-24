@@ -7,6 +7,7 @@ import { useTheme } from '@/lib/contexts/ThemeContext';
 import styles from './UserMenu.module.css';
 
 interface UserMenuProps {
+    compact?: boolean;
     name: string;
     email?: string | null;
     role: string;
@@ -62,7 +63,7 @@ function ProfileRing({ pct }: { pct: number }) {
     );
 }
 
-export default function UserMenu({ name, email, role, credits, isDropup, alignLeft, onUpgradeClick }: UserMenuProps) {
+export default function UserMenu({ name, email, role, credits, isDropup, alignLeft, onUpgradeClick, compact = false }: UserMenuProps) {
     const [isOpen, setIsOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const { data: session, update } = useSession();
@@ -154,8 +155,9 @@ export default function UserMenu({ name, email, role, credits, isDropup, alignLe
                 onClick={() => setIsOpen(!isOpen)}
                 aria-expanded={isOpen}
                 aria-haspopup="true"
+                aria-label={`Menu de ${name}`}
             >
-                <div className={styles.userInfo}>
+                <div className={styles.userInfo} hidden={compact} style={compact ? { display: 'none' } : undefined}>
                     <span className={styles.userName}>{name}</span>
                     <span className={styles.userRole}>
                         {role}

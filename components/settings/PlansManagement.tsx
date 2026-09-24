@@ -205,17 +205,17 @@ export function PlansManagement() {
 
     return (
         <div style={{ maxWidth: '900px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '1.5rem' }}>
                 <div>
-                    <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>Gerenciamento de Planos</h2>
-                    <p style={{ margin: '4px 0 0', color: '#6b7280', fontSize: '0.875rem' }}>
+                    <h2 style={{ margin: 0, fontSize: '28px', fontWeight: 650 }}>Gerenciamento de Planos</h2>
+                    <p style={{ margin: '4px 0 0', color: 'var(--admin-muted, #6b7280)', fontSize: '0.875rem' }}>
                         Planos do lojista (mensal ou créditos) e planos da concessionária para anunciar repasse
                     </p>
                 </div>
                 <button
                     onClick={openCreate}
                     style={{
-                        background: '#2563eb', color: 'white', border: 'none',
+                        background: 'var(--admin-accent, #2563eb)', color: 'var(--admin-on-accent, white)', border: 'none',
                         borderRadius: '8px', padding: '0.6rem 1.25rem',
                         fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem',
                         flexShrink: 0
@@ -226,11 +226,11 @@ export function PlansManagement() {
             </div>
 
             {loading ? (
-                <p style={{ color: '#9ca3af' }}>Carregando...</p>
+                <p style={{ color: 'var(--admin-muted, #9ca3af)' }}>Carregando...</p>
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     {plans.length === 0 && (
-                        <p style={{ color: '#9ca3af', fontStyle: 'italic', padding: '1rem 0' }}>
+                        <p style={{ color: 'var(--admin-muted, #9ca3af)', fontStyle: 'italic', padding: '1rem 0' }}>
                             Nenhum plano cadastrado. Clique em "Novo Plano" para criar o primeiro.
                         </p>
                     )}
@@ -238,31 +238,32 @@ export function PlansManagement() {
                         <div
                             key={plan.id}
                             style={{
-                                border: '1px solid #e5e7eb',
+                                border: '1px solid var(--admin-border, #e5e7eb)',
                                 borderRadius: '12px',
                                 padding: '1rem 1.25rem',
                                 display: 'flex',
                                 justifyContent: 'space-between',
+                                flexWrap: 'wrap', gap: '16px',
                                 alignItems: 'center',
-                                background: plan.active ? 'white' : '#f9fafb',
+                                background: plan.active ? 'var(--color-surface)' : 'var(--admin-panel, #f9fafb)',
                                 opacity: plan.active ? 1 : 0.65
                             }}
                         >
                             <div>
                                 <div style={{ fontWeight: 700, fontSize: '1rem' }}>{plan.name}</div>
                                 {plan.description && (
-                                    <div style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '2px' }}>
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--admin-muted, #6b7280)', marginTop: '2px' }}>
                                         {plan.description}
                                     </div>
                                 )}
                                 <div style={{ display: 'flex', gap: '0.75rem', marginTop: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
                                     <span style={{
-                                        background: plan.publico === 'concessionaria' ? '#ede9fe' : '#f3f4f6',
-                                        color: plan.publico === 'concessionaria' ? '#5b21b6' : '#374151',
+                                        background: plan.publico === 'concessionaria' ? '#ede9fe' : 'var(--admin-panel, #f3f4f6)',
+                                        color: plan.publico === 'concessionaria' ? '#5b21b6' : 'var(--admin-text, #374151)',
                                         borderRadius: '999px', padding: '2px 10px',
                                         fontSize: '0.75rem', fontWeight: 700
                                     }}>
-                                        {plan.publico === 'concessionaria' ? '🏢 Concessionária · repasse' : '🧑‍💼 Lojista'}
+                                        {plan.publico === 'concessionaria' ? 'Concessionária · repasse' : 'Lojista'}
                                     </span>
                                     <span style={{
                                         background: plan.type === 'monthly' ? '#dbeafe' : '#fef9c3',
@@ -270,23 +271,23 @@ export function PlansManagement() {
                                         borderRadius: '999px', padding: '2px 10px',
                                         fontSize: '0.75rem', fontWeight: 700
                                     }}>
-                                        {plan.type === 'monthly' ? '📅 Mensal' : `🪙 ${plan.credits} créditos`}
+                                        {plan.type === 'monthly' ? 'Mensal' : `${plan.credits} créditos`}
                                     </span>
-                                    <span style={{ fontWeight: 700, color: '#374151' }}>
+                                    <span style={{ fontWeight: 700, color: 'var(--admin-text, #374151)' }}>
                                         R$ {plan.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                     </span>
                                     {plan.invitePrice > 0 && (
-                                        <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--admin-muted, #6b7280)' }}>
                                             + R$ {plan.invitePrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/convidado
                                         </span>
                                     )}
                                     {plan.annualPrice && (
-                                        <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--admin-muted, #6b7280)' }}>
                                             | Anual: R$ {plan.annualPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                         </span>
                                     )}
                                     {plan.features?.length > 0 && (
-                                        <span style={{ fontSize: '0.72rem', color: '#9ca3af' }}>
+                                        <span style={{ fontSize: '0.72rem', color: 'var(--admin-muted, #9ca3af)' }}>
                                             {plan.features.length} recurso(s)
                                         </span>
                                     )}
@@ -296,7 +297,7 @@ export function PlansManagement() {
                                             borderRadius: '999px', padding: '2px 10px',
                                             fontSize: '0.72rem', fontWeight: 700
                                         }}>
-                                            ⭐ Mais popular
+                                            Mais popular
                                         </span>
                                     )}
                                 </div>
@@ -317,8 +318,8 @@ export function PlansManagement() {
                                 <button
                                     onClick={() => openEdit(plan)}
                                     style={{
-                                        background: '#f3f4f6', color: '#374151',
-                                        border: '1px solid #e5e7eb', borderRadius: '6px',
+                                        background: 'var(--admin-panel, #f3f4f6)', color: 'var(--admin-text, #374151)',
+                                        border: '1px solid var(--admin-border, #e5e7eb)', borderRadius: '6px',
                                         padding: '4px 12px', fontSize: '0.75rem', cursor: 'pointer'
                                     }}
                                 >
@@ -348,8 +349,8 @@ export function PlansManagement() {
                     }}
                     onClick={e => { if (e.target === e.currentTarget) setShowModal(false); }}
                 >
-                    <div style={{
-                        background: 'white', borderRadius: '12px', padding: '2rem',
+                    <div role="dialog" aria-modal="true" aria-label={editing ? 'Editar plano' : 'Novo plano'} style={{
+                        background: 'var(--color-surface)', borderRadius: '12px', padding: '2rem',
                         width: '100%', maxWidth: '460px',
                         // O formulário é mais alto que a janela: sem rolagem
                         // própria, o título e os primeiros campos ficavam fora
@@ -362,7 +363,7 @@ export function PlansManagement() {
                         </h3>
                         <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                             <div>
-                                <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: '#374151' }}>
+                                <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: 'var(--admin-text, #374151)' }}>
                                     Nome do plano *
                                 </label>
                                 <input
@@ -370,22 +371,22 @@ export function PlansManagement() {
                                     value={form.name}
                                     onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                                     placeholder="Ex: Plano Profissional"
-                                    style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
+                                    style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid var(--admin-border, #e5e7eb)', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
                                 />
                             </div>
                             <div>
-                                <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: '#374151' }}>
+                                <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: 'var(--admin-text, #374151)' }}>
                                     Descrição
                                 </label>
                                 <input
                                     value={form.description}
                                     onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                                     placeholder="Descrição opcional"
-                                    style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
+                                    style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid var(--admin-border, #e5e7eb)', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
                                 />
                             </div>
                             <div>
-                                <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: '#374151' }}>
+                                <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: 'var(--admin-text, #374151)' }}>
                                     Para quem é o plano *
                                 </label>
                                 <select
@@ -394,35 +395,35 @@ export function PlansManagement() {
                                         const publico = e.target.value as Publico;
                                         setForm(f => ({ ...f, publico, ...(publico === 'concessionaria' ? { type: 'monthly' as const } : {}) }));
                                     }}
-                                    style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
+                                    style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid var(--admin-border, #e5e7eb)', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
                                 >
-                                    <option value="cliente">🧑‍💼 Lojista (acesso à vitrine)</option>
-                                    <option value="concessionaria">🏢 Concessionária (anunciar repasse)</option>
+                                    <option value="cliente">Lojista (acesso à vitrine)</option>
+                                    <option value="concessionaria">Concessionária (anunciar repasse)</option>
                                 </select>
                                 {form.publico === 'concessionaria' && (
-                                    <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: '#6b7280' }}>
+                                    <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: 'var(--admin-muted, #6b7280)' }}>
                                         A concessionária contrata no painel Estoque e Preços, aba Repasse, e paga por PIX. Sempre mensal, com opção anual. Não aparece na landing nem para o lojista.
                                     </p>
                                 )}
                             </div>
                             {form.publico === 'cliente' && (
                             <div>
-                                <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: '#374151' }}>
+                                <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: 'var(--admin-text, #374151)' }}>
                                     Tipo *
                                 </label>
                                 <select
                                     value={form.type}
                                     onChange={e => setForm(f => ({ ...f, type: e.target.value as 'monthly' | 'credits' }))}
-                                    style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
+                                    style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid var(--admin-border, #e5e7eb)', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
                                 >
-                                    <option value="credits">🪙 Pacote de Créditos</option>
-                                    <option value="monthly">📅 Plano Mensal (ilimitado)</option>
+                                    <option value="credits">Pacote de Créditos</option>
+                                    <option value="monthly">Plano Mensal (ilimitado)</option>
                                 </select>
                             </div>
                             )}
                             {form.publico === 'cliente' && form.type === 'credits' && (
                                 <div>
-                                    <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: '#374151' }}>
+                                    <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: 'var(--admin-text, #374151)' }}>
                                         Quantidade de créditos *
                                     </label>
                                     <input
@@ -432,12 +433,12 @@ export function PlansManagement() {
                                         value={form.credits}
                                         onChange={e => setForm(f => ({ ...f, credits: e.target.value.replace(/\D/g, '') }))}
                                         placeholder="Ex: 10"
-                                        style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
+                                        style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid var(--admin-border, #e5e7eb)', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
                                     />
                                 </div>
                             )}
                             <div>
-                                <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: '#374151' }}>
+                                <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: 'var(--admin-text, #374151)' }}>
                                     {form.type === 'credits' ? 'Preço do pacote (R$) *' : 'Preço mensal (R$) *'}
                                 </label>
                                 <input
@@ -447,12 +448,12 @@ export function PlansManagement() {
                                     value={form.price}
                                     onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
                                     placeholder="Ex: 699,90"
-                                    style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
+                                    style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid var(--admin-border, #e5e7eb)', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
                                 />
                             </div>
                             {form.type === 'monthly' && (
                                 <div>
-                                    <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: '#374151' }}>
+                                    <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: 'var(--admin-text, #374151)' }}>
                                         Preço anual total (R$)
                                     </label>
                                     <input
@@ -461,7 +462,7 @@ export function PlansManagement() {
                                         value={form.annualPrice}
                                         onChange={e => setForm(f => ({ ...f, annualPrice: e.target.value }))}
                                         placeholder="Ex: 7198,80"
-                                        style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
+                                        style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid var(--admin-border, #e5e7eb)', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
                                     />
                                     {(() => {
                                         const anual = parseAmount(form.annualPrice);
@@ -476,13 +477,13 @@ export function PlansManagement() {
                                             </p>
                                         );
                                     })()}
-                                    <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: '#6b7280' }}>
+                                    <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: 'var(--admin-muted, #6b7280)' }}>
                                         Deixe em branco para não mostrar opção anual neste plano.
                                     </p>
                                 </div>
                             )}
                             <div>
-                                <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: '#374151' }}>
+                                <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: 'var(--admin-text, #374151)' }}>
                                     Recursos incluídos
                                 </label>
                                 <textarea
@@ -490,9 +491,9 @@ export function PlansManagement() {
                                     value={form.featuresText}
                                     onChange={e => setForm(f => ({ ...f, featuresText: e.target.value }))}
                                     placeholder={`Um recurso por linha. Ex:\nVisualização completa do estoque\nDados completos da concessionária\nNegociação direta sem intermediários`}
-                                    style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '0.875rem', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }}
+                                    style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid var(--admin-border, #e5e7eb)', borderRadius: '8px', fontSize: '0.875rem', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }}
                                 />
-                                <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: '#6b7280' }}>
+                                <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: 'var(--admin-muted, #6b7280)' }}>
                                     {form.publico === 'concessionaria'
                                         ? 'Aparece na tela de contratação do painel da concessionária.'
                                         : 'Aparece como lista de benefícios no card do plano na LP.'}
@@ -500,7 +501,7 @@ export function PlansManagement() {
                             </div>
                             {form.publico === 'cliente' && (<>
                             <div>
-                                <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: '#374151' }}>
+                                <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: 'var(--admin-text, #374151)' }}>
                                     Preço por convidado (R$/mês)
                                 </label>
                                 <input
@@ -509,9 +510,9 @@ export function PlansManagement() {
                                     value={form.invitePrice}
                                     onChange={e => setForm(f => ({ ...f, invitePrice: e.target.value }))}
                                     placeholder="Ex: 9,90"
-                                    style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
+                                    style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid var(--admin-border, #e5e7eb)', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
                                 />
-                                <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: '#6b7280' }}>
+                                <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: 'var(--admin-muted, #6b7280)' }}>
                                     Cobrado mensalmente por cada usuário convidado ativo.
                                 </p>
                             </div>
@@ -552,7 +553,7 @@ export function PlansManagement() {
                                     type="button"
                                     onClick={() => setShowModal(false)}
                                     style={{
-                                        flex: 1, background: '#f3f4f6', border: '1px solid #e5e7eb',
+                                        flex: 1, background: 'var(--admin-panel, #f3f4f6)', border: '1px solid var(--admin-border, #e5e7eb)',
                                         borderRadius: '8px', padding: '0.75rem', fontWeight: 600, cursor: 'pointer'
                                     }}
                                 >

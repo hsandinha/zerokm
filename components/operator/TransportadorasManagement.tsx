@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Table2, LayoutGrid } from 'lucide-react';
 import { Transportadora, TransportadoraService } from '../../lib/services/transportadoraService';
 import { AddTransportadoraModal } from './AddTransportadoraModal';
 import styles from './VehicleConsultation.module.css';
@@ -129,14 +130,14 @@ export function TransportadorasManagement({ role = 'operator' }: Transportadoras
                             onClick={() => setViewMode('table')}
                             title="Visualização em Tabela"
                         >
-                            📊
+                            <Table2 size={17} aria-hidden="true" />
                         </button>
                         <button
                             className={`${styles.viewButton} ${viewMode === 'cards' ? styles.active : ''}`}
                             onClick={() => setViewMode('cards')}
                             title="Visualização em Cards"
                         >
-                            📋
+                            <LayoutGrid size={17} aria-hidden="true" />
                         </button>
                     </div>
                 </div>

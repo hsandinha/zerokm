@@ -105,3 +105,10 @@
         scroll-snap-align: start;
     }
 }
+
+
+/* Shared administration design; other profiles keep their existing presentation. */
+:global([data-admin-design]) .title { font-size: 28px; font-weight: 650; letter-spacing: -.035em; }
+@media (max-width: 768px) {
+:global([data-admin-design]) .title { font-size: 23px; }
+}

@@ -669,3 +669,20 @@
     font-style: italic;
     background: var(--color-bg);
 }
+
+/* Shared administration design; other profiles keep their existing presentation. */
+:global([data-admin-design]) .addButton,
+:global([data-admin-design]) .submitButton { background: var(--color-accent); color: var(--admin-on-accent); border: 1px solid transparent; border-radius: 8px; min-height: 40px; padding: 10px 16px; font-size: 14px; font-weight: 600; box-shadow: none; }
+:global([data-admin-design]) .cancelButton,
+:global([data-admin-design]) .importButton,
+:global([data-admin-design]) .populateButton { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--admin-border); border-radius: 8px; box-shadow: none; font-weight: 500; }
+:global([data-admin-design]) .inlineFormPanel,
+:global([data-admin-design]) .modal,
+:global([data-admin-design]) .tableContainer { background: var(--color-surface); border: 1px solid var(--admin-border); border-radius: 12px; box-shadow: var(--admin-shadow); }
+:global([data-admin-design]) .input,
+:global([data-admin-design]) .searchInput,
+:global([data-admin-design]) .select { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--admin-border); border-radius: 8px; min-height: 40px; }
+:global([data-admin-design]) .table th { background: var(--color-panel); color: var(--color-text-muted); font-size: 12px; font-weight: 600; text-transform: none; padding: 12px 16px; border: 0; border-bottom: 1px solid var(--admin-border); }
+:global([data-admin-design]) .table td { padding: 14px 16px; border: 0; border-bottom: 1px solid var(--admin-border); font-size: 14px; line-height: 1.45; }
+:global([data-admin-design]) .header { background: transparent; padding: 0 0 24px; border: 0; box-shadow: none; flex-wrap: wrap; gap: 16px; }
+:global([data-admin-design]) .header h2 { font-size: 28px; font-weight: 650; }

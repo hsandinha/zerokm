@@ -70,3 +70,7 @@
     color: var(--color-text-muted, #94a3b8);
     font-size: 1.1rem;
 }
+
+
+/* Shared administration design; other profiles keep their existing presentation. */
+:global([data-admin-design]) .select { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--admin-border); border-radius: 8px; min-height: 40px; }

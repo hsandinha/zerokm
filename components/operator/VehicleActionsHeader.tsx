@@ -1,4 +1,5 @@
 import React from 'react';
+import { CalendarDays, Trash2, Download, ChartNoAxesCombined, Table2, LayoutGrid, X } from 'lucide-react';
 import styles from './VehicleConsultation.module.css';
 
 interface VehicleActionsHeaderProps {
@@ -44,14 +45,14 @@ export function VehicleActionsHeader({
                             title="Atualizar Data de Atualização"
                             style={{ marginRight: '8px' }}
                         >
-                            📅 Atualizar Data ({selectedIds.length})
+                            <CalendarDays size={16} aria-hidden="true" /> Atualizar data ({selectedIds.length})
                         </button>
                         <button
                             className={styles.bulkDeleteButton}
                             onClick={handleBulkDelete}
                             title="Excluir Selecionados"
                         >
-                            🗑️ Excluir ({selectedIds.length})
+                            <Trash2 size={16} aria-hidden="true" /> Excluir ({selectedIds.length})
                         </button>
                     </>
                 )}
@@ -64,7 +65,7 @@ export function VehicleActionsHeader({
                             disabled={isExporting}
                             style={{ marginRight: '8px' }}
                         >
-                            {isExporting ? 'Exportando...' : '📤 Exportar'}
+                            <Download size={16} aria-hidden="true" /> {isExporting ? 'Exportando...' : 'Exportar'}
                         </button>
                         {showExportMenu && (
                             <div className={styles.exportMenu} style={{
@@ -105,7 +106,7 @@ export function VehicleActionsHeader({
                         title="Configurar Margem"
                         style={{ marginRight: '8px' }}
                     >
-                        💹 Margem
+                        <ChartNoAxesCombined size={16} aria-hidden="true" /> Margem
                     </button>
                 )}
 
@@ -114,19 +115,23 @@ export function VehicleActionsHeader({
                         className={`${styles.viewButton} ${viewMode === 'table' ? styles.active : ''}`}
                         onClick={() => setViewMode('table')}
                         title="Visualização em Tabela"
+                        aria-label="Visualização em Tabela"
+                        aria-pressed={viewMode === 'table'}
                     >
-                        📊
+                        <Table2 size={17} aria-hidden="true" />
                     </button>
                     <button
                         className={`${styles.viewButton} ${viewMode === 'grid' ? styles.active : ''}`}
                         onClick={() => setViewMode('grid')}
                         title="Visualização em Grade"
+                        aria-label="Visualização em Grade"
+                        aria-pressed={viewMode === 'grid'}
                     >
-                        ⊞
+                        <LayoutGrid size={17} aria-hidden="true" />
                     </button>
                 </div>
                 {onClose && (
-                    <button className={styles.closeButton} onClick={onClose}>
+                    <button className={styles.closeButton} onClick={onClose} aria-label="Fechar consulta">
                         ✕
                     </button>
                 )}

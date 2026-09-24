@@ -367,7 +367,7 @@ export function BannersManagement() {
                                     </option>
                                 ))}
                             </select>
-                            <span style={{ fontSize: '0.75rem', color: '#666' }}>Isto irá preencher automaticamente os campos de Modelo, Preço, Ano, Cor, Combustível, Situação e puxará a primeira foto do veículo. O banner também será excluído se o veículo for deletado.</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--admin-muted, #666)' }}>Isto irá preencher automaticamente os campos de Modelo, Preço, Ano, Cor, Combustível, Situação e puxará a primeira foto do veículo. O banner também será excluído se o veículo for deletado.</span>
                         </div>
 
                         <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
@@ -394,7 +394,7 @@ export function BannersManagement() {
                                     <option key={d.id} value={d.id}>{d.nome}</option>
                                 ))}
                             </select>
-                            <span style={{ fontSize: '0.75rem', color: '#666' }}>Isto irá preencher automaticamente os campos "Nome da Loja" e "Link de Destino" abaixo.</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--admin-muted, #666)' }}>Isto irá preencher automaticamente os campos "Nome da Loja" e "Link de Destino" abaixo.</span>
                         </div>
                         
                         <div className={styles.formGroup}>
@@ -539,7 +539,7 @@ export function BannersManagement() {
                             />
                             {newBanner.imageBase64 && (
                                 <div style={{ marginTop: '1rem' }}>
-                                    <img src={newBanner.imageBase64} alt="Preview" style={{ maxWidth: '100%', maxHeight: '150px', borderRadius: '8px', border: '1px solid #ccc' }} />
+                                    <img src={newBanner.imageBase64} alt="Preview" style={{ maxWidth: '100%', maxHeight: '150px', borderRadius: '8px', border: '1px solid var(--admin-border, #e5e7eb)' }} />
                                 </div>
                             )}
                         </div>
@@ -551,7 +551,7 @@ export function BannersManagement() {
                         {isSaving ? 'Salvando...' : (editingId ? 'Salvar Alterações' : 'Adicionar Banner')}
                     </button>
                     {editingId && (
-                        <button type="button" onClick={handleCancelEdit} style={{ padding: '0.8rem 1.5rem', background: '#ccc', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
+                        <button type="button" onClick={handleCancelEdit} style={{ padding: '0.8rem 1.5rem', background: 'var(--admin-border, #ccc)', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
                             Cancelar Edição
                         </button>
                     )}
@@ -567,7 +567,7 @@ export function BannersManagement() {
                             setStatusFilter(e.target.value);
                             carregarBanners(1, e.target.value);
                         }}
-                        style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc', outline: 'none' }}
+                        style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--admin-border, #e5e7eb)', outline: 'none' }}
                     >
                         <option value="all">Todos os Status</option>
                         <option value="active">Ativos</option>
@@ -579,7 +579,7 @@ export function BannersManagement() {
                 </div>
                 
                 {banners.length === 0 ? (
-                    <p style={{ color: '#666' }}>Nenhum banner cadastrado no momento.</p>
+                    <p style={{ color: 'var(--admin-muted, #666)' }}>Nenhum banner cadastrado no momento.</p>
                 ) : (
                     <>
                         <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1rem' }}>
@@ -593,13 +593,13 @@ export function BannersManagement() {
                         </thead>
                         <tbody>
                             {banners.map(banner => (
-                                <tr key={banner._id} style={{ borderBottom: '1px solid #eee' }}>
+                                <tr key={banner._id} style={{ borderBottom: '1px solid var(--admin-border, #e5e7eb)' }}>
                                     <td style={{ padding: '1rem', width: '200px' }}>
-                                        <img src={banner.imageUrl} alt={banner.title} style={{ width: '150px', height: 'auto', borderRadius: '4px', border: '1px solid #ddd' }} />
+                                        <img src={banner.imageUrl} alt={banner.title} style={{ width: '150px', height: 'auto', borderRadius: '4px', border: '1px solid var(--admin-border, #e5e7eb)' }} />
                                     </td>
                                     <td style={{ padding: '1rem' }}>
                                         <strong>{banner.title}</strong>
-                                        {banner.linkUrl && <div style={{ fontSize: '0.8rem', color: '#666' }}><a href={banner.linkUrl} target="_blank" rel="noreferrer">🔗 Link</a></div>}
+                                        {banner.linkUrl && <div style={{ fontSize: '0.8rem', color: 'var(--admin-muted, #666)' }}><a href={banner.linkUrl} target="_blank" rel="noreferrer">🔗 Link</a></div>}
                                     </td>
                                     <td style={{ padding: '1rem' }}>
                                         <span style={{ 
@@ -658,7 +658,7 @@ export function BannersManagement() {
                                                 </button>
                                                 <button 
                                                     onClick={() => toggleBannerActive(banner._id, banner.isActive)}
-                                                    style={{ marginRight: '0.5rem', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc', background: '#fff', cursor: 'pointer' }}
+                                                    style={{ marginRight: '0.5rem', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--admin-border, #e5e7eb)', background: 'var(--color-surface)', cursor: 'pointer' }}
                                                 >
                                                     {banner.isActive ? 'Ocultar' : 'Exibir'}
                                                 </button>
@@ -699,7 +699,7 @@ export function BannersManagement() {
                                 >
                                     Anterior
                                 </button>
-                                <span style={{ fontWeight: 500, color: '#3c4043' }}>
+                                <span style={{ fontWeight: 500, color: 'var(--admin-text, #3c4043)' }}>
                                     Página {currentPage} de {totalPages}
                                 </span>
                                 <button

@@ -60,54 +60,54 @@ export default function IntegrationsPanel() {
     }
 
     return (
-        <div style={{ padding: '24px', background: 'var(--color-surface)', borderRadius: '12px', color: 'var(--color-text)' }}>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '8px' }}>Integrações (Webhooks)</h2>
+        <div style={{ padding: '0', background: 'transparent', borderRadius: '12px', color: 'var(--color-text)' }}>
+            <h2 style={{ fontSize: '28px', fontWeight: 650, marginBottom: '8px' }}>Integrações (Webhooks)</h2>
             <p style={{ color: 'var(--color-text-muted)', marginBottom: '32px' }}>
                 Conecte ferramentas externas como Facebook Ads, RD Station, ActiveCampaign ou Typeform enviando Leads automaticamente para o CRM.
             </p>
 
             <div style={{ display: 'grid', gap: '24px', gridTemplateColumns: '1fr', maxWidth: '800px' }}>
-                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--color-highlight)', borderRadius: '8px', padding: '24px' }}>
+                <div style={{ background: 'var(--color-panel)', border: '1px solid var(--color-highlight)', borderRadius: '8px', padding: '24px' }}>
                     <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        🔗 1. URL do Webhook
+                        1. URL do Webhook
                     </h3>
                     <p style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '12px' }}>
                         Configure o seu sistema externo (ou Zapier/Make) para enviar uma requisição <strong>POST</strong> para esta URL:
                     </p>
-                    <div style={{ display: 'flex', gap: '12px' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
                         <input 
                             type="text" 
                             readOnly 
                             value={webhookUrl} 
-                            style={{ flex: 1, padding: '10px 16px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--color-highlight)', color: 'var(--color-text)', borderRadius: '6px', fontFamily: 'monospace', outline: 'none' }}
+                            style={{ flex: 1, padding: '10px 16px', background: 'var(--color-panel)', border: '1px solid var(--color-highlight)', color: 'var(--color-text)', borderRadius: '6px', fontFamily: 'monospace', outline: 'none' }}
                         />
                         <button 
                             onClick={() => handleCopy(webhookUrl)}
-                            style={{ padding: '0 16px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 500 }}
+                            style={{ padding: '0 16px', background: 'var(--color-accent)', color: 'var(--admin-on-accent, white)', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 500 }}
                         >
                             <MdContentCopy /> Copiar
                         </button>
                     </div>
                 </div>
 
-                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--color-highlight)', borderRadius: '8px', padding: '24px' }}>
+                <div style={{ background: 'var(--color-panel)', border: '1px solid var(--color-highlight)', borderRadius: '8px', padding: '24px' }}>
                     <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        🔐 2. Token de Autenticação (Secret)
+                        2. Token de Autenticação (Secret)
                     </h3>
                     <p style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '12px' }}>
                         Envie este token no cabeçalho (Header) da requisição como <code>Authorization: Bearer SEU_TOKEN</code>, ou na URL como <code>?token=SEU_TOKEN</code>.
                     </p>
-                    <div style={{ display: 'flex', gap: '12px' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
                         <input 
                             type="text" 
                             readOnly 
                             value={token || 'Nenhum token gerado ainda'} 
-                            style={{ flex: 1, padding: '10px 16px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--color-highlight)', color: token ? 'var(--color-text)' : '#ef4444', borderRadius: '6px', fontFamily: 'monospace', outline: 'none' }}
+                            style={{ flex: 1, padding: '10px 16px', background: 'var(--color-panel)', border: '1px solid var(--color-highlight)', color: token ? 'var(--color-text)' : '#ef4444', borderRadius: '6px', fontFamily: 'monospace', outline: 'none' }}
                         />
                         {token && (
                             <button 
                                 onClick={() => handleCopy(token)}
-                                style={{ padding: '0 16px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 500 }}
+                                style={{ padding: '0 16px', background: 'var(--color-accent)', color: 'var(--admin-on-accent, white)', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 500 }}
                             >
                                 <MdContentCopy /> Copiar
                             </button>
@@ -122,14 +122,14 @@ export default function IntegrationsPanel() {
                     </div>
                 </div>
 
-                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--color-highlight)', borderRadius: '8px', padding: '24px' }}>
+                <div style={{ background: 'var(--color-panel)', border: '1px solid var(--color-highlight)', borderRadius: '8px', padding: '24px' }}>
                     <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        📄 3. Formato do JSON (Payload)
+                        3. Formato do JSON (Payload)
                     </h3>
                     <p style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '12px' }}>
                         O corpo da requisição (Body) deve ser um JSON com os dados do Lead. Nome e Telefone são obrigatórios.
                     </p>
-                    <pre style={{ background: 'rgba(0,0,0,0.3)', padding: '16px', borderRadius: '8px', color: '#a78bfa', fontFamily: 'monospace', fontSize: '0.9rem', overflowX: 'auto', border: '1px solid var(--color-highlight)' }}>
+                    <pre style={{ background: 'var(--color-panel)', padding: '16px', borderRadius: '8px', color: 'var(--color-text)', fontFamily: 'monospace', fontSize: '0.9rem', overflowX: 'auto', border: '1px solid var(--color-highlight)' }}>
 {`{
   "name": "Nome do Lead",
   "phone": "(11) 99999-9999",

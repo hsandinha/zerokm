@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import styles from './ChurnDashboard.module.css';
+import { CircleCheck, TriangleAlert, CircleAlert, Gift } from 'lucide-react';
 
 export function ChurnDashboard() {
     const [metrics, setMetrics] = useState<any>(null);
@@ -31,42 +32,42 @@ export function ChurnDashboard() {
     return (
         <div className={styles.churnContainer}>
             <div className={styles.header}>
-                <h2>Cockpit de Gestão à Vista (Prevenção de Churn)</h2>
+                <h2>Saúde das assinaturas</h2>
                 <p>Monitoramento financeiro de assinaturas em tempo real</p>
             </div>
 
             <div className={styles.globalKPIs}>
                 <div className={`${styles.kpiCard} ${styles.kpiGreen}`}>
-                    <div className={styles.kpiIcon}>✅</div>
+                    <div className={styles.kpiIcon}><CircleCheck size={22} aria-hidden="true" /></div>
                     <div className={styles.kpiInfo}>
-                        <h4>Receita Saudável / Cativa</h4>
+                        <h4>Receita ativa</h4>
                         <h2>{formatCurrency(globalValues.receitaCativa)}</h2>
                         <span>{globalValues.totalAtivos} Clientes Pagantes Ativos</span>
                     </div>
                 </div>
 
                 <div className={`${styles.kpiCard} ${styles.kpiYellow}`}>
-                    <div className={styles.kpiIcon}>⚠️</div>
+                    <div className={styles.kpiIcon}><TriangleAlert size={22} aria-hidden="true" /></div>
                     <div className={styles.kpiInfo}>
-                        <h4>Receita em Risco (Vencendo)</h4>
+                        <h4>Receita a vencer</h4>
                         <h2>{formatCurrency(globalValues.receitaRisco)}</h2>
                         <span>{globalValues.totalRisco} Clientes no Radar (5 dias)</span>
                     </div>
                 </div>
 
                 <div className={`${styles.kpiCard} ${styles.kpiRed}`}>
-                    <div className={styles.kpiIcon}>🚨</div>
+                    <div className={styles.kpiIcon}><CircleAlert size={22} aria-hidden="true" /></div>
                     <div className={styles.kpiInfo}>
-                        <h4>Receita Bloqueada / Perdida</h4>
+                        <h4>Receita inadimplente</h4>
                         <h2>{formatCurrency(globalValues.receitaPerdida)}</h2>
                         <span>{globalValues.totalBloqueados} Clientes Inadimplentes</span>
                     </div>
                 </div>
 
                 <div className={`${styles.kpiCard} ${styles.kpiPurple}`}>
-                    <div className={styles.kpiIcon}>🎁</div>
+                    <div className={styles.kpiIcon}><Gift size={22} aria-hidden="true" /></div>
                     <div className={styles.kpiInfo}>
-                        <h4>Cortesia / Bundled</h4>
+                        <h4>Cortesias e convidados</h4>
                         <h2>{(globalValues.totalCortesia ?? 0) + (globalValues.totalInvitees ?? 0)}</h2>
                         <span>
                             {globalValues.totalCortesia ?? 0} cortesia · {globalValues.totalInvitees ?? 0} convidados
@@ -77,7 +78,7 @@ export function ChurnDashboard() {
             </div>
 
             <div className={styles.rankingSection}>
-                <h3>Ranking de Saúde por Operador (Gamificação)</h3>
+                <h3>Carteira por responsável</h3>
                 <div className={styles.tableWrapper}>
                     <table className={styles.rankingTable}>
                         <thead>

@@ -14,8 +14,8 @@ interface Props {
 }
 
 const iconButton: React.CSSProperties = {
-  background: '#F9FAFB', border: '1px solid #F3F4F6', borderRadius: '4px', cursor: 'pointer',
-  color: '#9CA3AF', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+  background: 'var(--admin-panel, #f9fafb)', border: '1px solid #F3F4F6', borderRadius: '4px', cursor: 'pointer',
+  color: 'var(--admin-muted, #9ca3af)', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center',
 };
 
 const chip = (background: string, color: string): React.CSSProperties => ({
@@ -33,9 +33,9 @@ export default function LeadCard({ lead, isDragging, onOpen }: Props) {
       ref={setNodeRef}
       style={{
         ...style,
-        background: '#FFFFFF',
+        background: 'var(--color-surface)',
         borderRadius: '12px',
-        border: '1px solid #E5E7EB',
+        border: '1px solid var(--admin-border, #e5e7eb)',
         transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
         opacity: isDragging ? 0.5 : 1,
         transform: isDragging ? `${style.transform} scale(1.02)` : style.transform,
@@ -49,7 +49,7 @@ export default function LeadCard({ lead, isDragging, onOpen }: Props) {
       <div
         {...attributes}
         {...listeners}
-        style={{ width: '24px', background: '#F9FAFB', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid #E5E7EB', color: '#D1D5DB', cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
+        style={{ width: '24px', background: 'var(--admin-panel, #f9fafb)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid var(--admin-border, #e5e7eb)', color: 'var(--admin-border, #d1d5db)', cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
         title="Arraste para mover de fase"
       >
         <FiGrid size={14} />
@@ -60,10 +60,10 @@ export default function LeadCard({ lead, isDragging, onOpen }: Props) {
         onClick={() => onOpen?.(lead.id)}
       >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
-            <span style={{ fontWeight: 700, color: '#111827', fontSize: '0.875rem', textTransform: 'uppercase' }}>
+            <span style={{ fontWeight: 700, color: 'var(--admin-text, #111827)', fontSize: '0.875rem', textTransform: 'uppercase' }}>
               {lead.name.length > 20 ? lead.name.substring(0, 20) + '...' : lead.name}
             </span>
-            <span style={{ fontSize: '0.75rem', color: '#6B7280' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--admin-muted, #6b7280)' }}>
               {lead.phone} • {lead.email ? (lead.email.length > 15 ? lead.email.substring(0, 15) + '...' : lead.email) : 'S/ email'}
             </span>
           </div>
@@ -74,7 +74,7 @@ export default function LeadCard({ lead, isDragging, onOpen }: Props) {
                 <span key={tag} style={chip('#EFF6FF', '#3B82F6')}>{tag}</span>
               ))
             ) : (
-              <span style={chip('#F3F4F6', '#4B5563')}>{lead.source || 'Orgânico'}</span>
+              <span style={chip('var(--admin-panel, #f3f4f6)', '#4B5563')}>{lead.source || 'Orgânico'}</span>
             )}
             {lead.lostReason && (
               <span style={chip('#FEF2F2', '#DC2626')}>{lostReasonLabel(lead.lostReason)}</span>
@@ -97,7 +97,7 @@ export default function LeadCard({ lead, isDragging, onOpen }: Props) {
             )}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', fontSize: '0.75rem', color: '#6B7280' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', fontSize: '0.75rem', color: 'var(--admin-muted, #6b7280)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', minWidth: 0 }}>
                 <FiUser size={12} />
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

@@ -1389,7 +1389,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
             {/* Modal de Opções de Frete */}
             {freteModal.isOpen && (
                 <div className={modalStyles.overlay}>
-                    <div className={modalStyles.modal} style={{ maxWidth: '500px' }}>
+                    <div className={modalStyles.modal} role="dialog" aria-modal="true" aria-label="Configurar margem" style={{ maxWidth: '500px' }}>
                         <div className={modalStyles.modalHeader}>
                             <h3>Opções de Frete - {freteModal.estado}</h3>
                             <button
@@ -1449,7 +1449,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
             {/* Modal de Margem */}
             {showMargemModal && (
                 <div className={modalStyles.overlay}>
-                    <div className={modalStyles.modal} style={{ maxWidth: '500px' }}>
+                    <div className={modalStyles.modal} role="dialog" aria-modal="true" aria-label="Configurar margem" style={{ maxWidth: '500px' }}>
                         <div className={modalStyles.modalHeader}>
                             <h3>Configurar Margem</h3>
                             <button
@@ -1473,15 +1473,15 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                                             style={{
                                                 flex: 1,
                                                 padding: '10px',
-                                                border: inputMarginMode === 'percent' ? '2px solid #007bff' : '1px solid #ccc',
+                                                border: inputMarginMode === 'percent' ? '2px solid var(--admin-accent, #007bff)' : '1px solid var(--admin-border, #ccc)',
                                                 borderRadius: '6px',
-                                                background: inputMarginMode === 'percent' ? '#e7f1ff' : '#fff',
+                                                background: inputMarginMode === 'percent' ? 'var(--admin-selected, #e7f1ff)' : 'var(--color-surface)',
                                                 cursor: isInvitee ? 'not-allowed' : 'pointer',
                                                 fontWeight: inputMarginMode === 'percent' ? 600 : 400,
                                                 opacity: isInvitee ? 0.6 : 1
                                             }}
                                         >
-                                            📊 Percentual (%)
+                                            Percentual (%)
                                         </button>
                                         <button
                                             type="button"
@@ -1490,15 +1490,15 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                                             style={{
                                                 flex: 1,
                                                 padding: '10px',
-                                                border: inputMarginMode === 'fixed' ? '2px solid #007bff' : '1px solid #ccc',
+                                                border: inputMarginMode === 'fixed' ? '2px solid var(--admin-accent, #007bff)' : '1px solid var(--admin-border, #ccc)',
                                                 borderRadius: '6px',
-                                                background: inputMarginMode === 'fixed' ? '#e7f1ff' : '#fff',
+                                                background: inputMarginMode === 'fixed' ? 'var(--admin-selected, #e7f1ff)' : 'var(--color-surface)',
                                                 cursor: isInvitee ? 'not-allowed' : 'pointer',
                                                 fontWeight: inputMarginMode === 'fixed' ? 600 : 400,
                                                 opacity: isInvitee ? 0.6 : 1
                                             }}
                                         >
-                                            💵 Valor Fixo (R$)
+                                            Valor fixo (R$)
                                         </button>
                                     </div>
                                 )}
@@ -1543,7 +1543,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                                 )}
 
                                 {/* Informação da margem atual e exemplo */}
-                                <div className={styles.margemInfo} style={{ marginTop: '20px', padding: '15px', background: '#f5f5f5', borderRadius: '8px' }}>
+                                <div className={styles.margemInfo} style={{ marginTop: '20px', padding: '15px', background: 'var(--admin-panel, #f5f5f5)', borderRadius: '8px' }}>
                                     <div style={{ marginBottom: '10px' }}>
                                         <span>Margem Atual: </span>
                                         <strong>

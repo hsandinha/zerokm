@@ -1,222 +1,28 @@
-/* Layout com Sidebar */
-.layoutWrapper {
-    display: flex;
-    height: 100vh;
-    background: var(--color-bg);
-    overflow: hidden;
-}
-
-/* Sidebar */
-.sidebar {
-    width: 260px;
-    background: var(--color-surface);
-    border-right: 1px solid var(--color-highlight);
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    flex-shrink: 0;
-    transition: width 0.3s ease;
-}
-
-.sidebarCollapsed {
-    width: 70px;
-}
-
-.sidebarHeader {
-    padding: 1.5rem 1rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    height: 80px;
-}
-
-.sidebarCollapsed .sidebarHeader {
-    justify-content: center;
-    padding: 1.5rem 0;
-}
-
-.sidebarToggle {
-    background: transparent;
-    color: var(--color-text-muted);
-    border: 1px solid var(--color-highlight);
-    border-radius: 6px;
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 1.2rem;
-    line-height: 1;
-}
-
-.sidebarToggle:hover {
-    color: var(--color-text);
-    background: rgba(255, 255, 255, 0.05);
-}
-
-.collapsedLogoPlaceholder {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    color: var(--color-primary);
-    font-size: 1.2rem;
-    margin-bottom: 0.5rem;
-}
-
-.sidebarLogo {
-    object-fit: contain;
-    height: auto;
-}
-
-.sidebarMenuSection {
-    flex: 1;
-    overflow-y: auto;
-    padding: 1.5rem 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    scrollbar-width: thin;
-    scrollbar-color: var(--color-highlight) transparent;
-}
-
-.sidebarMenuSection::-webkit-scrollbar {
-    width: 4px;
-}
-.sidebarMenuSection::-webkit-scrollbar-thumb {
-    background: var(--color-highlight);
-    border-radius: 4px;
-}
-
-.sidebarMenuLabel {
-    font-size: 0.7rem;
-    font-weight: 700;
-    color: var(--color-text-muted);
-    letter-spacing: 0.1em;
-    margin-bottom: 1rem;
-    padding-left: 0.5rem;
-    text-transform: uppercase;
-}
-
-.sidebarNav {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
-
-.sidebarItem {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem 1rem;
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 8px;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: 500;
-    transition: all 0.2s ease;
-    text-align: left;
-    width: 100%;
-    white-space: nowrap;
-    overflow: hidden;
-}
-
-.sidebarCollapsed .sidebarItem {
-    padding: 0.75rem;
-    justify-content: center;
-}
-
-.sidebarItem:hover {
-    color: var(--color-text);
-    background: rgba(255, 255, 255, 0.03);
-}
-
-.sidebarItemActive {
-    background: rgba(255, 255, 255, 0.05); /* Slight highlight */
-    color: var(--color-text);
-    border: 1px solid var(--color-highlight); /* Clean border like reference */
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-/* In the reference image, active item has a brown/gold accent, but since user wanted to keep system colors, 
-   we use the system's highlight and border colors, maybe with a subtle accent border */
-.sidebarItemActive {
-    border-left: 3px solid var(--color-primary); /* Use primary color as accent */
-}
-
-.sidebarItemIcon {
-    font-size: 1.1rem;
-    opacity: 0.8;
-}
-
-.sidebarItemActive .sidebarItemIcon {
-    opacity: 1;
-}
-
-.sidebarItemLabel {
-    flex: 1;
-    transition: opacity 0.2s;
-}
-
-.sidebarCollapsed .sidebarItemLabel {
-    display: none;
-}
-
-/* Footer da Sidebar (User Menu) */
-.sidebarFooter {
-    padding: 1rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    background: rgba(0, 0, 0, 0.1); /* Slightly darker */
-    min-height: 80px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.collapsedUserAvatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: var(--color-primary);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 1.1rem;
-}
-
-/* Main Content Area */
-.mainContent {
-    flex: 1;
-    overflow-y: auto;
-    background: var(--color-bg);
-    display: flex;
-    flex-direction: column;
-}
-
-/* Conteúdo das Abas (mantido para compatibilidade, mas ajustado) */
-.tabContent {
-    flex: 1;
-}
-
-.tabContentContainer {
-    padding: 2rem;
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
-.contentArea {
-    padding: 2rem;
-    max-width: 1400px;
-    margin: 0 auto;
-}
-
+/* Administration shell: compact navy navigation, generous light workspace. */
+.layoutWrapper { display: flex; height: 100dvh; overflow: hidden; background: var(--color-bg); }
+.sidebar { width: 236px; background: #102333; color: #e7eef5; display: flex; flex-direction: column; flex-shrink: 0; height: 100%; border-right: 1px solid #243a4c; transition: width 150ms; }
+.sidebarCollapsed { width: 80px; }
+.sidebarHeader { min-height: 84px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 16px; border-bottom: 1px solid #263b4c; }
+.sidebarCollapsed .sidebarHeader { flex-direction: column; padding: 12px 8px; gap: 4px; }
+.sidebarLogo { object-fit: contain; width: 150px; height: auto; }
+.collapsedLogoPlaceholder { color: #fff; font-size: 22px; letter-spacing: -.04em; }
+.sidebarToggle { display: grid; place-items: center; border: 1px solid #3c5061; border-radius: 6px; background: transparent; color: #c5d2de; min-width: 28px; height: 28px; }
+.sidebarToggle:hover { background: #243a4c; color: white; }
+.sidebarMenuSection { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 12px; scrollbar-width: thin; scrollbar-color: #425769 transparent; }
+.sidebarCollapsed .sidebarMenuSection { padding: 12px 8px; }
+.sidebarMenuLabel { font-size: 10px; font-weight: 600; letter-spacing: .14em; color: #99adbe; margin: 0 12px 12px; }
+.sidebarNav { display: flex; flex-direction: column; gap: 4px; }
+.sidebarItem { width: 100%; min-height: 44px; display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: transparent; border: 1px solid transparent; border-radius: 8px; color: #bdcbd8; text-align: left; font-size: 13px; font-weight: 500; }
+.sidebarItem:hover { background: #1b3448; color: #fff; }
+.sidebarItemActive, .sidebarItemActive:hover { background: #3a382b; border-color: #5b5031; color: #ffd16e; }
+.sidebarItemIcon { display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sidebarItemLabel { flex: 1; }
+.sidebarCollapsed .sidebarItem { justify-content: center; padding: 12px; }
+.sidebarCollapsed .sidebarItemLabel { display: none; }
+.sidebarFooter { padding: 16px 12px; border-top: 1px solid #263b4c; display: flex; align-items: center; justify-content: center; }
+.mainContent { flex: 1; min-width: 0; overflow-y: auto; background: var(--color-bg); display: flex; flex-direction: column; }
+.tabContent { flex: 1; }
+.tabContentContainer, .contentArea { width: 100%; min-width: 0; padding: 32px; max-width: 1680px; margin: 0 auto; }
 .title {
     font-size: 1.875rem;
     font-weight: 700;
@@ -736,4 +542,40 @@ select.filterInput {
         page-break-inside: avoid;
         page-break-after: auto;
     }
+}
+
+
+/* Shared administration design; other profiles keep their existing presentation. */
+:global([data-admin-design]) .clearFiltersButton,
+:global([data-admin-design]) .filterToggleButton,
+:global([data-admin-design]) .printButton,
+:global([data-admin-design]) .viewButton { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--admin-border); border-radius: 8px; box-shadow: none; font-weight: 500; }
+:global([data-admin-design]) .dashboardCard,
+:global([data-admin-design]) .detailedView,
+:global([data-admin-design]) .filtersPanel { background: var(--color-surface); border: 1px solid var(--admin-border); border-radius: 12px; box-shadow: var(--admin-shadow); }
+:global([data-admin-design]) .filterInput { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--admin-border); border-radius: 8px; min-height: 40px; }
+:global([data-admin-design]) .dashboardTitle,
+:global([data-admin-design]) .title { font-size: 28px; font-weight: 650; letter-spacing: -.035em; }
+:global([data-admin-design]) .table th { background: var(--color-panel); color: var(--color-text-muted); font-size: 12px; font-weight: 600; text-transform: none; padding: 12px 16px; border: 0; border-bottom: 1px solid var(--admin-border); }
+:global([data-admin-design]) .table td { padding: 14px 16px; border: 0; border-bottom: 1px solid var(--admin-border); font-size: 14px; line-height: 1.45; }
+@media (max-width: 768px) {
+:global([data-admin-design]) .dashboardTitle,
+:global([data-admin-design]) .title { font-size: 23px; }
+}
+
+:global([data-admin-design]) .topBarActions { border-bottom: 0; padding-bottom: 0; margin-bottom: 24px; }
+:global([data-admin-design]) .dashboardCard { padding: 24px; }
+:global([data-admin-design]) .cardTitle { font-size: 14px; font-weight: 600; }
+:global([data-admin-design]) .cardListItem { border-bottom-style: solid; padding: 12px 0; font-size: 13px; }
+:global([data-admin-design]) .cardBadge { background: var(--color-panel); color: var(--color-text-muted); font-size: 11px; }
+:global([data-admin-design]) .activeFiltersBar { background: var(--admin-selected); border-color: var(--admin-border); }
+:global([data-admin-design]) .activeFiltersLabel { color: var(--admin-selected-text); }
+:global([data-admin-design]) .activeFilterTag { background: var(--color-surface); color: var(--color-text); box-shadow: none; border: 1px solid var(--admin-border); }
+:global([data-admin-design]) .removeFilterButton { color: var(--color-text); }
+:global([data-admin-design]) .filterToggleButton.active { background: var(--admin-selected); color: var(--admin-selected-text); box-shadow: none; }
+:global([data-admin-design]) .subtitle { font-size: 14px; }
+@media (max-width: 768px) {
+    :global([data-admin-design]) .contentArea { padding: 20px 16px; }
+    :global([data-admin-design]) .topBarButtons { flex-wrap: wrap; }
+    :global([data-admin-design]) .dashboardGrid { grid-template-columns: minmax(0, 1fr); }
 }

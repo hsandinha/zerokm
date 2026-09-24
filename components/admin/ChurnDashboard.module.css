@@ -131,3 +131,20 @@
     padding: 24px;
     text-align: center;
 }
+
+
+/* Shared administration design; other profiles keep their existing presentation. */
+:global([data-admin-design]) .rankingSection,
+:global([data-admin-design]) .tableWrapper { background: var(--color-surface); border: 1px solid var(--admin-border); border-radius: 12px; box-shadow: var(--admin-shadow); }
+:global([data-admin-design]) .rankingTable th { background: var(--color-panel); color: var(--color-text-muted); font-size: 12px; font-weight: 600; text-transform: none; padding: 12px 16px; border: 0; border-bottom: 1px solid var(--admin-border); }
+:global([data-admin-design]) .rankingTable td { padding: 14px 16px; border: 0; border-bottom: 1px solid var(--admin-border); font-size: 14px; line-height: 1.45; }
+:global([data-admin-design]) .churnContainer { background: transparent; box-shadow: none; padding: 0; border: 0; }
+:global([data-admin-design]) .kpiCard { background: var(--color-surface); border: 1px solid var(--admin-border); border-top: 3px solid var(--color-highlight); padding: 20px; border-radius: 12px; }
+:global([data-admin-design]) .kpiGreen { border-top-color: var(--color-positive); }
+:global([data-admin-design]) .kpiYellow { border-top-color: var(--color-warning); }
+:global([data-admin-design]) .kpiRed { border-top-color: var(--color-negative); }
+:global([data-admin-design]) .kpiPurple { border-top-color: #8b6bbb; }
+:global([data-admin-design]) .kpiInfo h4 { font-size: 12px; text-transform: none; }
+:global([data-admin-design]) .kpiIcon { color: var(--color-text-muted); }
+:global([data-admin-design]) .rankingSection { border: 0; padding: 0; background: transparent; box-shadow: none; }
+:global([data-admin-design]) .cellPurple { color: #8062aa; }

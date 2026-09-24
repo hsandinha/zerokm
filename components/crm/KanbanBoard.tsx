@@ -45,7 +45,7 @@ function buildQuery(filters: FilterState) {
 
 const toggleButton = (active: boolean): React.CSSProperties => ({
   padding: '8px 16px', borderRadius: '8px', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer',
-  border: '1px solid #D1D5DB', background: active ? '#111827' : '#FFFFFF', color: active ? '#FFFFFF' : '#374151',
+  border: '1px solid var(--admin-border, #e5e7eb)', background: active ? 'var(--admin-selected, #111827)' : 'var(--color-surface)', color: active ? 'var(--admin-selected-text, #FFFFFF)' : 'var(--admin-text, #374151)',
 });
 
 export default function KanbanBoard() {
@@ -213,37 +213,37 @@ export default function KanbanBoard() {
   }, [leads, searchQuery]);
 
   if (loading && stages.length === 0 && !error) {
-    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '16rem', color: '#111827' }}>Carregando CRM...</div>;
+    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '16rem', color: 'var(--admin-text, #111827)' }}>Carregando CRM...</div>;
   }
 
   return (
-    <div className={styles.board} style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#F9FAFB', color: '#111827', borderRadius: '8px' }}>
+    <div className={styles.board} style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--admin-panel, #f9fafb)', color: 'var(--admin-text, #111827)', borderRadius: '8px' }}>
       <div className={styles.header}>
         <div>
-          <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Comercial</h4>
-          <h1 className={styles.title} style={{ fontWeight: 'bold', color: '#111827', marginBottom: '4px', marginTop: 0 }}>Pipeline de leads</h1>
-          <p style={{ fontSize: '1rem', color: '#6B7280', margin: 0 }}>Acompanhe entrada, contato, follow-up, propostas e vendas em um fluxo único.</p>
+          <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--admin-muted, #6b7280)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Comercial</h4>
+          <h1 className={styles.title} style={{ fontWeight: 'bold', color: 'var(--admin-text, #111827)', marginBottom: '4px', marginTop: 0 }}>Pipeline de leads</h1>
+          <p style={{ fontSize: '1rem', color: 'var(--admin-muted, #6b7280)', margin: 0 }}>Acompanhe entrada, contato, follow-up, propostas e vendas em um fluxo único.</p>
         </div>
         <div className={styles.actions}>
           <div style={{ display: 'flex', gap: '4px' }}>
             <button onClick={() => setView('funil')} style={toggleButton(view === 'funil')}>Funil</button>
             <button onClick={() => setView('relatorios')} style={toggleButton(view === 'relatorios')}>Relatórios</button>
             <button onClick={() => setView('lixeira')} style={toggleButton(view === 'lixeira')}>
-              🗑️ Lixeira{trashed.length > 0 ? ` (${trashed.length})` : ''}
+              Lixeira{trashed.length > 0 ? ` (${trashed.length})` : ''}
             </button>
           </div>
           <button
             onClick={() => setIsStageModalOpen(true)}
-            style={{ background: '#FFFFFF', color: '#374151', padding: '10px 16px', borderRadius: '8px', fontWeight: 600, border: '1px solid #D1D5DB', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+            style={{ background: 'var(--color-surface)', color: 'var(--admin-text, #374151)', padding: '10px 16px', borderRadius: '8px', fontWeight: 600, border: '1px solid var(--admin-border, #e5e7eb)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
           >
-            ⚙️ Gerenciar Fases
+            Gerenciar Fases
           </button>
           <button
             onClick={() => setIsAddLeadModalOpen(true)}
             disabled={stages.length === 0}
-            style={{ background: '#3B82F6', color: '#FFFFFF', padding: '10px 20px', borderRadius: '8px', fontWeight: 600, border: 'none', cursor: stages.length === 0 ? 'not-allowed' : 'pointer', opacity: stages.length === 0 ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+            style={{ background: 'var(--admin-accent, #3b82f6)', color: 'var(--admin-on-accent, #ffffff)', padding: '10px 20px', borderRadius: '8px', fontWeight: 600, border: 'none', cursor: stages.length === 0 ? 'not-allowed' : 'pointer', opacity: stages.length === 0 ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
           >
-            ➕ Novo Lead
+            Novo Lead
           </button>
         </div>
       </div>
@@ -262,30 +262,30 @@ export default function KanbanBoard() {
       {view === 'relatorios' ? (
         <ReportsPanel report={report} loading={loading && !report} />
       ) : view === 'lixeira' ? (
-        <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '20px' }}>
-          <h2 style={{ margin: '0 0 4px', fontSize: '1.1rem', color: '#111827' }}>Lixeira</h2>
-          <p style={{ margin: '0 0 16px', color: '#6B7280', fontSize: '0.875rem' }}>
+        <div style={{ background: 'var(--color-surface)', border: '1px solid var(--admin-border, #e5e7eb)', borderRadius: '12px', padding: '20px' }}>
+          <h2 style={{ margin: '0 0 4px', fontSize: '1.1rem', color: 'var(--admin-text, #111827)' }}>Lixeira</h2>
+          <p style={{ margin: '0 0 16px', color: 'var(--admin-muted, #6b7280)', fontSize: '0.875rem' }}>
             Leads removidos do quadro. O histórico fica guardado até a exclusão definitiva.
           </p>
           {trashed.length === 0 ? (
-            <p style={{ color: '#9CA3AF', margin: 0 }}>A lixeira está vazia.</p>
+            <p style={{ color: 'var(--admin-muted, #9ca3af)', margin: 0 }}>A lixeira está vazia.</p>
           ) : (
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {trashed.map(lead => (
                 <li
                   key={lead.id}
-                  style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', border: '1px solid #E5E7EB', borderRadius: '10px', padding: '12px 16px' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', border: '1px solid var(--admin-border, #e5e7eb)', borderRadius: '10px', padding: '12px 16px' }}
                 >
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <strong style={{ color: '#111827' }}>{lead.name}</strong>
-                    <div style={{ color: '#6B7280', fontSize: '0.85rem' }}>
+                    <strong style={{ color: 'var(--admin-text, #111827)' }}>{lead.name}</strong>
+                    <div style={{ color: 'var(--admin-muted, #6b7280)', fontSize: '0.85rem' }}>
                       {lead.phone}{lead.ownerName ? ` · ${lead.ownerName}` : ''}
                       {lead.tags.length ? ` · ${lead.tags.join(', ')}` : ''}
                     </div>
                   </div>
                   <button
                     onClick={() => setLeadAtivo(lead.id, true)}
-                    style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid #3B82F6', background: '#FFFFFF', color: '#1D4ED8', fontWeight: 600, cursor: 'pointer' }}
+                    style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid #3B82F6', background: 'var(--color-surface)', color: '#1D4ED8', fontWeight: 600, cursor: 'pointer' }}
                   >
                     Restaurar
                   </button>
@@ -301,24 +301,24 @@ export default function KanbanBoard() {
           )}
         </div>
       ) : stages.length === 0 ? (
-        <div style={{ background: '#FFFFFF', border: '1px dashed #D1D5DB', borderRadius: '12px', padding: '48px 24px', textAlign: 'center' }}>
-          <p style={{ color: '#6B7280', marginTop: 0 }}>Seu funil ainda não tem fases.</p>
-          <button onClick={() => setIsStageModalOpen(true)} style={{ background: '#3B82F6', color: '#FFFFFF', padding: '10px 20px', borderRadius: '8px', fontWeight: 600, border: 'none', cursor: 'pointer' }}>
+        <div style={{ background: 'var(--color-surface)', border: '1px dashed #D1D5DB', borderRadius: '12px', padding: '48px 24px', textAlign: 'center' }}>
+          <p style={{ color: 'var(--admin-muted, #6b7280)', marginTop: 0 }}>Seu funil ainda não tem fases.</p>
+          <button onClick={() => setIsStageModalOpen(true)} style={{ background: 'var(--admin-accent, #3b82f6)', color: 'var(--admin-on-accent, #ffffff)', padding: '10px 20px', borderRadius: '8px', fontWeight: 600, border: 'none', cursor: 'pointer' }}>
             Configurar fases
           </button>
         </div>
       ) : (
         <>
-          <div style={{ display: 'flex', alignItems: 'center', background: '#FFFFFF', padding: '12px 20px', borderRadius: '12px', border: '1px solid #E5E7EB', marginBottom: '24px', gap: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-            <span style={{ color: '#9CA3AF', fontSize: '1.2rem' }}>🔍</span>
+          <div style={{ display: 'flex', alignItems: 'center', background: 'var(--color-surface)', padding: '12px 20px', borderRadius: '12px', border: '1px solid var(--admin-border, #e5e7eb)', marginBottom: '24px', gap: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+            <span style={{ color: 'var(--admin-muted, #9ca3af)', fontSize: '1.2rem' }}>🔍</span>
             <input
               type="text"
               placeholder="Pesquisar por nome, contato, origem ou responsável"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '1rem', color: '#111827' }}
+              style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '1rem', color: 'var(--admin-text, #111827)' }}
             />
-            <div style={{ background: '#F3F4F6', color: '#4B5563', padding: '6px 12px', borderRadius: '9999px', fontSize: '0.875rem', fontWeight: 600 }}>
+            <div style={{ background: 'var(--admin-panel, #f3f4f6)', color: '#4B5563', padding: '6px 12px', borderRadius: '9999px', fontSize: '0.875rem', fontWeight: 600 }}>
               {filteredLeads.length} no quadro
             </div>
           </div>

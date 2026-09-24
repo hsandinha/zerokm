@@ -22,7 +22,7 @@ import { AdminDealershipVehicles } from '../../../components/admin/AdminDealersh
 import KanbanBoard from '../../../components/crm/KanbanBoard';
 import { MobileTabBar } from '../../../components/mobile/MobileTabBar';
 import styles from './admin.module.css';
-import { MdFilterAlt } from 'react-icons/md';
+import { LayoutDashboard, Users, CarFront, Warehouse, BookOpen, Building2, Truck, Table2, Settings2, CreditCard, Receipt, ContactRound, Funnel, Plug, Images, MessageCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 const VehicleConsultation = dynamic<any>(
@@ -48,7 +48,7 @@ export default function AdminDashboard() {
     const [fixedMargin, setFixedMargin] = useState<number>(0);
     const [marginMode, setMarginMode] = useState<'percent' | 'fixed'>('percent');
     const [userInfo, setUserInfo] = useState<{ name?: string | null; email?: string | null; profile?: string }>({});
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(true);
     useEffect(() => {
         const fetchMargem = async () => {
             try {
@@ -116,24 +116,24 @@ export default function AdminDashboard() {
     }, []);
 
     const allTabs: Array<{ id: string; label: string; icon: React.ReactNode; rota?: string }> = [
-        { id: 'visao-geral', label: 'Visão Geral', icon: '📊' },
-        { id: 'usuarios', label: 'Equipe', icon: '👥' },
-        { id: 'veiculos', label: 'Veículos', icon: '🚗' },
-        { id: 'estoque-concessionarias', label: 'Estoque Cons.', icon: '🏢' },
-        { id: 'catalogo', label: 'Catálogo', icon: '📚' },
-        { id: 'concessionarias', label: 'Concessionárias', icon: '🏢' },
-        { id: 'transportadoras', label: 'Frete', icon: '🚚' },
-        { id: 'tabelas', label: 'Tabelas', icon: '📋' },
-        { id: 'configuracoes', label: 'Configurações', icon: '⚙️' },
-        { id: 'planos', label: 'Planos', icon: '💳' },
-        { id: 'cobrancas', label: 'Cobranças', icon: '🧾' },
-        { id: 'crm', label: 'CRM', icon: '🎯' },
-        { id: 'funil', label: 'Leads', icon: <MdFilterAlt size={18} /> },
-        { id: 'integracoes', label: 'Integrações', icon: '🔌' },
-        { id: 'banners', label: 'Banners', icon: '🖼️' },
+        { id: 'visao-geral', label: 'Visão Geral', icon: <LayoutDashboard size={20} aria-hidden="true" /> },
+        { id: 'usuarios', label: 'Equipe', icon: <Users size={20} aria-hidden="true" /> },
+        { id: 'veiculos', label: 'Veículos', icon: <CarFront size={20} aria-hidden="true" /> },
+        { id: 'estoque-concessionarias', label: 'Estoque das lojas', icon: <Warehouse size={20} aria-hidden="true" /> },
+        { id: 'catalogo', label: 'Catálogo', icon: <BookOpen size={20} aria-hidden="true" /> },
+        { id: 'concessionarias', label: 'Concessionárias', icon: <Building2 size={20} aria-hidden="true" /> },
+        { id: 'transportadoras', label: 'Frete', icon: <Truck size={20} aria-hidden="true" /> },
+        { id: 'tabelas', label: 'Tabelas', icon: <Table2 size={20} aria-hidden="true" /> },
+        { id: 'configuracoes', label: 'Configurações', icon: <Settings2 size={20} aria-hidden="true" /> },
+        { id: 'planos', label: 'Planos', icon: <CreditCard size={20} aria-hidden="true" /> },
+        { id: 'cobrancas', label: 'Cobranças', icon: <Receipt size={20} aria-hidden="true" /> },
+        { id: 'crm', label: 'CRM', icon: <ContactRound size={20} aria-hidden="true" /> },
+        { id: 'funil', label: 'Leads', icon: <Funnel size={20} aria-hidden="true" /> },
+        { id: 'integracoes', label: 'Integrações', icon: <Plug size={20} aria-hidden="true" /> },
+        { id: 'banners', label: 'Banners', icon: <Images size={20} aria-hidden="true" /> },
         // O WhatsApp tem rotas próprias (/dashboard/admin/whatsapp/*), com a
         // navegação dele por dentro — por isso navega em vez de trocar de aba.
-        { id: 'whatsapp', label: 'WhatsApp', icon: '💬', rota: '/dashboard/admin/whatsapp' }
+        { id: 'whatsapp', label: 'WhatsApp', icon: <MessageCircle size={20} aria-hidden="true" />, rota: '/dashboard/admin/whatsapp' }
     ];
 
     // Gerente não vê equipe, planos, carteira de clientes, leads, cobranças nem
@@ -275,19 +275,24 @@ export default function AdminDashboard() {
                             className={styles.sidebarToggle}
                             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
                             title={isSidebarCollapsed ? "Expandir menu" : "Minimizar menu"}
+                            aria-label={isSidebarCollapsed ? "Expandir menu" : "Minimizar menu"}
+                            aria-expanded={!isSidebarCollapsed}
                         >
-                            {isSidebarCollapsed ? '»' : '«'}
+                            {isSidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
                         </button>
                     </div>
 
                     <div className={styles.sidebarMenuSection}>
-                        {!isSidebarCollapsed && <p className={styles.sidebarMenuLabel}>MENU</p>}
-                        <nav className={styles.sidebarNav}>
+                        {!isSidebarCollapsed && <p className={styles.sidebarMenuLabel}>ADMINISTRAÇÃO</p>}
+                        <nav className={styles.sidebarNav} aria-label="Administração">
                             {tabs.map((tab) => (
                                 <button
                                     key={tab.id}
                                     className={`${styles.sidebarItem} ${activeTab === tab.id ? styles.sidebarItemActive : ''}`}
                                     onClick={() => abrirTab(tab.id)}
+                                    title={tab.label}
+                                    aria-label={tab.label}
+                                    aria-current={activeTab === tab.id ? "page" : undefined}
                                 >
                                     <span className={styles.sidebarItemIcon}>{tab.icon}</span>
                                     <span className={styles.sidebarItemLabel}>{tab.label}</span>
@@ -297,19 +302,14 @@ export default function AdminDashboard() {
                     </div>
 
                     <div className={styles.sidebarFooter}>
-                        {!isSidebarCollapsed ? (
-                            <UserMenu
-                                name={userInfo.name || 'Administrador'}
-                                email={userInfo.email}
-                                role={userInfo.profile === 'gerente' ? 'Gerente' : 'Administrador'}
-                                isDropup={true}
-                                alignLeft={true}
-                            />
-                        ) : (
-                            <div className={styles.collapsedUserAvatar} title={userInfo.name || 'Admin'}>
-                                {userInfo.name ? userInfo.name.charAt(0).toUpperCase() : 'A'}
-                            </div>
-                        )}
+                        <UserMenu
+                            name={userInfo.name || 'Administrador'}
+                            email={userInfo.email}
+                            role={userInfo.profile === 'gerente' ? 'Gerente' : userInfo.profile === 'marketing' ? 'Marketing' : 'Administrador'}
+                            isDropup={true}
+                            alignLeft={true}
+                            compact={isSidebarCollapsed}
+                        />
                     </div>
                 </aside>
 

@@ -1607,3 +1607,66 @@
     background: var(--color-highlight);
     color: var(--color-text);
 }
+
+/* Administration consultation: keep the complete model search alongside results. */
+:global([data-admin-design]) .container { min-height: 0; height: 100%; }
+:global([data-admin-design]) .header { min-height: 80px; padding: 20px 28px; box-shadow: none; gap: 16px; }
+:global([data-admin-design]) .header h2 { font-size: 26px; font-weight: 650; }
+:global([data-admin-design]) .headerActions { flex-wrap: wrap; }
+:global([data-admin-design]) .splitLayout { height: auto; min-height: 0; flex: 1; }
+:global([data-admin-design]) .sidebar { width: 272px; min-height: 0; background: var(--color-surface); }
+.sidebarTitle { display: none; }
+:global([data-admin-design]) .sidebarTitle { display: block; font-size: 14px; font-weight: 650; margin: 24px 20px 12px; }
+:global([data-admin-design]) .tipoSegmento { gap: 8px; padding: 0 16px; }
+:global([data-admin-design]) .tipoSegmentoItem { min-height: 42px; background: var(--color-surface); color: var(--color-text); font-weight: 500; line-height: 1.4; }
+:global([data-admin-design]) .tipoSegmentoActive { background: var(--color-accent); color: var(--admin-on-accent); border-color: var(--color-accent); font-weight: 600; }
+:global([data-admin-design]) .sidebarHeader { padding: 16px; border-bottom: 0; }
+:global([data-admin-design]) .modelSearchInput { min-height: 42px; background: var(--color-surface); }
+:global([data-admin-design]) .modelList { padding: 0 12px 16px; scrollbar-width: thin; scrollbar-color: var(--admin-border) transparent; }
+:global([data-admin-design]) .modelItem { width: 100%; text-align: left; border: 0; border-bottom: 1px solid var(--admin-border); border-radius: 0; background: transparent; padding: 15px 12px; font-size: 13px; font-weight: 500; color: var(--color-text); line-height: 1.5; }
+:global([data-admin-design]) .modelItem.active { background: var(--admin-selected); color: var(--admin-selected-text); box-shadow: inset 3px 0 var(--color-accent); border-radius: 6px; font-weight: 600; }
+:global([data-admin-design]) .modelItem:hover, :global([data-admin-design]) .modelItem.focused { background: var(--admin-hover); }
+:global([data-admin-design]) .mainContent { min-width: 0; min-height: 0; }
+:global([data-admin-design]) .searchSection { padding: 20px 24px 12px; background: var(--color-bg); border: 0; }
+:global([data-admin-design]) .searchInput { background: var(--color-surface); border-radius: 8px; min-height: 46px; }
+:global([data-admin-design]) .searchInfo { gap: 8px; flex-wrap: wrap; }
+:global([data-admin-design]) .resultsSection { padding: 16px 24px; min-height: 0; }
+:global([data-admin-design]) .tableContainer { padding: 0; background: var(--color-surface); border-radius: 12px; box-shadow: var(--admin-shadow); min-height: 0; }
+:global([data-admin-design]) .table { border: 0; border-radius: 0; }
+:global([data-admin-design]) .tableHeader { border: 0; border-bottom: 1px solid var(--admin-border); padding: 13px 16px; font-size: 12px; font-weight: 600; text-transform: none; color: var(--color-text-muted); background: var(--color-panel); backdrop-filter: none; }
+:global([data-admin-design]) .tableCell { border: 0; border-bottom: 1px solid var(--admin-border); padding: 14px 16px; line-height: 1.45; font-size: 13px; font-weight: 400; }
+:global([data-admin-design]) .tableRow:nth-child(even) { background: transparent; }
+:global([data-admin-design]) .tableRow:hover { background: var(--admin-hover); }
+:global([data-admin-design]) .addButton { background: var(--color-accent); color: var(--admin-on-accent); border-radius: 8px; box-shadow: none; }
+:global([data-admin-design]) .importButton, :global([data-admin-design]) .clearButton { background: var(--color-surface); border-color: var(--admin-border); border-radius: 8px; box-shadow: none; color: var(--color-text); }
+:global([data-admin-design]) .viewToggle { background: var(--color-surface); border-radius: 8px; box-shadow: none; }
+:global([data-admin-design]) .viewButton.active { background: var(--color-accent); color: var(--admin-on-accent); box-shadow: none; }
+:global([data-admin-design]) .paginationControls { flex-wrap: wrap; font-size: 13px; }
+:global([data-admin-design]) .paginationContainer { gap: 12px; flex-wrap: wrap; padding-top: 16px; }
+:global([data-admin-design]) .vehicleCard { background: var(--color-surface); border: 1px solid var(--admin-border); box-shadow: var(--admin-shadow); border-radius: 12px; }
+:global([data-admin-design]) .freteBanner { margin: 0 24px; padding: 10px 14px; background: var(--color-surface); border: 1px solid var(--admin-border); border-left: 3px solid var(--color-positive); border-radius: 8px; }
+:global([data-admin-design]) .freteBannerNome { color: var(--color-text); }
+:global([data-admin-design]) .freteBannerLabel { color: var(--color-text-muted); font-size: 10px; }
+@media (max-width: 1100px) and (min-width: 769px) {
+    :global([data-admin-design]) .sidebar { width: 228px; }
+    :global([data-admin-design]) .resultsSection { padding: 12px; }
+    :global([data-admin-design]) .searchSection { padding: 16px 12px; }
+}
+@media (max-width: 768px) {
+    :global([data-admin-design]) .container { height: auto; }
+    :global([data-admin-design]) .header { padding: 16px; align-items: flex-start; flex-direction: column; }
+    :global([data-admin-design]) .header h2 { font-size: 23px; }
+    :global([data-admin-design]) .splitLayout { height: auto; overflow: visible; }
+    :global([data-admin-design]) .sidebar { width: 100%; }
+    :global([data-admin-design]) .sidebarTitle { margin: 16px 16px 12px; }
+    :global([data-admin-design]) .modelItem { width: auto; border: 1px solid var(--admin-border); border-radius: 6px; padding: 10px 12px; flex-shrink: 0; }
+    :global([data-admin-design]) .modelList { padding: 0 16px 12px; }
+    :global([data-admin-design]) .mainContent { overflow: visible; }
+    :global([data-admin-design]) .searchSection, :global([data-admin-design]) .resultsSection { padding: 16px; }
+    :global([data-admin-design]) .freteBanner { margin: 0 16px; }
+}
+/* Model entries are native buttons so keyboard users can select them. */
+.modelItem { width: 100%; border: 0; background: transparent; text-align: left; font-family: inherit; }
+@media (max-width: 768px) { .modelItem { width: auto; } }
+:global([data-admin-design]) .table { align-self: flex-start; }
+:global([data-admin-design]) .modelItem.active { background: var(--admin-selected); }

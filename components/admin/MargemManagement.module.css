@@ -168,3 +168,8 @@
     font-size: 0.875rem;
     font-weight: 500;
 }
+
+/* Shared administration design; other profiles keep their existing presentation. */
+:global([data-admin-design]) .saveButton { background: var(--color-accent); color: var(--admin-on-accent); border: 1px solid transparent; border-radius: 8px; min-height: 40px; padding: 10px 16px; font-size: 14px; font-weight: 600; box-shadow: none; }
+:global([data-admin-design]) .configCard { background: var(--color-surface); border: 1px solid var(--admin-border); border-radius: 12px; box-shadow: var(--admin-shadow); }
+:global([data-admin-design]) .margemInput { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--admin-border); border-radius: 8px; min-height: 40px; }

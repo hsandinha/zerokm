@@ -265,3 +265,5 @@
     font-size: 1rem;
     line-height: 1;
 }
+:global([data-admin-design]) .panel { background: var(--color-surface); box-shadow: 0 -12px 40px rgb(16 35 51 / 16%); }
+:global([data-admin-design]) .cellActive { color: var(--admin-selected-text); background: var(--admin-selected); }

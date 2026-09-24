@@ -100,3 +100,8 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+:global([data-admin-design]) .tabBar { background: var(--color-surface); border-color: var(--admin-border); border-radius: 16px; box-shadow: 0 4px 24px rgb(16 35 51 / 12%); backdrop-filter: none; }
+:global([data-admin-design]) .tabLabel { font-size: 10px; }
+:global([data-admin-design]) .tabItemActive { color: var(--admin-selected-text); }
+:global([data-admin-design]) .tabItemActive .tabIcon { background: var(--admin-selected); }

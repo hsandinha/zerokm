@@ -1,4 +1,4 @@
-import React, { RefObject } from 'react';
+import React from 'react';
 import styles from './VehicleConsultation.module.css';
 
 export type TipoSegmento = 'todos' | 'carro' | 'moto' | 'repasse';
@@ -37,7 +37,8 @@ export function VehicleSidebar({
     modelListRef
 }: VehicleSidebarProps) {
     return (
-        <div className={styles.sidebar}>
+        <aside className={styles.sidebar} aria-label="Pesquisa por modelo">
+            <h3 className={styles.sidebarTitle}>Pesquisa por modelo</h3>
             <div className={styles.tipoSegmento} role="tablist" aria-label="Segmento de veículos">
                 {TIPO_SEGMENTOS.map(seg => (
                     <button
@@ -59,6 +60,7 @@ export function VehicleSidebar({
                 <input
                     type="text"
                     placeholder="Filtrar modelos..."
+                    aria-label="Filtrar modelos"
                     className={styles.modelSearchInput}
                     value={modelSearch}
                     onChange={(e) => setModelSearch(e.target.value)}
@@ -66,22 +68,26 @@ export function VehicleSidebar({
                 />
             </div>
             <div className={styles.modelList} ref={modelListRef as any}>
-                <div
+                <button
+                    type="button"
+                    aria-pressed={selectedModel === null}
                     className={`${styles.modelItem} ${selectedModel === null ? styles.active : ''} ${focusedModelIndex === 0 ? styles.focused : ''}`}
                     onClick={() => handleModelSelect(null)}
                 >
                     Todos os Modelos
-                </div>
+                </button>
                 {filteredModels.map((model, index) => (
-                    <div
+                    <button
+                        type="button"
+                        aria-pressed={selectedModel === model}
                         key={model}
                         className={`${styles.modelItem} ${selectedModel === model ? styles.active : ''} ${focusedModelIndex === index + 1 ? styles.focused : ''}`}
                         onClick={() => handleModelSelect(model)}
                     >
                         {model}
-                    </div>
+                    </button>
                 ))}
             </div>
-        </div>
+        </aside>
     );
 }

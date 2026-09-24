@@ -286,3 +286,45 @@
   outline: 2px dashed var(--color-brand-500);
   outline-offset: -2px;
 }
+
+/* Shared CNV administration palette. Public WhatsApp pages remain independent. */
+[data-admin-design] .wa-scope {
+  --font-wa: var(--font-admin), system-ui, sans-serif;
+  --color-canvas: var(--color-bg);
+  --color-paper: var(--color-surface);
+  --color-line: var(--admin-border);
+  --color-muted: var(--color-text-muted);
+  --color-ink-50: var(--color-bg);
+  --color-ink-100: var(--color-panel);
+  --color-ink-200: var(--color-highlight);
+  --color-ink-300: #91a0af;
+  --color-ink-400: #778b9d;
+  --color-ink-500: var(--color-text-muted);
+  --color-ink-600: var(--color-text-muted);
+  --color-ink-700: var(--color-text);
+  --color-ink-800: var(--color-text);
+  --color-ink-900: var(--color-text);
+  --color-ink-950: var(--color-text);
+  --color-brand-50: var(--admin-selected);
+  --color-brand-100: var(--admin-selected);
+  --color-brand-200: #f5d78b;
+  --color-brand-300: #f2cb72;
+  --color-brand-400: #ffcb65;
+  --color-brand-500: #f6b73c;
+  --color-brand-600: #f6b73c;
+  --color-brand-700: var(--admin-selected-text);
+  --color-brand-800: var(--admin-selected-text);
+}
+[data-admin-design] .wa-scope .btn-primary,
+[data-admin-design] .wa-scope .btn-dark {
+  background: var(--color-accent);
+  color: #102333;
+  border-radius: 8px;
+}
+[data-admin-design] .wa-scope .pill-active {
+  background: var(--admin-selected);
+  color: var(--admin-selected-text);
+  border-radius: 8px;
+}
+[data-admin-design] .wa-scope .card { border-radius: 12px; box-shadow: var(--admin-shadow); }
+[data-admin-design] .wa-scope .input { border-radius: 8px; }

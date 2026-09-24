@@ -11,6 +11,25 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+/** Independent preference for the redesigned administration area. */
+export function AdminThemeProvider({ children }: { children: React.ReactNode }) {
+    const [theme, setTheme] = useState<Theme>('light');
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem('cnv-admin-theme');
+            if (saved === 'dark' || saved === 'light') setTheme(saved);
+        } catch { /* Storage may be unavailable in private browsing. */ }
+    }, []);
+    const toggleTheme = () => setTheme(current => {
+        const next = current === 'light' ? 'dark' : 'light';
+        try { localStorage.setItem('cnv-admin-theme', next); } catch { /* Session-only preference. */ }
+        return next;
+    });
+    return <ThemeContext.Provider value={{ theme, toggleTheme }}>
+        <div data-admin-design={theme}>{children}</div>
+    </ThemeContext.Provider>;
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const [theme, setTheme] = useState<Theme>('dark');
     const [mounted, setMounted] = useState(false);

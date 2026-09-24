@@ -9,22 +9,22 @@ interface Props {
 }
 
 const section: React.CSSProperties = {
-  background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px',
+  background: 'var(--color-surface)', border: '1px solid var(--admin-border, #e5e7eb)', borderRadius: '12px',
   padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginBottom: '20px',
 };
 
-const title: React.CSSProperties = { fontSize: '1rem', fontWeight: 700, color: '#111827', margin: '0 0 4px' };
-const subtitle: React.CSSProperties = { fontSize: '0.8125rem', color: '#6B7280', margin: '0 0 16px' };
-const th: React.CSSProperties = { textAlign: 'left', fontSize: '0.75rem', color: '#6B7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', padding: '8px 12px', whiteSpace: 'nowrap' };
-const td: React.CSSProperties = { padding: '10px 12px', color: '#111827', fontSize: '0.875rem', borderTop: '1px solid #F3F4F6', whiteSpace: 'nowrap' };
-const empty: React.CSSProperties = { color: '#9CA3AF', fontSize: '0.875rem', fontStyle: 'italic', margin: 0 };
+const title: React.CSSProperties = { fontSize: '1rem', fontWeight: 700, color: 'var(--admin-text, #111827)', margin: '0 0 4px' };
+const subtitle: React.CSSProperties = { fontSize: '0.8125rem', color: 'var(--admin-muted, #6b7280)', margin: '0 0 16px' };
+const th: React.CSSProperties = { textAlign: 'left', fontSize: '0.75rem', color: 'var(--admin-muted, #6b7280)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', padding: '8px 12px', whiteSpace: 'nowrap' };
+const td: React.CSSProperties = { padding: '10px 12px', color: 'var(--admin-text, #111827)', fontSize: '0.875rem', borderTop: '1px solid #F3F4F6', whiteSpace: 'nowrap' };
+const empty: React.CSSProperties = { color: 'var(--admin-muted, #9ca3af)', fontSize: '0.875rem', fontStyle: 'italic', margin: 0 };
 
 export default function ReportsPanel({ report, loading }: Props) {
   if (loading) {
-    return <div style={{ padding: '40px', textAlign: 'center', color: '#6B7280' }}>Calculando relatórios…</div>;
+    return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--admin-muted, #6b7280)' }}>Calculando relatórios…</div>;
   }
   if (!report) {
-    return <div style={{ padding: '40px', textAlign: 'center', color: '#6B7280' }}>Não foi possível carregar os relatórios.</div>;
+    return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--admin-muted, #6b7280)' }}>Não foi possível carregar os relatórios.</div>;
   }
 
   const maxEntradas = Math.max(1, ...report.porEtapa.map(e => e.entradas));
@@ -43,14 +43,14 @@ export default function ReportsPanel({ report, loading }: Props) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {report.porEtapa.map(stage => (
               <div key={stage.id} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ width: '180px', flexShrink: 0, fontSize: '0.875rem', color: '#374151', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ width: '180px', flexShrink: 0, fontSize: '0.875rem', color: 'var(--admin-text, #374151)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {stage.name}
                 </span>
-                <div style={{ flex: 1, background: '#F3F4F6', borderRadius: '6px', height: '24px', position: 'relative', minWidth: '60px' }}>
+                <div style={{ flex: 1, background: 'var(--admin-panel, #f3f4f6)', borderRadius: '6px', height: '24px', position: 'relative', minWidth: '60px' }}>
                   <div style={{ width: `${(stage.entradas / maxEntradas) * 100}%`, background: stage.color || '#3B82F6', height: '100%', borderRadius: '6px', transition: 'width 0.3s ease' }} />
                 </div>
-                <span style={{ width: '150px', flexShrink: 0, textAlign: 'right', fontSize: '0.8125rem', color: '#6B7280' }}>
-                  <strong style={{ color: '#111827' }}>{stage.entradas}</strong> entradas • {stage.conversao}% • {stage.atuais} agora
+                <span style={{ width: '150px', flexShrink: 0, textAlign: 'right', fontSize: '0.8125rem', color: 'var(--admin-muted, #6b7280)' }}>
+                  <strong style={{ color: 'var(--admin-text, #111827)' }}>{stage.entradas}</strong> entradas • {stage.conversao}% • {stage.atuais} agora
                 </span>
               </div>
             ))}
@@ -102,12 +102,12 @@ export default function ReportsPanel({ report, loading }: Props) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {report.motivosPerda.map(motivo => (
               <div key={motivo.reason} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ width: '180px', flexShrink: 0, fontSize: '0.875rem', color: '#374151', fontWeight: 500 }}>{motivo.label}</span>
-                <div style={{ flex: 1, background: '#F3F4F6', borderRadius: '6px', height: '20px', minWidth: '60px' }}>
+                <span style={{ width: '180px', flexShrink: 0, fontSize: '0.875rem', color: 'var(--admin-text, #374151)', fontWeight: 500 }}>{motivo.label}</span>
+                <div style={{ flex: 1, background: 'var(--admin-panel, #f3f4f6)', borderRadius: '6px', height: '20px', minWidth: '60px' }}>
                   <div style={{ width: `${motivo.percentual}%`, background: '#EF4444', height: '100%', borderRadius: '6px' }} />
                 </div>
-                <span style={{ width: '110px', flexShrink: 0, textAlign: 'right', fontSize: '0.8125rem', color: '#6B7280' }}>
-                  <strong style={{ color: '#111827' }}>{motivo.total}</strong> • {motivo.percentual}%
+                <span style={{ width: '110px', flexShrink: 0, textAlign: 'right', fontSize: '0.8125rem', color: 'var(--admin-muted, #6b7280)' }}>
+                  <strong style={{ color: 'var(--admin-text, #111827)' }}>{motivo.total}</strong> • {motivo.percentual}%
                 </span>
               </div>
             ))}

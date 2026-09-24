@@ -1,0 +1,93 @@
+/* Scoped to administration: customer, seller and dealership themes are unchanged. */
+[data-admin-design] {
+    --color-bg: #f5f6f8;
+    --color-surface: #ffffff;
+    --color-panel: #f0f3f6;
+    --color-highlight: #dfe5eb;
+    --color-accent: #f6b73c;
+    --color-primary: #102333;
+    --color-text: #172b3d;
+    --color-text-muted: #5c6b7a;
+    --color-positive: #16804a;
+    --color-negative: #c43242;
+    --color-warning: #976000;
+    --admin-selected: #fff4d9;
+    --admin-selected-text: #744c00;
+    --admin-hover: #f5f8fa;
+    --admin-border: #dfe5eb;
+    --admin-on-accent: #102333;
+    --admin-focus: #9b6808;
+    --admin-shadow: 0 2px 8px rgb(16 35 51 / 4%);
+    --body-bg: var(--color-bg);
+    --font-sans: var(--font-admin), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color-scheme: light;
+    color: var(--color-text);
+    background: var(--color-bg);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100dvh;
+    -webkit-font-smoothing: antialiased;
+}
+[data-admin-design='dark'] {
+    --color-bg: #0d1823;
+    --color-surface: #142331;
+    --color-panel: #1a2d3d;
+    --color-highlight: #304354;
+    --color-primary: #f6b73c;
+    --color-text: #edf3f8;
+    --color-text-muted: #a4b4c4;
+    --color-positive: #66d59b;
+    --color-negative: #ff929d;
+    --color-warning: #f6c668;
+    --admin-selected: #352e20;
+    --admin-selected-text: #f6c668;
+    --admin-hover: #1b3042;
+    --admin-border: #304354;
+    --admin-focus: #f6b73c;
+    color-scheme: dark;
+}
+[data-admin-design] :where(button, input, select, textarea) { font-family: inherit; }
+[data-admin-design] :where(button) { cursor: pointer; transition: background-color 150ms, border-color 150ms, color 150ms; }
+[data-admin-design] :where(button:disabled) { cursor: not-allowed; opacity: .55; }
+[data-admin-design] :where(h1, h2, h3) { letter-spacing: -.025em; line-height: 1.25; }
+[data-admin-design] :where(h1, h2) { font-weight: 650; }
+[data-admin-design] :where(input:not([type='checkbox']):not([type='radio']):not([type='color']), select, textarea) {
+    background-color: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    min-height: 40px;
+    max-width: 100%;
+}
+[data-admin-design] :where(input, textarea)::placeholder { color: var(--color-text-muted); opacity: 1; }
+[data-admin-design] :where(input[type='checkbox'], input[type='radio']) { accent-color: #9b6808; }
+[data-admin-design] :where(button, a, input, select, textarea):focus-visible {
+    outline: 2px solid var(--admin-focus) !important;
+    outline-offset: 3px;
+}
+[data-admin-design] :where(table) { font-variant-numeric: tabular-nums; }
+[data-admin-design] :where(thead) { background: var(--color-panel); }
+[data-admin-design] :where(th) { text-transform: none; font-weight: 600; }
+[data-admin-design] :where(tbody tr:nth-child(even)) { background: transparent; }
+[data-admin-design] :where(tbody tr:hover) { background: var(--admin-hover); }
+[data-admin-design] :where(th, td) { border-color: var(--admin-border); }
+[data-admin-design] :where(dialog, [role='dialog']) { color: var(--color-text); }
+
+@media (max-width: 768px) {
+    [data-admin-design] :where(input, select, textarea) { font-size: 16px; }
+    [data-admin-design] :where(button) { min-height: 40px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    [data-admin-design] *, [data-admin-design] *::before, [data-admin-design] *::after {
+        animation-duration: .01ms !important;
+        transition-duration: .01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+[data-admin-design] { --admin-accent: var(--color-accent); }
+[data-admin-design] {
+    --admin-text: var(--color-text);
+    --admin-muted: var(--color-text-muted);
+    --admin-panel: var(--color-panel);
+}

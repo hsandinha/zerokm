@@ -1095,7 +1095,7 @@ export function ConcessionariasManagement() {
                             <p style={{ marginBottom: '1rem', fontSize: '1.1rem' }}>
                                 <strong>Concessionária:</strong> {selectedConcessionariaForAssociate.nome}
                             </p>
-                            <p style={{ marginBottom: '1rem', color: '#666' }}>
+                            <p style={{ marginBottom: '1rem', color: 'var(--admin-muted, #666)' }}>
                                 Selecione os veículos sem concessionária para associar:
                             </p>
 
@@ -1201,7 +1201,7 @@ export function ConcessionariasManagement() {
                                                         <td className={styles.tableCell}>
                                                             <div>{vehicle.nomeContato}</div>
                                                             {vehicle.telefone && (
-                                                                <div style={{ fontSize: '0.85rem', color: '#666' }}>{vehicle.telefone}</div>
+                                                                <div style={{ fontSize: '0.85rem', color: 'var(--admin-muted, #666)' }}>{vehicle.telefone}</div>
                                                             )}
                                                         </td>
                                                     </tr>

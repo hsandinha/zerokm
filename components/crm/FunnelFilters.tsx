@@ -21,9 +21,9 @@ interface Props {
 const chipStyle = (active: boolean): React.CSSProperties => ({
   padding: '8px 14px',
   borderRadius: '9999px',
-  border: `1px solid ${active ? '#3B82F6' : '#E5E7EB'}`,
-  background: active ? '#3B82F6' : '#FFFFFF',
-  color: active ? '#FFFFFF' : '#4B5563',
+  border: `1px solid ${active ? 'var(--admin-accent, #3B82F6)' : 'var(--admin-border, #e5e7eb)'}`,
+  background: active ? 'var(--admin-selected, #3B82F6)' : 'var(--color-surface)',
+  color: active ? 'var(--admin-selected-text, #FFFFFF)' : 'var(--color-text-muted)',
   fontWeight: 600,
   fontSize: '0.875rem',
   cursor: 'pointer',
@@ -31,8 +31,8 @@ const chipStyle = (active: boolean): React.CSSProperties => ({
 });
 
 const dateInput: React.CSSProperties = {
-  border: '1px solid #E5E7EB', borderRadius: '8px', padding: '7px 10px',
-  color: '#111827', background: '#FFFFFF', fontSize: '0.875rem',
+  border: '1px solid var(--admin-border, #e5e7eb)', borderRadius: '8px', padding: '7px 10px',
+  color: 'var(--admin-text, #111827)', background: 'var(--color-surface)', fontSize: '0.875rem',
 };
 
 export default function FunnelFilters({ filters, tags, owners, onChange }: Props) {
@@ -58,7 +58,7 @@ export default function FunnelFilters({ filters, tags, owners, onChange }: Props
             onChange={(e) => onChange({ ...filters, from: e.target.value })}
             style={dateInput}
           />
-          <span style={{ color: '#6B7280', fontSize: '0.875rem' }}>até</span>
+          <span style={{ color: 'var(--admin-muted, #6b7280)', fontSize: '0.875rem' }}>até</span>
           <input
             type="date"
             aria-label="Data final"

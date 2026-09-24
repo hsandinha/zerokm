@@ -45,7 +45,7 @@ export default function StageManagerModal({ stages, onClose, onRefresh }: Props)
     await call(() => fetch('/api/crm/stages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newStageName.trim(), order: stages.length, color: '#6B7280', type: 'open' }),
+      body: JSON.stringify({ name: newStageName.trim(), order: stages.length, color: 'var(--admin-muted, #6b7280)', type: 'open' }),
     }));
     setNewStageName('');
   };
@@ -103,7 +103,7 @@ export default function StageManagerModal({ stages, onClose, onRefresh }: Props)
                 <div key={stage.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-highlight)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
                     <span style={{ color: 'var(--color-text-muted)', fontFamily: 'monospace', fontSize: '0.875rem' }}>{index + 1}</span>
-                    <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: stage.color || '#E5E7EB', flexShrink: 0 }} />
+                    <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: stage.color || 'var(--admin-border, #e5e7eb)', flexShrink: 0 }} />
                     <span style={{ color: 'var(--color-text)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stage.name}</span>
                   </div>
 

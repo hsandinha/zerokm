@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Tags, CarFront, Palette } from 'lucide-react';
 import { MarcasTable } from '../../components/operator/MarcasTable';
 import { ModelosTable } from '../../components/operator/ModelosTable';
 import CoresTable from '../../components/operator/CoresTable';
@@ -16,19 +17,19 @@ export function TabelasManagement() {
                     className={`${styles.subTab} ${activeTable === 'marcas' ? styles.subTabActive : ''}`}
                     onClick={() => setActiveTable('marcas')}
                 >
-                    🏷️ Marcas
+                    <Tags size={16} aria-hidden="true" /> Marcas
                 </button>
                 <button
                     className={`${styles.subTab} ${activeTable === 'modelos' ? styles.subTabActive : ''}`}
                     onClick={() => setActiveTable('modelos')}
                 >
-                    🚗 Modelos
+                    <CarFront size={16} aria-hidden="true" /> Modelos
                 </button>
                 <button
                     className={`${styles.subTab} ${activeTable === 'cores' ? styles.subTabActive : ''}`}
                     onClick={() => setActiveTable('cores')}
                 >
-                    🎨 Cores
+                    <Palette size={16} aria-hidden="true" /> Cores
                 </button>
             </div>
 

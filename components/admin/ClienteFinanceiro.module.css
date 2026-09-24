@@ -155,3 +155,11 @@
     padding: 0.6rem 0.8rem;
     font-size: 0.84rem;
 }
+
+
+/* Shared administration design; other profiles keep their existing presentation. */
+:global([data-admin-design]) .btnPrimario { background: var(--color-accent); color: var(--admin-on-accent); border: 1px solid transparent; border-radius: 8px; min-height: 40px; padding: 10px 16px; font-size: 14px; font-weight: 600; box-shadow: none; }
+:global([data-admin-design]) .btn { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--admin-border); border-radius: 8px; box-shadow: none; font-weight: 500; }
+:global([data-admin-design]) .card { background: var(--color-surface); border: 1px solid var(--admin-border); border-radius: 12px; box-shadow: var(--admin-shadow); }
+:global([data-admin-design]) .ok { color: var(--color-positive); }
+:global([data-admin-design]) .erro { color: var(--color-negative); }

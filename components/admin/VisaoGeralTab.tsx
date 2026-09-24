@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import styles from '../../app/dashboard/admin/admin.module.css';
 import { ChurnDashboard } from './ChurnDashboard';
-import { MdFilterAlt } from 'react-icons/md';
+import { Filter, Table2, LayoutGrid, Printer } from 'lucide-react';
 
 type MetricItem = {
     nome: string;
@@ -150,20 +150,20 @@ export function VisaoGeralTab({ userInfo }: VisaoGeralTabProps) {
     return (
         <div className={styles.contentArea}>
             <div className={styles.topBarActions}>
-                <h2 className={styles.dashboardTitle}>Visão Geral</h2>
+                <h2 className={styles.dashboardTitle}>Visão geral</h2>
                 <div className={styles.topBarButtons}>
                     <button 
                         className={`${styles.filterToggleButton} ${activeFiltersCount > 0 ? styles.active : ''}`}
                         onClick={() => setShowFilters(!showFilters)}
                     >
-                        <MdFilterAlt size={18} />
+                        <Filter size={18} />
                         Filtros {activeFiltersCount > 0 && `(${activeFiltersCount})`}
                     </button>
                     <button className={styles.viewButton} onClick={() => setViewMode(viewMode === 'summary' ? 'detailed' : 'summary')}>
-                        {viewMode === 'summary' ? '📋 Detalhado' : '📊 Resumo'}
+                        {viewMode === 'summary' ? <Table2 size={16} /> : <LayoutGrid size={16} />} {viewMode === 'summary' ? 'Detalhado' : 'Resumo'}
                     </button>
                     <button className={styles.printButton} onClick={handlePrint}>
-                        🖨️ Imprimir
+                        <Printer size={16} aria-hidden="true" /> Imprimir
                     </button>
                 </div>
             </div>
@@ -325,7 +325,7 @@ export function VisaoGeralTab({ userInfo }: VisaoGeralTabProps) {
 
                     <div className={styles.dashboardCard}>
                         <div className={styles.cardHeader}>
-                            <div className={styles.cardTitle}>Staleness (Média)</div>
+                            <div className={styles.cardTitle}>Tempo sem atualização</div>
                             <span className={styles.cardBadge}>Dias sem atualizar</span>
                         </div>
                         <ul className={styles.cardList}>

@@ -161,3 +161,8 @@
         transform: translateY(0);
     }
 }
+:global([data-admin-design]) .trigger { color: #e7eef5; }
+:global([data-admin-design]) .userName { color: inherit; font-size: 13px; }
+:global([data-admin-design]) .userRole { color: #afc0cf; }
+:global([data-admin-design]) .avatar { background: #edf3f8; color: #102333; border: 0; font-size: 13px; }
+:global([data-admin-design]) .dropdown { box-shadow: 0 12px 36px rgb(16 35 51 / 18%); border-color: var(--admin-border); z-index: 1200; }
