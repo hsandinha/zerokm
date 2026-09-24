@@ -23,6 +23,7 @@ import KanbanBoard from '../../../components/crm/KanbanBoard';
 import { MobileTabBar } from '../../../components/mobile/MobileTabBar';
 import styles from './admin.module.css';
 import { MdFilterAlt } from 'react-icons/md';
+import { useRouter } from 'next/navigation';
 
 const VehicleConsultation = dynamic<any>(
     () =>
@@ -40,6 +41,7 @@ const VehicleConsultation = dynamic<any>(
 type TabType = 'visao-geral' | 'usuarios' | 'veiculos' | 'estoque-concessionarias' | 'catalogo' | 'concessionarias' | 'transportadoras' | 'tabelas' | 'margem' | 'configuracoes' | 'planos' | 'cobrancas' | 'crm' | 'funil' | 'integracoes' | 'banners';
 
 export default function AdminDashboard() {
+    const router = useRouter();
     const [activeTab, setActiveTab] = useState<TabType>('visao-geral');
     const [crmHighlightEmail, setCrmHighlightEmail] = useState<string | null>(null);
     const [margem, setMargem] = useState<number>(0);
@@ -113,7 +115,7 @@ export default function AdminDashboard() {
             });
     }, []);
 
-    const allTabs = [
+    const allTabs: Array<{ id: string; label: string; icon: React.ReactNode; rota?: string }> = [
         { id: 'visao-geral', label: 'Visão Geral', icon: '📊' },
         { id: 'usuarios', label: 'Equipe', icon: '👥' },
         { id: 'veiculos', label: 'Veículos', icon: '🚗' },
@@ -128,13 +130,16 @@ export default function AdminDashboard() {
         { id: 'crm', label: 'CRM', icon: '🎯' },
         { id: 'funil', label: 'Leads', icon: <MdFilterAlt size={18} /> },
         { id: 'integracoes', label: 'Integrações', icon: '🔌' },
-        { id: 'banners', label: 'Banners', icon: '🖼️' }
+        { id: 'banners', label: 'Banners', icon: '🖼️' },
+        // O WhatsApp tem rotas próprias (/dashboard/admin/whatsapp/*), com a
+        // navegação dele por dentro — por isso navega em vez de trocar de aba.
+        { id: 'whatsapp', label: 'WhatsApp', icon: '💬', rota: '/dashboard/admin/whatsapp' }
     ];
 
     // Gerente não vê equipe, planos, carteira de clientes, leads, cobranças nem
     // integrações. A API de cada uma também recusa o perfil: esconder o menu
     // sozinho não protege nada.
-    const OCULTAS_GERENTE = new Set(['usuarios', 'planos', 'crm', 'funil', 'cobrancas', 'integracoes']);
+    const OCULTAS_GERENTE = new Set(['usuarios', 'planos', 'crm', 'funil', 'cobrancas', 'integracoes', 'whatsapp']);
 
     const tabs = allTabs.filter(tab => {
         if (userInfo.profile === 'marketing') {
@@ -143,6 +148,15 @@ export default function AdminDashboard() {
         if (userInfo.profile === 'gerente') return !OCULTAS_GERENTE.has(tab.id);
         return true;
     });
+
+    const abrirTab = (id: string) => {
+        const destino = allTabs.find((t) => t.id === id)?.rota;
+        if (destino) {
+            router.push(destino);
+            return;
+        }
+        setActiveTab(id as TabType);
+    };
 
     const renderTabContent = () => {
         switch (activeTab) {
@@ -273,7 +287,7 @@ export default function AdminDashboard() {
                                 <button
                                     key={tab.id}
                                     className={`${styles.sidebarItem} ${activeTab === tab.id ? styles.sidebarItemActive : ''}`}
-                                    onClick={() => setActiveTab(tab.id as TabType)}
+                                    onClick={() => abrirTab(tab.id)}
                                 >
                                     <span className={styles.sidebarItemIcon}>{tab.icon}</span>
                                     <span className={styles.sidebarItemLabel}>{tab.label}</span>
@@ -317,7 +331,7 @@ export default function AdminDashboard() {
                     items={tabs.map((tab) => ({ id: tab.id, label: tab.label, icon: tab.icon }))}
                     primaryIds={['visao-geral', 'veiculos', 'crm', 'usuarios']}
                     activeId={activeTab}
-                    onSelect={(id) => setActiveTab(id as TabType)}
+                    onSelect={abrirTab}
                     user={{
                         name: userInfo.name || 'Administrador',
                         email: userInfo.email,

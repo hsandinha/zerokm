@@ -1,0 +1,288 @@
+/* Estilo do módulo WhatsApp dentro da zerokm.
+ *
+ * O módulo veio de um app Tailwind; a zerokm é CSS Modules com variáveis
+ * próprias. Os dois convivem porque TUDO aqui vive sob `.wa-scope`, a div que
+ * o layout abre — tanto o do painel (/dashboard/admin/whatsapp) quanto o da
+ * página pública da política de privacidade (/whatsapp). Três decisões
+ * sustentam isso:
+ *
+ *  1. o preflight é escopado (ver preflight-escopado.css) — sem isso o reset
+ *     do Tailwind zeraria margens, bordas e títulos do painel inteiro;
+ *
+ *  2. os utilitários entram com `important`. O CSS global da zerokm
+ *     (`table`, `th`, `td`, `a`, `input:invalid`) NÃO está em camada, e no
+ *     cascade o que está fora de camada ganha de tudo que está dentro — sem o
+ *     `important` as tabelas do módulo herdariam o padding e o zebrado da
+ *     zerokm. Nenhum estilo inline do módulo disputa propriedade com um
+ *     utilitário, então o `important` não atropela nada;
+ *
+ *  3. `@source` é explícito. Sem ele o Tailwind varreria a zerokm inteira
+ *     atrás de classes e geraria utilitário para nomes que são de CSS Module.
+ *
+ * O token `surface` do original virou `paper`: `--color-surface` já existe na
+ * zerokm com outro valor e as duas colidiriam em `:root`.
+ */
+
+@layer theme, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) important;
+
+@source "..";
+@source "../../app/dashboard/admin/whatsapp";
+@source "../../app/whatsapp";
+
+/* Identidade CNV: verde-esmeralda (negócio fechado) sobre azul-petróleo.
+   A escala `ink` é invertível — é o que dá tema claro e escuro ao módulo
+   inteiro sem tocar em componente. */
+@theme {
+  /* Esmeralda — preenchimento de botão e destaque. */
+  --color-brand-50: #ecfdf5;
+  --color-brand-100: #d1fae5;
+  --color-brand-200: #a7f3d0;
+  --color-brand-300: #6ee7b7;
+  --color-brand-400: #34d399;
+  --color-brand-500: #10b981;
+  --color-brand-600: #059669;
+  --color-brand-700: #047857;
+  --color-brand-800: #065f46;
+  --color-brand-900: #064e3b;
+  --color-brand-950: #022c22;
+
+  /* Azul-petróleo — texto, superfícies escuras e chips neutros. */
+  --color-ink-50: #f3f6f6;
+  --color-ink-100: #e0e8e9;
+  --color-ink-200: #c3d3d5;
+  --color-ink-300: #97b2b7;
+  --color-ink-400: #648e96;
+  --color-ink-500: #497078;
+  --color-ink-600: #3d5c64;
+  --color-ink-700: #344e56;
+  --color-ink-800: #1d3941;
+  --color-ink-900: #101a1e;
+  --color-ink-950: #0b1215;
+
+  /* Neutros do layout. */
+  --color-canvas: #f5f8f7;
+  --color-paper: #ffffff;
+  --color-line: #dde5e4;
+  --color-muted: #5b6f72;
+
+  /* Fonte do módulo. Nome próprio de propósito: `--font-sans` é da zerokm.
+     O valor real é servido pelo `next/font` no layout, que redefine esta
+     variável na própria `.wa-scope`; o que fica aqui é o plano B. */
+  --font-wa: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+
+  /* O Tailwind emite a `--font-sans` dele em `:root` — o único token que
+     colide com a zerokm. Como o `:root` da zerokm está fora de camada, ele
+     venceria de qualquer forma; repetir o valor aqui tira a discussão do
+     cascade e deixa a colisão inofensiva por construção. */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+@import "./preflight-escopado.css";
+
+/* ── Base do módulo ───────────────────────────────────────────
+   Faz o papel que `body` fazia no app original. */
+.wa-scope {
+  background-color: var(--color-canvas);
+  color: var(--color-ink-900);
+  font-family: var(--font-wa);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.wa-scope :where(h1),
+.wa-scope :where(h2),
+.wa-scope :where(h3) {
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--color-ink-900);
+  line-height: 1.15;
+}
+
+/* O CSS global da zerokm estiliza tabelas, links e campos inválidos por
+   seletor de elemento e fora de camada. Dentro do módulo isso não vale: estes
+   seletores têm especificidade maior e devolvem o padrão do Tailwind. */
+.wa-scope table {
+  border-collapse: collapse;
+  width: auto;
+  text-indent: 0;
+  border-color: inherit;
+}
+.wa-scope th,
+.wa-scope td {
+  padding: 0;
+  text-align: inherit;
+}
+.wa-scope thead,
+.wa-scope tbody tr,
+.wa-scope tbody tr:nth-child(even),
+.wa-scope tbody tr:hover {
+  background-color: transparent;
+}
+.wa-scope input:invalid,
+.wa-scope select:invalid,
+.wa-scope textarea:invalid {
+  border-color: inherit;
+  box-shadow: none;
+}
+
+/* ── Classes do painel ───────────────────────────────────────
+   Fora de camada e com especificidade acima do preflight escopado, para que
+   `.input` recupere a borda que o reset tirou. Os utilitários, que entram
+   como `important`, continuam ganhando de todas elas. */
+.wa-scope .brand-kicker {
+  @apply text-[11px] font-bold uppercase tracking-[0.16em] text-brand-700;
+}
+
+.wa-scope .card {
+  @apply rounded-2xl border border-line bg-paper p-5 shadow-[0_1px_2px_rgba(11,18,21,0.04)];
+}
+
+.wa-scope .input {
+  @apply w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-sm text-ink-900 outline-none transition placeholder:text-ink-300 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/15;
+}
+
+.wa-scope .label {
+  @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted;
+}
+
+.wa-scope .btn {
+  @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50;
+}
+.wa-scope .btn-primary {
+  @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-brand-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+}
+.wa-scope .btn-dark {
+  @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-ink-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-ink-800 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+}
+.wa-scope .btn-ghost {
+  @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-line bg-paper px-4 py-2.5 text-sm font-semibold text-ink-900 transition hover:border-ink-300 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+/* Espaço para a barra flutuante do celular não cobrir o conteúdo. */
+@media (max-width: 767px) {
+  .wa-scope .has-tabbar {
+    padding-bottom: 6.5rem;
+  }
+}
+
+/* ── Tema escuro (padrão da CNV) ──────────────────────────────
+   No app original a classe `.dark` entrava no <html>. Aqui ela é `.wa-dark`
+   na própria `.wa-scope`: o tema do módulo não pode mexer no tema da zerokm,
+   que é outro mecanismo (`data-theme` no <html>).
+
+   Os utilitários do Tailwind apontam para as variáveis do @theme —
+   redefini-las aqui inverte o módulo inteiro. A escala `ink` inverte junto:
+   `text-ink-900` (texto) clareia e `bg-ink-100` (chip neutro) escurece, cada
+   um seguindo fazendo o que fazia. */
+.wa-scope.wa-dark {
+  --color-canvas: #0b1215;
+  --color-paper: #101a1e;
+  --color-line: #21343a;
+  --color-muted: #90a7ab;
+
+  --color-ink-50: #0b1215;
+  --color-ink-100: #17272c;
+  --color-ink-200: #1f353c;
+  --color-ink-300: #4f6f76;
+  --color-ink-400: #6c9299;
+  --color-ink-500: #8fb0b4;
+  --color-ink-600: #a9c2c4;
+  --color-ink-700: #c4d7d8;
+  --color-ink-800: #dbe9e8;
+  --color-ink-900: #eef5f4;
+  --color-ink-950: #ffffff;
+
+  /* Esmeralda: os tons claros viram fundo de destaque; os escuros, texto. */
+  --color-brand-50: #06251b;
+  --color-brand-100: #073527;
+  --color-brand-200: #0b4a36;
+  --color-brand-300: #0f5f45;
+  --color-brand-700: #6ee7b7;
+  --color-brand-800: #a7f3d0;
+
+  /* Alertas: fundo escurece, texto clareia. */
+  --color-amber-50: #2a1f05;
+  --color-amber-100: #3a2a06;
+  --color-amber-300: #6b5410;
+  --color-amber-700: #fbbf24;
+  --color-red-50: #2a1112;
+  --color-red-100: #3a1618;
+  --color-red-300: #7f1d1d;
+  --color-red-600: #f87171;
+  --color-sky-50: #082533;
+  --color-sky-100: #0c3547;
+  --color-sky-200: #164e63;
+  --color-sky-700: #7dd3fc;
+  --color-sky-800: #bae6fd;
+  --color-violet-50: #1e1440;
+  --color-violet-100: #2a1d5c;
+  --color-violet-300: #4c3a8f;
+  --color-violet-700: #c4b5fd;
+  --color-emerald-50: #062a1f;
+  --color-emerald-100: #0a3b2c;
+  --color-emerald-300: #14684d;
+  --color-emerald-600: #34d399;
+  --color-emerald-700: #6ee7b7;
+}
+
+.wa-scope.wa-dark .card {
+  @apply shadow-none;
+}
+
+/* `bg-ink-900 + text-white` é a pílula ativa e o botão escuro. Com a escala
+   invertida, ink-900 vira claro e o texto branco sumiria — por isso os dois
+   têm par próprio de cores em vez de depender da escala. */
+.wa-scope .pill-active {
+  @apply bg-ink-900 text-white;
+}
+.wa-scope.wa-dark .pill-active {
+  background-color: var(--color-brand-500);
+  color: #04140f;
+}
+.wa-scope.wa-dark .btn-dark {
+  background-color: var(--color-brand-500);
+  color: #04140f;
+}
+.wa-scope.wa-dark .btn-dark:hover {
+  background-color: var(--color-brand-400);
+}
+
+/* Brilho ambiente do painel escuro (identidade CNV). */
+.wa-scope.panel-ambient {
+  position: relative;
+  isolation: isolate;
+}
+.wa-scope.wa-dark.panel-ambient::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(55rem 32rem at 8% -10%, rgba(16, 185, 129, 0.08), transparent 60%),
+    radial-gradient(45rem 30rem at 100% 15%, rgba(14, 116, 144, 0.07), transparent 60%);
+}
+
+/* ── Kanban / caixa de entrada ──────────────────────────────── */
+.wa-scope .scrollbar-thin {
+  scrollbar-width: thin;
+}
+.wa-scope .scrollbar-thin::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.wa-scope .scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--color-line);
+  border-radius: 999px;
+}
+
+.wa-scope .dragging {
+  opacity: 0.4;
+}
+.wa-scope .drop-target {
+  outline: 2px dashed var(--color-brand-500);
+  outline-offset: -2px;
+}

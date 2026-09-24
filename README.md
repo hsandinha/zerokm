@@ -16,8 +16,12 @@ npm run dev
 - `lib/data/` – camadas mock que simulam APIs até integração com backend.
 - `lib/utils/` – helpers de formatação e cálculos.
 - `lib/services/` – serviços de integração com Firebase.
+- `wa/` – módulo WhatsApp (componentes, libs e models `wa_*`), servido em
+  `/dashboard/admin/whatsapp`. Ver `docs/modulo-whatsapp.md`.
 - `docs/` – documentação técnica e guias de uso:
   - `architecture.md` – visão arquitetural e decisões de design
+  - `modulo-whatsapp.md` – o módulo WhatsApp: o que veio do `whatsappcnv`, como
+    ele se encaixa (acesso, estilo, rotas) e o que falta para o corte
   - `IMPORTACAO_MASSIVA.md` – guia completo de importação CSV
   - `IMPORTACAO_REFERENCIA.md` – referência rápida de importação
   - `exemplo_modelos.csv` – arquivo exemplo para importar modelos

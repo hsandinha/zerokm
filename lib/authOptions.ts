@@ -5,6 +5,7 @@ import type { SessionStrategy } from 'next-auth'
 import { adminAuth } from '@/lib/firebase-admin'
 import { getUserAllowedProfiles, updateUserSession, validateUserSession } from '@/lib/services/userService'
 import { randomUUID } from 'crypto'
+import { ehAdminZerokm, resolvePanelRole } from '@wa/lib/panel-role'
 
 export const authOptions: AuthOptions = {
     providers: [
@@ -21,6 +22,16 @@ export const authOptions: AuthOptions = {
                     try {
                         const decodedToken = await adminAuth.verifyIdToken(token);
                         const { profiles, canViewLocation, credits, profileCompletion, daysUntilExpiry, subscriptionPlanId, subscriptionExpiresAt, subscriptionBillingType, freeTrialExpiresAt, freeTrialExpired, profileVersion, displayName } = await getUserAllowedProfiles(decodedToken.email || '');
+
+                        // Papel no módulo WhatsApp. Só o proxy consome daqui;
+                        // as rotas do módulo releem do banco a cada chamada.
+                        // Uma falha aqui não pode impedir o login no painel.
+                        let waRole: string | null = null;
+                        try {
+                            waRole = await resolvePanelRole(decodedToken.email || '', ehAdminZerokm(profiles));
+                        } catch (error) {
+                            console.error('Erro ao resolver papel do WhatsApp:', error);
+                        }
 
                         // Generate new session token and update DB
                         const sessionToken = randomUUID();
@@ -48,6 +59,7 @@ export const authOptions: AuthOptions = {
                             freeTrialExpiresAt: freeTrialExpiresAt,
                             freeTrialExpired: freeTrialExpired,
                             profileVersion: profileVersion,
+                            waRole: waRole,
                         }
                     } catch (error) {
                         console.error('Erro ao verificar token:', error);
@@ -77,6 +89,7 @@ export const authOptions: AuthOptions = {
                 token.freeTrialExpiresAt = user.freeTrialExpiresAt ?? null;
                 token.freeTrialExpired = user.freeTrialExpired ?? false;
                 token.profileVersion = user.profileVersion ?? 0;
+                token.waRole = user.waRole ?? null;
 
                 // Use the selected profile passed from authorize, or fallback to logic
                 if (user.selectedProfile) {
@@ -104,6 +117,12 @@ export const authOptions: AuthOptions = {
                 // Silently refresh JWT when admin changed the user's plan
                 if ((token.profileVersion ?? 0) < profileVersion) {
                     const fresh = await getUserAllowedProfiles(token.email);
+                    let freshWaRole: string | null = null;
+                    try {
+                        freshWaRole = await resolvePanelRole(token.email, ehAdminZerokm(fresh.profiles));
+                    } catch (error) {
+                        console.error('Erro ao reler papel do WhatsApp:', error);
+                    }
                     const newProfile = fresh.profiles.includes(token.profile as any)
                         ? token.profile
                         : (fresh.profiles[0] ?? token.profile);
@@ -117,6 +136,7 @@ export const authOptions: AuthOptions = {
                         subscriptionExpiresAt: fresh.subscriptionExpiresAt,
                         subscriptionBillingType: fresh.subscriptionBillingType,
                         name: fresh.displayName ?? token.name,
+                        waRole: freshWaRole,
                         profileVersion,
                     };
                 }
@@ -166,6 +186,7 @@ export const authOptions: AuthOptions = {
                 session.user.subscriptionBillingType = token.subscriptionBillingType as 'monthly' | 'annual' | null;
                 session.user.freeTrialExpiresAt = token.freeTrialExpiresAt as string | null;
                 session.user.freeTrialExpired = token.freeTrialExpired as boolean ?? false;
+                session.user.waRole = token.waRole as 'admin' | 'operador' | null ?? null;
             }
             return session
         }

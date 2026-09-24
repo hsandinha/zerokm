@@ -17,6 +17,8 @@ declare module "next-auth" {
             subscriptionBillingType?: 'monthly' | 'annual' | null
             freeTrialExpiresAt?: string | null
             freeTrialExpired?: boolean
+            /** Papel no módulo WhatsApp: null quando não tem acesso. */
+            waRole?: 'admin' | 'operador' | null
         } & DefaultSession["user"]
     }
 
@@ -35,6 +37,7 @@ declare module "next-auth" {
         subscriptionBillingType?: 'monthly' | 'annual' | null;
         freeTrialExpiresAt?: string | null;
         freeTrialExpired?: boolean;
+        waRole?: 'admin' | 'operador' | null;
     }
 }
 
@@ -54,5 +57,6 @@ declare module "next-auth/jwt" {
         subscriptionBillingType?: 'monthly' | 'annual' | null;
         freeTrialExpiresAt?: string | null;
         freeTrialExpired?: boolean;
+        waRole?: 'admin' | 'operador' | null;
     }
 }

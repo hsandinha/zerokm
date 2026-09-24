@@ -31,6 +31,17 @@ export default withAuth(
     // Regras de Proteção de Rotas (RBAC)
     // IMPORTANTE: rotas mais específicas devem vir ANTES das mais genéricas
 
+    // 0. Módulo WhatsApp. Mora sob /dashboard/admin, mas a permissão é outra:
+    //    quem está na allowlist `wa_admins` entra mesmo sem ser administrador
+    //    da zerokm — é como um operador de fila recebe acesso à Central sem
+    //    ganhar o painel inteiro. O papel vem do token porque aqui, no edge,
+    //    não há banco; as rotas do módulo releem do Mongo a cada chamada.
+    if (path.startsWith('/dashboard/admin/whatsapp')) {
+      const waRole = token?.waRole as string | null | undefined;
+      if (profile === 'administrador' || waRole) return NextResponse.next();
+      return NextResponse.redirect(new URL(getDashboardUrl(profile), req.url));
+    }
+
     // 1. Administrativo Dashboard (DEVE vir antes de /dashboard/admin!)
     if (path.startsWith('/dashboard/administrativo') && profile !== 'administrativo' && profile !== 'administrador') {
       return NextResponse.redirect(new URL(getDashboardUrl(profile), req.url));
