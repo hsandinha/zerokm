@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { Vehicle } from '../../lib/services/vehicleService';
 import { useVehicleDatabase } from '../../lib/hooks/useVehicleDatabase';
 import { tablesService } from '../../lib/services/tablesService';
+import { fetchCatalogOptions } from '../../lib/services/catalogOptions';
 import { AutocompleteInput } from './AutocompleteInput';
 import { MaskedInput } from './MaskedInput';
 import { CurrencyInput } from './CurrencyInput';
@@ -187,45 +188,24 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
         }
     };
 
-    // Função para carregar modelos (agora carrega todos, pois não há filtro de marca)
+    // Modelos e cores vêm do catálogo (padronizado pela FIPE), não mais das tabelas manuais.
     const loadModelos = async () => {
         if (modelos.length > 0) return;
         setLoadingModelos(true);
         try {
-            const modelosData = await tablesService.getAllModelos();
-            console.log('🔍 Dados brutos dos modelos:', modelosData);
-
-            // Como não temos marca, mostramos todos os modelos. 
-            // Idealmente, o backend filtraria ou paginaria, mas aqui carregamos tudo.
-            // Podemos concatenar Marca + Modelo para ficar mais claro na lista se desejado,
-            // mas o requisito pediu para remover Marca. Vamos listar apenas os nomes dos modelos.
-            const modelosArray = Array.isArray(modelosData) ? modelosData : (modelosData.data || []);
-            console.log('📋 Array de modelos:', modelosArray);
-            console.log('📊 Total de modelos:', modelosArray.length);
-
-            const modelosNomes: string[] = modelosArray.map((modelo: any) => modelo.nome);
-            console.log('📝 Nomes extraídos:', modelosNomes);
-
-            // Remover duplicatas se houver
-            const modelosUnicos = [...new Set(modelosNomes)];
-            console.log('✅ Modelos únicos (total: ' + modelosUnicos.length + '):', modelosUnicos);
-
-            setModelos(modelosUnicos);
+            setModelos(await fetchCatalogOptions('modelo'));
         } catch (error) {
-            console.error('❌ Erro ao carregar modelos:', error);
+            console.error('Erro ao carregar modelos:', error);
         } finally {
             setLoadingModelos(false);
         }
     };
 
-    // Função para carregar cores
     const loadCores = async () => {
-        if (cores.length > 0) return; // Já carregadas
-
+        if (cores.length > 0) return;
         setLoadingCores(true);
         try {
-            const coresData = await tablesService.getAllCores();
-            setCores(coresData.map(cor => cor.nome));
+            setCores(await fetchCatalogOptions('cor'));
         } catch (error) {
             console.error('Erro ao carregar cores:', error);
         } finally {

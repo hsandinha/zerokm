@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { MessageCircle } from 'lucide-react';
 import styles from './operator.module.css';
 
 interface CarteiraClient {
@@ -13,6 +14,13 @@ interface CarteiraClient {
     vencimento: string | null;
     plano: string | null;
 }
+
+const STATUS_LABEL: Record<CarteiraClient['status'], string> = {
+    expired: 'Vencido',
+    no_plan: 'Sem plano',
+    expiring_soon: 'Vence nos próximos 5 dias',
+    active: 'Regular',
+};
 
 export function FarolVencimentos() {
     const [clients, setClients] = useState<CarteiraClient[]>([]);
@@ -44,7 +52,7 @@ export function FarolVencimentos() {
 
                     return {
                         id: c.id,
-                        nome: c.nome || c.email || '—',
+                        nome: c.nome || c.email || '-',
                         email: c.email || '',
                         telefone: c.telefone || '',
                         plano: c.plano || null,
@@ -70,7 +78,7 @@ export function FarolVencimentos() {
     if (clients.length === 0) {
         return (
             <div className={styles.farolBox}>
-                <h2>Farol de Vencimentos</h2>
+                <h2 className={styles.farolTitle}>Farol de vencimentos</h2>
                 <p style={{ color: 'var(--color-text-muted)', marginTop: '0.5rem' }}>
                     Nenhum cliente/lojista vinculado à sua carteira ainda.
                 </p>
@@ -80,21 +88,21 @@ export function FarolVencimentos() {
 
     return (
         <div className={styles.farolBox}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                <h2 style={{ margin: 0 }}>Farol de Vencimentos</h2>
-                <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.8rem' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><span style={{ color: '#ef4444' }}>🔴</span> Vencido / Sem acesso</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><span style={{ color: '#f59e0b' }}>🟡</span> Próx. 5 dias</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><span style={{ color: '#10b981' }}>🟢</span> Regular</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem' }}>
+                <h2 className={styles.farolTitle} style={{ margin: 0 }}>Farol de vencimentos</h2>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><span className={`${styles.farolDot} ${styles.farolDotNegative}`} aria-hidden="true" /> Vencido / sem acesso</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><span className={`${styles.farolDot} ${styles.farolDotWarning}`} aria-hidden="true" /> Próximos 5 dias</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><span className={`${styles.farolDot} ${styles.farolDotPositive}`} aria-hidden="true" /> Regular</span>
                 </div>
             </div>
 
             <div style={{ overflowX: 'auto' }}>
                 <table className={styles.farolTable} style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
                     <thead>
-                        <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                        <tr style={{ borderBottom: '1px solid var(--admin-border)' }}>
                             <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Status</th>
-                            <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Cliente (Loja)</th>
+                            <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Cliente (loja)</th>
                             <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Telefone</th>
                             <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Plano</th>
                             <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Renovação</th>
@@ -103,21 +111,23 @@ export function FarolVencimentos() {
                     </thead>
                     <tbody>
                         {clients.map(client => {
-                            let dot = '⚪';
+                            let dotClass = styles.farolDotNeutral;
                             let rowBg = 'transparent';
                             if (client.status === 'expired' || client.status === 'no_plan') {
-                                dot = '🔴';
-                                rowBg = '#ef444410';
+                                dotClass = styles.farolDotNegative;
+                                rowBg = 'color-mix(in srgb, var(--color-negative) 6%, transparent)';
                             } else if (client.status === 'expiring_soon') {
-                                dot = '🟡';
-                                rowBg = '#f59e0b10';
+                                dotClass = styles.farolDotWarning;
+                                rowBg = 'color-mix(in srgb, var(--color-warning) 7%, transparent)';
                             } else if (client.status === 'active') {
-                                dot = '🟢';
+                                dotClass = styles.farolDotPositive;
                             }
 
                             return (
-                                <tr key={client.id} style={{ borderBottom: '1px solid var(--color-border)', backgroundColor: rowBg }}>
-                                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'center' }} title={client.status}>{dot}</td>
+                                <tr key={client.id} style={{ borderBottom: '1px solid var(--admin-border)', backgroundColor: rowBg }}>
+                                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'center' }} title={STATUS_LABEL[client.status]}>
+                                        <span className={`${styles.farolDot} ${dotClass}`} role="img" aria-label={STATUS_LABEL[client.status]} />
+                                    </td>
                                     <td style={{ padding: '0.75rem 0.5rem', fontWeight: 600 }}>
                                         {client.nome}
                                         {client.email && (
@@ -127,7 +137,7 @@ export function FarolVencimentos() {
                                         )}
                                     </td>
                                     <td style={{ padding: '0.75rem 0.5rem', fontSize: '0.9rem' }}>
-                                        {client.telefone || '—'}
+                                        {client.telefone || '-'}
                                     </td>
                                     <td style={{ padding: '0.75rem 0.5rem', fontSize: '0.9rem' }}>
                                         {client.plano || <span style={{ color: 'var(--color-text-muted)' }}>Sem plano</span>}
@@ -137,14 +147,14 @@ export function FarolVencimentos() {
                                             <>
                                                 {new Date(client.vencimento).toLocaleDateString('pt-BR')}
                                                 {client.daysUntilExpiry !== null && (
-                                                    <span style={{ display: 'block', fontSize: '0.75rem', color: client.daysUntilExpiry <= 5 ? '#ef4444' : 'var(--color-text-muted)' }}>
+                                                    <span style={{ display: 'block', fontSize: '0.75rem', color: client.daysUntilExpiry <= 5 ? 'var(--color-negative)' : 'var(--color-text-muted)' }}>
                                                         {client.daysUntilExpiry < 0
                                                             ? `há ${Math.abs(client.daysUntilExpiry)} dias`
                                                             : `em ${client.daysUntilExpiry} dias`}
                                                     </span>
                                                 )}
                                             </>
-                                        ) : '—'}
+                                        ) : '-'}
                                     </td>
                                     <td style={{ padding: '0.75rem 0.5rem', textAlign: 'center' }}>
                                         {client.telefone && (
@@ -152,21 +162,9 @@ export function FarolVencimentos() {
                                                 href={`https://wa.me/55${client.telefone.replace(/\D/g, '')}?text=Olá%20${encodeURIComponent(client.nome)},%20notamos%20que%20o%20seu%20plano%20ZeroKM%20precisa%20de%20atenção.`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                style={{
-                                                    display: 'inline-flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    padding: '0.4rem 0.8rem',
-                                                    backgroundColor: '#25D366',
-                                                    color: 'white',
-                                                    textDecoration: 'none',
-                                                    borderRadius: '6px',
-                                                    fontSize: '0.8rem',
-                                                    fontWeight: 'bold',
-                                                    cursor: 'pointer',
-                                                }}
+                                                className={styles.whatsappBtn}
                                             >
-                                                📱 Contatar
+                                                <MessageCircle size={15} aria-hidden="true" /> Contatar
                                             </a>
                                         )}
                                     </td>

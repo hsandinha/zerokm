@@ -6,7 +6,6 @@ import { getSession } from 'next-auth/react';
 import { UsersTable } from './users/UsersTable';
 import { ConcessionariasManagement } from '../../../components/admin/ConcessionariasManagement';
 import { TransportadorasManagement } from '../../../components/admin/TransportadorasManagement';
-import { TabelasManagement } from '../../../components/admin/TabelasManagement';
 import { ConfigContext } from '../../../lib/contexts/ConfigContext';
 import { PlansManagement } from '../../../components/settings/PlansManagement';
 import { CRMManagement } from '../../../components/admin/CRMManagement';
@@ -20,7 +19,7 @@ import { AdminDealershipVehicles } from '../../../components/admin/AdminDealersh
 import KanbanBoard from '../../../components/crm/KanbanBoard';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import styles from './admin.module.css';
-import { LayoutDashboard, Users, CarFront, Warehouse, BookOpen, Building2, Truck, Table2, Settings2, CreditCard, Receipt, ContactRound, Funnel, Plug, Images, MessageCircle } from 'lucide-react';
+import { LayoutDashboard, Users, CarFront, Warehouse, BookOpen, Building2, Truck, Settings2, CreditCard, Receipt, ContactRound, Funnel, Plug, Images, MessageCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 const VehicleConsultation = dynamic<any>(
@@ -36,7 +35,7 @@ const VehicleConsultation = dynamic<any>(
     }
 );
 
-type TabType = 'visao-geral' | 'usuarios' | 'veiculos' | 'estoque-concessionarias' | 'catalogo' | 'concessionarias' | 'transportadoras' | 'tabelas' | 'margem' | 'configuracoes' | 'planos' | 'cobrancas' | 'crm' | 'funil' | 'integracoes' | 'banners';
+type TabType = 'visao-geral' | 'usuarios' | 'veiculos' | 'estoque-concessionarias' | 'catalogo' | 'concessionarias' | 'transportadoras' | 'margem' | 'configuracoes' | 'planos' | 'cobrancas' | 'crm' | 'funil' | 'integracoes' | 'banners';
 
 export default function AdminDashboard() {
     const router = useRouter();
@@ -120,7 +119,6 @@ export default function AdminDashboard() {
         { id: 'catalogo', label: 'Catálogo', icon: <BookOpen size={20} aria-hidden="true" /> },
         { id: 'concessionarias', label: 'Concessionárias', icon: <Building2 size={20} aria-hidden="true" /> },
         { id: 'transportadoras', label: 'Frete', icon: <Truck size={20} aria-hidden="true" /> },
-        { id: 'tabelas', label: 'Tabelas', icon: <Table2 size={20} aria-hidden="true" /> },
         { id: 'configuracoes', label: 'Configurações', icon: <Settings2 size={20} aria-hidden="true" /> },
         { id: 'planos', label: 'Planos', icon: <CreditCard size={20} aria-hidden="true" /> },
         { id: 'cobrancas', label: 'Cobranças', icon: <Receipt size={20} aria-hidden="true" /> },
@@ -193,12 +191,6 @@ export default function AdminDashboard() {
                 return (
                     <div className={styles.contentArea}>
                         <TransportadorasManagement />
-                    </div>
-                );
-            case 'tabelas':
-                return (
-                    <div className={styles.contentArea}>
-                        <TabelasManagement />
                     </div>
                 );
             case 'configuracoes':

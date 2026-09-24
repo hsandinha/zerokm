@@ -55,7 +55,7 @@
 
 .addButton {
     background: var(--color-accent);
-    color: white;
+    color: var(--admin-on-accent, #102333);
     border: none;
     padding: 0.6rem 1.25rem;
     border-radius: 12px;
@@ -279,7 +279,7 @@
 
 .applyButton {
     background: var(--color-accent);
-    color: white;
+    color: var(--admin-on-accent, #102333);
     border: none;
     padding: 0 1.5rem;
     border-radius: 12px;

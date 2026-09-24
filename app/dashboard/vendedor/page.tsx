@@ -1,23 +1,20 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import Image from 'next/image';
 import { signOut, getSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { MarcasTable } from '../../../components/operator/MarcasTable';
 import { VehicleConsultation } from '../../../components/operator/VehicleConsultation';
-import { ModelosTable } from '../../../components/operator/ModelosTable';
-import CoresTable from '../../../components/operator/CoresTable';
 import { MaskedInput } from '../../../components/operator/MaskedInput';
 import { ConfigContext } from '../../../lib/contexts/ConfigContext';
 import { ConcessionariaService } from '../../../lib/services/concessionariaService';
-import UserMenu from '../../../components/UserMenu';
-import { MobileTabBar } from '../../../components/mobile/MobileTabBar';
+import { DashboardShell, shellStyles } from '@/components/dashboard/DashboardShell';
+import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
+import { LayoutDashboard, CarFront, Building2, Target, TriangleAlert, Ban, MessageCircle, Pencil, Trash2, X, Plus } from 'lucide-react';
 import { FarolVencimentos } from './FarolVencimentos';
 import styles from './operator.module.css';
 import transportStyles from '../../../components/operator/VehicleConsultation.module.css';
 
-type TabType = 'veiculos' | 'clientes' | 'prospects' | 'transportadoras' | 'tabelas' | 'configuracoes';
+type TabType = 'veiculos' | 'clientes' | 'prospects' | 'transportadoras' | 'configuracoes';
 
 export default function VendedorDashboard() {
     const [activeTab, setActiveTab] = useState<TabType | 'visao-geral'>('visao-geral');
@@ -113,11 +110,14 @@ export default function VendedorDashboard() {
         userProfile as any;
 
     const tabs = [
-        { id: 'visao-geral', label: 'Visão Geral', icon: '📊' },
-        { id: 'veiculos', label: 'Veículos', icon: '🚗' },
-        { id: 'clientes', label: 'Concessionárias', icon: '🏢' },
-        { id: 'prospects', label: 'Prospects / Leads', icon: '🎯' },
+        { id: 'visao-geral', label: 'Visão geral', icon: <LayoutDashboard size={20} aria-hidden="true" /> },
+        { id: 'veiculos', label: 'Veículos', icon: <CarFront size={20} aria-hidden="true" /> },
+        { id: 'clientes', label: 'Concessionárias', icon: <Building2 size={20} aria-hidden="true" /> },
+        { id: 'prospects', label: 'Prospects / leads', icon: <Target size={20} aria-hidden="true" /> },
     ];
+
+    // A Consulta de veículos (inclusive o fallback do switch) ocupa a tela toda, como no admin.
+    const isFullBleed = activeTab !== 'visao-geral' && activeTab !== 'clientes' && activeTab !== 'prospects';
 
     const renderTabContent = () => {
         switch (activeTab) {
@@ -142,53 +142,16 @@ export default function VendedorDashboard() {
             setMargem: (v: number) => updateMargem(v, marginMode, fixedMargin),
             setMarginConfig: ({ margem: v, marginMode: m, fixedMargin: f }) => updateMargem(v, m, f)
         }}>
-            <div className={styles.container}>
-                <div className={styles.header}>
-                    <div className={styles.headerLeft}>
-                        <Image
-                            src="/images/logo.png"
-                            alt="Logo"
-                            width={240}
-                            height={80}
-                            className={styles.logo}
-                            priority
-                        />
-                    </div>
-                    <div className={styles.headerRight}>
-                        <UserMenu
-                            name={userName}
-                            email={userEmail}
-                            role="Vendedor Corporativo"
-                        />
-                    </div>
-                </div>
-
-                <div className={styles.tabsContainer}>
-                    <div className={styles.tabsList}>
-                        {tabs.map((tab) => (
-                            <button
-                                key={tab.id}
-                                className={`${styles.tab} ${activeTab === tab.id ? styles.tabActive : ''}`}
-                                onClick={() => setActiveTab(tab.id as TabType)}
-                            >
-                                <span className={styles.tabIcon}>{tab.icon}</span>
-                                <span className={styles.tabLabel}>{tab.label}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                <div className={styles.tabContent}>
-                    {renderTabContent()}
-                </div>
-
-                <MobileTabBar
-                    items={tabs.map((tab) => ({ id: tab.id, label: tab.label, icon: tab.icon }))}
-                    activeId={activeTab}
-                    onSelect={(id) => setActiveTab(id as TabType)}
-                    user={{ name: userName, email: userEmail, role: 'Vendedor Corporativo' }}
-                />
-            </div>
+            <DashboardShell
+                sectionLabel="Vendas"
+                tabs={tabs}
+                activeId={activeTab}
+                onSelect={id => setActiveTab(id as TabType)}
+                primaryIds={['visao-geral', 'veiculos', 'clientes', 'prospects']}
+                user={{ name: userName, email: userEmail, role: 'Vendedor' }}
+            >
+                {isFullBleed ? renderTabContent() : <div className={shellStyles.contentArea}>{renderTabContent()}</div>}
+            </DashboardShell>
         </ConfigContext.Provider>
     );
 }
@@ -246,46 +209,48 @@ function VisaoGeralERelatoriosTab() {
     }, []);
 
     return (
-        <div className={styles.visaoGeralContainer} style={{ gridTemplateColumns: '1fr', maxWidth: '100%', padding: '2rem' }}>
+        <div className={styles.visaoGeralContainer} style={{ gridTemplateColumns: '1fr', maxWidth: '100%' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                <div>
+                    <h1 className={shellStyles.pageTitle}>Visão geral</h1>
+                    <p className={shellStyles.pageSubtitle} style={{ marginBottom: 0 }}>Sua carteira de prospects e os vencimentos dos planos.</p>
+                </div>
                 <div className={styles.statsGrid}>
                     <div className={styles.statCard}>
-                        <div className={styles.statIcon}>🏢</div>
+                        <div className={styles.statIcon}><Building2 size={22} aria-hidden="true" /></div>
                         <div className={styles.statContent}>
-                            <h3>Total de Prospects/Lojas</h3>
+                            <h3>Total de prospects/lojas</h3>
                             <div className={styles.statNumber}>{metrics.prospectsAtivos}</div>
                             <div className={styles.statChange}>Em sua carteira</div>
                         </div>
                     </div>
                     <div className={styles.statCard}>
-                        <div className={styles.statIcon} style={{ color: '#f59e0b' }}>⚠️</div>
+                        <div className={`${styles.statIcon} ${styles.statIconWarning}`}><TriangleAlert size={22} aria-hidden="true" /></div>
                         <div className={styles.statContent}>
-                            <h3>Prospects Vencendo</h3>
-                            <div className={styles.statNumber} style={{ color: '#f59e0b' }}>{metrics.prospectsVencendo}</div>
-                            <div className={styles.statChange}>Cobrar nos Próximos 5 dias</div>
+                            <h3>Prospects vencendo</h3>
+                            <div className={styles.statNumber} style={{ color: 'var(--color-warning)' }}>{metrics.prospectsVencendo}</div>
+                            <div className={styles.statChange}>Cobrar nos próximos 5 dias</div>
                         </div>
                     </div>
                     <div className={styles.statCard}>
-                        <div className={styles.statIcon} style={{ color: '#ef4444' }}>🚨</div>
+                        <div className={`${styles.statIcon} ${styles.statIconNegative}`}><Ban size={22} aria-hidden="true" /></div>
                         <div className={styles.statContent}>
-                            <h3>Perdidos / Bloqueados</h3>
-                            <div className={styles.statNumber} style={{ color: '#ef4444' }}>{metrics.prospectosPerdidos}</div>
-                            <div className={styles.statChange}>Sem Assinatura Ativa</div>
+                            <h3>Perdidos / bloqueados</h3>
+                            <div className={styles.statNumber} style={{ color: 'var(--color-negative)' }}>{metrics.prospectosPerdidos}</div>
+                            <div className={styles.statChange}>Sem assinatura ativa</div>
                         </div>
                     </div>
                     <div className={styles.statCard}>
-                        <div className={styles.statIcon}>🚗</div>
+                        <div className={styles.statIcon}><CarFront size={22} aria-hidden="true" /></div>
                         <div className={styles.statContent}>
-                            <h3>Total de Veículos</h3>
+                            <h3>Total de veículos</h3>
                             <div className={styles.statNumber}>{totalVeiculos !== null ? totalVeiculos.toLocaleString('pt-BR') : '...'}</div>
                             <div className={styles.statChange}>No banco de dados</div>
                         </div>
                     </div>
                 </div>
 
-                <div className={styles.todaySection}>
-                    <FarolVencimentos />
-                </div>
+                <FarolVencimentos />
             </div>
         </div>
     );
@@ -358,35 +323,39 @@ function ProspectsTab() {
     };
 
     return (
-        <div className={styles.visaoGeralContainer} style={{ gridTemplateColumns: '1fr', maxWidth: '100%', padding: '2rem' }}>
-            <div className={transportStyles.header} style={{ marginBottom: '2rem' }}>
-                <h2>Prospects / Leads</h2>
+        <div className={styles.visaoGeralContainer} style={{ gridTemplateColumns: '1fr', maxWidth: '100%' }}>
+            <div className={styles.pageHeader}>
+                <div>
+                    <h1 className={shellStyles.pageTitle}>Prospects / leads</h1>
+                    <p className={shellStyles.pageSubtitle} style={{ marginBottom: 0 }}>Lojas sem plano, com plano expirado ou livres para atendimento.</p>
+                </div>
                 <div className={transportStyles.headerActions}>
                     <select
                         className={styles.planSelect}
                         value={filter}
                         onChange={(e) => setFilter(e.target.value as any)}
+                        aria-label="Filtrar prospects"
                         style={{ padding: '0.5rem', borderRadius: '8px' }}
                     >
-                        <option value="oportunidades">Mostrar Oportunidades (Sem plano / Expirados)</option>
-                        <option value="todos">Mostrar Toda minha carteira</option>
+                        <option value="oportunidades">Mostrar oportunidades (sem plano / expirados)</option>
+                        <option value="todos">Mostrar toda a minha carteira</option>
                     </select>
                 </div>
             </div>
 
             {loading ? (
-                <div>Carregando...</div>
+                <div className={styles.noResultsMessage}>Carregando...</div>
             ) : (
                 <div className={transportStyles.tableContainer}>
                     <table className={transportStyles.table}>
                         <thead>
                             <tr>
-                                <th className={transportStyles.tableHeader}>NOME / EMAIL</th>
-                                <th className={transportStyles.tableHeader}>TELEFONE</th>
-                                <th className={transportStyles.tableHeader}>DATA CADASTRO</th>
-                                <th className={transportStyles.tableHeader}>STATUS PLANO</th>
-                                <th className={transportStyles.tableHeader}>VENCIMENTO</th>
-                                <th className={transportStyles.tableHeader}>AÇÕES</th>
+                                <th className={transportStyles.tableHeader}>Nome / e-mail</th>
+                                <th className={transportStyles.tableHeader}>Telefone</th>
+                                <th className={transportStyles.tableHeader}>Data de cadastro</th>
+                                <th className={transportStyles.tableHeader}>Status do plano</th>
+                                <th className={transportStyles.tableHeader}>Vencimento</th>
+                                <th className={transportStyles.tableHeader}>Ações</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -398,8 +367,8 @@ function ProspectsTab() {
                                 filteredClientes.map(c => {
                                     const isInactive = c.statusPlano === 'inactive' || c.statusPlano === 'cancelled' || !c.plano;
                                     const isExpired = c.vencimento && new Date(c.vencimento) < agora;
-                                    const badgeColor = (isInactive || isExpired) ? '#ef4444' : '#10b981';
-                                    const badgeText = !c.plano ? 'Sem Plano' : (isExpired ? 'Expirado' : (c.statusPlano === 'active' ? 'Ativo' : 'Inativo'));
+                                    const badgeClass = (isInactive || isExpired) ? transportStyles.statusInactive : transportStyles.statusActive;
+                                    const badgeText = !c.plano ? 'Sem plano' : (isExpired ? 'Expirado' : (c.statusPlano === 'active' ? 'Ativo' : 'Inativo'));
 
                                     return (
                                         <tr key={c.id} className={transportStyles.tableRow}>
@@ -412,7 +381,7 @@ function ProspectsTab() {
                                                 {c.dataCadastro ? new Date(c.dataCadastro).toLocaleDateString('pt-BR') : '-'}
                                             </td>
                                             <td className={transportStyles.tableCell}>
-                                                <span className={transportStyles.statusBadge} style={{ backgroundColor: badgeColor + '20', color: badgeColor }}>
+                                                <span className={`${transportStyles.statusBadge} ${badgeClass}`}>
                                                     {badgeText}
                                                 </span>
                                             </td>
@@ -425,18 +394,17 @@ function ProspectsTab() {
                                                         <button
                                                             className={styles.puxarLeadBtn}
                                                             onClick={() => handlePuxarLead(c.id)}
-                                                            title="Atender Lead"
+                                                            title="Atender lead"
                                                         >
-                                                            Atender Lead
+                                                            Atender lead
                                                         </button>
                                                     ) : (
                                                         <button
-                                                            className={transportStyles.editButton}
+                                                            className={styles.whatsappBtn}
                                                             onClick={() => openWhatsApp(c.telefone, c.nome)}
                                                             title="Chamar no WhatsApp"
-                                                            style={{ backgroundColor: '#25D366', color: '#fff', border: 'none', padding: '0.5rem 1rem', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                                                         >
-                                                            💬 WhatsApp
+                                                            <MessageCircle size={16} aria-hidden="true" /> WhatsApp
                                                         </button>
                                                     )}
                                                 </div>
@@ -649,12 +617,12 @@ function PropostasTab() {
         setFilteredPropostas(filtered);
     }, [searchTerm, statusFilter, propostas]); const getStatusColor = (status: string) => {
         switch (status) {
-            case 'APROVADA': return { bg: '#dcfce7', color: '#166534' };
-            case 'REJEITADA': return { bg: '#fee2e2', color: '#dc2626' };
-            case 'EM_ANALISE': return { bg: '#fef3c7', color: '#92400e' };
-            case 'NEGOCIACAO': return { bg: '#dbeafe', color: '#2563eb' };
-            case 'PENDENTE': return { bg: '#f3f4f6', color: '#4b5563' };
-            default: return { bg: '#f3f4f6', color: '#4b5563' };
+            case 'APROVADA': return { bg: 'color-mix(in srgb, var(--color-positive) 14%, transparent)', color: 'var(--color-positive)' };
+            case 'REJEITADA': return { bg: 'color-mix(in srgb, var(--color-negative) 14%, transparent)', color: 'var(--color-negative)' };
+            case 'EM_ANALISE': return { bg: 'color-mix(in srgb, var(--color-warning) 14%, transparent)', color: 'var(--color-warning)' };
+            case 'NEGOCIACAO': return { bg: 'var(--admin-selected)', color: 'var(--admin-selected-text)' };
+            case 'PENDENTE': return { bg: 'var(--color-panel)', color: 'var(--color-text-muted)' };
+            default: return { bg: 'var(--color-panel)', color: 'var(--color-text-muted)' };
         }
     };
 
@@ -662,7 +630,7 @@ function PropostasTab() {
         switch (status) {
             case 'APROVADA': return 'Aprovada';
             case 'REJEITADA': return 'Rejeitada';
-            case 'EM_ANALISE': return 'Em Análise';
+            case 'EM_ANALISE': return 'Em análise';
             case 'NEGOCIACAO': return 'Negociação';
             case 'PENDENTE': return 'Pendente';
             default: return status;
@@ -672,8 +640,8 @@ function PropostasTab() {
     return (
         <div className={styles.tabContentContainer}>
             <div className={styles.proposalHeader}>
-                <h2>Gestão de Propostas</h2>
-                <button className={styles.newProposalBtn}>+ Nova Proposta</button>
+                <h1 className={shellStyles.pageTitle}>Gestão de propostas</h1>
+                <button className={styles.newProposalBtn}><Plus size={16} aria-hidden="true" /> Nova proposta</button>
             </div>
 
             <div className={styles.filtersSection}>
@@ -690,9 +658,9 @@ function PropostasTab() {
                         onChange={(e) => setStatusFilter(e.target.value)}
                         className={styles.statusFilter}
                     >
-                        <option value="TODAS">Todos os Status</option>
+                        <option value="TODAS">Todos os status</option>
                         <option value="PENDENTE">Pendente</option>
-                        <option value="EM_ANALISE">Em Análise</option>
+                        <option value="EM_ANALISE">Em análise</option>
                         <option value="NEGOCIACAO">Negociação</option>
                         <option value="APROVADA">Aprovada</option>
                         <option value="REJEITADA">Rejeitada</option>
@@ -742,17 +710,17 @@ function PropostasTab() {
 
                                 <div className={styles.priceInfo}>
                                     <div className={styles.priceRow}>
-                                        <span>Preço Tabela:</span>
+                                        <span>Preço de tabela:</span>
                                         <span>R$ {proposta.veiculo.preco.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                                     </div>
                                     <div className={styles.priceRow}>
-                                        <span>Valor Proposta:</span>
+                                        <span>Valor da proposta:</span>
                                         <strong>R$ {proposta.valorProposta.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>
                                     </div>
                                     {proposta.desconto > 0 && (
                                         <div className={styles.priceRow}>
                                             <span>Desconto:</span>
-                                            <span style={{ color: '#dc2626' }}>- R$ {proposta.desconto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                            <span style={{ color: 'var(--color-negative)' }}>- R$ {proposta.desconto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                                         </div>
                                     )}
                                 </div>
@@ -768,7 +736,7 @@ function PropostasTab() {
                             </div>
 
                             <div className={styles.proposalCardFooter}>
-                                <button className={styles.viewBtn}>Ver Detalhes</button>
+                                <button className={styles.viewBtn}>Ver detalhes</button>
                                 <button className={styles.editBtn}>Editar</button>
                                 {proposta.statusProposta === 'PENDENTE' && (
                                     <button className={styles.approveBtn}>Aprovar</button>
@@ -876,6 +844,7 @@ function ClientesTab() {
     const [loadingClientes, setLoadingClientes] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [formError, setFormError] = useState<string | null>(null);
     const [isFetchingCep, setIsFetchingCep] = useState(false);
     const [cepError, setCepError] = useState<string | null>(null);
     const lastCepRef = useRef<string>('');
@@ -884,6 +853,7 @@ function ClientesTab() {
         setFormData(createEmptyClienteForm());
         setCepError(null);
         setIsFetchingCep(false);
+        setFormError(null);
         lastCepRef.current = '';
     };
 
@@ -1049,6 +1019,7 @@ function ClientesTab() {
         e.preventDefault();
         setSubmitting(true);
         setErrorMessage(null);
+        setFormError(null);
 
         const payload: ClienteFormData & { dataCadastro?: string } = {
             ...formData,
@@ -1074,7 +1045,7 @@ function ClientesTab() {
             resetForm();
         } catch (error) {
             console.error('Erro ao salvar concessionária:', error);
-            alert('Erro ao salvar concessionária. Tente novamente.');
+            setFormError('Erro ao salvar concessionária. Tente novamente.');
         } finally {
             setSubmitting(false);
         }
@@ -1106,6 +1077,7 @@ function ClientesTab() {
         });
         setCepError(null);
         setIsFetchingCep(false);
+        setFormError(null);
         lastCepRef.current = '';
         setEditingCliente(cliente);
         setShowForm(true);
@@ -1125,307 +1097,38 @@ function ClientesTab() {
         }
     };
 
-    const cancelEdit = () => {
+    const openCreateForm = () => {
+        resetForm();
+        setEditingCliente(null);
+        setShowForm(true);
+    };
+
+    const closeForm = () => {
+        if (submitting) return;
         setShowForm(false);
         setEditingCliente(null);
         resetForm();
     };
 
     return (
-        <div className={transportStyles.container}>
-            <div className={transportStyles.header}>
-                <h2>Gestão de Concessionárias</h2>
+        <div>
+            <div className={styles.pageHeader}>
+                <div>
+                    <h1 className={shellStyles.pageTitle}>Concessionárias</h1>
+                    <p className={shellStyles.pageSubtitle} style={{ marginBottom: 0 }}>Cadastro e contatos das concessionárias atendidas.</p>
+                </div>
                 <div className={transportStyles.headerActions}>
                     <button
+                        type="button"
                         className={transportStyles.addButton}
-                        onClick={() => {
-                            if (showForm) {
-                                cancelEdit();
-                            } else {
-                                resetForm();
-                                setEditingCliente(null);
-                                setShowForm(true);
-                            }
-                        }}
+                        onClick={openCreateForm}
                     >
-                        {showForm ? 'Cancelar' : '+ Nova Concessionária'}
+                        <Plus size={16} aria-hidden="true" /> Nova concessionária
                     </button>
                 </div>
             </div>
 
-            {showForm && (
-                <div className={`${transportStyles.inlineFormWrapper ?? ''} ${styles.clienteFormWrapper}`}>
-                    <div className={styles.clienteFormContainer}>
-                        <h3>{editingCliente ? 'Editar Concessionária' : 'Cadastrar Nova Concessionária'}</h3>
-                        <form onSubmit={handleSubmit} className={styles.clienteForm}>
-                            <div className={styles.formRow}>
-                                <div className={styles.formGroup}>
-                                    <label>Nome Fantasia *</label>
-                                    <input
-                                        type="text"
-                                        value={formData.nome}
-                                        onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                                        required
-                                        className={styles.formInput}
-                                    />
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>Razão Social *</label>
-                                    <input
-                                        type="text"
-                                        value={formData.razaoSocial}
-                                        onChange={(e) => setFormData({ ...formData, razaoSocial: e.target.value })}
-                                        required
-                                        className={styles.formInput}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className={styles.formRow}>
-                                <div className={styles.formGroup}>
-                                    <MaskedInput
-                                        name="cnpj"
-                                        label="CNPJ *"
-                                        value={formData.cnpj}
-                                        onChange={(value) => setFormData((prev) => ({ ...prev, cnpj: value }))}
-                                        mask="cnpj"
-                                        required
-                                        placeholder="00.000.000/0000-00"
-                                    />
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>Inscrição Estadual</label>
-                                    <input
-                                        type="text"
-                                        value={formData.inscricaoEstadual}
-                                        onChange={(e) => setFormData({ ...formData, inscricaoEstadual: e.target.value })}
-                                        className={styles.formInput}
-                                        placeholder="000.000.000.000"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className={styles.formRow}>
-                                <div className={styles.formGroup}>
-                                    <MaskedInput
-                                        name="telefone"
-                                        label="Telefone *"
-                                        value={formData.telefone}
-                                        onChange={(value) => setFormData((prev) => ({ ...prev, telefone: value }))}
-                                        mask="phone"
-                                        required
-                                        placeholder="(11)99999-9999"
-                                    />
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <MaskedInput
-                                        name="celular"
-                                        label="Celular"
-                                        value={formData.celular}
-                                        onChange={(value) => setFormData((prev) => ({ ...prev, celular: value }))}
-                                        mask="phone"
-                                        placeholder="(11)99999-9999"
-                                    />
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>Contato *</label>
-                                    <input
-                                        type="text"
-                                        value={formData.contato}
-                                        onChange={(e) => setFormData({ ...formData, contato: e.target.value })}
-                                        required
-                                        className={styles.formInput}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className={styles.formRow}>
-                                <div className={styles.formGroup}>
-                                    <label>E-mail *</label>
-                                    <input
-                                        type="email"
-                                        value={formData.email}
-                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                        required
-                                        className={styles.formInput}
-                                        placeholder="contato@empresa.com.br"
-                                    />
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>Nome do Responsável *</label>
-                                    <input
-                                        type="text"
-                                        value={formData.nomeResponsavel}
-                                        onChange={(e) => setFormData({ ...formData, nomeResponsavel: e.target.value })}
-                                        required
-                                        className={styles.formInput}
-                                    />
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <MaskedInput
-                                        name="telefoneResponsavel"
-                                        label="Telefone do Responsável *"
-                                        value={formData.telefoneResponsavel}
-                                        onChange={(value) => setFormData((prev) => ({ ...prev, telefoneResponsavel: value }))}
-                                        mask="phone"
-                                        required
-                                        placeholder="(11)99999-9999"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className={styles.formRow}>
-                                <div className={styles.formGroup}>
-                                    <label>E-mail do Responsável</label>
-                                    <input
-                                        type="email"
-                                        value={formData.emailResponsavel}
-                                        onChange={(e) => setFormData({ ...formData, emailResponsavel: e.target.value })}
-                                        className={styles.formInput}
-                                        placeholder="responsavel@empresa.com.br"
-                                    />
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>Status *</label>
-                                    <select
-                                        value={formData.ativo ? 'true' : 'false'}
-                                        onChange={(e) => setFormData((prev) => ({ ...prev, ativo: e.target.value === 'true' }))}
-                                        required
-                                        className={styles.formInput}
-                                    >
-                                        <option value="true">Ativa</option>
-                                        <option value="false">Inativa</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className={styles.formRow}>
-                                <div className={styles.formGroup}>
-                                    <MaskedInput
-                                        name="cep"
-                                        label="CEP *"
-                                        value={formData.cep}
-                                        onChange={handleCepChange}
-                                        mask="cep"
-                                        required
-                                        placeholder="00000-000"
-                                    />
-                                    {isFetchingCep && (
-                                        <small className={styles.formHelper}>Buscando CEP...</small>
-                                    )}
-                                    {cepError && (
-                                        <small className={styles.errorText}>{cepError}</small>
-                                    )}
-                                    {!isFetchingCep && !cepError && formData.cep.length === 8 && (
-                                        <small className={styles.formHelper}>Endereço preenchido automaticamente. Confirme os dados.</small>
-                                    )}
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>Número *</label>
-                                    <input
-                                        type="text"
-                                        value={formData.numero}
-                                        onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
-                                        required
-                                        className={styles.formInput}
-                                    />
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>Complemento</label>
-                                    <input
-                                        type="text"
-                                        value={formData.complemento}
-                                        onChange={(e) => setFormData({ ...formData, complemento: e.target.value })}
-                                        className={styles.formInput}
-                                        placeholder="Opcional"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className={styles.formRow}>
-                                <div className={styles.formGroup}>
-                                    <label>Endereço *</label>
-                                    <input
-                                        type="text"
-                                        value={formData.endereco}
-                                        onChange={(e) => setFormData({ ...formData, endereco: e.target.value })}
-                                        required
-                                        className={styles.formInput}
-                                    />
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>Bairro *</label>
-                                    <input
-                                        type="text"
-                                        value={formData.bairro}
-                                        onChange={(e) => setFormData({ ...formData, bairro: e.target.value })}
-                                        required
-                                        className={styles.formInput}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className={styles.formRow}>
-                                <div className={styles.formGroup}>
-                                    <label>Cidade *</label>
-                                    <input
-                                        type="text"
-                                        value={formData.cidade}
-                                        onChange={(e) => setFormData({ ...formData, cidade: e.target.value })}
-                                        required
-                                        className={styles.formInput}
-                                    />
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>UF *</label>
-                                    <select
-                                        value={formData.uf}
-                                        onChange={(e) => setFormData({ ...formData, uf: e.target.value })}
-                                        required
-                                        className={styles.formInput}
-                                    >
-                                        <option value="">Selecione</option>
-                                        <option value="SP">SP</option>
-                                        <option value="RJ">RJ</option>
-                                        <option value="MG">MG</option>
-                                        <option value="PR">PR</option>
-                                        <option value="SC">SC</option>
-                                        <option value="RS">RS</option>
-                                        <option value="BA">BA</option>
-                                        <option value="GO">GO</option>
-                                        <option value="PE">PE</option>
-                                        <option value="CE">CE</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className={styles.formRow}>
-                                <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
-                                    <label>Observações</label>
-                                    <textarea
-                                        value={formData.observacoes}
-                                        onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-                                        className={styles.textArea}
-                                        rows={3}
-                                        placeholder="Informações adicionais, acordos comerciais ou notas internas"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className={styles.formActions}>
-                                <button type="button" onClick={cancelEdit} className={styles.cancelBtn}>
-                                    Cancelar
-                                </button>
-                                <button type="submit" className={styles.submitBtn} disabled={submitting}>
-                                    {submitting ? 'Salvando...' : editingCliente ? 'Atualizar' : 'Cadastrar'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            <div className={transportStyles.searchSection}>
+            <div className={styles.searchBar}>
                 <div className={transportStyles.searchContainer}>
                     <input
                         type="text"
@@ -1433,18 +1136,19 @@ function ClientesTab() {
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className={transportStyles.searchInput}
+                        aria-label="Buscar concessionárias"
                     />
                     {searchTerm && (
-                        <button className={transportStyles.clearButton} onClick={handleClearSearch}>
-                            ✕
+                        <button className={transportStyles.clearButton} onClick={handleClearSearch} aria-label="Limpar busca" title="Limpar busca">
+                            <X size={16} aria-hidden="true" />
                         </button>
                     )}
                 </div>
             </div>
 
-            <div className={transportStyles.resultsSection}>
+            <div className={styles.resultsBlock}>
                 <div className={transportStyles.resultsHeader}>
-                    <h3>Resultados ({filteredClientes.length})</h3>
+                    <h3 className={styles.resultsTitle}>Resultados ({filteredClientes.length})</h3>
                     <span className={styles.resultsMeta}>
                         {clientes.length > 0
                             ? `Exibindo ${filteredClientes.length} de ${clientes.length} registros`
@@ -1461,14 +1165,14 @@ function ClientesTab() {
                         <table className={transportStyles.table}>
                             <thead>
                                 <tr>
-                                    <th className={transportStyles.tableHeader}>NOME / RAZÃO SOCIAL</th>
-                                    <th className={transportStyles.tableHeader}>CONTATO PRINCIPAL</th>
-                                    <th className={transportStyles.tableHeader}>RESPONSÁVEL</th>
+                                    <th className={transportStyles.tableHeader}>Nome / razão social</th>
+                                    <th className={transportStyles.tableHeader}>Contato principal</th>
+                                    <th className={transportStyles.tableHeader}>Responsável</th>
                                     <th className={transportStyles.tableHeader}>CNPJ</th>
                                     <th className={transportStyles.tableHeader}>CEP</th>
-                                    <th className={transportStyles.tableHeader}>ENDEREÇO</th>
-                                    <th className={transportStyles.tableHeader}>STATUS</th>
-                                    <th className={transportStyles.tableHeader}>AÇÕES</th>
+                                    <th className={transportStyles.tableHeader}>Endereço</th>
+                                    <th className={transportStyles.tableHeader}>Status</th>
+                                    <th className={transportStyles.tableHeader}>Ações</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1515,15 +1219,17 @@ function ClientesTab() {
                                                         className={transportStyles.editButton}
                                                         onClick={() => handleEdit(cliente)}
                                                         title="Editar"
+                                                        aria-label={`Editar ${cliente.nome}`}
                                                     >
-                                                        ✏️
+                                                        <Pencil size={16} aria-hidden="true" />
                                                     </button>
                                                     <button
                                                         className={transportStyles.deleteButton}
                                                         onClick={() => handleDelete(cliente.id)}
                                                         title="Excluir"
+                                                        aria-label={`Excluir ${cliente.nome}`}
                                                     >
-                                                        🗑️
+                                                        <Trash2 size={16} aria-hidden="true" />
                                                     </button>
                                                 </div>
                                             </td>
@@ -1535,41 +1241,285 @@ function ClientesTab() {
                     </div>
                 )}
             </div>
+
+            {showForm && (
+                <AdminModal
+                    title={editingCliente ? 'Editar concessionária' : 'Nova concessionária'}
+                    subtitle={editingCliente ? editingCliente.nome : 'Preencha os dados para cadastrar a concessionária.'}
+                    onClose={closeForm}
+                    size="lg"
+                    busy={submitting}
+                    onSubmit={handleSubmit}
+                    footer={<>
+                        <button type="button" className={modalStyles.secondary} onClick={closeForm} disabled={submitting}>
+                            Cancelar
+                        </button>
+                        <button type="submit" className={modalStyles.primary} disabled={submitting}>
+                            {submitting ? 'Salvando...' : editingCliente ? 'Salvar alterações' : 'Cadastrar'}
+                        </button>
+                    </>}
+                >
+                    <div className={styles.clienteForm}>
+                        <div className={styles.formRow}>
+                            <div className={styles.formGroup}>
+                                <label>Nome fantasia *</label>
+                                <input
+                                    type="text"
+                                    value={formData.nome}
+                                    onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                                    required
+                                    className={styles.formInput}
+                                />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Razão social *</label>
+                                <input
+                                    type="text"
+                                    value={formData.razaoSocial}
+                                    onChange={(e) => setFormData({ ...formData, razaoSocial: e.target.value })}
+                                    required
+                                    className={styles.formInput}
+                                />
+                            </div>
+                        </div>
+
+                        <div className={styles.formRow}>
+                            <div className={styles.formGroup}>
+                                <MaskedInput
+                                    name="cnpj"
+                                    label="CNPJ *"
+                                    value={formData.cnpj}
+                                    onChange={(value) => setFormData((prev) => ({ ...prev, cnpj: value }))}
+                                    mask="cnpj"
+                                    required
+                                    placeholder="00.000.000/0000-00"
+                                />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Inscrição estadual</label>
+                                <input
+                                    type="text"
+                                    value={formData.inscricaoEstadual}
+                                    onChange={(e) => setFormData({ ...formData, inscricaoEstadual: e.target.value })}
+                                    className={styles.formInput}
+                                    placeholder="000.000.000.000"
+                                />
+                            </div>
+                        </div>
+
+                        <div className={styles.formRow}>
+                            <div className={styles.formGroup}>
+                                <MaskedInput
+                                    name="telefone"
+                                    label="Telefone *"
+                                    value={formData.telefone}
+                                    onChange={(value) => setFormData((prev) => ({ ...prev, telefone: value }))}
+                                    mask="phone"
+                                    required
+                                    placeholder="(11)99999-9999"
+                                />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <MaskedInput
+                                    name="celular"
+                                    label="Celular"
+                                    value={formData.celular}
+                                    onChange={(value) => setFormData((prev) => ({ ...prev, celular: value }))}
+                                    mask="phone"
+                                    placeholder="(11)99999-9999"
+                                />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Contato *</label>
+                                <input
+                                    type="text"
+                                    value={formData.contato}
+                                    onChange={(e) => setFormData({ ...formData, contato: e.target.value })}
+                                    required
+                                    className={styles.formInput}
+                                />
+                            </div>
+                        </div>
+
+                        <div className={styles.formRow}>
+                            <div className={styles.formGroup}>
+                                <label>E-mail *</label>
+                                <input
+                                    type="email"
+                                    value={formData.email}
+                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                    required
+                                    className={styles.formInput}
+                                    placeholder="contato@empresa.com.br"
+                                />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Nome do responsável *</label>
+                                <input
+                                    type="text"
+                                    value={formData.nomeResponsavel}
+                                    onChange={(e) => setFormData({ ...formData, nomeResponsavel: e.target.value })}
+                                    required
+                                    className={styles.formInput}
+                                />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <MaskedInput
+                                    name="telefoneResponsavel"
+                                    label="Telefone do responsável *"
+                                    value={formData.telefoneResponsavel}
+                                    onChange={(value) => setFormData((prev) => ({ ...prev, telefoneResponsavel: value }))}
+                                    mask="phone"
+                                    required
+                                    placeholder="(11)99999-9999"
+                                />
+                            </div>
+                        </div>
+
+                        <div className={styles.formRow}>
+                            <div className={styles.formGroup}>
+                                <label>E-mail do responsável</label>
+                                <input
+                                    type="email"
+                                    value={formData.emailResponsavel}
+                                    onChange={(e) => setFormData({ ...formData, emailResponsavel: e.target.value })}
+                                    className={styles.formInput}
+                                    placeholder="responsavel@empresa.com.br"
+                                />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Status *</label>
+                                <select
+                                    value={formData.ativo ? 'true' : 'false'}
+                                    onChange={(e) => setFormData((prev) => ({ ...prev, ativo: e.target.value === 'true' }))}
+                                    required
+                                    className={styles.formInput}
+                                >
+                                    <option value="true">Ativa</option>
+                                    <option value="false">Inativa</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className={styles.formRow}>
+                            <div className={styles.formGroup}>
+                                <MaskedInput
+                                    name="cep"
+                                    label="CEP *"
+                                    value={formData.cep}
+                                    onChange={handleCepChange}
+                                    mask="cep"
+                                    required
+                                    placeholder="00000-000"
+                                />
+                                {isFetchingCep && (
+                                    <small className={styles.formHelper}>Buscando CEP...</small>
+                                )}
+                                {cepError && (
+                                    <small className={styles.errorText}>{cepError}</small>
+                                )}
+                                {!isFetchingCep && !cepError && formData.cep.length === 8 && (
+                                    <small className={styles.formHelper}>Endereço preenchido automaticamente. Confirme os dados.</small>
+                                )}
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Número *</label>
+                                <input
+                                    type="text"
+                                    value={formData.numero}
+                                    onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
+                                    required
+                                    className={styles.formInput}
+                                />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Complemento</label>
+                                <input
+                                    type="text"
+                                    value={formData.complemento}
+                                    onChange={(e) => setFormData({ ...formData, complemento: e.target.value })}
+                                    className={styles.formInput}
+                                    placeholder="Opcional"
+                                />
+                            </div>
+                        </div>
+
+                        <div className={styles.formRow}>
+                            <div className={styles.formGroup}>
+                                <label>Endereço *</label>
+                                <input
+                                    type="text"
+                                    value={formData.endereco}
+                                    onChange={(e) => setFormData({ ...formData, endereco: e.target.value })}
+                                    required
+                                    className={styles.formInput}
+                                />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Bairro *</label>
+                                <input
+                                    type="text"
+                                    value={formData.bairro}
+                                    onChange={(e) => setFormData({ ...formData, bairro: e.target.value })}
+                                    required
+                                    className={styles.formInput}
+                                />
+                            </div>
+                        </div>
+
+                        <div className={styles.formRow}>
+                            <div className={styles.formGroup}>
+                                <label>Cidade *</label>
+                                <input
+                                    type="text"
+                                    value={formData.cidade}
+                                    onChange={(e) => setFormData({ ...formData, cidade: e.target.value })}
+                                    required
+                                    className={styles.formInput}
+                                />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>UF *</label>
+                                <select
+                                    value={formData.uf}
+                                    onChange={(e) => setFormData({ ...formData, uf: e.target.value })}
+                                    required
+                                    className={styles.formInput}
+                                >
+                                    <option value="">Selecione</option>
+                                    <option value="SP">SP</option>
+                                    <option value="RJ">RJ</option>
+                                    <option value="MG">MG</option>
+                                    <option value="PR">PR</option>
+                                    <option value="SC">SC</option>
+                                    <option value="RS">RS</option>
+                                    <option value="BA">BA</option>
+                                    <option value="GO">GO</option>
+                                    <option value="PE">PE</option>
+                                    <option value="CE">CE</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className={styles.formRow}>
+                            <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
+                                <label>Observações</label>
+                                <textarea
+                                    value={formData.observacoes}
+                                    onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
+                                    className={styles.textArea}
+                                    rows={3}
+                                    placeholder="Informações adicionais, acordos comerciais ou notas internas"
+                                />
+                            </div>
+                        </div>
+                        {formError && (
+                            <div className={styles.errorText} role="alert">{formError}</div>
+                        )}
+                    </div>
+                </AdminModal>
+            )}
         </div>
     );
 }
 
-function TabelasTab() {
-    const [activeTable, setActiveTable] = useState<'marcas' | 'modelos' | 'cores'>('marcas');
-
-    return (
-        <div className={styles.combinedContainer}>
-            <div className={styles.subTabBar}>
-                <button
-                    className={`${styles.subTab} ${activeTable === 'marcas' ? styles.subTabActive : ''}`}
-                    onClick={() => setActiveTable('marcas')}
-                >
-                    🏷️ Marcas
-                </button>
-                <button
-                    className={`${styles.subTab} ${activeTable === 'modelos' ? styles.subTabActive : ''}`}
-                    onClick={() => setActiveTable('modelos')}
-                >
-                    🚗 Modelos
-                </button>
-                <button
-                    className={`${styles.subTab} ${activeTable === 'cores' ? styles.subTabActive : ''}`}
-                    onClick={() => setActiveTable('cores')}
-                >
-                    🎨 Cores
-                </button>
-            </div>
-
-            <div className={styles.tabContent}>
-                {activeTable === 'marcas' && <MarcasTable />}
-                {activeTable === 'modelos' && <ModelosTable />}
-                {activeTable === 'cores' && <CoresTable />}
-            </div>
-        </div>
-    );
-}

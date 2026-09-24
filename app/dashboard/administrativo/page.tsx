@@ -7,14 +7,13 @@ import { ConfigContext } from '../../../lib/contexts/ConfigContext';
 import { UsersTable } from '../admin/users/UsersTable';
 import { ConcessionariasManagement } from '../../../components/admin/ConcessionariasManagement';
 import { TransportadorasManagement } from '../../../components/admin/TransportadorasManagement';
-import { TabelasManagement } from '../../../components/admin/TabelasManagement';
 import { BannersManagement } from '../../../components/admin/BannersManagement';
 import { CatalogVariationsManagement } from '../../../components/admin/CatalogVariationsManagement';
 import { AdminDealershipVehicles } from '../../../components/admin/AdminDealershipVehicles';
 import { DashboardShell, shellStyles } from '@/components/dashboard/DashboardShell';
-import { CarFront, Warehouse, BookOpen, Building2, Truck, Table2, Users, Images } from 'lucide-react';
+import { CarFront, Warehouse, BookOpen, Building2, Truck, Users, Images } from 'lucide-react';
 
-type TabType = 'veiculos' | 'estoque-concessionarias' | 'catalogo' | 'concessionarias' | 'transportadoras' | 'tabelas' | 'usuarios' | 'banners';
+type TabType = 'veiculos' | 'estoque-concessionarias' | 'catalogo' | 'concessionarias' | 'transportadoras' | 'usuarios' | 'banners';
 
 // ----------------------------------------------------------------
 // Dashboard principal do Administrativo
@@ -68,7 +67,6 @@ export default function AdministrativoDashboard() {
         { id: 'catalogo', label: 'Catálogo', icon: <BookOpen size={20} aria-hidden="true" /> },
         { id: 'concessionarias', label: 'Concessionárias', icon: <Building2 size={20} aria-hidden="true" /> },
         { id: 'transportadoras', label: 'Frete', icon: <Truck size={20} aria-hidden="true" /> },
-        { id: 'tabelas', label: 'Tabelas', icon: <Table2 size={20} aria-hidden="true" /> },
         { id: 'usuarios', label: 'Equipe', icon: <Users size={20} aria-hidden="true" /> },
         { id: 'banners', label: 'Banners', icon: <Images size={20} aria-hidden="true" /> },
     ];
@@ -80,7 +78,6 @@ export default function AdministrativoDashboard() {
             case 'catalogo': return <CatalogVariationsManagement />;
             case 'concessionarias': return <ConcessionariasManagement />;
             case 'transportadoras': return <TransportadorasManagement />;
-            case 'tabelas': return <TabelasManagement />;
             case 'usuarios': return <UsersTable restrictedProfiles={['administrador']} />;
             case 'banners': return <BannersManagement />;
         }

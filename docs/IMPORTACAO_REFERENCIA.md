@@ -65,7 +65,7 @@ Ordem: marca,modelo,versao,opcionais,cor,concessionaria,preco,ano,anoModelo,stat
 
 ## 📂 Onde Importar
 
-- **Modelos:** Dashboard Operador > Tabelas > Modelos > 📂 Importar CSV
+- **Modelos:** (removido: a aba Tabelas saiu; modelos agora vêm do catálogo padronizado pela FIPE)
 - **Veículos:** Dashboard Operador > Consulta de Veículos > 📂 Importar CSV
 
 ---

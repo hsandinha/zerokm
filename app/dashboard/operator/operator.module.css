@@ -1,145 +1,17 @@
-/* Container Principal */
-.container {
-    min-height: 100vh;
-    background: var(--body-bg);
-    display: flex;
-    flex-direction: column;
-}
-
-/* Header */
-.header {
-    background: var(--color-surface);
-    padding: 1rem 2rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    border-bottom: 1px solid var(--color-panel);
-}
-
-.headerLeft {
-    display: flex;
-    align-items: center;
-}
-
-.headerLeft h1 {
-    margin: 0;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--color-text);
-}
-
-.logo {
-    object-fit: contain;
-    height: auto;
-}
-
-.subtitle {
-    color: var(--color-text-muted);
-    font-size: 0.875rem;
-    margin-left: 0.5rem;
-}
-
-.headerRight {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.userInfo {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 0.15rem;
-}
-
-.userEmail {
-    color: var(--color-text-muted);
-    font-size: 0.75rem;
-    line-height: 1;
-}
-
-.welcome {
-    color: var(--color-text);
-    font-size: 0.875rem;
-}
-
-.exitButton {
-    background: var(--color-negative);
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 0.375rem;
-    cursor: pointer;
-    font-size: 0.875rem;
-    font-weight: 500;
-    transition: all 0.2s;
-}
-
-.exitButton:hover {
-    background: var(--color-negative);
-    opacity: 0.9;
-}
-
-/* Sistema de Abas */
-.tabsContainer {
-    background: var(--color-surface);
-    border-bottom: 1px solid var(--color-panel);
-    padding: 0 2rem;
-}
-
-.tabsList {
-    display: flex;
-    gap: 0.25rem;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-}
-
-.tabsList::-webkit-scrollbar {
-    display: none;
-}
-
-.tab {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 1rem 1.5rem;
-    background: none;
-    border: none;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    font-size: 0.875rem;
-    font-weight: 500;
-    border-bottom: 3px solid transparent;
-    transition: all 0.3s ease;
-    white-space: nowrap;
-}
-
-.tab:hover {
-    color: var(--color-text);
-    background: var(--color-highlight);
-}
-
-.tabActive {
-    color: var(--color-accent);
-    border-bottom-color: var(--color-accent);
-    background: var(--color-highlight);
-}
-
-.tabIcon {
-    font-size: 1rem;
-}
-
-.tabLabel {
-    font-weight: 600;
-}
-
-/* Conteúdo das Abas */
+/* Conteúdo das abas (a estrutura da página vem do DashboardShell) */
 .tabContent {
     flex: 1;
     background: var(--color-bg);
     overflow: auto;
+}
+
+/* Cabeçalho de página com ação à direita (título usa shellStyles.pageTitle) */
+.pageHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
 }
 
 .tabContentContainer {
@@ -177,31 +49,36 @@
 
 .statCard {
     background: var(--color-surface);
-    border: 1px solid var(--color-highlight);
-    border-radius: 1rem;
+    border: 1px solid var(--admin-border);
+    border-radius: 12px;
     padding: 1.5rem;
     display: flex;
     align-items: center;
     gap: 1rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    transition: all 0.3s ease;
+    box-shadow: var(--admin-shadow);
+    transition: border-color 0.2s ease;
 }
 
 .statCard:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    border-color: var(--color-text-muted);
 }
 
 .statIcon {
-    background: var(--color-accent);
-    color: white;
+    background: var(--admin-selected);
+    color: var(--admin-selected-text);
     width: 3rem;
     height: 3rem;
+    flex-shrink: 0;
     border-radius: 0.75rem;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1.25rem;
+}
+
+.statIconWarning {
+    background: color-mix(in srgb, var(--color-warning) 14%, var(--color-surface));
+    color: var(--color-warning);
 }
 
 .statContent h3 {
@@ -213,24 +90,25 @@
 
 .statNumber {
     font-size: 2rem;
-    font-weight: 700;
+    font-weight: 650;
+    letter-spacing: -0.035em;
     color: var(--color-text);
     margin-bottom: 0.25rem;
 }
 
 .statChange {
     font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--color-positive);
+    font-weight: 500;
+    color: var(--color-text-muted);
 }
 
 /* Seção Hoje */
 .todaySection {
     background: var(--color-surface);
-    border: 1px solid var(--color-highlight);
-    border-radius: 1rem;
+    border: 1px solid var(--admin-border);
+    border-radius: 12px;
     padding: 1.5rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--admin-shadow);
 }
 
 .todaySection h2 {
@@ -263,7 +141,7 @@
 
 .scheduleTime {
     background: var(--color-accent);
-    color: white;
+    color: var(--admin-on-accent);
     padding: 0.25rem 0.75rem;
     border-radius: 0.375rem;
     font-size: 0.75rem;
@@ -296,21 +174,6 @@
 }
 
 @media (max-width: 768px) {
-    .header {
-        padding: 1rem;
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .tabsContainer {
-        padding: 0 1rem;
-    }
-
-    .tab {
-        padding: 0.75rem 1rem;
-        font-size: 0.8rem;
-    }
-
     .visaoGeralContainer {
         padding: 1rem;
     }
@@ -349,57 +212,6 @@
     }
 }
 
-@media (max-width: 480px) {
-    .headerLeft h1 {
-        font-size: 1.25rem;
-    }
-
-    .tab .tabLabel {
-        display: none;
-    }
-
-    .tab {
-        padding: 0.75rem;
-    }
-}
-
-/* Combined Container Styles */
-.combinedContainer {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-}
-
-.subTabBar {
-    display: flex;
-    background: var(--color-surface);
-    border-bottom: 1px solid var(--color-highlight);
-    margin-bottom: 1.5rem;
-}
-
-.subTab {
-    background: none;
-    border: none;
-    padding: 1rem 1.5rem;
-    cursor: pointer;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--color-text-muted);
-    border-bottom: 2px solid transparent;
-    transition: all 0.15s ease;
-}
-
-.subTab:hover {
-    color: var(--color-text);
-    background: var(--color-highlight);
-}
-
-.subTabActive {
-    color: var(--color-accent) !important;
-    border-bottom-color: var(--color-accent);
-    background: var(--color-highlight);
-}
-
 /* Relatórios Grid */
 .relatoriosGrid {
     display: grid;
@@ -413,12 +225,12 @@
     border: 1px solid var(--color-highlight);
     border-radius: 12px;
     padding: 1.5rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    box-shadow: var(--admin-shadow);
     transition: all 0.15s ease;
 }
 
 .relatorioCard:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    box-shadow: var(--admin-shadow);
     transform: translateY(-1px);
 }
 
@@ -446,21 +258,21 @@
 
 .newProposalBtn {
     background: var(--color-accent);
-    color: white;
+    color: var(--admin-on-accent);
     border: none;
     padding: 0.75rem 1.5rem;
     border-radius: 12px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.15s ease;
-    box-shadow: 0 1px 3px rgba(37, 99, 235, 0.2);
+    box-shadow: var(--admin-shadow);
 }
 
 .newProposalBtn:hover {
     background: var(--color-accent);
     opacity: 0.9;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    box-shadow: var(--admin-shadow);
 }
 
 .filtersSection {
@@ -491,7 +303,7 @@
 
 .searchInput:focus {
     border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.05);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 25%, transparent);
 }
 
 .statusFilter {
@@ -530,14 +342,14 @@
 .proposalCard {
     background: var(--color-surface);
     border: 1px solid var(--color-highlight);
-    border-radius: 16px;
+    border-radius: 12px;
     overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    box-shadow: var(--admin-shadow);
     transition: all 0.15s ease;
 }
 
 .proposalCard:hover {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    box-shadow: var(--admin-shadow);
     transform: translateY(-1px);
 }
 
@@ -667,13 +479,13 @@
 }
 
 .approveBtn {
-    background: rgba(46, 204, 113, 0.15);
+    background: color-mix(in srgb, var(--color-positive) 14%, var(--color-surface));
     color: var(--color-positive);
     border-color: var(--color-positive);
 }
 
 .approveBtn:hover {
-    background: rgba(46, 204, 113, 0.25);
+    background: color-mix(in srgb, var(--color-positive) 24%, var(--color-surface));
 }
 
 /* Clientes Styles */
@@ -703,37 +515,36 @@
 
 .newClienteBtn {
     background: var(--color-accent);
-    color: white;
+    color: var(--admin-on-accent);
     border: none;
     padding: 0.75rem 1.5rem;
     border-radius: 12px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.15s ease;
-    box-shadow: 0 1px 3px rgba(37, 99, 235, 0.2);
+    box-shadow: var(--admin-shadow);
 }
 
 .newClienteBtn:hover {
     background: var(--color-accent);
     opacity: 0.9;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    box-shadow: var(--admin-shadow);
 }
 
 .clienteFormContainer {
     background: var(--color-surface);
     padding: 2rem;
-    border-radius: 16px;
-    border: 1px solid var(--color-highlight);
-    margin-bottom: 2rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    border-radius: 12px;
+    border: 1px solid var(--admin-border);
+    box-shadow: var(--admin-shadow);
 }
 
 .clienteFormContainer h3 {
     margin: 0 0 1.5rem 0;
     color: var(--color-text);
     font-size: 1.25rem;
-    font-weight: 600;
+    font-weight: 650;
 }
 
 .clienteForm {
@@ -780,7 +591,7 @@
 
 .formInput:focus {
     border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.05);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 25%, transparent);
 }
 
 .textArea {
@@ -799,7 +610,7 @@
 
 .textArea:focus {
     border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.05);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 25%, transparent);
 }
 
 .formHelper {
@@ -841,7 +652,7 @@
 .submitBtn {
     padding: 0.75rem 1.5rem;
     background: var(--color-accent);
-    color: white;
+    color: var(--admin-on-accent);
     border: none;
     border-radius: 8px;
     font-weight: 500;
@@ -855,16 +666,15 @@
 }
 
 .clienteFormWrapper {
-    padding: 2rem;
-    background: var(--color-surface);
+    margin-bottom: 1.5rem;
 }
 
 .clienteListContainer {
     background: var(--color-surface);
-    border-radius: 16px;
+    border-radius: 12px;
     border: 1px solid var(--color-highlight);
     overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    box-shadow: var(--admin-shadow);
 }
 
 .clienteSearchSection {
@@ -1058,12 +868,12 @@
 }
 
 .statusActive {
-    background: rgba(46, 204, 113, 0.15);
+    background: color-mix(in srgb, var(--color-positive) 14%, var(--color-surface));
     color: var(--color-positive);
 }
 
 .statusInactive {
-    background: rgba(231, 76, 60, 0.15);
+    background: color-mix(in srgb, var(--color-negative) 14%, var(--color-surface));
     color: var(--color-negative);
 }
 
@@ -1089,7 +899,7 @@
 }
 
 .deleteActionBtn:hover {
-    background: rgba(231, 76, 60, 0.15);
+    background: color-mix(in srgb, var(--color-negative) 14%, var(--color-surface));
     border-color: var(--color-negative);
 }
 
@@ -1130,7 +940,7 @@
     border: 1px solid var(--color-highlight);
     border-radius: 12px;
     overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    box-shadow: var(--admin-shadow);
 }
 
 .configCardHeader {
@@ -1191,7 +1001,7 @@
 
 .margemInput:focus {
     border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.05);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 25%, transparent);
 }
 
 .percentSymbol {
@@ -1206,7 +1016,7 @@
 .saveButton {
     padding: 0.875rem 1.5rem;
     background: var(--color-positive);
-    color: white;
+    color: var(--color-surface);
     border: none;
     border-radius: 8px;
     font-size: 0.875rem;
@@ -1220,7 +1030,7 @@
     background: var(--color-positive);
     opacity: 0.9;
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(22, 163, 74, 0.3);
+    box-shadow: var(--admin-shadow);
 }
 
 .margemInfo {
@@ -1256,16 +1066,54 @@
 /* Farol de Vencimentos */
 .farolBox {
     background: var(--color-surface);
-    border: 1px solid var(--color-highlight);
+    border: 1px solid var(--admin-border);
     border-radius: 12px;
     padding: 1.5rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--admin-shadow);
+    color: var(--color-text);
+}
+
+.farolBox h2 {
+    font-size: 1.125rem;
+    font-weight: 650;
+    color: var(--color-text);
+}
+
+.farolDot {
+    display: inline-block;
+    width: 0.625rem;
+    height: 0.625rem;
+    border-radius: 999px;
+    background: var(--color-text-muted);
+    flex-shrink: 0;
+}
+
+.farolDotPositive { background: var(--color-positive); }
+.farolDotWarning { background: var(--color-warning); }
+.farolDotNegative { background: var(--color-negative); }
+
+.farolWhatsapp {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.8rem;
+    background: var(--color-positive);
+    color: var(--color-surface);
+    text-decoration: none;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: opacity 0.2s;
+    cursor: pointer;
+}
+
+.farolWhatsapp:hover {
+    opacity: 0.85;
 }
 
 .farolTable th {
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
     background: var(--color-panel);
 }
 
@@ -1273,33 +1121,48 @@
     vertical-align: middle;
 }
 
-/* =========================================================
-   Mobile: o menu inferior flutuante (MobileTabBar) substitui
-   as tabs do topo; header vira barra compacta e fixa.
-   ========================================================= */
+/* Concessionárias: busca e lista dentro da área padrão */
+.clientesSearch {
+    margin-bottom: 1.5rem;
+}
+
+.clientesResults {
+    background: var(--color-surface);
+    border: 1px solid var(--admin-border);
+    border-radius: 12px;
+    box-shadow: var(--admin-shadow);
+    padding: 1.25rem 1.5rem;
+    overflow: hidden;
+}
+
+.clientesResults h3 {
+    margin: 0;
+    color: var(--color-text);
+    font-size: 1rem;
+    font-weight: 650;
+}
+
+.iconAction {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-muted);
+}
+
+.iconAction:hover {
+    color: var(--color-text);
+}
+
+.iconActionDanger {
+    color: var(--color-negative);
+}
+
+.iconActionDanger:hover {
+    color: var(--color-negative);
+}
+
 @media (max-width: 768px) {
-    .header {
-        flex-direction: row;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem 1rem;
-        padding-top: calc(0.5rem + env(safe-area-inset-top, 0px));
-        position: sticky;
-        top: 0;
-        z-index: 900;
-    }
-
-    .logo {
-        width: 8.5rem;
-        height: auto;
-    }
-
-    .tabsContainer {
-        display: none;
-    }
-
-    .tabContent {
-        /* Espaço para o menu inferior flutuante */
-        padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+    .clientesResults {
+        padding: 1rem;
     }
 }

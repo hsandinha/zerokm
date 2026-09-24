@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { MessageCircle } from 'lucide-react';
 import styles from './operator.module.css';
 
 interface CarteiraClient {
@@ -36,7 +37,7 @@ export function FarolVencimentos() {
     if (clients.length === 0) {
         return (
             <div className={styles.farolBox}>
-                <h2>Carteira de Clientes (Farol)</h2>
+                <h2>Carteira de clientes (farol)</h2>
                 <p>Nenhuma concessionária na sua carteira possui assinaturas no momento.</p>
             </div>
         );
@@ -47,16 +48,16 @@ export function FarolVencimentos() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
                 <h2 style={{ margin: 0 }}>Farol de Vencimentos</h2>
                 <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.8rem' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><span style={{ color: '#ef4444' }}>🔴</span> Vencido / Sem acesso</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><span style={{ color: '#f59e0b' }}>🟡</span> Próx. 5 dias</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><span style={{ color: '#10b981' }}>🟢</span> Regular</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--color-text-muted)' }}><span className={`${styles.farolDot} ${styles.farolDotNegative}`} aria-hidden="true" /> Vencido / sem acesso</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--color-text-muted)' }}><span className={`${styles.farolDot} ${styles.farolDotWarning}`} aria-hidden="true" /> Próx. 5 dias</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--color-text-muted)' }}><span className={`${styles.farolDot} ${styles.farolDotPositive}`} aria-hidden="true" /> Regular</span>
                 </div>
             </div>
 
             <div style={{ overflowX: 'auto' }}>
                 <table className={styles.farolTable} style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
                     <thead>
-                        <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                        <tr style={{ borderBottom: '1px solid var(--admin-border)' }}>
                             <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Status</th>
                             <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Cliente (Loja)</th>
                             <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Responsável</th>
@@ -67,24 +68,24 @@ export function FarolVencimentos() {
                     </thead>
                     <tbody>
                         {clients.map(client => {
-                            let dot = '⚪';
+                            let dotClass = styles.farolDot;
                             let rowBg = 'transparent';
                             if (client.status === 'expired' || client.status === 'no_plan') {
-                                dot = '🔴';
-                                rowBg = '#ef444410'; // soft red
+                                dotClass = `${styles.farolDot} ${styles.farolDotNegative}`;
+                                rowBg = 'color-mix(in srgb, var(--color-negative) 6%, transparent)';
                             } else if (client.status === 'expiring_soon') {
-                                dot = '🟡';
-                                rowBg = '#f59e0b10'; // soft yellow
+                                dotClass = `${styles.farolDot} ${styles.farolDotWarning}`;
+                                rowBg = 'color-mix(in srgb, var(--color-warning) 8%, transparent)';
                             } else if (client.status === 'active') {
-                                dot = '🟢';
+                                dotClass = `${styles.farolDot} ${styles.farolDotPositive}`;
                             }
 
                             return (
-                                <tr key={client.id} style={{ borderBottom: '1px solid var(--color-border)', backgroundColor: rowBg }}>
-                                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'center' }} title={client.status}>{dot}</td>
+                                <tr key={client.id} style={{ borderBottom: '1px solid var(--admin-border)', backgroundColor: rowBg }}>
+                                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'center' }} title={client.status}><span className={dotClass} aria-hidden="true" /></td>
                                     <td style={{ padding: '0.75rem 0.5rem', fontWeight: 600 }}>{client.nome}</td>
                                     <td style={{ padding: '0.75rem 0.5rem', fontSize: '0.9rem' }}>
-                                        {client.responsavel || '—'}
+                                        {client.responsavel || '-'}
                                         {client.telefone && <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{client.telefone}</div>}
                                     </td>
                                     <td style={{ padding: '0.75rem 0.5rem', fontSize: '0.9rem' }}>{client.paymentMethod}</td>
@@ -93,12 +94,12 @@ export function FarolVencimentos() {
                                             <>
                                                 {new Date(client.expiresAt).toLocaleDateString('pt-BR')}
                                                 {client.daysUntilExpiry !== null && (
-                                                    <span style={{ display: 'block', fontSize: '0.75rem', color: client.daysUntilExpiry <= 5 ? '#ef4444' : 'var(--color-text-muted)' }}>
+                                                    <span style={{ display: 'block', fontSize: '0.75rem', color: client.daysUntilExpiry <= 5 ? 'var(--color-negative)' : 'var(--color-text-muted)' }}>
                                                         {client.daysUntilExpiry < 0 ? `há ${Math.abs(client.daysUntilExpiry)} dias` : `em ${client.daysUntilExpiry} dias`}
                                                     </span>
                                                 )}
                                             </>
-                                        ) : '—'}
+                                        ) : '-'}
                                     </td>
                                     <td style={{ padding: '0.75rem 0.5rem', textAlign: 'center' }}>
                                         {client.telefone && (
@@ -106,24 +107,9 @@ export function FarolVencimentos() {
                                                 href={`https://wa.me/55${client.telefone.replace(/\D/g, '')}?text=Olá,%20notamos%20que%20o%20plano%20da%20sua%20loja%20ZeroKM%20precisa%20de%20atenção.`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                style={{
-                                                    display: 'inline-flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    padding: '0.4rem 0.8rem',
-                                                    backgroundColor: '#25D366',
-                                                    color: 'white',
-                                                    textDecoration: 'none',
-                                                    borderRadius: '6px',
-                                                    fontSize: '0.8rem',
-                                                    fontWeight: 'bold',
-                                                    transition: 'opacity 0.2s',
-                                                    cursor: 'pointer'
-                                                }}
-                                                onMouseOver={e => e.currentTarget.style.opacity = '0.8'}
-                                                onMouseOut={e => e.currentTarget.style.opacity = '1'}
+                                                className={styles.farolWhatsapp}
                                             >
-                                                📱 Contatar
+                                                <MessageCircle size={14} aria-hidden="true" /> Contatar
                                             </a>
                                         )}
                                     </td>

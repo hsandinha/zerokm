@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import styles from '../admin/ConfiguracoesManagement.module.css'; // Reusing admin styles
 import { BannerPaymentModal } from './BannerPaymentModal';
+import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
 
 interface Banner {
     _id: string;
@@ -18,6 +19,7 @@ export function MeusAnuncios() {
     const [banners, setBanners] = useState<Banner[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isCreating, setIsCreating] = useState(false);
+    const [formError, setFormError] = useState<string | null>(null);
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
 
     const [bannerConfig, setBannerConfig] = useState({ price_cents: 5000, duration_days: 7 });
@@ -97,18 +99,20 @@ export function MeusAnuncios() {
         if (!file) return;
 
         if (!file.type.startsWith('image/')) {
-            setFeedback({ type: 'error', msg: 'Apenas arquivos de imagem (JPEG, PNG, etc) são permitidos.' });
+            setFormError('Apenas arquivos de imagem (JPEG, PNG, etc) são permitidos.');
             return;
         }
 
         if (file.size > 2 * 1024 * 1024) { // 2MB limit
-            setFeedback({ type: 'error', msg: 'A imagem deve ter no máximo 2MB.' });
+            setFormError('A imagem deve ter no máximo 2MB.');
             return;
         }
 
+        setFormError(null);
+
         const reader = new FileReader();
         reader.onloadend = () => {
-            setNewBanner({ ...newBanner, imageBase64: reader.result as string });
+            setNewBanner(prev => ({ ...prev, imageBase64: reader.result as string }));
         };
         reader.readAsDataURL(file);
     };
@@ -116,17 +120,40 @@ export function MeusAnuncios() {
     const handleCreateBanner = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newBanner.title || !newBanner.imageBase64) {
-            setFeedback({ type: 'error', msg: 'Título e imagem são obrigatórios.' });
+            setFormError('Título e imagem são obrigatórios.');
             return;
         }
 
+        setFormError(null);
         setFeedback(null);
+        // Um modal por vez: o cadastro fecha (mantendo os dados) e abre o pagamento.
+        setIsCreating(false);
         setShowModal(true);
+    };
+
+    const openCreate = () => {
+        setNewBanner({ title: '', linkUrl: '', imageBase64: '' });
+        setFormError(null);
+        setIsCreating(true);
+    };
+
+    const closeCreate = () => {
+        setIsCreating(false);
+        setNewBanner({ title: '', linkUrl: '', imageBase64: '' });
+        setFormError(null);
+    };
+
+    // Fechar o pagamento sem concluir volta ao cadastro com os dados preenchidos.
+    const handlePaymentClose = () => {
+        setShowModal(false);
+        setIsCreating(true);
     };
 
     const handleSuccess = () => {
         setShowModal(false);
+        setIsCreating(false);
         setNewBanner({ title: '', linkUrl: '', imageBase64: '' });
+        setFormError(null);
         carregarBanners();
         setFeedback({ type: 'success', msg: 'Pagamento recebido! Seu banner será analisado pela equipe.' });
     };
@@ -137,11 +164,16 @@ export function MeusAnuncios() {
 
     return (
         <div className={styles.container}>
-            <div className={styles.header}>
-                <h2 className={styles.title}>Meus Anúncios (Banners)</h2>
-                <p className={styles.subtitle}>
-                    Anuncie seus veículos na tela inicial dos Clientes. O valor é de <strong>R$ {(bannerConfig.price_cents / 100).toFixed(2)}</strong> por um período de <strong>{bannerConfig.duration_days} dias</strong>.
-                </p>
+            <div className={styles.header} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                <div>
+                    <h2 className={styles.title}>Meus Anúncios (Banners)</h2>
+                    <p className={styles.subtitle}>
+                        Anuncie seus veículos na tela inicial dos Clientes. O valor é de <strong>R$ {(bannerConfig.price_cents / 100).toFixed(2)}</strong> por um período de <strong>{bannerConfig.duration_days} dias</strong>.
+                    </p>
+                </div>
+                <button type="button" className={styles.btnSave} onClick={openCreate}>
+                    Novo anúncio
+                </button>
             </div>
 
             {feedback && (
@@ -150,54 +182,60 @@ export function MeusAnuncios() {
                 </div>
             )}
 
-            <form onSubmit={handleCreateBanner} className={styles.form}>
-                <div className={styles.formGroupPanel}>
-                    <h3 className={styles.groupTitle}>Criar Novo Anúncio</h3>
-                    <div className={styles.grid2}>
-                        <div className={styles.formGroup}>
-                            <label>Título do Anúncio</label>
-                            <input 
+            {isCreating && (
+                <AdminModal
+                    title="Novo anúncio"
+                    subtitle={<>Valor de R$ {(bannerConfig.price_cents / 100).toFixed(2)} por {bannerConfig.duration_days} dias. O pagamento é feito na próxima etapa.</>}
+                    onClose={closeCreate}
+                    size="md"
+                    onSubmit={handleCreateBanner}
+                    footer={<>
+                        <button type="button" className={modalStyles.secondary} onClick={closeCreate}>Cancelar</button>
+                        <button type="submit" className={modalStyles.primary}>Pagar e publicar anúncio</button>
+                    </>}
+                >
+                    <div className={modalStyles.grid2}>
+                        <label className={modalStyles.field}>
+                            Título do anúncio
+                            <input
                                 type="text"
                                 placeholder="Ex: Creta 2024 Imperdível"
                                 value={newBanner.title}
-                                onChange={e => setNewBanner({...newBanner, title: e.target.value})}
-                                className={styles.input}
+                                onChange={e => setNewBanner({ ...newBanner, title: e.target.value })}
                             />
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label>Link para o Veículo (Opcional)</label>
-                            <input 
+                        </label>
+                        <label className={modalStyles.field}>
+                            Link para o veículo (opcional)
+                            <input
                                 type="url"
                                 placeholder="https://wa.me/..."
                                 value={newBanner.linkUrl}
-                                onChange={e => setNewBanner({...newBanner, linkUrl: e.target.value})}
-                                className={styles.input}
+                                onChange={e => setNewBanner({ ...newBanner, linkUrl: e.target.value })}
                             />
-                        </div>
-                        <div className={styles.formGroupFull}>
-                            <label>Imagem do Banner (Recomendado: 1200x300, máx 2MB)</label>
-                            <input 
+                        </label>
+                        <label className={`${modalStyles.field} ${modalStyles.span2}`}>
+                            Imagem do banner
+                            <input
                                 type="file"
                                 accept="image/*"
                                 onChange={handleImageUpload}
-                                className={styles.input}
                                 style={{ padding: '0.5rem' }}
                             />
-                            {newBanner.imageBase64 && (
-                                <div style={{ marginTop: '1rem' }}>
-                                    <img src={newBanner.imageBase64} alt="Preview" style={{ maxWidth: '100%', maxHeight: '150px', borderRadius: '8px', border: '1px solid #ccc' }} />
-                                </div>
-                            )}
-                        </div>
+                            <span className={modalStyles.hint}>Recomendado: 1200x300, máx. 2MB.</span>
+                        </label>
+                        {newBanner.imageBase64 && (
+                            <div className={modalStyles.span2}>
+                                <img src={newBanner.imageBase64} alt="Prévia do banner" style={{ maxWidth: '100%', maxHeight: '150px', borderRadius: '8px', border: '1px solid var(--color-highlight)' }} />
+                            </div>
+                        )}
+                        {formError && (
+                            <div className={`${styles.feedback} ${styles.feedbackError} ${modalStyles.span2}`} role="alert" style={{ marginBottom: 0 }}>
+                                {formError}
+                            </div>
+                        )}
                     </div>
-                </div>
-
-                <div className={styles.formActions}>
-                    <button type="submit" disabled={isCreating} className={styles.btnSave}>
-                        {isCreating ? 'Aguarde...' : 'Pagar e Publicar Anúncio'}
-                    </button>
-                </div>
-            </form>
+                </AdminModal>
+            )}
 
             <div className={styles.formGroupPanel} style={{ marginTop: '2rem' }}>
                 <h3 className={styles.groupTitle}>Histórico de Anúncios</h3>
@@ -248,7 +286,7 @@ export function MeusAnuncios() {
                         linkUrl: newBanner.linkUrl,
                         amount: bannerConfig.price_cents / 100
                     }}
-                    onClose={() => setShowModal(false)} 
+                    onClose={handlePaymentClose}
                     onSuccess={handleSuccess} 
                 />
             )}

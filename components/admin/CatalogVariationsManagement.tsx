@@ -170,6 +170,8 @@ export function CatalogVariationsManagement() {
 
     const [selectedVariations, setSelectedVariations] = useState<string[]>([]);
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [formOpen, setFormOpen] = useState(false);
+    const [importOpen, setImportOpen] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [bulkDeleting, setBulkDeleting] = useState(false);
 
@@ -213,6 +215,30 @@ export function CatalogVariationsManagement() {
         setForm(EMPTY_FORM);
         setEditingId(null);
         setFeedback(null);
+    };
+
+    const openNewVariation = () => {
+        resetForm();
+        setFipeReset(value => value + 1);
+        setFormOpen(true);
+    };
+
+    const closeForm = () => {
+        if (saving) return;
+        resetForm();
+        setFipeReset(value => value + 1);
+        setFormOpen(false);
+    };
+
+    const openImport = () => {
+        setFeedback(null);
+        setImportOpen(true);
+    };
+
+    const closeImport = () => {
+        if (importLoading) return;
+        setFeedback(null);
+        setImportOpen(false);
     };
 
     /**
@@ -270,7 +296,9 @@ export function CatalogVariationsManagement() {
             opcionais: variation.opcionais || variation.opcionaisPadrao?.join(', ') || '',
         });
         setEditingId(variation.id);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setFeedback(null);
+        setFipeReset(value => value + 1);
+        setFormOpen(true);
     };
 
     const handleDeleteOne = async (id: string) => {
@@ -415,6 +443,7 @@ export function CatalogVariationsManagement() {
             setForm(EMPTY_FORM);
             setEditingId(null);
             setFipeReset(value => value + 1);
+            setFormOpen(false);
             await Promise.all([loadMarcas(), loadVariations()]);
         } catch (error: any) {
             setFeedback({ type: 'error', message: error?.message || `Erro ao ${editingId ? 'atualizar' : 'salvar'} variação` });
@@ -455,6 +484,7 @@ export function CatalogVariationsManagement() {
             if (!res.ok) throw new Error(data.error || 'Erro ao pré-visualizar importação');
 
             setImportPreview(data);
+            setImportOpen(false);
         } catch (error: any) {
             setFeedback({ type: 'error', message: error?.message || 'Erro ao pré-visualizar importação' });
         } finally {
@@ -507,212 +537,24 @@ export function CatalogVariationsManagement() {
                     <h2 className={styles.title}>Catálogo</h2>
                     <p className={styles.subtitle}>Cadastre variações por marca para disponibilizar às concessionárias.</p>
                 </div>
-                <button type="button" className={styles.secondaryButton} onClick={loadAll} disabled={loading || saving}>
-                    Atualizar
-                </button>
-            </div>
-
-            {feedback && (
-                <div className={`${styles.feedback} ${feedback.type === 'error' ? styles.feedbackError : styles.feedbackSuccess}`}>
-                    {feedback.message}
-                </div>
-            )}
-
-            <div className={styles.panel}>
-                <div className={styles.panelHeader}>
-                    <h3>Importar catálogo</h3>
-                </div>
-
-                <div className={styles.importGrid}>
-                    <div className={styles.importSource}>
-                        <span>Origem</span>
-                        <div className={styles.segmentedControl}>
-                            <button
-                                type="button"
-                                className={importSourceType === 'googleSheets' ? styles.segmentActive : ''}
-                                onClick={() => { setImportSourceType('googleSheets'); setImportPreview(null); }}
-                            >
-                                Google Sheets
-                            </button>
-                            <button
-                                type="button"
-                                className={importSourceType === 'csv' ? styles.segmentActive : ''}
-                                onClick={() => { setImportSourceType('csv'); setImportPreview(null); }}
-                            >
-                                CSV
-                            </button>
-                        </div>
-                    </div>
-
-                    {importSourceType === 'googleSheets' ? (
-                        <label className={styles.wideInput}>
-                            Link do Google Sheets
-                            <input
-                                value={importSheetUrl}
-                                onChange={event => { setImportSheetUrl(event.target.value); setImportPreview(null); }}
-                                placeholder="https://docs.google.com/spreadsheets/d/..."
-                            />
-                        </label>
-                    ) : (
-                        <label className={styles.wideInput}>
-                            Arquivo CSV
-                            <input type="file" accept=".csv,text/csv" onChange={handleCsvFileChange} />
-                            {importCsvFileName && <span className={styles.fileName}>{importCsvFileName}</span>}
-                        </label>
-                    )}
-                </div>
-
-            <label style={{ display: 'flex', gap: 8, margin: '12px 0', alignItems: 'center' }}>
-                <input type="checkbox" checked={consultarFipe} onChange={event => { setConsultarFipe(event.target.checked); setImportPreview(null); }} />
-                Consultar FIPE na prévia do CSV / planilha (código, tipo e ano-modelo)
-            </label>
-            <p className={styles.subtitle}>Preenche apenas campos vazios. Divergências aparecem na prévia. Sem código, mantém o cadastro manual. Até 40 consultas por prévia; linhas restantes podem ser vinculadas depois.</p>
-                <div className={styles.importActions}>
-                    <p>Use as colunas: Marca, Modelo, Ano, Combustível, Cor, Câmbio e Opcionais.</p>
-                    <button type="button" className={styles.secondaryButton} onClick={previewImport} disabled={importLoading || saving}>
-                        {importLoading ? 'Lendo e consultando...' : 'Pré-visualizar importação'}
+                <div className={styles.headerActions}>
+                    <button type="button" className={styles.secondaryButton} onClick={loadAll} disabled={loading || saving}>
+                        Atualizar
+                    </button>
+                    <button type="button" className={styles.secondaryButton} onClick={openImport}>
+                        Importar
+                    </button>
+                    <button type="button" className={styles.primaryButton} onClick={openNewVariation}>
+                        Nova variação
                     </button>
                 </div>
             </div>
 
-            <div className={styles.layout}>
-                <form className={styles.panel} onSubmit={saveVariation}>
-                    <div className={styles.panelHeader}>
-                        <h3>{editingId ? 'Editar variação' : 'Nova variação'}</h3>
-                        <button type="button" className={styles.linkButton} onClick={() => { resetForm(); setFipeReset(value => value + 1); }}>
-                            {editingId ? 'Cancelar edição' : 'Limpar'}
-                        </button>
-                    </div>
-
-                    <p className={fipeStyles.status}>Digite a marca e o modelo para escolher na lista da FIPE, ou informe o código FIPE. Se não encontrar, continue digitando para cadastrar manualmente.</p>
-
-                    <div className={styles.formGrid}>
-                        <label>Código FIPE (opcional)<input value={form.codigoFipe} onChange={event => { void handleFipeCode(event.target.value); }} placeholder="000000-0" inputMode="numeric" /></label>
-                        <AutocompleteField
-                            label="Marca"
-                            value={form.marca}
-                            options={fipe.brands}
-                            loading={fipe.loading === 'brands'}
-                            onOpen={() => { void fipe.loadBrands(); }}
-                            placeholder="Digite para buscar na FIPE. Ex.: Fiat"
-                            onText={text => { fipe.clearBrand(); if (!fipe.brands.length) void fipe.loadBrands(); setForm(prev => ({ ...prev, marca: text, codigoFipe: '', descricaoFipe: '' })); }}
-                            onPick={option => {
-                                void fipe.pickBrand(option.code);
-                                setForm(prev => ({ ...prev, marca: toLocalMarca(option.name), codigoFipe: '', descricaoFipe: '',
-                                    // Troca de marca invalida modelo e combustível que vieram da FIPE.
-                                    ...(prev.descricaoFipe || prev.codigoFipe ? { modelo: '', combustivel: '' } : {}) }));
-                            }}
-                        />
-
-                        <AutocompleteField
-                            label="Modelo"
-                            value={form.modelo}
-                            options={fipe.models}
-                            loading={fipe.loading === 'models'}
-                            emptyText={fipe.brandCode ? undefined : 'Escolha a marca na lista da FIPE para ver os modelos.'}
-                            placeholder={fipe.brandCode ? 'Digite para filtrar os modelos da FIPE' : 'Ex.: Corolla XEI 2.0 Hybrid'}
-                            onText={text => setForm(prev => ({ ...prev, modelo: text }))}
-                            onPick={option => {
-                                void fipe.pickModel(option.code);
-                                setForm(prev => ({ ...prev, modelo: option.name, descricaoFipe: option.name, codigoFipe: '' }));
-                            }}
-                        />
-
-                        {fipe.years.length > 0 && (
-                            <label>
-                                Ano-modelo / combustível FIPE
-                                <select value={fipe.year} onChange={async event => { const detail = await fipe.pickYear(event.target.value); if (detail) applyFipeDetail(detail); }}>
-                                    <option value="">Selecione…</option>
-                                    {fipe.years.map(option => <option key={option.code} value={option.code}>{option.name}</option>)}
-                                </select>
-                            </label>
-                        )}
-
-                        <label>
-                            Tipo
-                            <select
-                                value={form.tipoVeiculo}
-                                onChange={event => { fipe.clearBrand(); setForm(prev => ({ ...prev, tipoVeiculo: event.target.value, codigoFipe: '', descricaoFipe: '' })); }}
-                            >
-                                <option value="">Automático pela marca ({TIPO_LABELS[effectiveTipo] || effectiveTipo})</option>
-                                <option value="carro">Carro</option>
-                                <option value="moto">Moto</option>
-                                <option value="caminhao">Caminhão</option>
-                                <option value="utilitario">Utilitário</option>
-                            </select>
-                        </label>
-
-                        {effectiveTipo === 'moto' && (
-                            <label>
-                                Cilindrada (cc)
-                                <input
-                                    type="number"
-                                    min={50}
-                                    step={1}
-                                    value={form.cilindrada}
-                                    onChange={event => setForm(prev => ({ ...prev, cilindrada: event.target.value }))}
-                                    placeholder="Ex.: 160"
-                                />
-                            </label>
-                        )}
-
-                        <label>
-                            Ano
-                            <input
-                                value={form.ano}
-                                onChange={event => setForm(prev => ({ ...prev, ano: event.target.value }))}
-                                placeholder="26/26"
-                            />
-                        </label>
-
-                        <label>
-                            Combustível
-                            <input
-                                value={form.combustivel}
-                                onChange={event => setForm(prev => ({ ...prev, combustivel: event.target.value }))}
-                                placeholder="Flex, Diesel, Elétrico..."
-                            />
-                        </label>
-
-                        <label>
-                            Cor
-                            <input
-                                value={form.cor}
-                                onChange={event => setForm(prev => ({ ...prev, cor: event.target.value }))}
-                                placeholder="Ex.: Branco, Preto..."
-                            />
-                        </label>
-
-                        <label>
-                            Câmbio
-                            <input
-                                value={form.transmissao}
-                                onChange={event => setForm(prev => ({ ...prev, transmissao: event.target.value }))}
-                                placeholder="Automática, Manual, CVT..."
-                            />
-                        </label>
-
-                        <label className={styles.wideField}>
-                            Opcionais
-                            <input
-                                value={form.opcionais}
-                                onChange={event => setForm(prev => ({ ...prev, opcionais: event.target.value }))}
-                                placeholder="Itens de série, taxa zero..."
-                            />
-                        </label>
-
-                        {form.descricaoFipe && <p className={fipeStyles.status}>Descrição FIPE: {form.descricaoFipe}{form.codigoFipe ? ` · código ${form.codigoFipe}` : ''}</p>}
-                        {['code', 'years', 'detail'].includes(fipe.loading) && <p className={fipeStyles.status} role="status">Consultando FIPE…</p>}
-                        {fipe.error && <p className={fipeStyles.status} role="alert">{fipe.error}</p>}
-                    </div>
-
-                    <div className={styles.actions}>
-                        <button type="submit" className={styles.primaryButton} disabled={saving}>
-                            {saving ? 'Salvando...' : editingId ? 'Atualizar variação' : 'Criar variação'}
-                        </button>
-                    </div>
-                </form>
-            </div>
+            {feedback && !formOpen && !importOpen && !importPreview && (
+                <div className={`${styles.feedback} ${feedback.type === 'error' ? styles.feedbackError : styles.feedbackSuccess}`}>
+                    {feedback.message}
+                </div>
+            )}
 
             <div className={styles.listPanel}>
                 <div className={styles.listHeader}>
@@ -836,6 +678,218 @@ export function CatalogVariationsManagement() {
                 </div>
             </div>
 
+            {formOpen && (
+                <AdminModal
+                    size="lg"
+                    title={editingId ? 'Editar variação' : 'Nova variação'}
+                    subtitle="Digite a marca e o modelo para escolher na lista da FIPE, ou informe o código FIPE. Se não encontrar, continue digitando para cadastrar manualmente."
+                    onClose={closeForm}
+                    busy={saving}
+                    onSubmit={saveVariation}
+                    footer={<>
+                        <button type="button" className={modalStyles.secondary} onClick={closeForm} disabled={saving}>Cancelar</button>
+                        <button type="submit" className={modalStyles.primary} disabled={saving}>
+                            {saving ? 'Salvando...' : editingId ? 'Atualizar variação' : 'Criar variação'}
+                        </button>
+                    </>}
+                >
+                    <div className={modalStyles.stack}>
+                        {feedback?.type === 'error' && (
+                            <div className={`${styles.feedback} ${styles.feedbackError}`} role="alert">
+                                {feedback.message}
+                            </div>
+                        )}
+                        <div className={styles.formGrid}>
+                            <label>Código FIPE (opcional)<input value={form.codigoFipe} onChange={event => { void handleFipeCode(event.target.value); }} placeholder="000000-0" inputMode="numeric" /></label>
+                            <AutocompleteField
+                                label="Marca"
+                                value={form.marca}
+                                options={fipe.brands}
+                                loading={fipe.loading === 'brands'}
+                                onOpen={() => { void fipe.loadBrands(); }}
+                                placeholder="Digite para buscar na FIPE. Ex.: Fiat"
+                                onText={text => { fipe.clearBrand(); if (!fipe.brands.length) void fipe.loadBrands(); setForm(prev => ({ ...prev, marca: text, codigoFipe: '', descricaoFipe: '' })); }}
+                                onPick={option => {
+                                    void fipe.pickBrand(option.code);
+                                    setForm(prev => ({ ...prev, marca: toLocalMarca(option.name), codigoFipe: '', descricaoFipe: '',
+                                        // Troca de marca invalida modelo e combustível que vieram da FIPE.
+                                        ...(prev.descricaoFipe || prev.codigoFipe ? { modelo: '', combustivel: '' } : {}) }));
+                                }}
+                            />
+
+                            <AutocompleteField
+                                label="Modelo"
+                                value={form.modelo}
+                                options={fipe.models}
+                                loading={fipe.loading === 'models'}
+                                emptyText={fipe.brandCode ? undefined : 'Escolha a marca na lista da FIPE para ver os modelos.'}
+                                placeholder={fipe.brandCode ? 'Digite para filtrar os modelos da FIPE' : 'Ex.: Corolla XEI 2.0 Hybrid'}
+                                onText={text => setForm(prev => ({ ...prev, modelo: text }))}
+                                onPick={option => {
+                                    void fipe.pickModel(option.code);
+                                    setForm(prev => ({ ...prev, modelo: option.name, descricaoFipe: option.name, codigoFipe: '' }));
+                                }}
+                            />
+
+                            {fipe.years.length > 0 && (
+                                <label>
+                                    Ano-modelo / combustível FIPE
+                                    <select value={fipe.year} onChange={async event => { const detail = await fipe.pickYear(event.target.value); if (detail) applyFipeDetail(detail); }}>
+                                        <option value="">Selecione…</option>
+                                        {fipe.years.map(option => <option key={option.code} value={option.code}>{option.name}</option>)}
+                                    </select>
+                                </label>
+                            )}
+
+                            <label>
+                                Tipo
+                                <select
+                                    value={form.tipoVeiculo}
+                                    onChange={event => { fipe.clearBrand(); setForm(prev => ({ ...prev, tipoVeiculo: event.target.value, codigoFipe: '', descricaoFipe: '' })); }}
+                                >
+                                    <option value="">Automático pela marca ({TIPO_LABELS[effectiveTipo] || effectiveTipo})</option>
+                                    <option value="carro">Carro</option>
+                                    <option value="moto">Moto</option>
+                                    <option value="caminhao">Caminhão</option>
+                                    <option value="utilitario">Utilitário</option>
+                                </select>
+                            </label>
+
+                            {effectiveTipo === 'moto' && (
+                                <label>
+                                    Cilindrada (cc)
+                                    <input
+                                        type="number"
+                                        min={50}
+                                        step={1}
+                                        value={form.cilindrada}
+                                        onChange={event => setForm(prev => ({ ...prev, cilindrada: event.target.value }))}
+                                        placeholder="Ex.: 160"
+                                    />
+                                </label>
+                            )}
+
+                            <label>
+                                Ano
+                                <input
+                                    value={form.ano}
+                                    onChange={event => setForm(prev => ({ ...prev, ano: event.target.value }))}
+                                    placeholder="26/26"
+                                />
+                            </label>
+
+                            <label>
+                                Combustível
+                                <input
+                                    value={form.combustivel}
+                                    onChange={event => setForm(prev => ({ ...prev, combustivel: event.target.value }))}
+                                    placeholder="Flex, Diesel, Elétrico..."
+                                />
+                            </label>
+
+                            <label>
+                                Cor
+                                <input
+                                    value={form.cor}
+                                    onChange={event => setForm(prev => ({ ...prev, cor: event.target.value }))}
+                                    placeholder="Ex.: Branco, Preto..."
+                                />
+                            </label>
+
+                            <label>
+                                Câmbio
+                                <input
+                                    value={form.transmissao}
+                                    onChange={event => setForm(prev => ({ ...prev, transmissao: event.target.value }))}
+                                    placeholder="Automática, Manual, CVT..."
+                                />
+                            </label>
+
+                            <label className={styles.wideField}>
+                                Opcionais
+                                <input
+                                    value={form.opcionais}
+                                    onChange={event => setForm(prev => ({ ...prev, opcionais: event.target.value }))}
+                                    placeholder="Itens de série, taxa zero..."
+                                />
+                            </label>
+
+                            {form.descricaoFipe && <p className={fipeStyles.status}>Descrição FIPE: {form.descricaoFipe}{form.codigoFipe ? ` · código ${form.codigoFipe}` : ''}</p>}
+                            {['code', 'years', 'detail'].includes(fipe.loading) && <p className={fipeStyles.status} role="status">Consultando FIPE…</p>}
+                            {fipe.error && <p className={fipeStyles.status} role="alert">{fipe.error}</p>}
+                        </div>
+                    </div>
+                </AdminModal>
+            )}
+
+            {importOpen && (
+                <AdminModal
+                    size="md"
+                    title="Importar catálogo"
+                    subtitle="Use as colunas: Marca, Modelo, Ano, Combustível, Cor, Câmbio e Opcionais."
+                    onClose={closeImport}
+                    busy={importLoading}
+                    footer={<>
+                        <button type="button" className={modalStyles.secondary} onClick={closeImport} disabled={importLoading}>Cancelar</button>
+                        <button type="button" className={modalStyles.primary} onClick={previewImport} disabled={importLoading}>
+                            {importLoading ? 'Lendo e consultando...' : 'Pré-visualizar importação'}
+                        </button>
+                    </>}
+                >
+                    <div className={modalStyles.stack}>
+                        {feedback?.type === 'error' && (
+                            <div className={`${styles.feedback} ${styles.feedbackError}`} role="alert">
+                                {feedback.message}
+                            </div>
+                        )}
+                        <div className={modalStyles.field}>
+                            <span>Origem</span>
+                            <div className={styles.segmentedControl}>
+                                <button
+                                    type="button"
+                                    className={importSourceType === 'googleSheets' ? styles.segmentActive : ''}
+                                    onClick={() => { setImportSourceType('googleSheets'); setImportPreview(null); }}
+                                >
+                                    Google Sheets
+                                </button>
+                                <button
+                                    type="button"
+                                    className={importSourceType === 'csv' ? styles.segmentActive : ''}
+                                    onClick={() => { setImportSourceType('csv'); setImportPreview(null); }}
+                                >
+                                    CSV
+                                </button>
+                            </div>
+                        </div>
+
+                        {importSourceType === 'googleSheets' ? (
+                            <label className={modalStyles.field}>
+                                Link do Google Sheets
+                                <input
+                                    value={importSheetUrl}
+                                    onChange={event => { setImportSheetUrl(event.target.value); setImportPreview(null); }}
+                                    placeholder="https://docs.google.com/spreadsheets/d/..."
+                                />
+                            </label>
+                        ) : (
+                            <label className={modalStyles.field}>
+                                Arquivo CSV
+                                <input type="file" accept=".csv,text/csv" onChange={handleCsvFileChange} />
+                                {importCsvFileName && <span className={styles.fileName}>{importCsvFileName}</span>}
+                            </label>
+                        )}
+
+                        <label className={styles.checkboxField}>
+                            <input type="checkbox" checked={consultarFipe} onChange={event => { setConsultarFipe(event.target.checked); setImportPreview(null); }} />
+                            <span>
+                                Consultar FIPE na prévia do CSV / planilha (código, tipo e ano-modelo)
+                                <span className={modalStyles.hint}>Preenche apenas campos vazios. Divergências aparecem na prévia. Sem código, mantém o cadastro manual. Até 40 consultas por prévia; linhas restantes podem ser vinculadas depois.</span>
+                            </span>
+                        </label>
+                    </div>
+                </AdminModal>
+            )}
+
             {importPreview && (
                 <AdminModal
                     title="Prévia da importação"
@@ -857,6 +911,11 @@ export function CatalogVariationsManagement() {
                         </button>
                     </>}
                 >
+                    {feedback?.type === 'error' && (
+                        <div className={`${styles.feedback} ${styles.feedbackError}`} role="alert">
+                            {feedback.message}
+                        </div>
+                    )}
                     <div className={styles.summaryGrid}>
                         <div>
                             <strong>{importPreview.summary.total}</strong>

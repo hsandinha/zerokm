@@ -5,7 +5,6 @@
 }
 
 .header,
-.panelHeader,
 .listHeader {
     display: flex;
     align-items: flex-start;
@@ -27,13 +26,12 @@
     font-size: 0.92rem;
 }
 
-.layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 1rem;
+.headerActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
 }
 
-.panel,
 .listPanel {
     border: 1px solid var(--color-highlight);
     border-radius: 8px;
@@ -41,7 +39,6 @@
     padding: 1rem;
 }
 
-.panelHeader h3,
 .listHeader h3 {
     margin: 0;
     color: var(--color-text);
@@ -53,14 +50,6 @@
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.85rem;
-    margin-top: 1rem;
-}
-
-.importGrid {
-    display: grid;
-    grid-template-columns: 220px minmax(0, 1fr);
-    gap: 0.85rem;
-    margin-top: 1rem;
 }
 
 .linkGrid {
@@ -70,7 +59,6 @@
 }
 
 .formGrid label,
-.importGrid label,
 .linkGrid label {
     display: flex;
     flex-direction: column;
@@ -82,8 +70,6 @@
 
 .formGrid input,
 .formGrid select,
-.importGrid input,
-.importGrid select,
 .linkGrid select,
 .filters input,
 .filters select {
@@ -111,7 +97,6 @@
 
 .formGrid input::placeholder,
 .formGrid textarea::placeholder,
-.importGrid input::placeholder,
 .filters input::placeholder {
     color: var(--color-text-muted);
 }
@@ -119,8 +104,6 @@
 .formGrid input:focus,
 .formGrid select:focus,
 .formGrid textarea:focus,
-.importGrid input:focus,
-.importGrid select:focus,
 .linkGrid select:focus,
 .filters input:focus,
 .filters select:focus {
@@ -128,21 +111,8 @@
     box-shadow: 0 0 0 3px rgba(246, 183, 60, 0.16);
 }
 
-.wideInput {
-    min-width: 0;
-}
-
 .wideField {
     grid-column: 1 / -1;
-}
-
-.importSource {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    color: var(--color-text);
-    font-size: 0.8rem;
-    font-weight: 700;
 }
 
 .segmentedControl {
@@ -178,24 +148,24 @@
     font-weight: 600;
 }
 
-.importActions {
+.checkboxField {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    margin-top: 1rem;
+    align-items: flex-start;
+    gap: 0.6rem;
+    color: var(--color-text);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
 }
 
-.importActions p {
-    margin: 0;
-    color: var(--color-text-muted);
-    font-size: 0.84rem;
+.checkboxField input {
+    margin: 2px 0 0;
 }
 
-.actions {
+.checkboxField > span {
     display: flex;
-    justify-content: flex-end;
-    margin-top: 1rem;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .primaryButton,
@@ -231,15 +201,6 @@
 .dangerButton:disabled {
     cursor: not-allowed;
     opacity: 0.55;
-}
-
-.linkButton {
-    border: 0;
-    background: transparent;
-    color: var(--color-accent);
-    cursor: pointer;
-    font-size: 0.86rem;
-    font-weight: 700;
 }
 
 .feedback {
@@ -460,32 +421,20 @@
 }
 
 @media (max-width: 1040px) {
-    .layout {
-        grid-template-columns: 1fr;
-    }
-
-    .formGrid,
-    .importGrid {
+    .formGrid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .wideInput {
-        grid-column: 1 / -1;
     }
 }
 
 @media (max-width: 720px) {
     .header,
-    .panelHeader,
     .listHeader,
-    .filters,
-    .importActions {
+    .filters {
         align-items: stretch;
         flex-direction: column;
     }
 
     .formGrid,
-    .importGrid,
     .summaryGrid {
         grid-template-columns: 1fr;
     }
@@ -524,7 +473,6 @@
 :global([data-admin-design]) .primaryButton { background: var(--color-accent); color: var(--admin-on-accent); border: 1px solid transparent; border-radius: 8px; min-height: 40px; padding: 10px 16px; font-size: 14px; font-weight: 600; box-shadow: none; }
 :global([data-admin-design]) .secondaryButton { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--admin-border); border-radius: 8px; box-shadow: none; font-weight: 500; }
 :global([data-admin-design]) .listPanel,
-:global([data-admin-design]) .panel,
 :global([data-admin-design]) .tableShell { background: var(--color-surface); border: 1px solid var(--admin-border); border-radius: 12px; box-shadow: var(--admin-shadow); }
 :global([data-admin-design]) .title { font-size: 28px; font-weight: 650; letter-spacing: -.035em; }
 :global([data-admin-design]) .previewTable th { background: var(--color-panel); color: var(--color-text-muted); font-size: 12px; font-weight: 600; text-transform: none; padding: 12px 16px; border: 0; border-bottom: 1px solid var(--admin-border); }

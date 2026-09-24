@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import styles from './ConfiguracoesManagement.module.css';
+import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
 
 interface Banner {
     _id: string;
@@ -46,6 +47,7 @@ export function BannersManagement() {
         vehicleId: ''
     });
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [formOpen, setFormOpen] = useState(false);
     const [tick, setTick] = useState(0);
 
     // Live countdown tick every second
@@ -71,6 +73,19 @@ export function BannersManagement() {
             badge: '', price: '', priceSubtitle: '', vehicleModel: '', storeName: '', 
             year: '', color: '', fuel: '', delivery: '', statusCondition: '', ctaText: '', vehicleId: '' 
         });
+    };
+
+    const openNewBanner = () => {
+        handleCancelEdit();
+        setFeedback(null);
+        setFormOpen(true);
+    };
+
+    const closeForm = () => {
+        if (isSaving) return;
+        handleCancelEdit();
+        setFeedback(null);
+        setFormOpen(false);
     };
 
     useEffect(() => {
@@ -186,6 +201,7 @@ export function BannersManagement() {
             if (res.ok) {
                 setFeedback({ type: 'success', msg: editingId ? 'Banner atualizado com sucesso!' : 'Banner criado com sucesso!' });
                 handleCancelEdit();
+                setFormOpen(false);
                 carregarBanners();
                 setTimeout(() => setFeedback(null), 3000);
             } else {
@@ -317,7 +333,8 @@ export function BannersManagement() {
             ctaText: banner.ctaText || '',
             vehicleId: banner.vehicleId || ''
         });
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setFeedback(null);
+        setFormOpen(true);
     };
 
     if (isLoading) {
@@ -326,22 +343,44 @@ export function BannersManagement() {
 
     return (
         <div className={styles.container}>
-            <div className={styles.header}>
-                <h2 className={styles.title}>Gerenciador de Banners</h2>
-                <p className={styles.subtitle}>
-                    Adicione ou edite banners que aparecerão em um carrossel rotativo na tela principal dos Clientes.
-                </p>
+            <div className={styles.header} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
+                <div>
+                    <h2 className={styles.title}>Gerenciador de Banners</h2>
+                    <p className={styles.subtitle}>
+                        Adicione ou edite banners que aparecerão em um carrossel rotativo na tela principal dos Clientes.
+                    </p>
+                </div>
+                <button type="button" className={modalStyles.primary} onClick={openNewBanner}>
+                    Novo banner
+                </button>
             </div>
 
-            {feedback && (
+            {feedback && !formOpen && (
                 <div className={`${styles.feedback} ${feedback.type === 'success' ? styles.feedbackSuccess : styles.feedbackError}`}>
                     {feedback.msg}
                 </div>
             )}
 
-            <form onSubmit={handleCreateBanner} className={styles.form}>
-                <div className={styles.formGroupPanel}>
-                    <h3 className={styles.groupTitle}>{editingId ? 'Editar Banner' : 'Adicionar Novo Banner'}</h3>
+            {formOpen && (
+                <AdminModal
+                    size="lg"
+                    title={editingId ? 'Editar banner' : 'Novo banner'}
+                    subtitle="O banner aparece no carrossel rotativo da tela principal dos clientes."
+                    onClose={closeForm}
+                    busy={isSaving}
+                    onSubmit={handleCreateBanner}
+                    footer={<>
+                        <button type="button" className={modalStyles.secondary} onClick={closeForm} disabled={isSaving}>Cancelar</button>
+                        <button type="submit" className={modalStyles.primary} disabled={isSaving}>
+                            {isSaving ? 'Salvando...' : (editingId ? 'Salvar alterações' : 'Adicionar banner')}
+                        </button>
+                    </>}
+                >
+                    {feedback?.type === 'error' && (
+                        <div className={`${styles.feedback} ${styles.feedbackError}`} role="alert">
+                            {feedback.msg}
+                        </div>
+                    )}
                     <div className={styles.grid2}>
                         <div className={styles.formGroup}>
                             <label>Título (Uso Interno)</label>
@@ -544,21 +583,10 @@ export function BannersManagement() {
                             )}
                         </div>
                     </div>
-                </div>
+                </AdminModal>
+            )}
 
-                <div className={styles.formActions} style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    <button type="submit" disabled={isSaving} className={styles.btnSave}>
-                        {isSaving ? 'Salvando...' : (editingId ? 'Salvar Alterações' : 'Adicionar Banner')}
-                    </button>
-                    {editingId && (
-                        <button type="button" onClick={handleCancelEdit} style={{ padding: '0.8rem 1.5rem', background: 'var(--admin-border, #ccc)', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
-                            Cancelar Edição
-                        </button>
-                    )}
-                </div>
-            </form>
-
-            <div className={styles.formGroupPanel} style={{ marginTop: '2rem' }}>
+            <div className={styles.formGroupPanel}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                     <h3 className={styles.groupTitle} style={{ margin: 0 }}>Banners Ativos e Inativos</h3>
                     <select 

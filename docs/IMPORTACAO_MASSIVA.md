@@ -31,7 +31,7 @@ VOLKSWAGEN,GOL
 - ⚠️ Linhas com dados incompletos geram erro e são ignoradas
 
 ### Localização no Sistema:
-- **Tela:** Dashboard Operador > Tabelas > Modelos
+- **Tela:** removida (a aba Tabelas saiu; modelos agora vêm do catálogo padronizado pela FIPE)
 - **Botão:** 📂 Importar CSV
 
 ---

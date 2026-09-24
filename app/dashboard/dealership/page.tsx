@@ -1,16 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
-import { signOut } from 'next-auth/react';
+import { getSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Badge } from '../../../components/Badge';
 import { SummaryCard } from '../../../components/SummaryCard';
 import { VehicleConsultation } from '../../../components/operator/VehicleConsultation';
 import { ConfigContext, useConfig } from '../../../lib/contexts/ConfigContext';
-import UserMenu from '../../../components/UserMenu';
 import KanbanBoard from '../../../components/crm/KanbanBoard';
-import { MobileTabBar } from '../../../components/mobile/MobileTabBar';
+import { DashboardShell, shellStyles } from '../../../components/dashboard/DashboardShell';
+import { Building2, CarFront, ContactRound, Images, LayoutDashboard, Tag } from 'lucide-react';
 import styles from './dealership.module.css';
 import { MeusAnuncios } from '../../../components/dealership/MeusAnuncios';
 import { DealerInventory } from '../../../components/dealership/DealerInventory';
@@ -58,7 +57,17 @@ export default function DealershipDashboard() {
     const [loadingMetrics, setLoadingMetrics] = useState(false);
     const [profile, setProfile] = useState<Concessionaria | null>(null);
     const [loadingProfile, setLoadingProfile] = useState(false);
+    const [userInfo, setUserInfo] = useState<{ name?: string | null; email?: string | null }>({});
     const router = useRouter();
+
+    // Nome e e-mail do usuário logado para o menu lateral
+    useEffect(() => {
+        getSession()
+            .then(session => {
+                if (session?.user) setUserInfo({ name: session.user.name, email: session.user.email });
+            })
+            .catch(() => { });
+    }, []);
 
     const handleLogout = async () => {
         try {
@@ -119,12 +128,12 @@ export default function DealershipDashboard() {
     }, [activeTab, profile]);
 
     const tabs = [
-        { id: 'visao-geral', label: 'Visão Geral', icon: '📊' },
-        { id: 'veiculos', label: 'Meus Veículos', icon: '🚗' },
-        { id: 'precos', label: 'Estoque e Preços', icon: '💰' },
-        { id: 'perfil', label: 'Meu Perfil', icon: '🏢' },
-        { id: 'crm', label: 'CRM', icon: '🎯' },
-        { id: 'anuncios', label: 'Meus Anúncios', icon: '🖼️' }
+        { id: 'visao-geral', label: 'Visão geral', icon: <LayoutDashboard size={20} aria-hidden="true" /> },
+        { id: 'veiculos', label: 'Meus veículos', icon: <CarFront size={20} aria-hidden="true" /> },
+        { id: 'precos', label: 'Estoque e preços', icon: <Tag size={20} aria-hidden="true" /> },
+        { id: 'perfil', label: 'Meu perfil', icon: <Building2 size={20} aria-hidden="true" /> },
+        { id: 'crm', label: 'CRM', icon: <ContactRound size={20} aria-hidden="true" /> },
+        { id: 'anuncios', label: 'Meus anúncios', icon: <Images size={20} aria-hidden="true" /> }
     ];
 
     const renderTabContent = () => {
@@ -134,21 +143,13 @@ export default function DealershipDashboard() {
             case 'veiculos':
                 return <VehicleConsultation role="dealership" />;
             case 'precos':
-                return (
-                    <div className={styles.contentArea}>
-                        <DealerInventory />
-                    </div>
-                );
+                return <DealerInventory />;
             case 'crm':
                 return <div style={{ height: 'calc(100vh - 200px)' }}><KanbanBoard /></div>;
             case 'perfil':
                 return <PerfilTab profile={profile} loading={loadingProfile} onCadastrarVeiculo={() => setActiveTab('veiculos')} />;
             case 'anuncios':
-                return (
-                    <div className={styles.contentArea}>
-                        <MeusAnuncios />
-                    </div>
-                );
+                return <MeusAnuncios />;
             default:
                 return <VisaoGeralTab metrics={metrics} loading={loadingMetrics} />;
         }
@@ -156,54 +157,18 @@ export default function DealershipDashboard() {
 
     return (
         <ConfigContext.Provider value={{ margem: 0, fixedMargin: 0, marginMode: 'percent', setMargem: () => { }, setMarginConfig: () => { } }}>
-            <div className={styles.container}>
+            <DashboardShell
+                sectionLabel="Concessionária"
+                tabs={tabs}
+                activeId={activeTab}
+                onSelect={id => setActiveTab(id as TabType)}
+                primaryIds={['visao-geral', 'veiculos', 'precos', 'crm']}
+                user={{ name: userInfo.name || 'Concessionária', email: userInfo.email, role: 'Concessionária' }}
+            >
                 <StockReminderModal onUpdateStock={() => setActiveTab('precos')} />
-                <div className={styles.header}>
-                    <div className={styles.headerLeft}>
-                        <Image
-                            src="/images/logo.png"
-                            alt="Logo"
-                            width={240}
-                            height={80}
-                            className={styles.logo}
-                            priority
-                        />
-                    </div>
-                    <div className={styles.headerRight}>
-                        <UserMenu
-                            name="Concessionária"
-                            role="Concessionária"
-                        />
-                    </div>
-                </div>
-
-                <div className={styles.tabsContainer}>
-                    <div className={styles.tabsList}>
-                        {tabs.map((tab) => (
-                            <button
-                                key={tab.id}
-                                className={`${styles.tab} ${activeTab === tab.id ? styles.tabActive : ''}`}
-                                onClick={() => setActiveTab(tab.id as TabType)}
-                            >
-                                <span className={styles.tabIcon}>{tab.icon}</span>
-                                <span className={styles.tabLabel}>{tab.label}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                <div className={styles.tabContent}>
-                    {renderTabContent()}
-                </div>
-
-                <MobileTabBar
-                    items={tabs.map((tab) => ({ id: tab.id, label: tab.label, icon: tab.icon }))}
-                    primaryIds={['visao-geral', 'veiculos', 'precos', 'crm']}
-                    activeId={activeTab}
-                    onSelect={(id) => setActiveTab(id as TabType)}
-                    user={{ name: 'Concessionária', role: 'Concessionária' }}
-                />
-            </div>
+                {/* A consulta de veículos ocupa a tela toda, como no admin. */}
+                {activeTab === 'veiculos' ? renderTabContent() : <div className={shellStyles.contentArea}>{renderTabContent()}</div>}
+            </DashboardShell>
         </ConfigContext.Provider>
     );
 }
@@ -222,12 +187,12 @@ function StockOverview({ metrics }: { metrics: DealershipMetrics }) {
 
     if (daysSinceUpdate > 1) {
         statusColor = 'yellow';
-        statusMessage = 'Atenção: Atualize seu estoque';
+        statusMessage = 'Atenção: atualize seu estoque';
         statusClass = styles.msgYellow;
     }
     if (daysSinceUpdate > 3) {
         statusColor = 'red';
-        statusMessage = 'Crítico: Estoque desatualizado';
+        statusMessage = 'Crítico: estoque desatualizado';
         statusClass = styles.msgRed;
     }
 
@@ -235,11 +200,11 @@ function StockOverview({ metrics }: { metrics: DealershipMetrics }) {
         <div className={styles.chartContainer}>
             <div className={styles.chartSection}>
                 <div className={styles.chartHeader}>
-                    <div className={styles.chartTitle}>Evolução do Estoque</div>
+                    <div className={styles.chartTitle}>Evolução do estoque</div>
                 </div>
                 <div className={styles.barChart}>
                     {chartData.length === 0 ? (
-                        <div style={{ width: '100%', textAlign: 'center', color: '#666' }}>Sem dados de histórico</div>
+                        <div style={{ width: '100%', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sem dados de histórico</div>
                     ) : (
                         chartData.map((item, index) => (
                             <div key={index} className={styles.barColumn}>
@@ -256,7 +221,7 @@ function StockOverview({ metrics }: { metrics: DealershipMetrics }) {
             </div>
 
             <div className={styles.statusSection}>
-                <div className={styles.chartTitle} style={{ marginBottom: '1.5rem' }}>Status de Atualização</div>
+                <div className={styles.chartTitle} style={{ marginBottom: '1.5rem' }}>Status de atualização</div>
                 <div className={styles.trafficLightContainer}>
                     <div className={`${styles.trafficLight} ${styles[statusColor]}`}></div>
                     <div className={styles.updateInfo}>
@@ -283,9 +248,9 @@ function StockOverview({ metrics }: { metrics: DealershipMetrics }) {
                     </div>
                 )}
                 <div className={styles.statCard}>
-                    <div className={styles.statIcon}>🚗</div>
+                    <div className={styles.statIcon}><CarFront size={22} aria-hidden="true" /></div>
                     <div className={styles.statContent}>
-                        <h3>Veículos Cadastrados</h3>
+                        <h3>Veículos cadastrados</h3>
                         <div className={styles.statNumber}>{metrics.veiculosCadastrados}</div>
                         <div className={styles.statChange}>Total em estoque</div>
                     </div>
@@ -300,8 +265,8 @@ function VisaoGeralTab({ metrics, loading }: { metrics: DealershipMetrics | null
         return (
             <div className={styles.tabContentContainer}>
                 <div className={styles.visaoGeralHeader}>
-                    <h2>Visão Geral da Concessionária</h2>
-                    <p>Carregando dados...</p>
+                    <h2 className={shellStyles.pageTitle}>Visão geral da concessionária</h2>
+                    <p className={shellStyles.pageSubtitle}>Carregando dados...</p>
                 </div>
             </div>
         );
@@ -311,8 +276,8 @@ function VisaoGeralTab({ metrics, loading }: { metrics: DealershipMetrics | null
         return (
             <div className={styles.tabContentContainer}>
                 <div className={styles.visaoGeralHeader}>
-                    <h2>Visão Geral da Concessionária</h2>
-                    <p>Não foi possível carregar os dados.</p>
+                    <h2 className={shellStyles.pageTitle}>Visão geral da concessionária</h2>
+                    <p className={shellStyles.pageSubtitle}>Não foi possível carregar os dados.</p>
                 </div>
             </div>
         );
@@ -321,8 +286,8 @@ function VisaoGeralTab({ metrics, loading }: { metrics: DealershipMetrics | null
     return (
         <div className={styles.tabContentContainer}>
             <div className={styles.visaoGeralHeader}>
-                <h2>Visão Geral da Concessionária</h2>
-                <p>Acompanhe o desempenho e estatísticas da sua concessionária.</p>
+                <h2 className={shellStyles.pageTitle}>Visão geral da concessionária</h2>
+                <p className={shellStyles.pageSubtitle}>Acompanhe o desempenho e estatísticas da sua concessionária.</p>
             </div>
 
             <StockOverview metrics={metrics} />
@@ -335,8 +300,8 @@ function PerfilTab({ profile, loading, onCadastrarVeiculo }: { profile: Concessi
         return (
             <div className={styles.tabContentContainer}>
                 <div className={styles.perfilHeader}>
-                    <h2>Meu Perfil</h2>
-                    <p>Carregando informações...</p>
+                    <h2 className={shellStyles.pageTitle}>Meu perfil</h2>
+                    <p className={shellStyles.pageSubtitle}>Carregando informações...</p>
                 </div>
             </div>
         );
@@ -346,8 +311,8 @@ function PerfilTab({ profile, loading, onCadastrarVeiculo }: { profile: Concessi
         return (
             <div className={styles.tabContentContainer}>
                 <div className={styles.perfilHeader}>
-                    <h2>Meu Perfil</h2>
-                    <p>Não foi possível carregar as informações do perfil.</p>
+                    <h2 className={shellStyles.pageTitle}>Meu perfil</h2>
+                    <p className={shellStyles.pageSubtitle}>Não foi possível carregar as informações do perfil.</p>
                 </div>
             </div>
         );
@@ -356,14 +321,14 @@ function PerfilTab({ profile, loading, onCadastrarVeiculo }: { profile: Concessi
     return (
         <div className={styles.tabContentContainer}>
             <div className={styles.perfilHeader}>
-                <h2>Meu Perfil</h2>
-                <p>Informações e configurações da sua concessionária.</p>
+                <h2 className={shellStyles.pageTitle}>Meu perfil</h2>
+                <p className={shellStyles.pageSubtitle}>Informações e configurações da sua concessionária.</p>
             </div>
 
             <div className={styles.perfilContent}>
                 <div className={styles.perfilCard}>
                     <div className={styles.perfilCardHeader}>
-                        <div className={styles.perfilAvatar}>🏭</div>
+                        <div className={styles.perfilAvatar}><Building2 size={28} aria-hidden="true" /></div>
                         <div className={styles.perfilInfo}>
                             <h3>{profile.nome}</h3>
                             <p>{profile.cidade}, {profile.uf}</p>
@@ -372,7 +337,7 @@ function PerfilTab({ profile, loading, onCadastrarVeiculo }: { profile: Concessi
 
                     <div className={styles.perfilDetails}>
                         <div className={styles.perfilRow}>
-                            <span>Razão Social:</span>
+                            <span>Razão social:</span>
                             <span>{profile.razaoSocial}</span>
                         </div>
                         <div className={styles.perfilRow}>
@@ -384,7 +349,7 @@ function PerfilTab({ profile, loading, onCadastrarVeiculo }: { profile: Concessi
                             <span>{profile.telefone}</span>
                         </div>
                         <div className={styles.perfilRow}>
-                            <span>Email:</span>
+                            <span>E-mail:</span>
                             <span>{profile.email}</span>
                         </div>
                         <div className={styles.perfilRow}>
@@ -400,7 +365,7 @@ function PerfilTab({ profile, loading, onCadastrarVeiculo }: { profile: Concessi
 
                 <div className={styles.perfilActions}>
                     <button className={styles.primaryButton} onClick={onCadastrarVeiculo}>Cadastrar novo veículo</button>
-                    <button className={styles.editButton}>Editar Perfil</button>
+                    <button className={styles.editButton}>Editar perfil</button>
                     <button className={styles.configButton}>Configurações</button>
                 </div>
             </div>

@@ -23,24 +23,3 @@ export async function GET() {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
-
-export async function POST(request: Request) {
-    try {
-        const session = await getServerSession(authOptions);
-        if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        await connectDB();
-        const body = await request.json();
-        const newMarca = await Marca.create(body);
-        const doc = newMarca as any;
-        return NextResponse.json({
-            ...doc.toObject(),
-            id: doc._id.toString(),
-            _id: undefined
-        }, { status: 201 });
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-}

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useConfig } from '../../lib/contexts/ConfigContext';
 import { useVehicleDatabase } from '../../lib/hooks/useVehicleDatabase';
-import { useTablesDatabase } from '../../lib/hooks/useTablesDatabase';
+import { fetchCatalogOptions } from '../../lib/services/catalogOptions';
 import { useIsMobile } from '../../lib/hooks/useIsMobile';
 import { Vehicle, VehicleService } from '../../lib/services/vehicleService';
 import { TransportadoraService, Transportadora } from '../../lib/services/transportadoraService';
@@ -374,10 +374,17 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
 
     // Inicializar o banco de veículos
     const { vehicles, totalItems, totalQuantidade, loading, error, refreshVehicles, updateVehicle, deleteVehicle, deleteVehicles, getVehiclesPaginated } = useVehicleDatabase(role);
-    const { importVeiculosFromCSV, modelos, cores } = useTablesDatabase();
+    // Opções de modelo para a edição na tabela: vêm do catálogo (padronizado pela FIPE).
+    const [modeloOptions, setModeloOptions] = useState<string[]>([]);
+    useEffect(() => {
+        const controller = new AbortController();
+        fetchCatalogOptions('modelo', controller.signal)
+            .then(setModeloOptions)
+            .catch(error => { if (error?.name !== 'AbortError') console.error('Erro ao carregar modelos do catálogo:', error); });
+        return () => controller.abort();
+    }, []);
 
     // Listas de opções para os selects editáveis
-    const modeloOptions = useMemo(() => modelos.map(m => m.nome).sort(), [modelos]);
     const transmissaoOptions = ['Manual', 'Automático', 'CVT', 'Automatizado'];
     const combustivelOptions = ['Flex', 'Gasolina', 'Etanol', 'Diesel', 'Elétrico', 'Híbrido'];
 

@@ -104,6 +104,7 @@ export function ConcessionariasManagement() {
     const [loadingClientes, setLoadingClientes] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [formError, setFormError] = useState<string | null>(null);
     const [isFetchingCep, setIsFetchingCep] = useState(false);
     const [cepError, setCepError] = useState<string | null>(null);
     const lastCepRef = useRef<string>('');
@@ -207,6 +208,7 @@ export function ConcessionariasManagement() {
         setFormData(createEmptyClienteForm());
         setCepError(null);
         setIsFetchingCep(false);
+        setFormError(null);
         lastCepRef.current = '';
     };
 
@@ -476,7 +478,7 @@ export function ConcessionariasManagement() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSubmitting(true);
-        setErrorMessage(null);
+        setFormError(null);
 
         const payload: ClienteFormData & { dataCadastro?: string } = {
             ...formData,
@@ -503,7 +505,7 @@ export function ConcessionariasManagement() {
         } catch (error) {
             console.error('Erro ao salvar concessionária:', error);
             const message = error instanceof Error ? error.message : 'Erro ao salvar concessionária. Tente novamente.';
-            alert(message);
+            setFormError(message);
         } finally {
             setSubmitting(false);
         }
@@ -535,6 +537,7 @@ export function ConcessionariasManagement() {
         });
         setCepError(null);
         setIsFetchingCep(false);
+        setFormError(null);
         lastCepRef.current = '';
         setEditingCliente(cliente);
         setShowForm(true);
@@ -554,7 +557,14 @@ export function ConcessionariasManagement() {
         }
     };
 
-    const cancelEdit = () => {
+    const openCreateForm = () => {
+        resetForm();
+        setEditingCliente(null);
+        setShowForm(true);
+    };
+
+    const closeForm = () => {
+        if (submitting) return;
         setShowForm(false);
         setEditingCliente(null);
         resetForm();
@@ -566,317 +576,14 @@ export function ConcessionariasManagement() {
                 <h2>Gestão de Concessionárias</h2>
                 <div className={styles.headerActions}>
                     <button
+                        type="button"
                         className={styles.addButton}
-                        onClick={() => {
-                            if (showForm) {
-                                cancelEdit();
-                            } else {
-                                resetForm();
-                                setEditingCliente(null);
-                                setShowForm(true);
-                            }
-                        }}
+                        onClick={openCreateForm}
                     >
-                        {showForm ? 'Cancelar' : '+ Nova Concessionária'}
+                        + Nova concessionária
                     </button>
                 </div>
             </div>
-
-            {showForm && (
-                <div className={styles.formWrapper}>
-                    <div className={styles.formContainer}>
-                        <h3>{editingCliente ? 'Editar Concessionária' : 'Cadastrar Nova Concessionária'}</h3>
-                        <form onSubmit={handleSubmit} className={styles.form}>
-                            <div className={styles.formRow}>
-                                <div className={styles.formGroup}>
-                                    <label>Nome Fantasia</label>
-                                    <input
-                                        type="text"
-                                        value={formData.nome}
-                                        onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                                        className={styles.formInput}
-                                    />
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>Razão Social</label>
-                                    <input
-                                        type="text"
-                                        value={formData.razaoSocial}
-                                        onChange={(e) => setFormData({ ...formData, razaoSocial: e.target.value })}
-                                        className={styles.formInput}
-                                    />
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>Marcas representadas</label>
-                                    <div className={styles.formHelper}>
-                                        As marcas são definidas direto na lista, na coluna <strong>MARCA</strong> (seleção múltipla).
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className={styles.formRow}>
-                                <div className={styles.formGroup}>
-                                    <MaskedInput
-                                        name="cnpj"
-                                        label="CNPJ"
-                                        value={formData.cnpj}
-                                        onChange={(value) => setFormData((prev) => ({ ...prev, cnpj: value }))}
-                                        mask="cnpj"
-                                        placeholder="00.000.000/0000-00"
-                                    />
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>Inscrição Estadual</label>
-                                    <input
-                                        type="text"
-                                        value={formData.inscricaoEstadual}
-                                        onChange={(e) => setFormData({ ...formData, inscricaoEstadual: e.target.value })}
-                                        className={styles.formInput}
-                                        placeholder="000.000.000.000"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className={styles.formRow}>
-                                <div className={styles.formGroup}>
-                                    <MaskedInput
-                                        name="telefone"
-                                        label="Telefone"
-                                        value={formData.telefone}
-                                        onChange={(value) => setFormData((prev) => ({ ...prev, telefone: value }))}
-                                        mask="phone"
-                                        placeholder="(11)99999-9999"
-                                    />
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <MaskedInput
-                                        name="celular"
-                                        label="Celular"
-                                        value={formData.celular}
-                                        onChange={(value) => setFormData((prev) => ({ ...prev, celular: value }))}
-                                        mask="phone"
-                                        placeholder="(11)99999-9999"
-                                    />
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>Contato</label>
-                                    <input
-                                        type="text"
-                                        value={formData.contato}
-                                        onChange={(e) => setFormData({ ...formData, contato: e.target.value })}
-                                        className={styles.formInput}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className={styles.formRow}>
-                                <div className={styles.formGroup}>
-                                    <label>E-mail</label>
-                                    <input
-                                        type="email"
-                                        value={formData.email}
-                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                        className={styles.formInput}
-                                        placeholder="contato@empresa.com.br"
-                                    />
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>Nome do Responsável</label>
-                                    <input
-                                        type="text"
-                                        value={formData.nomeResponsavel}
-                                        onChange={(e) => setFormData({ ...formData, nomeResponsavel: e.target.value })}
-                                        className={styles.formInput}
-                                    />
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <MaskedInput
-                                        name="telefoneResponsavel"
-                                        label="Telefone do Responsável"
-                                        value={formData.telefoneResponsavel}
-                                        onChange={(value) => setFormData((prev) => ({ ...prev, telefoneResponsavel: value }))}
-                                        mask="phone"
-                                        placeholder="(11)99999-9999"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className={styles.formRow}>
-                                <div className={styles.formGroup}>
-                                    <label>E-mail do Responsável</label>
-                                    <input
-                                        type="email"
-                                        value={formData.emailResponsavel}
-                                        onChange={(e) => setFormData({ ...formData, emailResponsavel: e.target.value })}
-                                        className={styles.formInput}
-                                        placeholder="responsavel@empresa.com.br"
-                                    />
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>Status</label>
-                                    <select
-                                        value={formData.ativo ? 'true' : 'false'}
-                                        onChange={(e) => setFormData((prev) => ({ ...prev, ativo: e.target.value === 'true' }))}
-                                        className={styles.formInput}
-                                    >
-                                        <option value="true">Ativa</option>
-                                        <option value="false">Inativa</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div className={styles.formRow}>
-                                <div className={styles.formGroup}>
-                                    <label>Operador Responsável</label>
-                                    <select
-                                        value={formData.operadorId}
-                                        onChange={(e) => setFormData({ ...formData, operadorId: e.target.value })}
-                                        className={styles.formInput}
-                                    >
-                                        <option value="">Selecione um operador (obrigatório se gerido por um)</option>
-                                        {operadores.map(op => (
-                                            <option key={op._id} value={op._id}>{op.displayName || op.email}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className={styles.formRow}>
-                                <div className={styles.formGroup}>
-                                    <MaskedInput
-                                        name="cep"
-                                        label="CEP"
-                                        value={formData.cep}
-                                        onChange={handleCepChange}
-                                        mask="cep"
-                                        placeholder="00000-000"
-                                    />
-                                    {isFetchingCep && (
-                                        <small className={styles.formHelper}>Buscando CEP...</small>
-                                    )}
-                                    {cepError && (
-                                        <small className={styles.errorText}>{cepError}</small>
-                                    )}
-                                    {!isFetchingCep && !cepError && formData.cep.length === 8 && (
-                                        <small className={styles.formHelper}>Endereço preenchido automaticamente. Confirme os dados.</small>
-                                    )}
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>Número</label>
-                                    <input
-                                        type="text"
-                                        value={formData.numero}
-                                        onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
-                                        className={styles.formInput}
-                                    />
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>Complemento</label>
-                                    <input
-                                        type="text"
-                                        value={formData.complemento}
-                                        onChange={(e) => setFormData({ ...formData, complemento: e.target.value })}
-                                        className={styles.formInput}
-                                        placeholder="Opcional"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className={styles.formRow}>
-                                <div className={styles.formGroup}>
-                                    <label>Endereço</label>
-                                    <input
-                                        type="text"
-                                        value={formData.endereco}
-                                        onChange={(e) => setFormData({ ...formData, endereco: e.target.value })}
-                                        className={styles.formInput}
-                                    />
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>Bairro</label>
-                                    <input
-                                        type="text"
-                                        value={formData.bairro}
-                                        onChange={(e) => setFormData({ ...formData, bairro: e.target.value })}
-                                        className={styles.formInput}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className={styles.formRow}>
-                                <div className={styles.formGroup}>
-                                    <label>Cidade</label>
-                                    <input
-                                        type="text"
-                                        value={formData.cidade}
-                                        onChange={(e) => setFormData({ ...formData, cidade: e.target.value })}
-                                        className={styles.formInput}
-                                    />
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>UF</label>
-                                    <select
-                                        value={formData.uf}
-                                        onChange={(e) => setFormData({ ...formData, uf: e.target.value })}
-                                        className={styles.formInput}
-                                    >
-
-                                        <option value="">Selecione</option>
-                                        <option value="AC">AC</option>
-                                        <option value="AL">AL</option>
-                                        <option value="AM">AM</option>
-                                        <option value="AP">AP</option>
-                                        <option value="BA">BA</option>
-                                        <option value="CE">CE</option>
-                                        <option value="DF">DF</option>
-                                        <option value="ES">ES</option>
-                                        <option value="GO">GO</option>
-                                        <option value="MA">MA</option>
-                                        <option value="MG">MG</option>
-                                        <option value="MS">MS</option>
-                                        <option value="MT">MT</option>
-                                        <option value="PA">PA</option>
-                                        <option value="PB">PB</option>
-                                        <option value="PE">PE</option>
-                                        <option value="PI">PI</option>
-                                        <option value="PR">PR</option>
-                                        <option value="RJ">RJ</option>
-                                        <option value="RN">RN</option>
-                                        <option value="RO">RO</option>
-                                        <option value="RR">RR</option>
-                                        <option value="RS">RS</option>
-                                        <option value="SC">SC</option>
-                                        <option value="SE">SE</option>
-                                        <option value="SP">SP</option>
-                                        <option value="TO">TO</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className={styles.formRow}>
-                                <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
-                                    <label>Observações</label>
-                                    <textarea
-                                        value={formData.observacoes}
-                                        onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-                                        className={styles.textArea}
-                                        rows={3}
-                                        placeholder="Informações adicionais, acordos comerciais ou notas internas"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className={styles.formActions}>
-                                <button type="button" onClick={cancelEdit} className={styles.cancelBtn}>
-                                    Cancelar
-                                </button>
-                                <button type="submit" className={styles.submitBtn} disabled={submitting}>
-                                    {submitting ? 'Salvando...' : editingCliente ? 'Atualizar' : 'Cadastrar'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
 
             <div className={styles.searchSection}>
                 <div className={styles.searchContainer}>
@@ -1083,6 +790,308 @@ export function ConcessionariasManagement() {
                     </div>
                 )}
             </div>
+
+            {showForm && (
+                <AdminModal
+                    title={editingCliente ? 'Editar concessionária' : 'Nova concessionária'}
+                    subtitle={editingCliente ? editingCliente.nome : 'Preencha os dados para cadastrar a concessionária.'}
+                    onClose={closeForm}
+                    size="lg"
+                    busy={submitting}
+                    onSubmit={handleSubmit}
+                    footer={<>
+                        <button type="button" className={modalStyles.secondary} onClick={closeForm} disabled={submitting}>
+                            Cancelar
+                        </button>
+                        <button type="submit" className={modalStyles.primary} disabled={submitting}>
+                            {submitting ? 'Salvando...' : editingCliente ? 'Salvar alterações' : 'Cadastrar'}
+                        </button>
+                    </>}
+                >
+                    <div className={styles.form}>
+                        <div className={styles.formRow}>
+                            <div className={styles.formGroup}>
+                                <label>Nome Fantasia</label>
+                                <input
+                                    type="text"
+                                    value={formData.nome}
+                                    onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                                    className={styles.formInput}
+                                />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Razão Social</label>
+                                <input
+                                    type="text"
+                                    value={formData.razaoSocial}
+                                    onChange={(e) => setFormData({ ...formData, razaoSocial: e.target.value })}
+                                    className={styles.formInput}
+                                />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Marcas representadas</label>
+                                <div className={styles.formHelper}>
+                                    As marcas são definidas direto na lista, na coluna <strong>MARCA</strong> (seleção múltipla).
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className={styles.formRow}>
+                            <div className={styles.formGroup}>
+                                <MaskedInput
+                                    name="cnpj"
+                                    label="CNPJ"
+                                    value={formData.cnpj}
+                                    onChange={(value) => setFormData((prev) => ({ ...prev, cnpj: value }))}
+                                    mask="cnpj"
+                                    placeholder="00.000.000/0000-00"
+                                />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Inscrição Estadual</label>
+                                <input
+                                    type="text"
+                                    value={formData.inscricaoEstadual}
+                                    onChange={(e) => setFormData({ ...formData, inscricaoEstadual: e.target.value })}
+                                    className={styles.formInput}
+                                    placeholder="000.000.000.000"
+                                />
+                            </div>
+                        </div>
+
+                        <div className={styles.formRow}>
+                            <div className={styles.formGroup}>
+                                <MaskedInput
+                                    name="telefone"
+                                    label="Telefone"
+                                    value={formData.telefone}
+                                    onChange={(value) => setFormData((prev) => ({ ...prev, telefone: value }))}
+                                    mask="phone"
+                                    placeholder="(11)99999-9999"
+                                />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <MaskedInput
+                                    name="celular"
+                                    label="Celular"
+                                    value={formData.celular}
+                                    onChange={(value) => setFormData((prev) => ({ ...prev, celular: value }))}
+                                    mask="phone"
+                                    placeholder="(11)99999-9999"
+                                />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Contato</label>
+                                <input
+                                    type="text"
+                                    value={formData.contato}
+                                    onChange={(e) => setFormData({ ...formData, contato: e.target.value })}
+                                    className={styles.formInput}
+                                />
+                            </div>
+                        </div>
+
+                        <div className={styles.formRow}>
+                            <div className={styles.formGroup}>
+                                <label>E-mail</label>
+                                <input
+                                    type="email"
+                                    value={formData.email}
+                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                    className={styles.formInput}
+                                    placeholder="contato@empresa.com.br"
+                                />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Nome do Responsável</label>
+                                <input
+                                    type="text"
+                                    value={formData.nomeResponsavel}
+                                    onChange={(e) => setFormData({ ...formData, nomeResponsavel: e.target.value })}
+                                    className={styles.formInput}
+                                />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <MaskedInput
+                                    name="telefoneResponsavel"
+                                    label="Telefone do Responsável"
+                                    value={formData.telefoneResponsavel}
+                                    onChange={(value) => setFormData((prev) => ({ ...prev, telefoneResponsavel: value }))}
+                                    mask="phone"
+                                    placeholder="(11)99999-9999"
+                                />
+                            </div>
+                        </div>
+
+                        <div className={styles.formRow}>
+                            <div className={styles.formGroup}>
+                                <label>E-mail do Responsável</label>
+                                <input
+                                    type="email"
+                                    value={formData.emailResponsavel}
+                                    onChange={(e) => setFormData({ ...formData, emailResponsavel: e.target.value })}
+                                    className={styles.formInput}
+                                    placeholder="responsavel@empresa.com.br"
+                                />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Status</label>
+                                <select
+                                    value={formData.ativo ? 'true' : 'false'}
+                                    onChange={(e) => setFormData((prev) => ({ ...prev, ativo: e.target.value === 'true' }))}
+                                    className={styles.formInput}
+                                >
+                                    <option value="true">Ativa</option>
+                                    <option value="false">Inativa</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className={styles.formRow}>
+                            <div className={styles.formGroup}>
+                                <label>Operador Responsável</label>
+                                <select
+                                    value={formData.operadorId}
+                                    onChange={(e) => setFormData({ ...formData, operadorId: e.target.value })}
+                                    className={styles.formInput}
+                                >
+                                    <option value="">Selecione um operador (obrigatório se gerido por um)</option>
+                                    {operadores.map(op => (
+                                        <option key={op._id} value={op._id}>{op.displayName || op.email}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className={styles.formRow}>
+                            <div className={styles.formGroup}>
+                                <MaskedInput
+                                    name="cep"
+                                    label="CEP"
+                                    value={formData.cep}
+                                    onChange={handleCepChange}
+                                    mask="cep"
+                                    placeholder="00000-000"
+                                />
+                                {isFetchingCep && (
+                                    <small className={styles.formHelper}>Buscando CEP...</small>
+                                )}
+                                {cepError && (
+                                    <small className={styles.errorText}>{cepError}</small>
+                                )}
+                                {!isFetchingCep && !cepError && formData.cep.length === 8 && (
+                                    <small className={styles.formHelper}>Endereço preenchido automaticamente. Confirme os dados.</small>
+                                )}
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Número</label>
+                                <input
+                                    type="text"
+                                    value={formData.numero}
+                                    onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
+                                    className={styles.formInput}
+                                />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Complemento</label>
+                                <input
+                                    type="text"
+                                    value={formData.complemento}
+                                    onChange={(e) => setFormData({ ...formData, complemento: e.target.value })}
+                                    className={styles.formInput}
+                                    placeholder="Opcional"
+                                />
+                            </div>
+                        </div>
+
+                        <div className={styles.formRow}>
+                            <div className={styles.formGroup}>
+                                <label>Endereço</label>
+                                <input
+                                    type="text"
+                                    value={formData.endereco}
+                                    onChange={(e) => setFormData({ ...formData, endereco: e.target.value })}
+                                    className={styles.formInput}
+                                />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Bairro</label>
+                                <input
+                                    type="text"
+                                    value={formData.bairro}
+                                    onChange={(e) => setFormData({ ...formData, bairro: e.target.value })}
+                                    className={styles.formInput}
+                                />
+                            </div>
+                        </div>
+
+                        <div className={styles.formRow}>
+                            <div className={styles.formGroup}>
+                                <label>Cidade</label>
+                                <input
+                                    type="text"
+                                    value={formData.cidade}
+                                    onChange={(e) => setFormData({ ...formData, cidade: e.target.value })}
+                                    className={styles.formInput}
+                                />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>UF</label>
+                                <select
+                                    value={formData.uf}
+                                    onChange={(e) => setFormData({ ...formData, uf: e.target.value })}
+                                    className={styles.formInput}
+                                >
+
+                                    <option value="">Selecione</option>
+                                    <option value="AC">AC</option>
+                                    <option value="AL">AL</option>
+                                    <option value="AM">AM</option>
+                                    <option value="AP">AP</option>
+                                    <option value="BA">BA</option>
+                                    <option value="CE">CE</option>
+                                    <option value="DF">DF</option>
+                                    <option value="ES">ES</option>
+                                    <option value="GO">GO</option>
+                                    <option value="MA">MA</option>
+                                    <option value="MG">MG</option>
+                                    <option value="MS">MS</option>
+                                    <option value="MT">MT</option>
+                                    <option value="PA">PA</option>
+                                    <option value="PB">PB</option>
+                                    <option value="PE">PE</option>
+                                    <option value="PI">PI</option>
+                                    <option value="PR">PR</option>
+                                    <option value="RJ">RJ</option>
+                                    <option value="RN">RN</option>
+                                    <option value="RO">RO</option>
+                                    <option value="RR">RR</option>
+                                    <option value="RS">RS</option>
+                                    <option value="SC">SC</option>
+                                    <option value="SE">SE</option>
+                                    <option value="SP">SP</option>
+                                    <option value="TO">TO</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className={styles.formRow}>
+                            <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
+                                <label>Observações</label>
+                                <textarea
+                                    value={formData.observacoes}
+                                    onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
+                                    className={styles.textArea}
+                                    rows={3}
+                                    placeholder="Informações adicionais, acordos comerciais ou notas internas"
+                                />
+                            </div>
+                        </div>
+                        {formError && (
+                            <div className={styles.errorText} role="alert">{formError}</div>
+                        )}
+                    </div>
+                </AdminModal>
+            )}
 
             {/* Modal de Associação de Veículos */}
             {showAssociateModal && selectedConcessionariaForAssociate && (
