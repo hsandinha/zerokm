@@ -16,6 +16,10 @@ interface VehicleActionsHeaderProps {
     setViewMode: (mode: 'table' | 'grid') => void;
     onClose?: () => void;
     setShowUpgradeModal: (show: boolean) => void;
+    /** Banner no centro do cabeçalho, como no painel do cliente. */
+    banner?: React.ReactNode;
+    /** Título do cabeçalho. Padrão: "Consulta de Veículos"; a aba Favoritos do cliente usa "Favoritos". */
+    title?: string;
 }
 
 export function VehicleActionsHeader({
@@ -31,11 +35,14 @@ export function VehicleActionsHeader({
     viewMode,
     setViewMode,
     onClose,
-    setShowUpgradeModal
+    setShowUpgradeModal,
+    banner,
+    title = 'Consulta de Veículos'
 }: VehicleActionsHeaderProps) {
     return (
         <div className={styles.header}>
-            <h2>Consulta de Veículos</h2>
+            <h2>{title}</h2>
+            {banner && <div className={styles.headerBanner}><div className={styles.headerBannerInner}>{banner}</div></div>}
             <div className={styles.headerActions}>
                 {role !== 'client' && selectedIds.length > 0 && (
                     <>

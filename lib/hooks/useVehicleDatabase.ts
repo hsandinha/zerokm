@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { VehicleService, Vehicle } from '../services/vehicleService';
 // import { useSession } from 'next-auth/react';
 
-export const useVehicleDatabase = (accessProfile?: string) => {
+/** `favoritos`: toda busca paginada traz só os favoritos do usuário logado. */
+export const useVehicleDatabase = (accessProfile?: string, { favoritos = false }: { favoritos?: boolean } = {}) => {
     // const { data: session } = useSession();
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [totalItems, setTotalItems] = useState(0);
@@ -14,7 +15,7 @@ export const useVehicleDatabase = (accessProfile?: string) => {
     const initializeDatabase = useCallback(async () => {
         try {
             // Buscar todos os veículos do banco (limitado a 50 por padrão para não pesar)
-            const result = await VehicleService.getVehiclesPaginated({ page: 1, itemsPerPage: 50, accessProfile });
+            const result = await VehicleService.getVehiclesPaginated({ page: 1, itemsPerPage: 50, accessProfile, favoritos });
             setVehicles(result.data);
             setTotalItems(result.total);
             setTotalQuantidade(result.totalQuantidade || 0);
@@ -24,13 +25,13 @@ export const useVehicleDatabase = (accessProfile?: string) => {
             setError('Erro ao carregar veículos');
             setLoading(false);
         }
-    }, [accessProfile]);
+    }, [accessProfile, favoritos]);
 
     // Buscar veículos paginados
     const getVehiclesPaginated = useCallback(async (options: any) => {
         try {
             setLoading(true);
-            const result = await VehicleService.getVehiclesPaginated({ ...options, accessProfile: options?.accessProfile || accessProfile });
+            const result = await VehicleService.getVehiclesPaginated({ favoritos, ...options, accessProfile: options?.accessProfile || accessProfile });
             setVehicles(result.data);
             setTotalItems(result.total);
             setTotalQuantidade(result.totalQuantidade || 0);
@@ -42,7 +43,7 @@ export const useVehicleDatabase = (accessProfile?: string) => {
             setLoading(false);
             throw err;
         }
-    }, [accessProfile]);
+    }, [accessProfile, favoritos]);
 
     // Buscar veículos com filtros (mantido por compatibilidade, mas redirecionando para paginado)
     const searchVehicles = useCallback(async (filters: any) => {

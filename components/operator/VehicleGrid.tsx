@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Bike, Car, Heart, MapPin } from 'lucide-react';
 import { Vehicle } from '../../lib/services/vehicleService';
 import { calculateDaysSinceUpdate, formatDate, getUpdateStatusColor } from '../../lib/utils/formatters';
 import { FaWhatsapp } from 'react-icons/fa';
@@ -26,6 +27,62 @@ export function getStatusColor(status: string | undefined) {
     }
 }
 
+interface VehiclePhotoProps {
+    vehicle: Pick<Vehicle, 'modelo' | 'imagemUrl' | 'tipoVeiculo'>;
+    className?: string;
+}
+
+/** Foto da variação (Catálogo). Sem foto, ou se ela não carregar, mostra um quadro neutro com ícone. */
+export function VehiclePhoto({ vehicle, className = '' }: VehiclePhotoProps) {
+    const [failedUrl, setFailedUrl] = useState<string | null>(null);
+    const url = vehicle.imagemUrl;
+    const hasPhoto = Boolean(url) && failedUrl !== url;
+    const Icon = vehicle.tipoVeiculo === 'moto' ? Bike : Car;
+
+    if (!hasPhoto) {
+        return (
+            <div className={`${styles.photoPlaceholder} ${className}`} role="img" aria-label={`Sem foto do ${vehicle.modelo || 'veículo'}`}>
+                <Icon size={22} aria-hidden="true" />
+            </div>
+        );
+    }
+
+    return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+            src={url}
+            alt={`Foto do ${vehicle.modelo || 'veículo'}`}
+            loading="lazy"
+            decoding="async"
+            className={`${styles.photo} ${className}`}
+            onError={() => setFailedUrl(url || null)}
+        />
+    );
+}
+
+interface FavoriteButtonProps {
+    active: boolean;
+    onToggle: () => void;
+    className?: string;
+}
+
+/** Coração de favoritos do cliente. Não propaga o clique para a linha ou o card. */
+export function FavoriteButton({ active, onToggle, className = '' }: FavoriteButtonProps) {
+    const label = active ? 'Parar de monitorar este carro' : 'Monitorar este carro: avisar quando chegarem ofertas novas';
+    return (
+        <button
+            type="button"
+            className={`${styles.favButton} ${active ? styles.favButtonActive : ''} ${className}`}
+            aria-pressed={active}
+            aria-label={label}
+            title={label}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggle(); }}
+        >
+            <Heart size={18} aria-hidden="true" fill={active ? 'currentColor' : 'none'} />
+        </button>
+    );
+}
+
 interface VehicleCardProps {
     vehicle: Vehicle;
     margem: number;
@@ -38,9 +95,11 @@ interface VehicleCardProps {
     onUpdatePreco?: (vehicle: Vehicle, preco: number | undefined) => void;
     onUpdateObservacoes?: (vehicle: Vehicle, obs: string) => void;
     onUpdateQuantidade?: (vehicle: Vehicle, qtd: number | undefined) => void;
+    isFavorite?: boolean;
+    onToggleFavorite?: (vehicle: Vehicle) => void;
 }
 
-export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsApp, onLocationClick, role = 'operator', canViewLocation = false, onUpdatePreco, onUpdateObservacoes, onUpdateQuantidade }: VehicleCardProps) {
+export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsApp, onLocationClick, role = 'operator', canViewLocation = false, onUpdatePreco, onUpdateObservacoes, onUpdateQuantidade, isFavorite = false, onToggleFavorite }: VehicleCardProps) {
     const isRepasse = vehicle.origem === 'repasse';
     // Usado se edita no painel Repasse da concessionária, não aqui.
     const canEditPriceAndNotes = !isRepasse && ['admin', 'administrador', 'administrativo', 'operator', 'operador', 'gerente'].includes(role || '');
@@ -55,8 +114,20 @@ export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsA
 
     return (
         <div className={styles.vehicleCard}>
+            <div className={styles.cardMedia}>
+                <VehiclePhoto vehicle={vehicle} className={styles.cardPhoto} />
+                {onToggleFavorite && vehicle.marca && vehicle.modelo && (
+                    <FavoriteButton
+                        active={isFavorite}
+                        onToggle={() => onToggleFavorite(vehicle)}
+                        className={styles.cardFavButton}
+                    />
+                )}
+            </div>
             <div className={styles.cardHeader}>
                 <h4 className={styles.cardTitle}>
+                    {vehicle.marca && <span className={styles.cardMarca}>{vehicle.marca}</span>}
+                    {vehicle.novoFavorito && <span className={styles.novoFavoritoTag} title="Oferta nova desde a sua última visita">NOVO</span>}
                     {isRepasse && <span style={{ fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.05em', padding: '1px 6px', borderRadius: 4, marginRight: 6, background: 'var(--color-highlight)', color: 'var(--color-text)', verticalAlign: 'middle' }}>REPASSE</span>}
                     {vehicle.modelo}
                 </h4>
@@ -96,6 +167,12 @@ export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsA
                     <span className={styles.cardLabel}>Transmissão:</span>
                     <span className={styles.cardValue}>{vehicle.transmissao}</span>
                 </div>
+                {vehicle.opcionais && (
+                    <div className={styles.cardRow}>
+                        <span className={styles.cardLabel}>Opcionais:</span>
+                        <span className={`${styles.cardValue} ${styles.cardOpcionais}`} title={vehicle.opcionais}>{vehicle.opcionais}</span>
+                    </div>
+                )}
                 <div className={styles.cardRow}>
                     <span className={styles.cardLabel}>Localização:</span>
                     <span className={styles.cardValue}>
@@ -114,7 +191,7 @@ export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsA
                                     fontSize: '0.9rem'
                                 }}
                             >
-                                📍 Ver detalhes
+                                <MapPin size={15} aria-hidden="true" /> Ver detalhes
                             </button>
                         ) : (
                             <span style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Restrito</span>
@@ -229,9 +306,11 @@ interface VehicleGridProps {
     onUpdatePreco?: (vehicle: Vehicle, preco: number | undefined) => void;
     onUpdateObservacoes?: (vehicle: Vehicle, obs: string) => void;
     onUpdateQuantidade?: (vehicle: Vehicle, qtd: number | undefined) => void;
+    isFavorite?: (vehicle: Vehicle) => boolean;
+    onToggleFavorite?: (vehicle: Vehicle) => void;
 }
 
-export function VehicleGrid({ vehicles, margem, fixedMargin, marginMode, onWhatsApp, onLocationClick, role, canViewLocation, onUpdatePreco, onUpdateObservacoes, onUpdateQuantidade }: VehicleGridProps) {
+export function VehicleGrid({ vehicles, margem, fixedMargin, marginMode, onWhatsApp, onLocationClick, role, canViewLocation, onUpdatePreco, onUpdateObservacoes, onUpdateQuantidade, isFavorite, onToggleFavorite }: VehicleGridProps) {
     return (
         <div className={styles.gridContainer}>
             {vehicles.length === 0 ? (
@@ -253,6 +332,8 @@ export function VehicleGrid({ vehicles, margem, fixedMargin, marginMode, onWhats
                         onUpdatePreco={onUpdatePreco}
                         onUpdateObservacoes={onUpdateObservacoes}
                         onUpdateQuantidade={onUpdateQuantidade}
+                        isFavorite={Boolean(isFavorite?.(vehicle))}
+                        onToggleFavorite={onToggleFavorite}
                     />
                 ))
             )}

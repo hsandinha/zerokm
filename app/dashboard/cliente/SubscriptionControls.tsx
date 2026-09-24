@@ -104,9 +104,9 @@ export function SubscriptionControls() {
             gap: '12px',
             margin: '0 0 16px',
             padding: '12px 14px',
-            border: '1px solid rgba(255,255,255,0.12)',
+            border: '1px solid var(--admin-border, var(--color-highlight))',
             borderRadius: '8px',
-            background: 'rgba(255,255,255,0.04)',
+            background: 'var(--color-surface)',
             color: 'var(--color-text)',
             flexWrap: 'wrap',
         }}>
@@ -130,7 +130,7 @@ export function SubscriptionControls() {
                     <div style={{
                         fontSize: '0.8rem',
                         marginTop: 6,
-                        color: error ? '#ef4444' : '#10b981',
+                        color: error ? 'var(--color-negative)' : 'var(--color-positive)',
                     }}>
                         {error || message}
                     </div>
@@ -143,8 +143,8 @@ export function SubscriptionControls() {
                     onClick={cancelSubscription}
                     disabled={cancelling}
                     style={{
-                        border: '1px solid rgba(239,68,68,0.45)',
-                        color: '#ef4444',
+                        border: '1px solid var(--color-negative)',
+                        color: 'var(--color-negative)',
                         background: 'transparent',
                         borderRadius: '6px',
                         padding: '8px 12px',

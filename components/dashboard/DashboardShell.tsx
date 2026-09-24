@@ -12,6 +12,8 @@ export interface ShellTab {
     id: string;
     label: string;
     icon: ReactNode;
+    /** Contador sobre o ícone (ex.: ofertas novas em Favoritos). 0 ou ausente = sem bolinha. */
+    badge?: number;
 }
 
 export interface DashboardShellProps {
@@ -20,7 +22,7 @@ export interface DashboardShellProps {
     tabs: ShellTab[];
     activeId: string;
     onSelect: (id: string) => void;
-    user: { name: string; email?: string | null; role: string };
+    user: { name: string; email?: string | null; role: string; credits?: number; onUpgradeClick?: () => void };
     /** Itens fixos da barra inferior no celular; os demais vão para "Mais". */
     primaryIds?: string[];
     children: ReactNode;
@@ -34,6 +36,14 @@ export interface DashboardShellProps {
  */
 export function DashboardShell({ sectionLabel, tabs, activeId, onSelect, user, primaryIds, children }: DashboardShellProps) {
     const [collapsed, setCollapsed] = useState(true);
+    const iconComBolinha = (tab: ShellTab) => (
+        <span className={styles.iconWrap}>
+            {tab.icon}
+            {!!tab.badge && tab.badge > 0 && (
+                <span className={styles.badge} aria-label={`${tab.badge} ${tab.badge === 1 ? 'novidade' : 'novidades'}`}>{tab.badge > 99 ? '99+' : tab.badge}</span>
+            )}
+        </span>
+    );
 
     return (
         <div className={styles.layoutWrapper}>
@@ -69,11 +79,11 @@ export function DashboardShell({ sectionLabel, tabs, activeId, onSelect, user, p
                                 type="button"
                                 className={`${styles.sidebarItem} ${activeId === tab.id ? styles.sidebarItemActive : ''}`}
                                 onClick={() => onSelect(tab.id)}
-                                title={tab.label}
-                                aria-label={tab.label}
+                                title={tab.badge ? `${tab.label} (${tab.badge} ${tab.badge === 1 ? 'novidade' : 'novidades'})` : tab.label}
+                                aria-label={tab.badge ? `${tab.label}, ${tab.badge} ${tab.badge === 1 ? 'novidade' : 'novidades'}` : tab.label}
                                 aria-current={activeId === tab.id ? 'page' : undefined}
                             >
-                                <span className={styles.sidebarItemIcon}>{tab.icon}</span>
+                                <span className={styles.sidebarItemIcon}>{iconComBolinha(tab)}</span>
                                 <span className={styles.sidebarItemLabel}>{tab.label}</span>
                             </button>
                         ))}
@@ -81,7 +91,7 @@ export function DashboardShell({ sectionLabel, tabs, activeId, onSelect, user, p
                 </div>
 
                 <div className={styles.sidebarFooter}>
-                    <UserMenu name={user.name} email={user.email} role={user.role} isDropup alignLeft compact={collapsed} />
+                    <UserMenu name={user.name} email={user.email} role={user.role} credits={user.credits} onUpgradeClick={user.onUpgradeClick} isDropup alignLeft compact={collapsed} />
                 </div>
             </aside>
 
@@ -93,7 +103,7 @@ export function DashboardShell({ sectionLabel, tabs, activeId, onSelect, user, p
             </main>
 
             <MobileTabBar
-                items={tabs.map(tab => ({ id: tab.id, label: tab.label, icon: tab.icon }))}
+                items={tabs.map(tab => ({ id: tab.id, label: tab.label, icon: iconComBolinha(tab) }))}
                 primaryIds={primaryIds}
                 activeId={activeId}
                 onSelect={onSelect}

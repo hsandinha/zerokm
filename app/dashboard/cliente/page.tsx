@@ -3,17 +3,16 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSession, getSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Image from 'next/image';
 import { VehicleConsultation } from '../../../components/operator/VehicleConsultation';
 import { ConfigContext } from '../../../lib/contexts/ConfigContext';
-import UserMenu from '../../../components/UserMenu';
 import { ExpirationAlerts } from './ExpirationAlerts';
 import { AutoUpgradeFromQuery } from './AutoUpgradeFromQuery';
 import { FreeTrialGate } from './FreeTrialGate';
 import { UpgradeModal } from '../../../components/operator/UpgradeModal';
 import { SubscriptionControls } from './SubscriptionControls';
-import { BannerCarouselHorizontal } from '../../../components/cliente/BannerCarouselHorizontal';
-import styles from './cliente.module.css';
+import { DashboardShell, shellStyles } from '@/components/dashboard/DashboardShell';
+import { useFavoritos } from '@/lib/hooks/useFavoritos';
+import { CarFront, Heart, UserRound } from 'lucide-react';
 
 function PaymentBanner() {
     const searchParams = useSearchParams();
@@ -176,49 +175,74 @@ export default function ClientDashboard() {
                 <AutoUpgradeFromQuery />
             </Suspense>
             <FreeTrialGate userInfo={userInfo} />
-            <div className={styles.container}>
-                <div className={styles.header}>
-                    <div className={styles.headerLeft}>
-                        <Image
-                            src="/images/logo.png"
-                            alt="Logo"
-                            width={240}
-                            height={80}
-                            className={styles.logo}
-                            priority
-                        />
-                    </div>
-                    
-                    <div style={{ flex: 1, display: 'flex', justifyContent: 'center', padding: '0 1rem' }}>
-                        <div style={{ width: '100%', maxWidth: '750px', height: '180px', marginTop: '14px' }}>
-                            <BannerCarouselHorizontal role={userInfo.profile === 'gratis' ? 'gratis' : 'client'} />
-                        </div>
-                    </div>
-
-                    <div className={styles.headerRight}>
-                        <UserMenu
-                            name={userInfo.name || 'Cliente'}
-                            email={userInfo.email}
-                            role={userInfo.profile === 'gratis' ? 'Grátis' : 'Cliente'}
-                            credits={userInfo.credits}
-                            onUpgradeClick={userInfo.profile === 'gratis' ? () => setShowUpgradeModal(true) : undefined}
-                        />
-                    </div>
-                </div>
-
-                <div className={styles.content}>
-                    <SubscriptionControls />
-                    <VehicleConsultation role={userInfo.profile === 'gratis' ? 'gratis' : 'client'} isInvitee={isInvitee} />
-                </div>
-            </div>
+            <ClienteShell
+                userInfo={userInfo}
+                isInvitee={isInvitee}
+                onUpgradeClick={userInfo.profile === 'gratis' ? () => setShowUpgradeModal(true) : undefined}
+            />
 
             {showUpgradeModal && (
                 <UpgradeModal
                     onClose={() => setShowUpgradeModal(false)}
-                    title="🚀 Desbloqueie o acesso completo"
+                    title="Desbloqueie o acesso completo"
                     subtitle="Assine um plano para ver localização e contato das concessionárias"
                 />
             )}
         </ConfigContext.Provider>
+    );
+}
+
+/**
+ * Painel do cliente no padrão da equipe: menu lateral com Veículos, Favoritos
+ * (carros monitorados, com a bolinha de ofertas novas) e Meu perfil.
+ */
+function ClienteShell({ userInfo, isInvitee, onUpgradeClick }: {
+    userInfo: { name?: string | null; email?: string | null; profile?: string | null; credits?: number };
+    isInvitee: boolean;
+    onUpgradeClick?: () => void;
+}) {
+    const router = useRouter();
+    const [aba, setAba] = useState<'veiculos' | 'favoritos'>('veiculos');
+    const { totalNovos } = useFavoritos(true);
+    const role = userInfo.profile === 'gratis' ? 'gratis' : 'client';
+
+    const tabs = [
+        { id: 'veiculos', label: 'Veículos', icon: <CarFront size={20} aria-hidden="true" /> },
+        { id: 'favoritos', label: 'Favoritos', icon: <Heart size={20} aria-hidden="true" />, badge: aba === 'favoritos' ? 0 : totalNovos },
+        { id: 'perfil', label: 'Meu perfil', icon: <UserRound size={20} aria-hidden="true" /> },
+    ];
+
+    return (
+        <DashboardShell
+            sectionLabel="Cliente"
+            tabs={tabs}
+            activeId={aba}
+            onSelect={id => {
+                if (id === 'perfil') { router.push('/dashboard/profile'); return; }
+                setAba(id as 'veiculos' | 'favoritos');
+            }}
+            primaryIds={['veiculos', 'favoritos', 'perfil']}
+            user={{
+                name: userInfo.name || 'Cliente',
+                email: userInfo.email,
+                role: userInfo.profile === 'gratis' ? 'Grátis' : 'Cliente',
+                credits: userInfo.credits,
+                onUpgradeClick,
+            }}
+        >
+            {aba === 'veiculos' && (
+                <div className={shellStyles.clienteSubscription}><SubscriptionControls /></div>
+            )}
+            {/* key: cada aba tem sua própria consulta (filtros e página não se misturam). */}
+            <VehicleConsultation
+                key={aba}
+                role={role}
+                isInvitee={isInvitee}
+                showBanners={aba === 'veiculos'}
+                bannerRole={role}
+                enableFavorites
+                favoritesOnly={aba === 'favoritos'}
+            />
+        </DashboardShell>
     );
 }

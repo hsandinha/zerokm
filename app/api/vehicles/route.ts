@@ -6,6 +6,8 @@ import Concessionaria from '@/models/Concessionaria';
 import DealerVehiclePrice from '@/models/DealerVehiclePrice';
 import VehicleVariation from '@/models/VehicleVariation';
 import RepasseVehicle from '@/models/RepasseVehicle';
+import Favorito from '@/models/Favorito';
+import { chaveFavorito } from '@/lib/services/favoritosService';
 import { REPASSE_STATUS_VITRINE } from '@/lib/utils/repasse';
 import { filtroPlanoRepasseAtivo } from '@/lib/utils/planoRepasse';
 import { getServerSession } from 'next-auth';
@@ -204,6 +206,18 @@ export async function GET(request: Request) {
             ];
         }
 
+        // Aba Favoritos do cliente: todas as ofertas (0KM e repasse) dos carros que
+        // ele monitora. Quem entrou depois da última visita volta marcado como novo.
+        let vistoPorModelo: Map<string, number> | null = null;
+        if (searchParams.get('favoritos') === '1') {
+            const email = session.user?.email?.toLowerCase().trim();
+            const favoritos = email ? await Favorito.find({ userEmail: email }).select('marca modelo lastSeenAt createdAt').lean() : [];
+            vistoPorModelo = new Map(favoritos.map(f => [chaveFavorito(f.marca, f.modelo), new Date(f.lastSeenAt || f.createdAt).getTime()]));
+            const porModelo = favoritos.map(f => ({ 'variation.marca': f.marca, 'variation.modelo': f.modelo }));
+            // Sem favoritos, nenhum resultado (um $or vazio seria inválido).
+            matchStage.$and = [...(matchStage.$and || []), porModelo.length ? { $or: porModelo } : { _id: { $in: [] } }];
+        }
+
         // Restriction apply
         if (restrictedDealershipId) {
             // override any concessionaria text search with hard restriction
@@ -356,6 +370,9 @@ export async function GET(request: Request) {
                 estado: c.uf,
                 nomeContato: c.contato || '',
                 telefone: c.celular || c.telefone || '',
+                ...(vistoPorModelo ? {
+                    novoFavorito: new Date(doc.createdAt).getTime() > (vistoPorModelo.get(chaveFavorito(v.marca, v.modelo)) ?? Infinity),
+                } : {}),
             };
         });
 

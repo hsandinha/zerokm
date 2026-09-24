@@ -67,3 +67,27 @@
     .layoutWrapper { display: block; height: auto; overflow: visible; padding: 0; }
     .mainContent { overflow: visible; }
 }
+
+/* Bolinha de contagem sobre o ícone do menu (lateral e barra do celular). */
+.iconWrap { position: relative; display: inline-flex; }
+.badge {
+    position: absolute;
+    top: -7px;
+    right: -9px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    border: 2px solid #102333;
+    background: var(--color-negative, #c43242);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 14px;
+    text-align: center;
+}
+
+/* Painel do cliente: controles da assinatura acima da consulta, sem espaço quando vazios. */
+.clienteSubscription:empty { display: none; }
+.clienteSubscription:not(:empty) { padding: 16px 32px 0; }
+@media (max-width: 768px) { .clienteSubscription:not(:empty) { padding: 12px 16px 0; } }

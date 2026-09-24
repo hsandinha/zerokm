@@ -6,6 +6,8 @@ import { useConfig } from '../../lib/contexts/ConfigContext';
 import { useVehicleDatabase } from '../../lib/hooks/useVehicleDatabase';
 import { fetchCatalogOptions } from '../../lib/services/catalogOptions';
 import { useIsMobile } from '../../lib/hooks/useIsMobile';
+import { useFavoritos } from '../../lib/hooks/useFavoritos';
+import { Heart, X } from 'lucide-react';
 import { Vehicle, VehicleService } from '../../lib/services/vehicleService';
 import { TransportadoraService, Transportadora } from '../../lib/services/transportadoraService';
 import { TRANSPORTADORA_PARCEIRA, telefoneTransportadora, whatsappTransportadora } from '../../lib/utils/transportadora';
@@ -34,7 +36,13 @@ interface VehicleConsultationProps {
      *  painel administrativo é acessível também por administrador, e amarrar
      *  no perfil faria o banner aparecer e sumir quando a sessão carregasse. */
     showBanners?: boolean;
+    /** Perfil usado pelo carrossel de banners (o cliente e o teste grátis têm regras de link diferentes). Padrão: 'client'. */
+    bannerRole?: 'client' | 'gratis';
     isInvitee?: boolean;
+    /** Coração de favoritos em cada veículo (painel do cliente). */
+    enableFavorites?: boolean;
+    /** Aba Favoritos: lista só os favoritos do usuário logado. */
+    favoritesOnly?: boolean;
 }
 
 type FiltersState = {
@@ -151,7 +159,9 @@ function EditableDateCell({ value, onSave }: EditableDateCellProps) {
     );
 }
 
-export function VehicleConsultation({ onClose, role = 'operator', isInvitee = false, showBanners = false }: VehicleConsultationProps) {
+export function VehicleConsultation({ onClose, role = 'operator', isInvitee = false, showBanners = false, bannerRole, enableFavorites = false, favoritesOnly = false }: VehicleConsultationProps) {
+    const favoritesEnabled = enableFavorites || favoritesOnly;
+    const favoritos = useFavoritos(favoritesEnabled);
     const { data: session } = useSession();
     const isClientReadOnly = true; // All edits moved to Pricing Catalog
     const { margem, fixedMargin, marginMode, setMargem, setMarginConfig } = useConfig();
@@ -373,7 +383,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
     };
 
     // Inicializar o banco de veículos
-    const { vehicles, totalItems, totalQuantidade, loading, error, refreshVehicles, updateVehicle, deleteVehicle, deleteVehicles, getVehiclesPaginated } = useVehicleDatabase(role);
+    const { vehicles, totalItems, totalQuantidade, loading, error, refreshVehicles, updateVehicle, deleteVehicle, deleteVehicles, getVehiclesPaginated } = useVehicleDatabase(role, { favoritos: favoritesOnly });
     // Opções de modelo para a edição na tabela: vêm do catálogo (padronizado pela FIPE).
     const [modeloOptions, setModeloOptions] = useState<string[]>([]);
     useEffect(() => {
@@ -1043,7 +1053,28 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
     // Lógica de Paginação (Server-side)
     // Os veículos já vêm filtrados e paginados do servidor via auto-search com debounce
     const totalPages = itemsPerPage === -1 ? 1 : Math.ceil(totalItems / itemsPerPage);
-    const displayVehicles = vehicles; // Server-side já traz filtrado
+    // Server-side já traz filtrado. Na aba Favoritos, quem é desmarcado some na hora
+    // (e volta se a API recusar, porque o hook desfaz a marcação).
+    const displayVehicles = favoritesOnly && !favoritos.loading
+        ? vehicles.filter(v => favoritos.isFavorite(v))
+        : vehicles;
+    const handleToggleFavorite = useCallback((vehicle: Vehicle) => {
+        void favoritos.toggle(vehicle);
+    }, [favoritos.toggle]);
+
+    // Aba Favoritos: guarda as novidades de cada carro para mostrar nesta visita e
+    // só então zera a bolinha do menu (a lista já veio com as ofertas novas marcadas).
+    const [novosNestaVisita, setNovosNestaVisita] = useState<Record<string, number> | null>(null);
+    const { markSeen } = favoritos;
+    useEffect(() => {
+        if (!favoritesOnly || favoritos.loading || novosNestaVisita) return;
+        setNovosNestaVisita(Object.fromEntries(favoritos.favoritos.map(f => [`${f.marca}|${f.modelo}`, f.novos])));
+        void markSeen();
+    }, [favoritesOnly, favoritos.loading, favoritos.favoritos, novosNestaVisita, markSeen]);
+    const favoriteProps = favoritesEnabled
+        ? { isFavorite: favoritos.isFavorite, onToggleFavorite: handleToggleFavorite }
+        : {};
+    const showFavoritesEmpty = favoritesOnly && !loading && !favoritos.loading && displayVehicles.length === 0;
 
     const handlePageChange = (page: number) => {
         if (page >= 1 && page <= totalPages) {
@@ -1237,6 +1268,8 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                 setViewMode={setViewMode}
                 onClose={onClose}
                 setShowUpgradeModal={setShowUpgradeModal}
+                banner={showBanners || bannerRole ? <BannerCarouselHorizontal role={bannerRole ?? 'client'} /> : undefined}
+                title={favoritesOnly ? 'Favoritos' : undefined}
             />
 
             {showVehicleForm && (
@@ -1280,15 +1313,6 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                         totalQuantidade={totalQuantidade}
                     />
 
-                    {/* Os mesmos banners pagos que o lojista vê no painel dele.
-                        Quem cuida deles (aba Banners) precisa ver como ficaram
-                        no ar — e é aqui que a base de veículos é consultada. */}
-                    {showBanners && (
-                        <div className={styles.bannerCarouselWrapper}>
-                            <BannerCarouselHorizontal role="client" />
-                        </div>
-                    )}
-
                     <div className={styles.freteBanner}>
                         <span className={styles.freteBannerLabel}>Transportadora parceira</span>
                         <span className={styles.freteBannerNome}>{TRANSPORTADORA_PARCEIRA.nome}</span>
@@ -1302,8 +1326,41 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                         </a>
                     </div>
 
+                    {favoritesOnly && favoritos.count > 0 && (
+                        <div className={styles.monitorados} aria-label="Carros monitorados">
+                            {favoritos.favoritos.map(f => {
+                                const novos = novosNestaVisita?.[`${f.marca}|${f.modelo}`] ?? f.novos;
+                                return (
+                                    <div key={`${f.marca}|${f.modelo}`} className={styles.monitoradoChip}>
+                                        <span className={styles.monitoradoNome}><small>{f.marca}</small>{f.modelo}</span>
+                                        <span className={styles.monitoradoInfo}>
+                                            {f.disponiveis} {f.disponiveis === 1 ? 'oferta' : 'ofertas'}
+                                            {novos > 0 && <strong className={styles.monitoradoNovos}>{novos} {novos === 1 ? 'nova' : 'novas'}</strong>}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            className={styles.monitoradoRemover}
+                                            onClick={() => handleToggleFavorite({ marca: f.marca, modelo: f.modelo } as Vehicle)}
+                                            aria-label={`Parar de monitorar ${f.marca} ${f.modelo}`}
+                                            title="Parar de monitorar"
+                                        >
+                                            <X size={14} aria-hidden="true" />
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
                     <div className={styles.resultsSection}>
-                        {effectiveViewMode === 'table' ? (
+                        {showFavoritesEmpty ? (
+                            <div className={styles.favoritesEmpty} role="status">
+                                <Heart size={28} aria-hidden="true" />
+                                <p>{favoritos.count
+                                    ? 'Nenhuma oferta disponível agora para os carros que você monitora. Avisamos aqui quando chegarem novas.'
+                                    : 'Você ainda não monitora nenhum carro. Toque no coração de um veículo na consulta para ser avisado quando chegarem ofertas novas dele.'}</p>
+                            </div>
+                        ) : effectiveViewMode === 'table' ? (
                             <VehicleTable
                                 showKm={tipoVeiculo === 'todos' || tipoVeiculo === 'repasse'}
                                 vehicles={displayVehicles}
@@ -1333,6 +1390,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                                 getFreteTabela={getFreteTabela}
                                 onFreteTabelaClick={handleFreteTabelaClick}
                                 nomeCliente={session?.user?.name || (session?.user as any)?.displayName || session?.user?.email || ''}
+                                {...favoriteProps}
                             />
                         ) : (
                             <VehicleGrid
@@ -1347,6 +1405,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                                 onUpdatePreco={handleUpdatePreco}
                                 onUpdateObservacoes={(v, obs) => handleUpdateVehicleField(v, 'observacoes', obs)}
                                 onUpdateQuantidade={(v, qtd) => handleUpdateVehicleField(v, 'quantidade', qtd)}
+                                {...favoriteProps}
                             />
                         )}
 

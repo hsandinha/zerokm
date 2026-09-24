@@ -30,6 +30,8 @@ export interface Vehicle {
     concessionaria?: string;
     /** Foto da variação, associada no Catálogo. */
     imagemUrl?: string;
+    /** Aba Favoritos: oferta que entrou depois da última visita do cliente. */
+    novoFavorito?: boolean;
 
     // Campos opcionais mantidos por compatibilidade ou uso futuro
     fotos?: string[];
@@ -61,6 +63,8 @@ export interface VehiclePaginationOptions {
     itemsPerPage?: number;
     lastDoc?: any;
     accessProfile?: string;
+    /** Só as ofertas marcadas como favoritas pelo usuário logado (aba Favoritos do cliente). */
+    favoritos?: boolean;
     searchTerm?: string;
     filters?: {
         /** 'carro' | 'moto' | 'repasse'. Vazio ou 'todos' = 0KM + repasse. */
@@ -197,6 +201,7 @@ export class VehicleService {
             params.set('page', page.toString());
             params.set('limit', itemsPerPage.toString());
             if (accessProfile) params.set('accessProfile', accessProfile);
+            if (options.favoritos) params.set('favoritos', '1');
             if (searchTerm) params.set('search', searchTerm);
             if (sortConfig) {
                 params.set('sortKey', sortConfig.key);
