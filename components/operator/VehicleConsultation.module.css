@@ -1669,5 +1669,22 @@
 .modelItem { width: 100%; border: 0; background: transparent; text-align: left; font-family: inherit; }
 @media (max-width: 768px) { .modelItem { width: auto; } }
 :global([data-admin-design]) .table { align-self: flex-start; }
+
+/* Keep the stock grid dominant, with compact tools and independently scrolling rows. */
+@media (min-width: 769px) {
+    :global([data-admin-design]) .header { min-height: 64px; padding: 12px 20px; }
+    :global([data-admin-design]) .sidebar { width: 236px; }
+    :global([data-admin-design]) .sidebarTitle { margin: 18px 16px 12px; }
+    :global([data-admin-design]) .searchSection { padding: 14px 16px 8px; }
+    :global([data-admin-design]) .resultsSection { padding: 10px 16px 12px; }
+    :global([data-admin-design]) .freteBanner { margin: 0 16px; padding: 6px 12px; }
+    :global([data-admin-design]) .paginationContainer { margin-top: 8px; padding: 8px 0 0; }
+    :global([data-admin-design]) .tableHeader { padding: 10px 12px; }
+    :global([data-admin-design]) .tableCell { padding: 8px 12px; line-height: 1.35; }
+    :global([data-admin-design]) .tableContainer { scrollbar-width: auto; scrollbar-color: var(--color-text-muted) var(--color-panel); }
+    :global([data-admin-design]) .tableContainer::-webkit-scrollbar { width: 10px; height: 10px; }
+    :global([data-admin-design]) .tableContainer::-webkit-scrollbar-thumb { background: var(--color-text-muted); border: 2px solid var(--color-panel); border-radius: 6px; }
+    :global([data-admin-design]) .tableContainer::-webkit-scrollbar-track { background: var(--color-panel); }
+}
 :global([data-admin-design]) .modelItem.active { background: var(--admin-selected); }
 :global([data-admin-design]) .priceCell { text-align: right; font-variant-numeric: tabular-nums; font-weight: 650; min-width: 150px; }

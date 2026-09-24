@@ -2,6 +2,12 @@
 .layoutWrapper { display: flex; height: 100dvh; overflow: hidden; background: var(--color-bg); }
 .sidebar { width: 236px; background: #102333; color: #e7eef5; display: flex; flex-direction: column; flex-shrink: 0; height: 100%; border-right: 1px solid #243a4c; transition: width 150ms; }
 .sidebarCollapsed { width: 80px; }
+/* Expansion overlays the workspace so vehicle columns never move on hover. */
+@media (min-width: 769px) {
+    .layoutWrapper { padding-left: 80px; position: relative; }
+    .sidebar { position: absolute; inset: 0 auto 0 0; z-index: 50; }
+    .sidebar:not(.sidebarCollapsed) { box-shadow: 12px 0 28px rgba(8, 24, 38, .18); }
+}
 .sidebarHeader { min-height: 84px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 16px; border-bottom: 1px solid #263b4c; }
 .sidebarCollapsed .sidebarHeader { flex-direction: column; padding: 12px 8px; gap: 4px; }
 .sidebarLogo { object-fit: contain; width: 150px; height: auto; }

@@ -254,7 +254,17 @@ export default function AdminDashboard() {
     return (
         <ConfigContext.Provider value={{ margem, fixedMargin, marginMode, setMargem: (v: number) => updateMargem(v, marginMode, fixedMargin), setMarginConfig: ({ margem: v, marginMode: m, fixedMargin: f }) => updateMargem(v, m, f) }}>
             <div className={styles.layoutWrapper}>
-                <aside className={`${styles.sidebar} ${isSidebarCollapsed ? styles.sidebarCollapsed : ''}`}>
+                <aside
+                    className={`${styles.sidebar} ${isSidebarCollapsed ? styles.sidebarCollapsed : ''}`}
+                    onMouseEnter={() => setIsSidebarCollapsed(false)}
+                    onMouseLeave={() => setIsSidebarCollapsed(true)}
+                    onFocusCapture={(event) => {
+                        if (event.target.matches(':focus-visible')) setIsSidebarCollapsed(false);
+                    }}
+                    onBlurCapture={(event) => {
+                        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setIsSidebarCollapsed(true);
+                    }}
+                >
                     <div className={styles.sidebarHeader}>
                         {!isSidebarCollapsed && (
                             <Image
