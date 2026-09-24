@@ -3,6 +3,22 @@
     {
       "path": "/api/cron/billing",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/wa/workers/ai",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/wa/workers/campaigns",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/wa/workers/followups",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/wa/workers/webhooks",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

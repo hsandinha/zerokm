@@ -9,6 +9,7 @@ import { useIsMobile } from '../../lib/hooks/useIsMobile';
 import { Vehicle, VehicleService } from '../../lib/services/vehicleService';
 import { TransportadoraService, Transportadora } from '../../lib/services/transportadoraService';
 import { TRANSPORTADORA_PARCEIRA, telefoneTransportadora, whatsappTransportadora } from '../../lib/utils/transportadora';
+import { BannerCarouselHorizontal } from '../cliente/BannerCarouselHorizontal';
 import { AddVehicleModal } from './AddVehicleModal';
 import styles from './VehicleConsultation.module.css';
 import modalStyles from './TablesManagement.module.css';
@@ -28,6 +29,11 @@ import { formatKm } from '../../lib/utils/repasse';
 interface VehicleConsultationProps {
     onClose?: () => void;
     role?: 'admin' | 'administrador' | 'operator' | 'operador' | 'administrativo' | 'client' | 'gratis' | 'dealership' | 'gerente' | 'vendedor';
+    /** Exibe o carrossel de banners pagos, o mesmo que o lojista vê. Quem
+     *  decide é a tela que monta a consulta, não o perfil de quem abriu: o
+     *  painel administrativo é acessível também por administrador, e amarrar
+     *  no perfil faria o banner aparecer e sumir quando a sessão carregasse. */
+    showBanners?: boolean;
     isInvitee?: boolean;
 }
 
@@ -145,7 +151,7 @@ function EditableDateCell({ value, onSave }: EditableDateCellProps) {
     );
 }
 
-export function VehicleConsultation({ onClose, role = 'operator', isInvitee = false }: VehicleConsultationProps) {
+export function VehicleConsultation({ onClose, role = 'operator', isInvitee = false, showBanners = false }: VehicleConsultationProps) {
     const { data: session } = useSession();
     const isClientReadOnly = true; // All edits moved to Pricing Catalog
     const { margem, fixedMargin, marginMode, setMargem, setMarginConfig } = useConfig();
@@ -1268,6 +1274,15 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                         totalItems={totalItems}
                         totalQuantidade={totalQuantidade}
                     />
+
+                    {/* Os mesmos banners pagos que o lojista vê no painel dele.
+                        Quem cuida deles (aba Banners) precisa ver como ficaram
+                        no ar — e é aqui que a base de veículos é consultada. */}
+                    {showBanners && (
+                        <div className={styles.bannerCarouselWrapper}>
+                            <BannerCarouselHorizontal role="client" />
+                        </div>
+                    )}
 
                     <div className={styles.freteBanner}>
                         <span className={styles.freteBannerLabel}>Transportadora parceira</span>
