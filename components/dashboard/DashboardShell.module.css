@@ -25,7 +25,24 @@
 .sidebarItemLabel { flex: 1; }
 .sidebarCollapsed .sidebarItem { justify-content: center; padding: 12px; }
 .sidebarCollapsed .sidebarItemLabel { display: none; }
-.sidebarFooter { padding: 16px 12px; border-top: 1px solid #263b4c; display: flex; align-items: center; justify-content: center; }
+.sidebarFooter { padding: 12px; border-top: 1px solid #263b4c; display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+.sidebarFooter > :first-child { align-self: center; }
+/* O menu lateral é sempre azul-marinho: o menu do usuário usa a paleta escura
+   nos dois temas, senão no modo claro o gatilho fica claro com texto apagado. */
+.sidebarFooter {
+    --color-text: #e7eef5;
+    --color-text-muted: #99adbe;
+    --color-highlight: #1b3448;
+    --color-panel: #243a4c;
+    --color-surface: #13293b;
+    --color-accent: #ffd16e;
+    --color-negative: #ff8a8a;
+    --admin-border: #2d4457;
+    color-scheme: dark;
+}
+.sidebarLogout { width: 100%; min-height: 40px; display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: transparent; border: 1px solid transparent; border-radius: 8px; color: #bdcbd8; font-size: 13px; font-weight: 500; text-align: left; cursor: pointer; }
+.sidebarLogout:hover { background: #3a2226; border-color: #5c2f35; color: #ff9b9b; }
+.sidebarCollapsed .sidebarLogout { justify-content: center; padding: 10px; }
 .mainContent { flex: 1; min-width: 0; overflow-y: auto; background: var(--color-bg); display: flex; flex-direction: column; }
 
 /* Área padrão de conteúdo de cada aba (a Consulta de veículos ocupa a tela toda e não usa). */

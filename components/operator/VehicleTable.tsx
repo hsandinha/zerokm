@@ -440,7 +440,8 @@ export function VehicleTable({
                                             <FaWhatsapp size={18} aria-hidden="true" />
                                         </button>
                                     )}
-                                    {/* Canal de cotação de frete: visível para todos os perfis. */}
+                                    {/* Cotação de frete com a transportadora: recurso dos planos pagos. */}
+                                    {role !== 'gratis' && (
                                     <a
                                         href={whatsappTransportadora(
                                             [vehicle.marca, vehicle.modelo, vehicle.cor, vehicle.estado && `para ${vehicle.estado}`]
@@ -455,6 +456,7 @@ export function VehicleTable({
                                     >
                                         <Truck size={18} aria-hidden="true" />
                                     </a>
+                                    )}
                                     {onToggleFavorite && vehicle.marca && vehicle.modelo && (
                                         <FavoriteButton
                                             active={favorito}

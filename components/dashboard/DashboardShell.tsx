@@ -1,7 +1,8 @@
 'use client';
 import { useState, type ReactNode } from 'react';
 import Image from 'next/image';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
+import { signOut } from 'next-auth/react';
 import UserMenu from '@/components/UserMenu';
 import { MobileTabBar } from '@/components/mobile/MobileTabBar';
 import styles from './DashboardShell.module.css';
@@ -22,7 +23,7 @@ export interface DashboardShellProps {
     tabs: ShellTab[];
     activeId: string;
     onSelect: (id: string) => void;
-    user: { name: string; email?: string | null; role: string; credits?: number; onUpgradeClick?: () => void };
+    user: { name: string; email?: string | null; role: string; credits?: number };
     /** Itens fixos da barra inferior no celular; os demais vão para "Mais". */
     primaryIds?: string[];
     children: ReactNode;
@@ -91,7 +92,18 @@ export function DashboardShell({ sectionLabel, tabs, activeId, onSelect, user, p
                 </div>
 
                 <div className={styles.sidebarFooter}>
-                    <UserMenu name={user.name} email={user.email} role={user.role} credits={user.credits} onUpgradeClick={user.onUpgradeClick} isDropup alignLeft compact={collapsed} />
+                    <UserMenu name={user.name} email={user.email} role={user.role} credits={user.credits} isDropup alignLeft compact={collapsed} />
+                    {/* Sair sempre à vista, sem depender do menu do usuário. */}
+                    <button
+                        type="button"
+                        className={styles.sidebarLogout}
+                        onClick={() => signOut({ callbackUrl: '/' })}
+                        title="Sair"
+                        aria-label="Sair"
+                    >
+                        <LogOut size={18} aria-hidden="true" />
+                        <span className={styles.sidebarItemLabel}>Sair</span>
+                    </button>
                 </div>
             </aside>
 

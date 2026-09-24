@@ -7,7 +7,7 @@ import { useVehicleDatabase } from '../../lib/hooks/useVehicleDatabase';
 import { fetchCatalogOptions } from '../../lib/services/catalogOptions';
 import { useIsMobile } from '../../lib/hooks/useIsMobile';
 import { useFavoritos } from '../../lib/hooks/useFavoritos';
-import { Heart, X } from 'lucide-react';
+import { Heart, Sparkles, X } from 'lucide-react';
 import { Vehicle, VehicleService } from '../../lib/services/vehicleService';
 import { TransportadoraService, Transportadora } from '../../lib/services/transportadoraService';
 import { TRANSPORTADORA_PARCEIRA, telefoneTransportadora, whatsappTransportadora } from '../../lib/utils/transportadora';
@@ -40,6 +40,8 @@ interface VehicleConsultationProps {
     bannerRole?: 'client' | 'gratis';
     isInvitee?: boolean;
     /** Coração de favoritos em cada veículo (painel do cliente). */
+    /** Plano grátis: botão "Assinar plano" abaixo da transportadora parceira. */
+    onUpgradeClick?: () => void;
     enableFavorites?: boolean;
     /** Aba Favoritos: lista só os favoritos do usuário logado. */
     favoritesOnly?: boolean;
@@ -159,8 +161,9 @@ function EditableDateCell({ value, onSave }: EditableDateCellProps) {
     );
 }
 
-export function VehicleConsultation({ onClose, role = 'operator', isInvitee = false, showBanners = false, bannerRole, enableFavorites = false, favoritesOnly = false }: VehicleConsultationProps) {
-    const favoritesEnabled = enableFavorites || favoritesOnly;
+export function VehicleConsultation({ onClose, role = 'operator', isInvitee = false, showBanners = false, bannerRole, enableFavorites = false, favoritesOnly = false, onUpgradeClick }: VehicleConsultationProps) {
+    // Favoritos é recurso dos planos pagos.
+    const favoritesEnabled = (enableFavorites || favoritesOnly) && role !== 'gratis';
     const favoritos = useFavoritos(favoritesEnabled);
     const { data: session } = useSession();
     const isClientReadOnly = true; // All edits moved to Pricing Catalog
@@ -1271,6 +1274,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                 setShowUpgradeModal={setShowUpgradeModal}
                 banner={showBanners || bannerRole ? <BannerCarouselHorizontal role={bannerRole ?? 'client'} /> : undefined}
                 aside={
+                    <div className={styles.headerAside}>
                     <div className={styles.freteHeader}>
                         <span className={styles.freteBannerLabel}>Transportadora parceira</span>
                         <span className={styles.freteBannerNome}>{TRANSPORTADORA_PARCEIRA.nome}</span>
@@ -1282,6 +1286,12 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                         >
                             <FaWhatsapp aria-hidden="true" /> {telefoneTransportadora()}
                         </a>
+                    </div>
+                    {onUpgradeClick && (
+                        <button type="button" className={styles.headerUpgrade} onClick={onUpgradeClick}>
+                            <Sparkles size={16} aria-hidden="true" /> Assinar plano
+                        </button>
+                    )}
                     </div>
                 }
                 title={favoritesOnly ? 'Favoritos' : undefined}

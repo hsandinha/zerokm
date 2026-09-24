@@ -203,45 +203,48 @@ function ClienteShell({ userInfo, isInvitee, onUpgradeClick }: {
 }) {
     const router = useRouter();
     const [aba, setAba] = useState<'veiculos' | 'favoritos'>('veiculos');
-    const { totalNovos } = useFavoritos(true);
     const role = userInfo.profile === 'gratis' ? 'gratis' : 'client';
+    // Favoritos (monitoramento de modelos) é recurso dos planos pagos.
+    const podeFavoritar = Boolean(userInfo.profile) && role !== 'gratis';
+    const { totalNovos } = useFavoritos(podeFavoritar);
 
     const tabs = [
         { id: 'veiculos', label: 'Veículos', icon: <CarFront size={20} aria-hidden="true" /> },
-        { id: 'favoritos', label: 'Favoritos', icon: <Heart size={20} aria-hidden="true" />, badge: aba === 'favoritos' ? 0 : totalNovos },
+        ...(podeFavoritar ? [{ id: 'favoritos', label: 'Favoritos', icon: <Heart size={20} aria-hidden="true" />, badge: aba === 'favoritos' ? 0 : totalNovos }] : []),
         { id: 'perfil', label: 'Meu perfil', icon: <UserRound size={20} aria-hidden="true" /> },
     ];
+    const abaAtual = podeFavoritar ? aba : 'veiculos';
 
     return (
         <DashboardShell
             sectionLabel="Cliente"
             tabs={tabs}
-            activeId={aba}
+            activeId={abaAtual}
             onSelect={id => {
                 if (id === 'perfil') { router.push('/dashboard/profile'); return; }
                 setAba(id as 'veiculos' | 'favoritos');
             }}
-            primaryIds={['veiculos', 'favoritos', 'perfil']}
+            primaryIds={tabs.map(tab => tab.id)}
             user={{
                 name: userInfo.name || 'Cliente',
                 email: userInfo.email,
                 role: userInfo.profile === 'gratis' ? 'Grátis' : 'Cliente',
                 credits: userInfo.credits,
-                onUpgradeClick,
             }}
         >
-            {aba === 'veiculos' && (
+            {abaAtual === 'veiculos' && (
                 <div className={shellStyles.clienteSubscription}><SubscriptionControls /></div>
             )}
             {/* key: cada aba tem sua própria consulta (filtros e página não se misturam). */}
             <VehicleConsultation
-                key={aba}
+                key={abaAtual}
                 role={role}
                 isInvitee={isInvitee}
-                showBanners={aba === 'veiculos'}
+                showBanners={abaAtual === 'veiculos'}
                 bannerRole={role}
-                enableFavorites
-                favoritesOnly={aba === 'favoritos'}
+                enableFavorites={podeFavoritar}
+                favoritesOnly={abaAtual === 'favoritos'}
+                onUpgradeClick={onUpgradeClick}
             />
         </DashboardShell>
     );
