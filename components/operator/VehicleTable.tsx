@@ -9,7 +9,7 @@ import { formatPrazo } from '../../lib/utils/prazo';
 import { formatKm } from '../../lib/utils/repasse';
 import { FaWhatsapp } from 'react-icons/fa';
 import { TRANSPORTADORA_PARCEIRA, whatsappTransportadora } from '../../lib/utils/transportadora';
-import { gerarCotacaoPdf } from '../../lib/utils/cotacaoPdf';
+import { abrirCotacaoDoVeiculo } from '../../lib/utils/cotacaoVeiculo';
 import styles from './VehicleConsultation.module.css';
 
 type SortKey = keyof Vehicle | 'updatedAt';
@@ -121,7 +121,7 @@ export function VehicleTable({
                         {showUfAndFrete && sortableHeader('estado', 'UF')}
                         {sortableHeader('observacoes', 'Observações', styles.colObs)}
                         {sortableHeader('updatedAt', 'Atualização')}
-                        <th className={styles.tableHeader}>Ações</th>
+                        <th className={`${styles.tableHeader} ${styles.colAcoes}`}>Ações</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -400,8 +400,8 @@ export function VehicleTable({
                                 </div>
                             </td>
 
-                            {/* Ações */}
-                            <td className={styles.tableCell}>
+                            {/* Ações: fixa na borda direita, sempre visível mesmo com rolagem horizontal. */}
+                            <td className={`${styles.tableCell} ${styles.colAcoes}`}>
                                 <div className={styles.rowActions}>
                                     {showRowActions && (
                                         <button
@@ -422,27 +422,8 @@ export function VehicleTable({
                                             aria-label="Gerar cotação em PDF"
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                const aberto = gerarCotacaoPdf({
-                                                    veiculo: {
-                                                        marca: vehicle.marca,
-                                                        modelo: vehicle.modelo,
-                                                        cor: vehicle.cor,
-                                                        ano: vehicle.ano,
-                                                        combustivel: vehicle.combustivel,
-                                                        transmissao: vehicle.transmissao,
-                                                        opcionais: vehicle.opcionais,
-                                                        observacoes: isRepasse
-                                                            ? [`Usado: ${formatKm(vehicle.km)}`, vehicle.observacoes].filter(Boolean).join(' · ')
-                                                            : vehicle.observacoes,
-                                                        estado: vehicle.estado,
-                                                        prazo: vehicle.prazo,
-                                                        imagemUrl: vehicle.imagemUrl,
-                                                    },
-                                                    // Mesmo preço que este perfil enxerga na tela.
-                                                    preco: calculateClientPrice(vehicle),
-                                                    nomeCliente: nomeCliente || 'Cliente',
-                                                });
-                                                if (!aberto) alert('Libere os pop-ups deste site para gerar a cotação.');
+                                                // Mesmo preço que este perfil enxerga na tela.
+                                                abrirCotacaoDoVeiculo(vehicle, calculateClientPrice(vehicle), nomeCliente);
                                             }}
                                         >
                                             <FileText size={18} aria-hidden="true" />

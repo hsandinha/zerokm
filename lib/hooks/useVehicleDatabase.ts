@@ -1,21 +1,30 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { VehicleService, Vehicle } from '../services/vehicleService';
 // import { useSession } from 'next-auth/react';
 
-/** `favoritos`: toda busca paginada traz só os favoritos do usuário logado. */
-export const useVehicleDatabase = (accessProfile?: string, { favoritos = false }: { favoritos?: boolean } = {}) => {
+/**
+ * `favoritos`: toda busca paginada traz só os favoritos do usuário logado.
+ * `tipoInicial`: segmento da primeira carga (ex.: 'carro'), igual ao filtro que a tela abre selecionado.
+ */
+export const useVehicleDatabase = (accessProfile?: string, { favoritos = false, tipoInicial }: { favoritos?: boolean; tipoInicial?: string } = {}) => {
     // const { data: session } = useSession();
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [totalItems, setTotalItems] = useState(0);
     const [totalQuantidade, setTotalQuantidade] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    // Só a resposta da busca mais recente é aplicada: uma resposta antiga que chegue
+    // depois (ex.: a carga inicial) não pode sobrescrever a lista filtrada.
+    const seq = useRef(0);
+    const ultimaBusca = useRef<any>(null);
 
     // Inicializar banco com dados de exemplo se estiver vazio
     const initializeDatabase = useCallback(async () => {
         try {
             // Buscar todos os veículos do banco (limitado a 50 por padrão para não pesar)
-            const result = await VehicleService.getVehiclesPaginated({ page: 1, itemsPerPage: 50, accessProfile, favoritos });
+            const id = ++seq.current;
+            const result = await VehicleService.getVehiclesPaginated({ page: 1, itemsPerPage: 50, accessProfile, favoritos, ...(tipoInicial ? { filters: { tipo: tipoInicial } } : {}) });
+            if (id !== seq.current) return;
             setVehicles(result.data);
             setTotalItems(result.total);
             setTotalQuantidade(result.totalQuantidade || 0);
@@ -25,13 +34,16 @@ export const useVehicleDatabase = (accessProfile?: string, { favoritos = false }
             setError('Erro ao carregar veículos');
             setLoading(false);
         }
-    }, [accessProfile, favoritos]);
+    }, [accessProfile, favoritos, tipoInicial]);
 
     // Buscar veículos paginados
     const getVehiclesPaginated = useCallback(async (options: any) => {
         try {
             setLoading(true);
+            ultimaBusca.current = options;
+            const id = ++seq.current;
             const result = await VehicleService.getVehiclesPaginated({ favoritos, ...options, accessProfile: options?.accessProfile || accessProfile });
+            if (id !== seq.current) return result;
             setVehicles(result.data);
             setTotalItems(result.total);
             setTotalQuantidade(result.totalQuantidade || 0);
@@ -134,6 +146,12 @@ export const useVehicleDatabase = (accessProfile?: string, { favoritos = false }
         initializeDatabase();
     }, [initializeDatabase]);
 
+    // Recarrega a última busca feita pela tela (mantém filtros e página).
+    const refreshVehicles = useCallback(
+        () => (ultimaBusca.current ? getVehiclesPaginated(ultimaBusca.current).then(() => undefined) : initializeDatabase()),
+        [getVehiclesPaginated, initializeDatabase],
+    );
+
     return {
         vehicles,
         totalItems,
@@ -146,6 +164,6 @@ export const useVehicleDatabase = (accessProfile?: string, { favoritos = false }
         updateVehicle,
         deleteVehicle,
         deleteVehicles,
-        refreshVehicles: initializeDatabase
+        refreshVehicles
     };
 };

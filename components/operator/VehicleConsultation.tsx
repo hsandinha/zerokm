@@ -262,7 +262,8 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
     // Segmento da vitrine (Todos / Carros 0KM / Motos 0KM). Não é um filtro
     // comum: "Limpar filtros" não mexe nele, e trocar de segmento zera o
     // modelo selecionado porque a lista de modelos da sidebar muda junto.
-    const [tipoVeiculo, setTipoVeiculo] = useState<TipoSegmento>('todos');
+    // Abre em "Carros 0KM"; na aba Favoritos mostra todos os segmentos monitorados.
+    const [tipoVeiculo, setTipoVeiculo] = useState<TipoSegmento>(favoritesOnly ? 'todos' : 'carro');
     const [knownColors, setKnownColors] = useState<string[]>([]);
     const [availableModels, setAvailableModels] = useState<string[]>([]);
     const [modelSearch, setModelSearch] = useState('');
@@ -383,7 +384,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
     };
 
     // Inicializar o banco de veículos
-    const { vehicles, totalItems, totalQuantidade, loading, error, refreshVehicles, updateVehicle, deleteVehicle, deleteVehicles, getVehiclesPaginated } = useVehicleDatabase(role, { favoritos: favoritesOnly });
+    const { vehicles, totalItems, totalQuantidade, loading, error, refreshVehicles, updateVehicle, deleteVehicle, deleteVehicles, getVehiclesPaginated } = useVehicleDatabase(role, { favoritos: favoritesOnly, tipoInicial: favoritesOnly ? undefined : 'carro' });
     // Opções de modelo para a edição na tabela: vêm do catálogo (padronizado pela FIPE).
     const [modeloOptions, setModeloOptions] = useState<string[]>([]);
     useEffect(() => {
@@ -1407,6 +1408,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                                 onUpdatePreco={handleUpdatePreco}
                                 onUpdateObservacoes={(v, obs) => handleUpdateVehicleField(v, 'observacoes', obs)}
                                 onUpdateQuantidade={(v, qtd) => handleUpdateVehicleField(v, 'quantidade', qtd)}
+                                nomeCliente={session?.user?.name || (session?.user as any)?.displayName || session?.user?.email || ''}
                                 {...favoriteProps}
                             />
                         )}

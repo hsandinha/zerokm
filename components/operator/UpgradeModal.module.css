@@ -174,3 +174,125 @@
     opacity: 0.5;
     cursor: not-allowed;
 }
+/* ---------- Escolha de planos (tabela de preços) ---------- */
+.pricing { display: flex; flex-direction: column; gap: 20px; }
+
+.billingSwitch {
+    align-self: center;
+    display: inline-flex;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 999px;
+    background: var(--color-panel);
+    border: 1px solid var(--admin-border, var(--color-highlight));
+}
+.billingSwitch button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 36px !important;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.billingSwitch .billingOn { background: var(--color-surface); color: var(--color-text); box-shadow: 0 1px 3px rgb(16 35 51 / 12%); }
+.billingSave {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--color-positive);
+    background: color-mix(in srgb, var(--color-positive) 14%, transparent);
+}
+
+.pricingGrid { display: grid; gap: 16px; align-items: stretch; }
+
+.pricingCard {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 24px;
+    border-radius: 16px;
+    border: 1px solid var(--admin-border, var(--color-highlight));
+    background: var(--color-surface);
+    transition: transform 150ms, box-shadow 150ms, border-color 150ms;
+}
+.pricingCard:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgb(16 35 51 / 10%); }
+.pricingCardFeatured {
+    border: 2px solid var(--color-accent);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--color-accent) 9%, var(--color-surface)) 0%, var(--color-surface) 45%);
+    box-shadow: 0 10px 30px color-mix(in srgb, var(--color-accent) 18%, transparent);
+}
+
+.pricingRibbon {
+    position: absolute;
+    top: -12px;
+    left: 24px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--admin-on-accent, #102333);
+    background: var(--color-accent);
+}
+
+.pricingHead { display: flex; flex-direction: column; gap: 4px; }
+.pricingName { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; color: var(--color-text); }
+.pricingTagline { margin: 0; font-size: 13px; color: var(--color-text-muted); line-height: 1.4; }
+
+.pricingPrice { display: flex; align-items: baseline; gap: 4px; color: var(--color-text); }
+.pricingCurrency { font-size: 16px; font-weight: 600; color: var(--color-text-muted); }
+.pricingValue { font-size: 38px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; font-variant-numeric: tabular-nums; }
+.pricingPeriod { font-size: 15px; font-weight: 500; color: var(--color-text-muted); }
+.pricingNote { margin: -8px 0 0; font-size: 12px; color: var(--color-text-muted); }
+.pricingNote strong { color: var(--color-positive); font-weight: 700; }
+
+.pricingCta,
+.pricingCtaPrimary {
+    width: 100%;
+    min-height: 44px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: filter 150ms, background 150ms;
+}
+.pricingCtaPrimary { border: 0; background: var(--color-accent); color: var(--admin-on-accent, #102333); }
+.pricingCtaPrimary:hover { filter: brightness(0.96); }
+.pricingCta { border: 1px solid var(--color-text); background: transparent; color: var(--color-text); }
+.pricingCta:hover { background: var(--admin-hover, var(--color-panel)); }
+
+.pricingFeatures {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 4px 0 0;
+    padding: 16px 0 0;
+    list-style: none;
+    border-top: 1px solid var(--admin-border, var(--color-highlight));
+}
+.pricingFeatures li { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; line-height: 1.4; color: var(--color-text); }
+.pricingFeatures svg { flex: none; margin-top: 2px; color: var(--color-positive); }
+
+.pricingFooter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin: 0;
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
+@media (max-width: 720px) {
+    .pricingGrid { grid-template-columns: minmax(0, 1fr) !important; }
+    .pricingValue { font-size: 32px; }
+}

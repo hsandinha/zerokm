@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Bike, Car, Heart, MapPin } from 'lucide-react';
+import { Bike, Car, FileText, Heart, MapPin } from 'lucide-react';
 import { Vehicle } from '../../lib/services/vehicleService';
 import { calculateDaysSinceUpdate, formatDate, getUpdateStatusColor } from '../../lib/utils/formatters';
 import { FaWhatsapp } from 'react-icons/fa';
 import { EditableCurrencyCell, EditableTextCell, EditableNumberCell } from './EditableCells';
 import { formatKm } from '../../lib/utils/repasse';
+import { abrirCotacaoDoVeiculo } from '../../lib/utils/cotacaoVeiculo';
 import styles from './VehicleConsultation.module.css';
 
 export function getStatusColor(status: string | undefined) {
@@ -97,9 +98,11 @@ interface VehicleCardProps {
     onUpdateQuantidade?: (vehicle: Vehicle, qtd: number | undefined) => void;
     isFavorite?: boolean;
     onToggleFavorite?: (vehicle: Vehicle) => void;
+    /** Nome que sai no cabeçalho da cotação em PDF. */
+    nomeCliente?: string;
 }
 
-export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsApp, onLocationClick, role = 'operator', canViewLocation = false, onUpdatePreco, onUpdateObservacoes, onUpdateQuantidade, isFavorite = false, onToggleFavorite }: VehicleCardProps) {
+export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsApp, onLocationClick, role = 'operator', canViewLocation = false, onUpdatePreco, onUpdateObservacoes, onUpdateQuantidade, isFavorite = false, onToggleFavorite, nomeCliente }: VehicleCardProps) {
     const isRepasse = vehicle.origem === 'repasse';
     // Usado se edita no painel Repasse da concessionária, não aqui.
     const canEditPriceAndNotes = !isRepasse && ['admin', 'administrador', 'administrativo', 'operator', 'operador', 'gerente'].includes(role || '');
@@ -277,6 +280,17 @@ export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsA
                 </div>
                 <div className={styles.cardActions}>
                     {role !== 'gratis' && (
+                        <button
+                            type="button"
+                            className={styles.cardPdfButton}
+                            title="Gerar cotação em PDF"
+                            aria-label="Gerar cotação em PDF"
+                            onClick={() => abrirCotacaoDoVeiculo(vehicle, calculateClientPrice(), nomeCliente)}
+                        >
+                            <FileText size={16} aria-hidden="true" /> PDF
+                        </button>
+                    )}
+                    {role !== 'gratis' && (
                         <span
                             className={styles.whatsappButton}
                             title="Contatar via WhatsApp"
@@ -308,9 +322,10 @@ interface VehicleGridProps {
     onUpdateQuantidade?: (vehicle: Vehicle, qtd: number | undefined) => void;
     isFavorite?: (vehicle: Vehicle) => boolean;
     onToggleFavorite?: (vehicle: Vehicle) => void;
+    nomeCliente?: string;
 }
 
-export function VehicleGrid({ vehicles, margem, fixedMargin, marginMode, onWhatsApp, onLocationClick, role, canViewLocation, onUpdatePreco, onUpdateObservacoes, onUpdateQuantidade, isFavorite, onToggleFavorite }: VehicleGridProps) {
+export function VehicleGrid({ vehicles, margem, fixedMargin, marginMode, onWhatsApp, onLocationClick, role, canViewLocation, onUpdatePreco, onUpdateObservacoes, onUpdateQuantidade, isFavorite, onToggleFavorite, nomeCliente }: VehicleGridProps) {
     return (
         <div className={styles.gridContainer}>
             {vehicles.length === 0 ? (
@@ -334,6 +349,7 @@ export function VehicleGrid({ vehicles, margem, fixedMargin, marginMode, onWhats
                         onUpdateQuantidade={onUpdateQuantidade}
                         isFavorite={Boolean(isFavorite?.(vehicle))}
                         onToggleFavorite={onToggleFavorite}
+                        nomeCliente={nomeCliente}
                     />
                 ))
             )}

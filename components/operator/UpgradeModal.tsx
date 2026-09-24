@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
 import styles from './UpgradeModal.module.css';
+import { Check, ShieldCheck } from 'lucide-react';
 import { MaskedInput } from '@/components/operator/MaskedInput';
 import { CardPaymentForm, type CardFormData } from '@/components/operator/CardPaymentForm';
 import { getUserProfile, updateUserProfile, UserProfileData } from '@/app/dashboard/profile/actions';
@@ -75,6 +76,29 @@ function getMpErrorMessage(statusDetail?: string, serverError?: string): string 
     return 'A cobrança foi recusada pelo banco. Tente novamente ou use outro cartão.';
 }
 
+/** Texto cadastrado todo em maiúsculas vira frase normal, mantendo siglas como 0KM. */
+function textoLegivel(texto: string) {
+    const limpo = texto.replace(/\s+([,.)])/g, '$1').replace(/\(\s+/g, '(').replace(/\s{2,}/g, ' ').trim();
+    if (/[a-zà-ú]/.test(limpo)) return limpo;
+    const frase = limpo.toLocaleLowerCase('pt-BR');
+    return (frase.charAt(0).toLocaleUpperCase('pt-BR') + frase.slice(1)).replace(/\b0km\b/gi, '0KM');
+}
+
+/** "PLANO PLUS - ACESSO TOTAL AO SISTEMA" vira título "Plano Plus" e resumo "Acesso total ao sistema". */
+function dividirNomePlano(nome: string) {
+    const [titulo, ...resto] = nome.split(/\s+-\s+/);
+    const tituloLegivel = /[a-zà-ú]/.test(titulo)
+        ? titulo.trim()
+        : titulo.trim().toLocaleLowerCase('pt-BR').replace(/(^|\s)(\S)/g, (_, esp: string, letra: string) => esp + letra.toLocaleUpperCase('pt-BR'));
+    return { titulo: tituloLegivel, resumo: resto.length ? textoLegivel(resto.join(' - ')) : '' };
+}
+
+/** A descrição do plano vira lista: cada trecho separado por "+" ou " - " é um item. */
+function itensDoPlano(descricao?: string) {
+    if (!descricao) return [];
+    return descricao.split(/\s+[+]\s+|\s+-\s+|\n+/).map(textoLegivel).filter(Boolean);
+}
+
 export function UpgradeModal({ onClose, initialPlanId, initialBilling, locked = false, paidOnly = false, pixOnly = false, title, subtitle, showLogout = false }: UpgradeModalProps) {
     const [plans, setPlans] = useState<Plan[]>([]);
     const [loading, setLoading] = useState(true);
@@ -88,6 +112,8 @@ export function UpgradeModal({ onClose, initialPlanId, initialBilling, locked = 
     const [flow, setFlow] = useState<'plans' | 'method' | 'card_form' | 'cvv_confirm' | 'pix' | 'boleto' | 'card_pending' | 'processing' | 'missing_info'>('plans');
     const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
     const [billingType, setBillingType] = useState<BillingType>('monthly');
+    /** Mensal/anual escolhido na tela de planos (antes de escolher o plano). */
+    const [planBilling, setPlanBilling] = useState<BillingType>(initialBilling ?? 'monthly');
     const [error, setError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
 
@@ -108,7 +134,7 @@ export function UpgradeModal({ onClose, initialPlanId, initialBilling, locked = 
         }
         return plan.price;
     };
-    const formatBRL = (n: number) => n.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    const formatBRL = (n: number) => n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const hasAnnualOption = (plan: Plan | null) => !!(plan && plan.annualPrice && plan.annualPrice > 0);
     const annualSavingsPct = (plan: Plan | null): number | null => {
         if (!plan || !plan.annualPrice || plan.annualPrice <= 0 || plan.price <= 0) return null;
@@ -745,7 +771,7 @@ export function UpgradeModal({ onClose, initialPlanId, initialBilling, locked = 
             title={flowTitles[flow] ?? 'Planos'}
             subtitle={subtitle && flow === 'plans' ? subtitle : undefined}
             onClose={onClose}
-            size="lg"
+            size={flow === 'plans' && monthlyPlans.length >= 3 ? 'xl' : 'lg'}
             dismissible={!locked}
             busy={flow === 'processing' || flow === 'card_pending'}
             bodyClassName={styles.body}
@@ -771,30 +797,76 @@ export function UpgradeModal({ onClose, initialPlanId, initialBilling, locked = 
                         <p className={styles.loading}>Carregando planos...</p>
                     ) : monthlyPlans.length === 0 ? (
                         <p className={styles.empty}>Nenhum plano disponível no momento.</p>
-                    ) : (
-                        <>
-                            {monthlyPlans.length > 0 && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                    {monthlyPlans.map(plan => (
-                                        <div key={plan.id} className={styles.monthlyCard}>
-                                            <div>
-                                                <div className={styles.planName}>{plan.name}</div>
-                                                {plan.description && <div className={styles.planDesc}>{plan.description}</div>}
-                                            </div>
-                                            <div className={styles.planPriceBlock}>
-                                                <span className={styles.planPrice}>
-                                                    R$ {plan.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} / Mês
-                                                </span>
-                                                <button className={styles.btnPrimary} onClick={() => handleSelectPlan(plan)}>
-                                                    Escolher este
+                    ) : (() => {
+                        // Do mais acessível ao mais completo; o mais completo ganha destaque.
+                        const ordenados = [...monthlyPlans].sort((a, b) => a.price - b.price);
+                        const destaqueId = ordenados.length > 1 ? ordenados[ordenados.length - 1].id : null;
+                        const temAnual = ordenados.some(p => hasAnnualOption(p));
+                        const maiorEconomia = Math.max(0, ...ordenados.map(p => annualSavingsPct(p) || 0));
+                        return (
+                            <div className={styles.pricing}>
+                                {temAnual && (
+                                    <div className={styles.billingSwitch} role="group" aria-label="Forma de cobrança">
+                                        <button type="button" aria-pressed={planBilling === 'monthly'} className={planBilling === 'monthly' ? styles.billingOn : ''} onClick={() => setPlanBilling('monthly')}>Mensal</button>
+                                        <button type="button" aria-pressed={planBilling === 'annual'} className={planBilling === 'annual' ? styles.billingOn : ''} onClick={() => setPlanBilling('annual')}>
+                                            Anual{maiorEconomia > 0 && <span className={styles.billingSave}>até {maiorEconomia}% off</span>}
+                                        </button>
+                                    </div>
+                                )}
+
+                                <div className={styles.pricingGrid} style={{ gridTemplateColumns: `repeat(${Math.min(ordenados.length, 3)}, minmax(0, 1fr))` }}>
+                                    {ordenados.map(plan => {
+                                        const anual = planBilling === 'annual' && hasAnnualOption(plan);
+                                        const { titulo, resumo } = dividirNomePlano(plan.name);
+                                        const itens = itensDoPlano(plan.description);
+                                        const destaque = plan.id === destaqueId;
+                                        const economia = anual ? annualSavingsPct(plan) : null;
+                                        return (
+                                            <article key={plan.id} className={`${styles.pricingCard} ${destaque ? styles.pricingCardFeatured : ''}`}>
+                                                {destaque && <span className={styles.pricingRibbon}>Mais completo</span>}
+                                                <header className={styles.pricingHead}>
+                                                    <h3 className={styles.pricingName}>{titulo}</h3>
+                                                    {resumo && <p className={styles.pricingTagline}>{resumo}</p>}
+                                                </header>
+
+                                                <div className={styles.pricingPrice}>
+                                                    <span className={styles.pricingCurrency}>R$</span>
+                                                    <span className={styles.pricingValue}>{formatBRL(getEffectiveMonthlyPrice(plan, anual ? 'annual' : 'monthly'))}</span>
+                                                    <span className={styles.pricingPeriod}>/mês</span>
+                                                </div>
+                                                <p className={styles.pricingNote}>
+                                                    {anual
+                                                        ? <>R$ {formatBRL(getTotalChargeAmount(plan, 'annual'))} cobrados por ano{economia ? <strong> · economia de {economia}%</strong> : null}</>
+                                                        : 'Cobrança mensal'}
+                                                </p>
+
+                                                <button
+                                                    type="button"
+                                                    className={destaque ? styles.pricingCtaPrimary : styles.pricingCta}
+                                                    onClick={() => handleSelectPlan(plan, anual ? 'annual' : 'monthly')}
+                                                >
+                                                    Assinar {titulo}
                                                 </button>
-                                            </div>
-                                        </div>
-                                    ))}
+
+                                                {itens.length > 0 && (
+                                                    <ul className={styles.pricingFeatures}>
+                                                        {itens.map(item => (
+                                                            <li key={item}><Check size={16} aria-hidden="true" />{item}</li>
+                                                        ))}
+                                                    </ul>
+                                                )}
+                                            </article>
+                                        );
+                                    })}
                                 </div>
-                            )}
-                        </>
-                    )}
+
+                                <p className={styles.pricingFooter}>
+                                    <ShieldCheck size={15} aria-hidden="true" />
+                                    Pagamento processado pelo Mercado Pago{pixOnly ? ' via PIX' : ': PIX, boleto ou cartão'}.
+                                </p>
+                            </div>
+                        );
+                    })()}
                 </>
             )}
 
