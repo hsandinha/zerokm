@@ -1453,14 +1453,17 @@
 
 .headerBannerInner {
     width: 100%;
-    max-width: 750px;
-    height: 180px;
+    max-width: 680px;
+    /* Compacto: o banner não pode empurrar a lista de veículos para fora da tela. */
+    height: 130px;
 }
+
+.header:has(.headerBanner) { padding-top: 0.75rem; padding-bottom: 0.75rem; }
 
 @media (max-width: 768px) {
     .header:has(.headerBanner) { flex-wrap: wrap; }
     .headerBanner { order: 3; flex-basis: 100%; padding: 0; margin-top: 0.75rem; }
-    .headerBannerInner { height: 150px; }
+    .headerBannerInner { height: 120px; }
 }
 
 .freteBanner {
