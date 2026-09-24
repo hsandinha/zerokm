@@ -91,3 +91,7 @@
     --admin-muted: var(--color-text-muted);
     --admin-panel: var(--color-panel);
 }
+/* Restore a quiet border for required fields; errors are shown by the form. */
+[data-admin-design] input:invalid,
+[data-admin-design] select:invalid,
+[data-admin-design] textarea:invalid { border-color: var(--admin-border) !important; }

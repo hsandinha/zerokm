@@ -572,7 +572,7 @@ function CentralInner({ currentEmail }: { currentEmail: string }) {
                       {c.preview}
                     </span>
                     {c.unread > 0 && (
-                      <span className="shrink-0 rounded-full bg-brand-500 px-1.5 text-[10px] font-bold text-white">
+                      <span className="shrink-0 rounded-full bg-brand-500 px-1.5 text-[10px] font-bold text-[#102333]">
                         {c.unread}
                       </span>
                     )}

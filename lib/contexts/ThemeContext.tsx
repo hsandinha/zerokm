@@ -20,11 +20,11 @@ export function AdminThemeProvider({ children }: { children: React.ReactNode }) 
             if (saved === 'dark' || saved === 'light') setTheme(saved);
         } catch { /* Storage may be unavailable in private browsing. */ }
     }, []);
-    const toggleTheme = () => setTheme(current => {
-        const next = current === 'light' ? 'dark' : 'light';
+    const toggleTheme = () => {
+        const next = theme === 'light' ? 'dark' : 'light';
+        setTheme(next);
         try { localStorage.setItem('cnv-admin-theme', next); } catch { /* Session-only preference. */ }
-        return next;
-    });
+    };
     return <ThemeContext.Provider value={{ theme, toggleTheme }}>
         <div data-admin-design={theme}>{children}</div>
     </ThemeContext.Provider>;

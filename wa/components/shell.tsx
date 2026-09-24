@@ -244,7 +244,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       {/* O <aside> reserva 4rem no fluxo; o painel interno cresce para 15rem
           no hover e sobrepõe o conteúdo (z acima do header), então nada se
           move na página quando ele abre. */}
-      <aside className="group relative z-40 hidden w-16 shrink-0 md:block">
+      <aside className="cnv-wa-navigation group relative z-40 hidden w-16 shrink-0 md:block">
         <div className="sticky top-0 flex h-screen w-16 flex-col overflow-hidden border-r border-line bg-paper transition-[width,box-shadow] duration-200 ease-out group-hover:w-60 group-hover:shadow-[8px_0_30px_rgba(11,18,21,0.35)]">
           <div className="flex h-16 shrink-0 items-center px-3">
             <Link href="/dashboard/admin/whatsapp/visao-geral" className="flex items-center gap-2 overflow-hidden" aria-label="Visão geral">

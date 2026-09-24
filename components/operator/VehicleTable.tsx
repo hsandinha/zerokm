@@ -74,6 +74,7 @@ export function VehicleTable({
     nomeCliente,
     showKm = false,
 }: VehicleTableProps) {
+    const prioritizePrice = ['admin', 'administrador', 'gerente'].includes(role || '');
     const canEditPriceAndNotes = ['admin', 'administrador', 'administrativo', 'operator', 'operador', 'gerente'].includes(role || '');
     
     const calculateClientPrice = (vehicle: Vehicle) => {
@@ -83,6 +84,10 @@ export function VehicleTable({
         }
         return basePrice * (1 + margem / 100);
     };
+
+    const priceHeader = (<th className={`${styles.tableHeader} ${styles.priceCell}`} onClick={() => handleSort('preco')} style={{ cursor: 'pointer' }}>
+                            PREÇO (R$) {sortConfig.key === 'preco' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                        </th>);
 
     return (
         <div className={styles.tableContainer}>
@@ -95,6 +100,7 @@ export function VehicleTable({
                                 MODELO {sortConfig.key === 'modelo' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                             </th>
                         )}
+                        {prioritizePrice && priceHeader}
                         <th className={styles.tableHeader} onClick={() => handleSort('transmissao')} style={{ cursor: 'pointer' }}>
                             TRANSMISSÃO {sortConfig.key === 'transmissao' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                         </th>
@@ -116,9 +122,7 @@ export function VehicleTable({
                         <th className={styles.tableHeader} style={{ width: '60px' }}>
                             QTD
                         </th>
-                        <th className={styles.tableHeader} onClick={() => handleSort('preco')} style={{ cursor: 'pointer' }}>
-                            PREÇO (R$) {sortConfig.key === 'preco' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                        </th>
+                        {!prioritizePrice && priceHeader}
                         <th className={styles.tableHeader} onClick={() => handleSort('status')} style={{ cursor: 'pointer' }}>
                             STATUS {sortConfig.key === 'status' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                         </th>
@@ -166,6 +170,16 @@ export function VehicleTable({
                         const isRepasse = vehicle.origem === 'repasse';
                         const rowReadOnly = isClientReadOnly || isRepasse;
                         const rowCanEdit = canEditPriceAndNotes && !isRepasse;
+                        const priceCell = (<td className={`${styles.tableCell} ${styles.priceCell}`}>
+                                {rowReadOnly && !rowCanEdit ? (
+                                    `R$ ${calculateClientPrice(vehicle).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                                ) : (
+                                    <EditableCurrencyCell
+                                        value={vehicle.preco}
+                                        onSave={(newValue) => handleUpdatePreco(vehicle, newValue)}
+                                    />
+                                )}
+                            </td>);
                         return (
                         <tr key={vehicle.id} className={styles.tableRow}>
 
@@ -185,6 +199,7 @@ export function VehicleTable({
                                     )}
                                 </td>
                             )}
+                            {prioritizePrice && priceCell}
                             <td className={styles.tableCell}>
                                 {rowReadOnly ? (
                                     <HighlightText text={vehicle.transmissao} searchTerm={pendingSearchTerm} />
@@ -256,16 +271,7 @@ export function VehicleTable({
                                     />
                                 )}
                             </td>
-                            <td className={styles.tableCell}>
-                                {rowReadOnly && !rowCanEdit ? (
-                                    `R$ ${calculateClientPrice(vehicle).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-                                ) : (
-                                    <EditableCurrencyCell
-                                        value={vehicle.preco}
-                                        onSave={(newValue) => handleUpdatePreco(vehicle, newValue)}
-                                    />
-                                )}
-                            </td>
+                            {!prioritizePrice && priceCell}
                             <td className={styles.tableCell}>
                                 {rowReadOnly ? (
                                     <span className={`${styles.statusBadge} ${getStatusColor(vehicle.status)}`}>

@@ -1670,3 +1670,4 @@
 @media (max-width: 768px) { .modelItem { width: auto; } }
 :global([data-admin-design]) .table { align-self: flex-start; }
 :global([data-admin-design]) .modelItem.active { background: var(--admin-selected); }
+:global([data-admin-design]) .priceCell { text-align: right; font-variant-numeric: tabular-nums; font-weight: 650; min-width: 150px; }

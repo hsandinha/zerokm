@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { signOut, useSession } from 'next-auth/react';
 import Link from 'next/link';
+import { UserRound, Repeat2, Sun, Moon, LogOut } from 'lucide-react';
 import { useTheme } from '@/lib/contexts/ThemeContext';
 import styles from './UserMenu.module.css';
 
@@ -205,7 +206,7 @@ export default function UserMenu({ name, email, role, credits, isDropup, alignLe
                         className={styles.menuItem}
                         onClick={() => setIsOpen(false)}
                     >
-                        <span className={styles.menuItemIcon}>👤</span>
+                        <span className={styles.menuItemIcon}><UserRound size={17} aria-hidden="true" /></span>
                         Meu Perfil
                         <ProfileRing pct={profileCompletion} />
                     </Link>
@@ -221,7 +222,7 @@ export default function UserMenu({ name, email, role, credits, isDropup, alignLe
                                         onClick={() => handleSwitchProfile(profile)}
                                         className={styles.menuItem}
                                     >
-                                        <span className={styles.menuItemIcon}>🔄</span>
+                                        <span className={styles.menuItemIcon}><Repeat2 size={17} aria-hidden="true" /></span>
                                         {formatProfileName(profile)}
                                     </button>
                                 )
@@ -235,7 +236,7 @@ export default function UserMenu({ name, email, role, credits, isDropup, alignLe
                         onClick={toggleTheme}
                         className={styles.menuItem}
                     >
-                        <span className={styles.menuItemIcon}>{theme === 'dark' ? '☀️' : '🌙'}</span>
+                        <span className={styles.menuItemIcon}>{theme === 'dark' ? <Sun size={17} aria-hidden="true" /> : <Moon size={17} aria-hidden="true" />}</span>
                         {theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}
                     </button>
 
@@ -245,7 +246,7 @@ export default function UserMenu({ name, email, role, credits, isDropup, alignLe
                         onClick={handleLogout}
                         className={`${styles.menuItem} ${styles.logoutButton}`}
                     >
-                        <span className={styles.menuItemIcon}>🚪</span>
+                        <span className={styles.menuItemIcon}><LogOut size={17} aria-hidden="true" /></span>
                         Sair
                     </button>
                 </div>

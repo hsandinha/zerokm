@@ -356,7 +356,7 @@ function Card({
         <span className="flex items-center gap-1.5">
           {daysInStage > 0 && <span title="Dias nesta etapa">{daysInStage}d</span>}
           {item.unread > 0 && (
-            <span className="rounded-full bg-brand-500 px-1.5 text-[10px] font-bold text-white">{item.unread}</span>
+            <span className="rounded-full bg-brand-500 px-1.5 text-[10px] font-bold text-[#102333]">{item.unread}</span>
           )}
           {item.assignedTo && (
             <span

@@ -148,3 +148,9 @@
 :global([data-admin-design]) .kpiIcon { color: var(--color-text-muted); }
 :global([data-admin-design]) .rankingSection { border: 0; padding: 0; background: transparent; box-shadow: none; }
 :global([data-admin-design]) .cellPurple { color: #8062aa; }
+:global([data-admin-design]) .globalKPIs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+:global([data-admin-design]) .kpiCard, :global([data-admin-design]) .kpiInfo { min-width: 0; }
+:global([data-admin-design]) .kpiInfo h2 { font-size: clamp(20px, 2vw, 28px); overflow-wrap: anywhere; }
+:global([data-admin-design]) .tableWrapper { overflow-x: auto; }
+@media (max-width: 1200px) { :global([data-admin-design]) .globalKPIs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { :global([data-admin-design]) .globalKPIs { grid-template-columns: minmax(0, 1fr); gap: 12px; } }

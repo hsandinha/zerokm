@@ -328,3 +328,13 @@
 }
 [data-admin-design] .wa-scope .card { border-radius: 12px; box-shadow: var(--admin-shadow); }
 [data-admin-design] .wa-scope .input { border-radius: 8px; }
+[data-admin-design] .wa-scope .cnv-wa-navigation {
+  --color-paper: #102333;
+  --color-canvas: #1b3448;
+  --color-line: #263b4c;
+  --color-muted: #aebdca;
+  --color-ink-700: #bdcbd8;
+  --color-ink-900: #edf3f8;
+  --admin-selected: #3a382b;
+  --admin-selected-text: #ffd16e;
+}

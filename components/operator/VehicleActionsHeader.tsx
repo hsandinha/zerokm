@@ -132,7 +132,7 @@ export function VehicleActionsHeader({
                 </div>
                 {onClose && (
                     <button className={styles.closeButton} onClick={onClose} aria-label="Fechar consulta">
-                        ✕
+                        <X size={16} aria-hidden="true" />
                     </button>
                 )}
             </div>

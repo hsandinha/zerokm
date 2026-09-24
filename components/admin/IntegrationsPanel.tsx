@@ -66,7 +66,7 @@ export default function IntegrationsPanel() {
                 Conecte ferramentas externas como Facebook Ads, RD Station, ActiveCampaign ou Typeform enviando Leads automaticamente para o CRM.
             </p>
 
-            <div style={{ display: 'grid', gap: '24px', gridTemplateColumns: '1fr', maxWidth: '800px' }}>
+            <div style={{ display: 'grid', gap: '24px', gridTemplateColumns: 'minmax(0, 1fr)', maxWidth: '800px' }}>
                 <div style={{ background: 'var(--color-panel)', border: '1px solid var(--color-highlight)', borderRadius: '8px', padding: '24px' }}>
                     <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         1. URL do Webhook
@@ -79,7 +79,7 @@ export default function IntegrationsPanel() {
                             type="text" 
                             readOnly 
                             value={webhookUrl} 
-                            style={{ flex: 1, padding: '10px 16px', background: 'var(--color-panel)', border: '1px solid var(--color-highlight)', color: 'var(--color-text)', borderRadius: '6px', fontFamily: 'monospace', outline: 'none' }}
+                            style={{ flex: '1 1 180px', minWidth: 0, padding: '10px 16px', background: 'var(--color-panel)', border: '1px solid var(--color-highlight)', color: 'var(--color-text)', borderRadius: '6px', fontFamily: 'monospace', outline: 'none' }}
                         />
                         <button 
                             onClick={() => handleCopy(webhookUrl)}
@@ -102,7 +102,7 @@ export default function IntegrationsPanel() {
                             type="text" 
                             readOnly 
                             value={token || 'Nenhum token gerado ainda'} 
-                            style={{ flex: 1, padding: '10px 16px', background: 'var(--color-panel)', border: '1px solid var(--color-highlight)', color: token ? 'var(--color-text)' : '#ef4444', borderRadius: '6px', fontFamily: 'monospace', outline: 'none' }}
+                            style={{ flex: '1 1 180px', minWidth: 0, padding: '10px 16px', background: 'var(--color-panel)', border: '1px solid var(--color-highlight)', color: token ? 'var(--color-text)' : '#ef4444', borderRadius: '6px', fontFamily: 'monospace', outline: 'none' }}
                         />
                         {token && (
                             <button 
@@ -129,7 +129,7 @@ export default function IntegrationsPanel() {
                     <p style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '12px' }}>
                         O corpo da requisição (Body) deve ser um JSON com os dados do Lead. Nome e Telefone são obrigatórios.
                     </p>
-                    <pre style={{ background: 'var(--color-panel)', padding: '16px', borderRadius: '8px', color: 'var(--color-text)', fontFamily: 'monospace', fontSize: '0.9rem', overflowX: 'auto', border: '1px solid var(--color-highlight)' }}>
+                    <pre style={{ background: 'var(--color-panel)', padding: '16px', borderRadius: '8px', color: 'var(--color-text)', fontFamily: 'monospace', fontSize: '0.9rem', overflowX: 'auto', maxWidth: '100%', border: '1px solid var(--color-highlight)' }}>
 {`{
   "name": "Nome do Lead",
   "phone": "(11) 99999-9999",
