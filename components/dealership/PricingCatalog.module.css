@@ -534,3 +534,13 @@ details[open] > .sectionTitle::before {
     padding: 1rem 1.5rem;
     border-top: 1px solid var(--color-highlight);
 }
+
+/* The same inventory is embedded in administration; dealership styles stay scoped. */
+:global([data-admin-design]) .container { padding: 24px; }
+:global([data-admin-design]) .tableShell, :global([data-admin-design]) .modalContent { background: var(--color-surface); border-color: var(--admin-border); border-radius: 12px; box-shadow: var(--admin-shadow); }
+:global([data-admin-design]) .table th { padding: 12px 16px; font-weight: 600; font-size: 12px; background: var(--color-panel); color: var(--color-text-muted); text-transform: none; }
+:global([data-admin-design]) .table td { padding: 14px 16px; border-color: var(--admin-border); line-height: 1.45; }
+:global([data-admin-design]) .segmentActive { background: var(--admin-selected); color: var(--admin-selected-text); }
+:global([data-admin-design]) .actionBtn { border: 1px solid var(--admin-border); background: var(--color-surface); color: var(--color-text); border-radius: 8px; min-height: 40px; }
+:global([data-admin-design]) .search { background: var(--color-surface); }
+@media (max-width: 768px) { :global([data-admin-design]) .container { padding: 16px; } }

@@ -85,9 +85,11 @@ export function VehicleTable({
         return basePrice * (1 + margem / 100);
     };
 
-    const priceHeader = (<th className={`${styles.tableHeader} ${styles.priceCell}`} onClick={() => handleSort('preco')} style={{ cursor: 'pointer' }}>
-                            PREÇO (R$) {sortConfig.key === 'preco' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                        </th>);
+    const priceHeader = (
+        <th className={`${styles.tableHeader} ${styles.priceCell}`} onClick={() => handleSort('preco')} style={{ cursor: 'pointer' }}>
+            PREÇO (R$) {sortConfig.key === 'preco' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+        </th>
+    );
 
     return (
         <div className={styles.tableContainer}>
@@ -170,7 +172,8 @@ export function VehicleTable({
                         const isRepasse = vehicle.origem === 'repasse';
                         const rowReadOnly = isClientReadOnly || isRepasse;
                         const rowCanEdit = canEditPriceAndNotes && !isRepasse;
-                        const priceCell = (<td className={`${styles.tableCell} ${styles.priceCell}`}>
+                        const priceCell = (
+                            <td className={`${styles.tableCell} ${styles.priceCell}`}>
                                 {rowReadOnly && !rowCanEdit ? (
                                     `R$ ${calculateClientPrice(vehicle).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
                                 ) : (
@@ -179,7 +182,8 @@ export function VehicleTable({
                                         onSave={(newValue) => handleUpdatePreco(vehicle, newValue)}
                                     />
                                 )}
-                            </td>);
+                            </td>
+                        );
                         return (
                         <tr key={vehicle.id} className={styles.tableRow}>
 

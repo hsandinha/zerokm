@@ -74,3 +74,6 @@
 
 /* Shared administration design; other profiles keep their existing presentation. */
 :global([data-admin-design]) .select { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--admin-border); border-radius: 8px; min-height: 40px; }
+:global([data-admin-design]) .header { background: transparent; border: 0; padding: 0 0 24px; }
+:global([data-admin-design]) .header h2 { font-size: 28px; font-weight: 650; }
+@media (max-width: 768px) { :global([data-admin-design]) .header h2 { font-size: 23px; } }
