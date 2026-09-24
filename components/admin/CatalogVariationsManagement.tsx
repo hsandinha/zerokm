@@ -1,5 +1,7 @@
 'use client';
-import { FipeLookup } from '@/components/catalog/FipeLookup';
+import { AutocompleteField, normalizeSearch, useFipeCascade } from '@/components/catalog/FipeLookup';
+import fipeStyles from '@/components/catalog/FipeLookup.module.css';
+import type { FipeDetail } from '@/lib/services/fipeService';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import styles from './CatalogVariationsManagement.module.css';
@@ -339,6 +341,43 @@ export function CatalogVariationsManagement() {
         return marcas.find(m => m.nome.toLowerCase() === nome)?.tipoVeiculo || 'carro';
     }, [form.tipoVeiculo, form.marca, marcas]);
 
+    const fipe = useFipeCascade(effectiveTipo);
+    const { reset: resetFipe } = fipe;
+    useEffect(() => { resetFipe(); }, [fipeReset, editingId, resetFipe]);
+
+    /** Usa o nome da marca já cadastrada (FIAT, VW, HONDA MOTOS…) para não duplicar marcas com a grafia da FIPE. */
+    const toLocalMarca = (fipeName: string) => {
+        const parts = fipeName.split(' - ').map(normalizeSearch).filter(Boolean);
+        const keys = new Set([normalizeSearch(fipeName), ...parts, ...(fipe.type === 'motorcycles' ? parts.map(part => `${part} motos`) : [])]);
+        const matches = marcas.filter(m => keys.has(normalizeSearch(m.nome)));
+        const tipo = fipe.type === 'motorcycles' ? 'moto' : fipe.type === 'trucks' ? 'caminhao' : 'carro';
+        const found = matches.find(m => (m.tipoVeiculo || 'carro') === tipo) || matches[0];
+        return found?.nome || (fipeName.split(' - ').pop() || fipeName).trim().toUpperCase();
+    };
+
+    const applyFipeDetail = (detail: FipeDetail) => setForm(prev => ({
+        ...prev,
+        codigoFipe: detail.codeFipe, descricaoFipe: detail.model, combustivel: detail.fuel,
+        ano: detail.modelYear === 32000 ? prev.ano : (prev.ano.includes('/') ? `${prev.ano.split('/')[0]}/${detail.modelYear}` : String(detail.modelYear)),
+    }));
+
+    const handleFipeCode = async (value: string) => {
+        setForm(prev => ({ ...prev, codigoFipe: value, descricaoFipe: '' }));
+        const digits = value.replace(/\D/g, '');
+        if (digits.length !== 7) { if (fipe.years.length && !fipe.brandCode) fipe.clearModel(); return; }
+        const code = `${digits.slice(0, 6)}-${digits.slice(6)}`;
+        const detail = await fipe.lookupCode(code);
+        if (!detail) return;
+        setForm(prev => ({
+            ...prev,
+            codigoFipe: code,
+            descricaoFipe: detail.model,
+            marca: toLocalMarca(detail.brand),
+            // Não sobrescreve um nome de exibição que o usuário já digitou.
+            modelo: !prev.modelo.trim() || prev.modelo === prev.descricaoFipe ? detail.model : prev.modelo,
+        }));
+    };
+
     const saveVariation = async (event: React.FormEvent) => {
         event.preventDefault();
         setSaving(true);
@@ -551,37 +590,55 @@ export function CatalogVariationsManagement() {
                         </button>
                     </div>
 
-                    <FipeLookup key={`${editingId || 'new'}-${fipeReset}`} onApply={(detail, tipo) => setForm(prev => ({ ...prev,
-                        marca: detail.brand, modelo: detail.model, descricaoFipe: detail.model, codigoFipe: detail.codeFipe,
-                        tipoVeiculo: tipo, combustivel: detail.fuel,
-                        ano: detail.modelYear === 32000 ? prev.ano : (prev.ano.includes('/') ? `${prev.ano.split('/')[0]}/${detail.modelYear}` : String(detail.modelYear)),
-                    }))} />
-                    {form.descricaoFipe && <p>Descrição FIPE: {form.descricaoFipe}</p>}
-                    <div className={styles.formGrid}>
-                        <label>Código FIPE (opcional)<input value={form.codigoFipe} onChange={event => setForm(prev => ({ ...prev, codigoFipe: event.target.value, descricaoFipe: '' }))} placeholder="000000-0" /></label>
-                        <label>
-                            Marca
-                            <input
-                                value={form.marca}
-                                onChange={event => setForm(prev => ({ ...prev, marca: event.target.value, codigoFipe: '', descricaoFipe: '' }))}
-                                placeholder="Ex.: Toyota"
-                            />
-                        </label>
+                    <p className={fipeStyles.status}>Digite a marca e o modelo para escolher na lista da FIPE, ou informe o código FIPE. Se não encontrar, continue digitando para cadastrar manualmente.</p>
 
-                        <label>
-                            Modelo
-                            <input
-                                value={form.modelo}
-                                onChange={event => setForm(prev => ({ ...prev, modelo: event.target.value }))}
-                                placeholder="Ex.: Corolla XEI 2.0 Hybrid"
-                            />
-                        </label>
+                    <div className={styles.formGrid}>
+                        <label>Código FIPE (opcional)<input value={form.codigoFipe} onChange={event => { void handleFipeCode(event.target.value); }} placeholder="000000-0" inputMode="numeric" /></label>
+                        <AutocompleteField
+                            label="Marca"
+                            value={form.marca}
+                            options={fipe.brands}
+                            loading={fipe.loading === 'brands'}
+                            onOpen={() => { void fipe.loadBrands(); }}
+                            placeholder="Digite para buscar na FIPE. Ex.: Fiat"
+                            onText={text => { fipe.clearBrand(); if (!fipe.brands.length) void fipe.loadBrands(); setForm(prev => ({ ...prev, marca: text, codigoFipe: '', descricaoFipe: '' })); }}
+                            onPick={option => {
+                                void fipe.pickBrand(option.code);
+                                setForm(prev => ({ ...prev, marca: toLocalMarca(option.name), codigoFipe: '', descricaoFipe: '',
+                                    // Troca de marca invalida modelo e combustível que vieram da FIPE.
+                                    ...(prev.descricaoFipe || prev.codigoFipe ? { modelo: '', combustivel: '' } : {}) }));
+                            }}
+                        />
+
+                        <AutocompleteField
+                            label="Modelo"
+                            value={form.modelo}
+                            options={fipe.models}
+                            loading={fipe.loading === 'models'}
+                            emptyText={fipe.brandCode ? undefined : 'Escolha a marca na lista da FIPE para ver os modelos.'}
+                            placeholder={fipe.brandCode ? 'Digite para filtrar os modelos da FIPE' : 'Ex.: Corolla XEI 2.0 Hybrid'}
+                            onText={text => setForm(prev => ({ ...prev, modelo: text }))}
+                            onPick={option => {
+                                void fipe.pickModel(option.code);
+                                setForm(prev => ({ ...prev, modelo: option.name, descricaoFipe: option.name, codigoFipe: '' }));
+                            }}
+                        />
+
+                        {fipe.years.length > 0 && (
+                            <label>
+                                Ano-modelo / combustível FIPE
+                                <select value={fipe.year} onChange={async event => { const detail = await fipe.pickYear(event.target.value); if (detail) applyFipeDetail(detail); }}>
+                                    <option value="">Selecione…</option>
+                                    {fipe.years.map(option => <option key={option.code} value={option.code}>{option.name}</option>)}
+                                </select>
+                            </label>
+                        )}
 
                         <label>
                             Tipo
                             <select
                                 value={form.tipoVeiculo}
-                                onChange={event => setForm(prev => ({ ...prev, tipoVeiculo: event.target.value, codigoFipe: '', descricaoFipe: '' }))}
+                                onChange={event => { fipe.clearBrand(); setForm(prev => ({ ...prev, tipoVeiculo: event.target.value, codigoFipe: '', descricaoFipe: '' })); }}
                             >
                                 <option value="">Automático pela marca ({TIPO_LABELS[effectiveTipo] || effectiveTipo})</option>
                                 <option value="carro">Carro</option>
@@ -649,6 +706,10 @@ export function CatalogVariationsManagement() {
                                 placeholder="Itens de série, taxa zero..."
                             />
                         </label>
+
+                        {form.descricaoFipe && <p className={fipeStyles.status}>Descrição FIPE: {form.descricaoFipe}{form.codigoFipe ? ` · código ${form.codigoFipe}` : ''}</p>}
+                        {['code', 'years', 'detail'].includes(fipe.loading) && <p className={fipeStyles.status} role="status">Consultando FIPE…</p>}
+                        {fipe.error && <p className={fipeStyles.status} role="alert">{fipe.error}</p>}
                     </div>
 
                     <div className={styles.actions}>

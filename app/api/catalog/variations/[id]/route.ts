@@ -1,3 +1,4 @@
+import { findOrCreateMarca } from '@/lib/services/marcaResolver';
 import { catalogFipeIdentity } from '@/lib/services/catalogFipeIdentity';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
@@ -56,11 +57,7 @@ async function resolveMarca(marcaId?: string, marcaName?: string) {
     const nome = normalizeText(marcaName);
     if (!nome) return null;
 
-    return Marca.findOneAndUpdate(
-        { nome },
-        { $setOnInsert: { nome } },
-        { new: true, upsert: true }
-    );
+    return findOrCreateMarca(nome);
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {

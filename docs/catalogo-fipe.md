@@ -1,8 +1,8 @@
 # Cadastro assistido FIPE e CSV
 
-O catálogo oferece busca hierárquica por categoria, marca, modelo/versão e ano/combustível, além de consulta direta por código FIPE. Listas filtram localmente por texto sem acentos, com navegação por teclado. As consultas passam por `/api/catalog/fipe`, com as mesmas permissões do catálogo, timeout de 8 segundos e cache de 24 horas. O token opcional `FIPE_API_TOKEN` é usado somente no servidor.
+Os próprios campos do cadastro consultam a FIPE. Ao clicar ou digitar em **Marca**, aparece a lista de marcas da FIPE da categoria (carro, moto ou caminhão, conforme o Tipo), filtrada a cada caractere, sem diferenciar maiúsculas e acentos. Escolhida a marca, **Modelo** lista os modelos/versões dessa marca. Escolhido o modelo, surge **Ano-modelo / combustível FIPE**; ao selecionar, o sistema preenche código FIPE, combustível e ano-modelo. Digitar 7 dígitos em **Código FIPE** preenche marca e descrição e abre a mesma lista de anos para confirmação.
 
-Selecionar um resultado não grava nem altera o formulário. “Aplicar ao cadastro” preenche os dados identificados; o usuário revisa e salva depois. A descrição original fica em `descricaoFipe`, separada do nome de exibição `modelo`. A opção FIPE Zero km não é convertida em ano 32000 no cadastro: é necessário informar o ano real. Preço, fotos, cor, câmbio e opcionais não são inferidos.
+Texto livre continua valendo: se a marca ou o modelo não estiver na FIPE, basta continuar digitando. A marca escolhida é convertida para a grafia já cadastrada (Fiat → FIAT, GM - Chevrolet → CHEVROLET, VW - VolksWagen → VW, HONDA em motos → HONDA MOTOS), e o servidor também reaproveita marcas existentes sem diferenciar maiúsculas, evitando duplicidade. A descrição original fica em `descricaoFipe`; o nome de exibição `modelo` pode ser editado sem perder o vínculo. A opção FIPE Zero km não altera o ano digitado. Preço, fotos, cor, câmbio e opcionais não são inferidos. As consultas passam por `/api/catalog/fipe`, com as permissões do catálogo, timeout de 8 segundos e cache de 24 horas. O token opcional `FIPE_API_TOKEN` fica somente no servidor.
 
 ## CSV / Google Sheets
 

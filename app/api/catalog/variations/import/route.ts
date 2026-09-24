@@ -1,3 +1,4 @@
+import { findOrCreateMarca } from '@/lib/services/marcaResolver';
 import { enrichFipeRows } from '@/lib/services/fipeImport';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
@@ -577,11 +578,7 @@ async function commitRows(rawItems: any[], createdBy?: string | null) {
         try {
             const marca = row.marcaId
                 ? await Marca.findById(row.marcaId)
-                : await Marca.findOneAndUpdate(
-                    { nome: row.marca },
-                    { $setOnInsert: { nome: row.marca } },
-                    { new: true, upsert: true }
-                );
+                : await findOrCreateMarca(row.marca);
 
             if (!marca) {
                 skipped.push({
