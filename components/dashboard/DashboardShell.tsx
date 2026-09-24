@@ -23,7 +23,7 @@ export interface DashboardShellProps {
     tabs: ShellTab[];
     activeId: string;
     onSelect: (id: string) => void;
-    user: { name: string; email?: string | null; role: string; credits?: number };
+    user: { name: string; email?: string | null; role: string; credits?: number; onUpgradeClick?: () => void };
     /** Itens fixos da barra inferior no celular; os demais vão para "Mais". */
     primaryIds?: string[];
     children: ReactNode;
@@ -92,7 +92,7 @@ export function DashboardShell({ sectionLabel, tabs, activeId, onSelect, user, p
                 </div>
 
                 <div className={styles.sidebarFooter}>
-                    <UserMenu name={user.name} email={user.email} role={user.role} credits={user.credits} isDropup alignLeft compact={collapsed} />
+                    <UserMenu name={user.name} email={user.email} role={user.role} credits={user.credits} onUpgradeClick={user.onUpgradeClick} isDropup alignLeft compact={collapsed} />
                     {/* Sair sempre à vista, sem depender do menu do usuário. */}
                     <button
                         type="button"

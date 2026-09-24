@@ -15,6 +15,7 @@ interface UserMenuProps {
     credits?: number;
     isDropup?: boolean;
     alignLeft?: boolean;
+    onUpgradeClick?: () => void;
 }
 
 function ProfileRing({ pct }: { pct: number }) {
@@ -63,7 +64,7 @@ function ProfileRing({ pct }: { pct: number }) {
     );
 }
 
-export default function UserMenu({ name, email, role, credits, isDropup, alignLeft, compact = false }: UserMenuProps) {
+export default function UserMenu({ name, email, role, credits, isDropup, alignLeft, onUpgradeClick, compact = false }: UserMenuProps) {
     const [isOpen, setIsOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const { data: session, update } = useSession();
@@ -150,9 +151,14 @@ export default function UserMenu({ name, email, role, credits, isDropup, alignLe
 
     return (
         <div className={styles.container} ref={menuRef}>
-            <button
+            <div
+                role="button"
+                tabIndex={0}
                 className={styles.trigger}
                 onClick={() => setIsOpen(!isOpen)}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsOpen(!isOpen); }
+                }}
                 aria-expanded={isOpen}
                 aria-haspopup="true"
                 aria-label={`Menu de ${name}`}
@@ -176,11 +182,28 @@ export default function UserMenu({ name, email, role, credits, isDropup, alignLe
                             </span>
                         )}
                     </span>
+                    {onUpgradeClick && (
+                        <div style={{ marginTop: '4px' }}>
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onUpgradeClick();
+                                }}
+                                style={{
+                                    background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '5px',
+                                    padding: '4px 10px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700,
+                                }}
+                            >
+                                Assinar Plano
+                            </button>
+                        </div>
+                    )}
                 </div>
                 <div className={styles.avatar}>
                     {getInitials(name)}
                 </div>
-            </button>
+            </div>
 
             {isOpen && (
                 <div className={`${styles.dropdown} ${isDropup ? styles.dropdownUp : ''} ${alignLeft ? styles.dropdownLeft : ''}`}>

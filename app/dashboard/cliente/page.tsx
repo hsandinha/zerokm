@@ -230,6 +230,7 @@ function ClienteShell({ userInfo, isInvitee, onUpgradeClick }: {
                 email: userInfo.email,
                 role: userInfo.profile === 'gratis' ? 'Grátis' : 'Cliente',
                 credits: userInfo.credits,
+                onUpgradeClick,
             }}
         >
             {abaAtual === 'veiculos' && (
