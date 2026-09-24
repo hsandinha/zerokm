@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { MaskedInput } from '../../components/operator/MaskedInput';
 import { ConcessionariaService } from '../../lib/services/concessionariaService';
 import styles from './ConcessionariasManagement.module.css';
+import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
 
 // Interfaces para Concessionária
 interface ClienteData {
@@ -1085,152 +1086,139 @@ export function ConcessionariasManagement() {
 
             {/* Modal de Associação de Veículos */}
             {showAssociateModal && selectedConcessionariaForAssociate && (
-                <div className={styles.modalOverlay} onClick={handleCloseAssociateModal}>
-                    <div className={styles.modalContent} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px', maxHeight: '80vh', overflow: 'auto' }}>
-                        <div className={styles.modalHeader}>
-                            <h2>🔗 Associar Veículos</h2>
-                            <button className={styles.closeButton} onClick={handleCloseAssociateModal}>×</button>
-                        </div>
-                        <div className={styles.modalBody}>
-                            <p style={{ marginBottom: '1rem', fontSize: '1.1rem' }}>
-                                <strong>Concessionária:</strong> {selectedConcessionariaForAssociate.nome}
-                            </p>
-                            <p style={{ marginBottom: '1rem', color: 'var(--admin-muted, #666)' }}>
-                                Selecione os veículos sem concessionária para associar:
-                            </p>
+                <AdminModal
+                    title="Associar veículos"
+                    subtitle={<><strong>Concessionária:</strong> {selectedConcessionariaForAssociate.nome}</>}
+                    onClose={handleCloseAssociateModal}
+                    size="xl"
+                    footer={<>
+                        <button
+                            type="button"
+                            onClick={handleCloseAssociateModal}
+                            className={modalStyles.secondary}
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleAssociateVehicles}
+                            className={modalStyles.primary}
+                            disabled={selectedVehicles.length === 0}
+                        >
+                            Associar {selectedVehicles.length > 0 && `(${selectedVehicles.length})`}
+                        </button>
+                    </>}
+                >
+                    <p style={{ margin: '0 0 1rem', color: 'var(--color-text-muted)' }}>
+                        Selecione os veículos sem concessionária para associar:
+                    </p>
 
-                            {loadingVehicles ? (
-                                <p>Carregando veículos...</p>
-                            ) : vehiclesWithoutConcessionaria.length === 0 ? (
-                                <p style={{ textAlign: 'center', color: '#999', padding: '2rem' }}>
-                                    Não há veículos sem concessionária associada.
-                                </p>
-                            ) : (
-                                <>
-                                    <div style={{ marginBottom: '1rem' }}>
-                                        <input
-                                            type="text"
-                                            placeholder="Filtrar por modelo ou contato..."
-                                            value={vehicleFilter}
-                                            onChange={(e) => setVehicleFilter(e.target.value)}
-                                            className={styles.filterInput}
-                                            style={{
-                                                width: '100%',
-                                                padding: '0.75rem',
-                                                border: '1px solid var(--color-highlight)',
-                                                borderRadius: '8px',
-                                                fontSize: '0.95rem',
-                                                marginBottom: '1rem'
-                                            }}
-                                        />
-                                    </div>
-                                    <div style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                                        <button
-                                            onClick={() => setSelectedVehicles(vehiclesWithoutConcessionaria.filter(v => {
-                                                const searchTerm = vehicleFilter.toLowerCase();
-                                                return v.modelo?.toLowerCase().includes(searchTerm) || v.nomeContato?.toLowerCase().includes(searchTerm);
-                                            }).map(v => v.id))}
-                                            className={styles.selectAllButton}
-                                        >
-                                            ✓ Selecionar Todos
-                                        </button>
-                                        <button
-                                            onClick={() => setSelectedVehicles([])}
-                                            className={styles.clearSelectionButton}
-                                        >
-                                            ✕ Limpar Seleção
-                                        </button>
-                                        <span style={{ marginLeft: 'auto', fontWeight: 'bold', color: 'var(--color-text)' }}>
-                                            {selectedVehicles.length} selecionado(s)
-                                        </span>
-                                    </div>
+                    {loadingVehicles ? (
+                        <p>Carregando veículos...</p>
+                    ) : vehiclesWithoutConcessionaria.length === 0 ? (
+                        <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2rem' }}>
+                            Não há veículos sem concessionária associada.
+                        </p>
+                    ) : (
+                        <>
+                            <div className={modalStyles.field} style={{ marginBottom: '1rem' }}>
+                                <input
+                                    type="text"
+                                    aria-label="Filtrar veículos"
+                                    placeholder="Filtrar por modelo ou contato..."
+                                    value={vehicleFilter}
+                                    onChange={(e) => setVehicleFilter(e.target.value)}
+                                />
+                            </div>
+                            <div style={{ marginBottom: '1rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
+                                <button
+                                    onClick={() => setSelectedVehicles(vehiclesWithoutConcessionaria.filter(v => {
+                                        const searchTerm = vehicleFilter.toLowerCase();
+                                        return v.modelo?.toLowerCase().includes(searchTerm) || v.nomeContato?.toLowerCase().includes(searchTerm);
+                                    }).map(v => v.id))}
+                                    type="button"
+                                    className={modalStyles.secondary}
+                                >
+                                    Selecionar todos
+                                </button>
+                                <button
+                                    onClick={() => setSelectedVehicles([])}
+                                    type="button"
+                                    className={modalStyles.secondary}
+                                >
+                                    Limpar seleção
+                                </button>
+                                <span style={{ marginLeft: 'auto', fontWeight: 'bold', color: 'var(--color-text)' }}>
+                                    {selectedVehicles.length} selecionado(s)
+                                </span>
+                            </div>
 
-                                    <table className={styles.table} style={{ fontSize: '0.9rem' }}>
-                                        <thead>
-                                            <tr>
-                                                <th style={{ width: '50px' }}>✓</th>
-                                                <th onClick={() => handleSort('modelo')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                                                    MODELO {sortColumn === 'modelo' && (sortDirection === 'asc' ? '↑' : '↓')}
-                                                </th>
-                                                <th onClick={() => handleSort('ano')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                                                    ANO {sortColumn === 'ano' && (sortDirection === 'asc' ? '↑' : '↓')}
-                                                </th>
-                                                <th onClick={() => handleSort('cor')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                                                    COR {sortColumn === 'cor' && (sortDirection === 'asc' ? '↑' : '↓')}
-                                                </th>
-                                                <th onClick={() => handleSort('combustivel')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                                                    COMBUSTÍVEL {sortColumn === 'combustivel' && (sortDirection === 'asc' ? '↑' : '↓')}
-                                                </th>
-                                                <th onClick={() => handleSort('cidade')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                                                    CIDADE {sortColumn === 'cidade' && (sortDirection === 'asc' ? '↑' : '↓')}
-                                                </th>
-                                                <th onClick={() => handleSort('nomeContato')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                                                    CONTATO {sortColumn === 'nomeContato' && (sortDirection === 'asc' ? '↑' : '↓')}
-                                                </th>
+                            <table className={styles.table} style={{ fontSize: '0.9rem' }}>
+                                <thead>
+                                    <tr>
+                                        <th style={{ width: '50px' }} aria-label="Selecionado"></th>
+                                        <th onClick={() => handleSort('modelo')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                            MODELO {sortColumn === 'modelo' && (sortDirection === 'asc' ? '↑' : '↓')}
+                                        </th>
+                                        <th onClick={() => handleSort('ano')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                            ANO {sortColumn === 'ano' && (sortDirection === 'asc' ? '↑' : '↓')}
+                                        </th>
+                                        <th onClick={() => handleSort('cor')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                            COR {sortColumn === 'cor' && (sortDirection === 'asc' ? '↑' : '↓')}
+                                        </th>
+                                        <th onClick={() => handleSort('combustivel')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                            COMBUSTÍVEL {sortColumn === 'combustivel' && (sortDirection === 'asc' ? '↑' : '↓')}
+                                        </th>
+                                        <th onClick={() => handleSort('cidade')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                            CIDADE {sortColumn === 'cidade' && (sortDirection === 'asc' ? '↑' : '↓')}
+                                        </th>
+                                        <th onClick={() => handleSort('nomeContato')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                            CONTATO {sortColumn === 'nomeContato' && (sortDirection === 'asc' ? '↑' : '↓')}
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {vehiclesWithoutConcessionaria
+                                        .filter(vehicle => {
+                                            if (!vehicleFilter) return true;
+                                            const searchTerm = vehicleFilter.toLowerCase();
+                                            return vehicle.modelo?.toLowerCase().includes(searchTerm) ||
+                                                vehicle.nomeContato?.toLowerCase().includes(searchTerm);
+                                        })
+                                        .sort((a, b) => {
+                                            if (!sortColumn) return 0;
+                                            const aValue = a[sortColumn] || '';
+                                            const bValue = b[sortColumn] || '';
+                                            const comparison = aValue.toString().localeCompare(bValue.toString(), 'pt-BR', { numeric: true });
+                                            return sortDirection === 'asc' ? comparison : -comparison;
+                                        })
+                                        .map((vehicle) => (
+                                            <tr key={vehicle.id} className={styles.tableRow}>
+                                                <td className={styles.tableCell} style={{ textAlign: 'center' }}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedVehicles.includes(vehicle.id)}
+                                                        onChange={() => handleToggleVehicle(vehicle.id)}
+                                                    />
+                                                </td>
+                                                <td className={styles.tableCell}>{vehicle.modelo}</td>
+                                                <td className={styles.tableCell}>{vehicle.ano}</td>
+                                                <td className={styles.tableCell}>{vehicle.cor}</td>
+                                                <td className={styles.tableCell}>{vehicle.combustivel}</td>
+                                                <td className={styles.tableCell}>{vehicle.cidade} - {vehicle.estado}</td>
+                                                <td className={styles.tableCell}>
+                                                    <div>{vehicle.nomeContato}</div>
+                                                    {vehicle.telefone && (
+                                                        <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>{vehicle.telefone}</div>
+                                                    )}
+                                                </td>
                                             </tr>
-                                        </thead>
-                                        <tbody>
-                                            {vehiclesWithoutConcessionaria
-                                                .filter(vehicle => {
-                                                    if (!vehicleFilter) return true;
-                                                    const searchTerm = vehicleFilter.toLowerCase();
-                                                    return vehicle.modelo?.toLowerCase().includes(searchTerm) ||
-                                                        vehicle.nomeContato?.toLowerCase().includes(searchTerm);
-                                                })
-                                                .sort((a, b) => {
-                                                    if (!sortColumn) return 0;
-                                                    const aValue = a[sortColumn] || '';
-                                                    const bValue = b[sortColumn] || '';
-                                                    const comparison = aValue.toString().localeCompare(bValue.toString(), 'pt-BR', { numeric: true });
-                                                    return sortDirection === 'asc' ? comparison : -comparison;
-                                                })
-                                                .map((vehicle) => (
-                                                    <tr key={vehicle.id} className={styles.tableRow}>
-                                                        <td className={styles.tableCell} style={{ textAlign: 'center' }}>
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={selectedVehicles.includes(vehicle.id)}
-                                                                onChange={() => handleToggleVehicle(vehicle.id)}
-                                                            />
-                                                        </td>
-                                                        <td className={styles.tableCell}>{vehicle.modelo}</td>
-                                                        <td className={styles.tableCell}>{vehicle.ano}</td>
-                                                        <td className={styles.tableCell}>{vehicle.cor}</td>
-                                                        <td className={styles.tableCell}>{vehicle.combustivel}</td>
-                                                        <td className={styles.tableCell}>{vehicle.cidade} - {vehicle.estado}</td>
-                                                        <td className={styles.tableCell}>
-                                                            <div>{vehicle.nomeContato}</div>
-                                                            {vehicle.telefone && (
-                                                                <div style={{ fontSize: '0.85rem', color: 'var(--admin-muted, #666)' }}>{vehicle.telefone}</div>
-                                                            )}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                        </tbody>
-                                    </table>
-                                </>
-                            )}
-                        </div>
-                        <div className={styles.modalFooter}>
-                            <button
-                                type="button"
-                                onClick={handleCloseAssociateModal}
-                                className={styles.cancelButton}
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleAssociateVehicles}
-                                className={styles.submitButton}
-                                disabled={selectedVehicles.length === 0}
-                                style={{ opacity: selectedVehicles.length === 0 ? 0.5 : 1 }}
-                            >
-                                Associar {selectedVehicles.length > 0 && `(${selectedVehicles.length})`}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                                        ))}
+                                </tbody>
+                            </table>
+                        </>
+                    )}
+                </AdminModal>
             )}
         </div>
     );

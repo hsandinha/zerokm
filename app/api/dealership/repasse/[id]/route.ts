@@ -6,7 +6,7 @@ import connectDB from '@/lib/mongodb';
 import RepasseVehicle from '@/models/RepasseVehicle';
 import VehicleVariation from '@/models/VehicleVariation';
 import { canTouchDealership, resolveDealershipScope } from '@/lib/services/dealershipScope';
-import { serializeRepasse, validateRepasse } from '@/lib/utils/repasse';
+import { parseRepasseFipe, serializeRepasse, validateRepasse } from '@/lib/utils/repasse';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -44,12 +44,15 @@ export async function PATCH(request: Request, { params }: Params) {
         const { data, errors } = validateRepasse(body, true);
         if (errors.length) return NextResponse.json({ error: errors.join(' '), errors }, { status: 400 });
 
+        const fipe = parseRepasseFipe(body);
+        if (fipe.error) return NextResponse.json({ error: fipe.error }, { status: 400 });
+
         // Mesma regra do cadastro ao trocar o modelo na edição.
-        if (data.modelo && data.modelo !== doc.modelo && body?.foraDoCatalogo !== true) {
+        if (data.modelo && data.modelo !== doc.modelo && body?.foraDoCatalogo !== true && !fipe.codigoFipe) {
             const existe = await VehicleVariation.exists({ modelo: data.modelo, ativo: true });
             if (!existe) {
                 return NextResponse.json({
-                    error: `"${data.modelo}" não está no catálogo. Escolha um modelo da lista ou marque "modelo fora do catálogo".`,
+                    error: `"${data.modelo}" não foi escolhido na lista da FIPE. Escolha marca, modelo e ano na lista ou marque "não encontrei na FIPE".`,
                     code: 'MODELO_FORA_DO_CATALOGO',
                 }, { status: 400 });
             }
@@ -63,6 +66,13 @@ export async function PATCH(request: Request, { params }: Params) {
         }
         if (Object.prototype.hasOwnProperty.call(body, 'foraDoCatalogo')) {
             $set.foraDoCatalogo = body.foraDoCatalogo === true;
+        }
+        if (fipe.codigoFipe) {
+            $set.codigoFipe = fipe.codigoFipe;
+            if (fipe.descricaoFipe) $set.descricaoFipe = fipe.descricaoFipe; else $unset.descricaoFipe = '';
+        } else if (fipe.codigoFipe === null) {
+            $unset.codigoFipe = '';
+            $unset.descricaoFipe = '';
         }
 
         const update: Record<string, any> = {};

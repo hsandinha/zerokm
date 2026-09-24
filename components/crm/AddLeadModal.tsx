@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Stage } from './types';
-import { MdClose } from 'react-icons/md';
+import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
 import { MANUAL_LEAD_SOURCES } from '@/lib/utils/leadTags';
 
 interface Props {
@@ -55,91 +55,73 @@ export default function AddLeadModal({ stages, onClose, onRefresh }: Props) {
     }
   };
 
+  const submitDisabled = loading || !name.trim() || !phone.trim() || !stageId;
+
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }}>
-      <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-highlight)', width: '100%', maxWidth: '400px', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '90vh', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
-        <div style={{ padding: '20px', borderBottom: '1px solid var(--color-highlight)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--color-text)' }}>Novo Lead</h2>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer' }}>
-            <MdClose size={24} />
-          </button>
-        </div>
+    <AdminModal
+      title="Novo lead"
+      onClose={onClose}
+      size="sm"
+      busy={loading}
+      onSubmit={handleSubmit}
+      footer={
+        <button type="submit" className={modalStyles.primary} disabled={submitDisabled}>
+          {loading ? 'Salvando...' : 'Adicionar lead'}
+        </button>
+      }
+    >
+      <div className={modalStyles.stack}>
+        <label className={modalStyles.field}>
+          Nome *
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+        </label>
 
-        <form onSubmit={handleSubmit} style={{ padding: '20px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-muted)', marginBottom: '8px' }}>Nome *</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--color-highlight)', color: 'var(--color-text)', borderRadius: '8px', padding: '10px 12px', outline: 'none' }}
-            />
-          </div>
+        <label className={modalStyles.field}>
+          Telefone *
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            required
+            placeholder="(11) 99999-9999"
+          />
+        </label>
 
-          <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-muted)', marginBottom: '8px' }}>Telefone *</label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              required
-              placeholder="(11) 99999-9999"
-              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--color-highlight)', color: 'var(--color-text)', borderRadius: '8px', padding: '10px 12px', outline: 'none' }}
-            />
-          </div>
+        <label className={modalStyles.field}>
+          E-mail
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </label>
 
-          <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-muted)', marginBottom: '8px' }}>E-mail</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--color-highlight)', color: 'var(--color-text)', borderRadius: '8px', padding: '10px 12px', outline: 'none' }}
-            />
-          </div>
+        <label className={modalStyles.field}>
+          Origem
+          <select value={source} onChange={(e) => setSource(e.target.value)}>
+            {MANUAL_LEAD_SOURCES.map(origem => (
+              <option key={origem} value={origem}>{origem}</option>
+            ))}
+          </select>
+        </label>
 
-          <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-muted)', marginBottom: '8px' }}>Origem</label>
-            <select
-              value={source}
-              onChange={(e) => setSource(e.target.value)}
-              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--color-highlight)', color: 'var(--color-text)', borderRadius: '8px', padding: '10px 12px', outline: 'none' }}
-            >
-              {MANUAL_LEAD_SOURCES.map(origem => (
-                <option key={origem} value={origem} style={{ color: '#000' }}>{origem}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-muted)', marginBottom: '8px' }}>Fase Inicial</label>
-            <select
-              value={stageId}
-              onChange={(e) => setStageId(e.target.value)}
-              required
-              style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--color-highlight)', color: 'var(--color-text)', borderRadius: '8px', padding: '10px 12px', outline: 'none' }}
-            >
-              <option value="" disabled style={{ color: '#000' }}>Selecione uma fase</option>
-              {selectableStages.map((stage) => (
-                <option key={stage.id} value={stage.id} style={{ color: '#000' }}>
-                  {stage.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div style={{ paddingTop: '8px', borderTop: '1px solid var(--color-highlight)', marginTop: '8px' }}>
-            <button 
-              type="submit" 
-              disabled={loading || !name.trim() || !phone.trim() || !stageId}
-              style={{ width: '100%', background: 'var(--color-primary)', color: 'var(--color-text)', padding: '10px 16px', borderRadius: '8px', fontWeight: 600, border: 'none', cursor: (loading || !name.trim() || !phone.trim() || !stageId) ? 'not-allowed' : 'pointer', opacity: (loading || !name.trim() || !phone.trim() || !stageId) ? 0.5 : 1 }}
-            >
-              {loading ? 'Salvando...' : 'Adicionar Lead'}
-            </button>
-          </div>
-        </form>
+        <label className={modalStyles.field}>
+          Fase inicial
+          <select value={stageId} onChange={(e) => setStageId(e.target.value)} required>
+            <option value="" disabled>Selecione uma fase</option>
+            {selectableStages.map((stage) => (
+              <option key={stage.id} value={stage.id}>
+                {stage.name}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
-    </div>
+    </AdminModal>
   );
 }

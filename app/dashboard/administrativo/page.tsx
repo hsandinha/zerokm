@@ -1,11 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import { getSession } from 'next-auth/react';
 import { VehicleConsultation } from '../../../components/operator/VehicleConsultation';
 import { ConfigContext } from '../../../lib/contexts/ConfigContext';
-import UserMenu from '../../../components/UserMenu';
 import { UsersTable } from '../admin/users/UsersTable';
 import { ConcessionariasManagement } from '../../../components/admin/ConcessionariasManagement';
 import { TransportadorasManagement } from '../../../components/admin/TransportadorasManagement';
@@ -13,8 +11,8 @@ import { TabelasManagement } from '../../../components/admin/TabelasManagement';
 import { BannersManagement } from '../../../components/admin/BannersManagement';
 import { CatalogVariationsManagement } from '../../../components/admin/CatalogVariationsManagement';
 import { AdminDealershipVehicles } from '../../../components/admin/AdminDealershipVehicles';
-import { MobileTabBar } from '../../../components/mobile/MobileTabBar';
-import styles from '../operator/operator.module.css';
+import { DashboardShell, shellStyles } from '@/components/dashboard/DashboardShell';
+import { CarFront, Warehouse, BookOpen, Building2, Truck, Table2, Users, Images } from 'lucide-react';
 
 type TabType = 'veiculos' | 'estoque-concessionarias' | 'catalogo' | 'concessionarias' | 'transportadoras' | 'tabelas' | 'usuarios' | 'banners';
 
@@ -65,14 +63,14 @@ export default function AdministrativoDashboard() {
     const effectiveRole = (userInfo.profile as any) || 'administrativo';
 
     const tabs = [
-        { id: 'veiculos', label: 'Veículos', icon: '🚗' },
-        { id: 'estoque-concessionarias', label: 'Estoque Cons.', icon: '🏢' },
-        { id: 'catalogo', label: 'Catálogo', icon: '📚' },
-        { id: 'concessionarias', label: 'Concessionárias', icon: '🏢' },
-        { id: 'transportadoras', label: 'Frete', icon: '🚚' },
-        { id: 'tabelas', label: 'Tabelas', icon: '📋' },
-        { id: 'usuarios', label: 'Usuários', icon: '👥' },
-        { id: 'banners', label: 'Banners', icon: '🖼️' },
+        { id: 'veiculos', label: 'Veículos', icon: <CarFront size={20} aria-hidden="true" /> },
+        { id: 'estoque-concessionarias', label: 'Estoque', icon: <Warehouse size={20} aria-hidden="true" /> },
+        { id: 'catalogo', label: 'Catálogo', icon: <BookOpen size={20} aria-hidden="true" /> },
+        { id: 'concessionarias', label: 'Concessionárias', icon: <Building2 size={20} aria-hidden="true" /> },
+        { id: 'transportadoras', label: 'Frete', icon: <Truck size={20} aria-hidden="true" /> },
+        { id: 'tabelas', label: 'Tabelas', icon: <Table2 size={20} aria-hidden="true" /> },
+        { id: 'usuarios', label: 'Equipe', icon: <Users size={20} aria-hidden="true" /> },
+        { id: 'banners', label: 'Banners', icon: <Images size={20} aria-hidden="true" /> },
     ];
 
     const renderContent = () => {
@@ -96,53 +94,17 @@ export default function AdministrativoDashboard() {
             setMargem: (v) => updateMargem(v, marginMode, fixedMargin),
             setMarginConfig: ({ margem: v, marginMode: m, fixedMargin: f }) => updateMargem(v, m, f),
         }}>
-            <div className={styles.container}>
-
-                {/* Header */}
-                <div className={styles.header}>
-                    <div className={styles.headerLeft}>
-                        <Image src="/images/logo.png" alt="Logo" width={240} height={80} className={styles.logo} priority />
-                    </div>
-                    <div className={styles.headerRight}>
-                        <UserMenu
-                            name={userInfo.name ?? 'Administrativo'}
-                            email={userInfo.email ?? null}
-                            role="Administrativo"
-                        />
-                    </div>
-                </div>
-
-                {/* Tabs */}
-                <div className={styles.tabsContainer}>
-                    <div className={styles.tabsList}>
-                        {tabs.map(tab => (
-                            <button
-                                key={tab.id}
-                                className={`${styles.tab} ${activeTab === tab.id ? styles.tabActive : ''}`}
-                                onClick={() => setActiveTab(tab.id as TabType)}
-                            >
-                                <span className={styles.tabIcon}>{tab.icon}</span>
-                                <span className={styles.tabLabel}>{tab.label}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Content */}
-                <div className={styles.contentArea}>
-                    <div className={styles.tabContent}>
-                        {renderContent()}
-                    </div>
-                </div>
-
-                <MobileTabBar
-                    items={tabs.map((tab) => ({ id: tab.id, label: tab.label, icon: tab.icon }))}
-                    primaryIds={['veiculos', 'estoque-concessionarias', 'concessionarias', 'usuarios', 'banners']}
-                    activeId={activeTab}
-                    onSelect={(id) => setActiveTab(id as TabType)}
-                    user={{ name: userInfo.name ?? 'Administrativo', email: userInfo.email, role: 'Administrativo' }}
-                />
-            </div>
+            <DashboardShell
+                sectionLabel="Administrativo"
+                tabs={tabs}
+                activeId={activeTab}
+                onSelect={id => setActiveTab(id as TabType)}
+                primaryIds={['veiculos', 'estoque-concessionarias', 'concessionarias', 'usuarios']}
+                user={{ name: userInfo.name ?? 'Administrativo', email: userInfo.email, role: 'Administrativo' }}
+            >
+                {/* A Consulta de veículos ocupa a tela toda, como no admin. */}
+                {activeTab === 'veiculos' ? renderContent() : <div className={shellStyles.contentArea}>{renderContent()}</div>}
+            </DashboardShell>
         </ConfigContext.Provider>
     );
 }

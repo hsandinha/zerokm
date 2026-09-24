@@ -12,7 +12,7 @@ import { TRANSPORTADORA_PARCEIRA, telefoneTransportadora, whatsappTransportadora
 import { BannerCarouselHorizontal } from '../cliente/BannerCarouselHorizontal';
 import { AddVehicleModal } from './AddVehicleModal';
 import styles from './VehicleConsultation.module.css';
-import modalStyles from './TablesManagement.module.css';
+import { AdminModal, modalStyles as adminModal } from '@/components/admin/AdminModal';
 import { HighlightText } from '../HighlightText';
 import { UpgradeModal } from './UpgradeModal';
 import { FaWhatsapp } from 'react-icons/fa';
@@ -1233,16 +1233,14 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
             />
 
             {showVehicleForm && (
-                <div className={styles.inlineFormWrapper}>
-                    <AddVehicleModal
-                        isOpen={showVehicleForm}
-                        onClose={handleCloseVehicleForm}
-                        onVehicleAdded={refreshVehicles}
-                        editingVehicle={editingVehicle ?? undefined}
-                        isEditing={Boolean(editingVehicle)}
-                        role={role}
-                    />
-                </div>
+                <AddVehicleModal
+                    isOpen={showVehicleForm}
+                    onClose={handleCloseVehicleForm}
+                    onVehicleAdded={refreshVehicles}
+                    editingVehicle={editingVehicle ?? undefined}
+                    isEditing={Boolean(editingVehicle)}
+                    role={role}
+                />
             )}
 
             <div className={styles.splitLayout}>
@@ -1388,347 +1386,275 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
 
             {/* Modal de Opções de Frete */}
             {freteModal.isOpen && (
-                <div className={modalStyles.overlay}>
-                    <div className={modalStyles.modal} role="dialog" aria-modal="true" aria-label="Configurar margem" style={{ maxWidth: '500px' }}>
-                        <div className={modalStyles.modalHeader}>
-                            <h3>Opções de Frete - {freteModal.estado}</h3>
-                            <button
-                                className={modalStyles.closeButton}
-                                onClick={() => setFreteModal({ ...freteModal, isOpen: false })}
-                            >
-                                ✕
-                            </button>
-                        </div>
-                        <div className={modalStyles.form}>
-                            <div className={styles.freteBanner}>
-                                <span className={styles.freteBannerLabel}>Transportadora</span>
-                                <span className={styles.freteBannerNome}>{TRANSPORTADORA_PARCEIRA.nome}</span>
-                                <a
-                                    href={whatsappTransportadora(`frete para ${freteModal.estado}`)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className={styles.freteBannerContato}
-                                >
-                                    <FaWhatsapp aria-hidden="true" /> {telefoneTransportadora()}
-                                </a>
-                            </div>
-                            <div className={styles.tableContainer} style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                                <table className={styles.table}>
-                                    <thead>
-                                        <tr>
-                                            <th className={styles.tableHeader}>Valor</th>
-                                            <th className={styles.tableHeader}>Observação</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {freteModal.items.map((item, idx) => (
-                                            <tr key={item.id || idx} className={styles.tableRow}>
-                                                <td className={styles.tableCell}>
-                                                    {item.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                                </td>
-                                                <td className={styles.tableCell}>{item.observacao || '-'}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        <div className={modalStyles.modalActions}>
-                            <button
-                                type="button"
-                                className={modalStyles.cancelButton}
-                                onClick={() => setFreteModal({ ...freteModal, isOpen: false })}
-                            >
-                                Fechar
-                            </button>
-                        </div>
+                <AdminModal
+                    title="Opções de frete"
+                    subtitle={freteModal.estado ? `Destino: ${freteModal.estado}` : undefined}
+                    onClose={() => setFreteModal({ ...freteModal, isOpen: false })}
+                    size="md"
+                    footer={
+                        <button
+                            type="button"
+                            className={adminModal.secondary}
+                            onClick={() => setFreteModal({ ...freteModal, isOpen: false })}
+                        >
+                            Fechar
+                        </button>
+                    }
+                >
+                    <div className={styles.freteBanner}>
+                        <span className={styles.freteBannerLabel}>Transportadora</span>
+                        <span className={styles.freteBannerNome}>{TRANSPORTADORA_PARCEIRA.nome}</span>
+                        <a
+                            href={whatsappTransportadora(`frete para ${freteModal.estado}`)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={styles.freteBannerContato}
+                        >
+                            <FaWhatsapp aria-hidden="true" /> {telefoneTransportadora()}
+                        </a>
                     </div>
-                </div>
+                    <div className={styles.tableContainer}>
+                        <table className={styles.table}>
+                            <thead>
+                                <tr>
+                                    <th className={styles.tableHeader}>Valor</th>
+                                    <th className={styles.tableHeader}>Observação</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {freteModal.items.map((item, idx) => (
+                                    <tr key={item.id || idx} className={styles.tableRow}>
+                                        <td className={styles.tableCell}>
+                                            {item.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </td>
+                                        <td className={styles.tableCell}>{item.observacao || '-'}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </AdminModal>
             )}
 
             {/* Modal de Margem */}
             {showMargemModal && (
-                <div className={modalStyles.overlay}>
-                    <div className={modalStyles.modal} role="dialog" aria-modal="true" aria-label="Configurar margem" style={{ maxWidth: '500px' }}>
-                        <div className={modalStyles.modalHeader}>
-                            <h3>Configurar Margem</h3>
-                            <button
-                                className={modalStyles.closeButton}
-                                onClick={() => setShowMargemModal(false)}
-                            >
-                                ✕
-                            </button>
-                        </div>
-                        <div className={modalStyles.form}>
-                            <div className={styles.configSection}>
-                                <p>Defina a margem aplicada ao preço de compra para calcular o preço de venda sugerido.</p>
-
-                                {/* Seletor de Modo */}
-                                {(['admin', 'administrador', 'gerente', 'operator', 'operador', 'client'].includes(role)) && (
-                                    <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
-                                        <button
-                                            type="button"
-                                            onClick={() => setInputMarginMode('percent')}
-                                            disabled={isInvitee}
-                                            style={{
-                                                flex: 1,
-                                                padding: '10px',
-                                                border: inputMarginMode === 'percent' ? '2px solid var(--admin-accent, #007bff)' : '1px solid var(--admin-border, #ccc)',
-                                                borderRadius: '6px',
-                                                background: inputMarginMode === 'percent' ? 'var(--admin-selected, #e7f1ff)' : 'var(--color-surface)',
-                                                cursor: isInvitee ? 'not-allowed' : 'pointer',
-                                                fontWeight: inputMarginMode === 'percent' ? 600 : 400,
-                                                opacity: isInvitee ? 0.6 : 1
-                                            }}
-                                        >
-                                            Percentual (%)
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setInputMarginMode('fixed')}
-                                            disabled={isInvitee}
-                                            style={{
-                                                flex: 1,
-                                                padding: '10px',
-                                                border: inputMarginMode === 'fixed' ? '2px solid var(--admin-accent, #007bff)' : '1px solid var(--admin-border, #ccc)',
-                                                borderRadius: '6px',
-                                                background: inputMarginMode === 'fixed' ? 'var(--admin-selected, #e7f1ff)' : 'var(--color-surface)',
-                                                cursor: isInvitee ? 'not-allowed' : 'pointer',
-                                                fontWeight: inputMarginMode === 'fixed' ? 600 : 400,
-                                                opacity: isInvitee ? 0.6 : 1
-                                            }}
-                                        >
-                                            Valor fixo (R$)
-                                        </button>
-                                    </div>
-                                )}
-
-                                {/* Input de margem conforme modo */}
-                                {inputMarginMode === 'percent' ? (
-                                    <div className={styles.margemInputGroup} style={{ marginTop: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                        <label htmlFor="margemInput">Margem (%):</label>
-                                        <input
-                                            id="margemInput"
-                                            type="text"
-                                            value={inputMargem}
-                                            onChange={(e) => {
-                                                const value = e.target.value;
-                                                if (/^\d*\.?\d*$/.test(value)) {
-                                                    setInputMargem(value);
-                                                }
-                                            }}
-                                            className={styles.searchInput}
-                                            style={{ width: '100px', opacity: isInvitee ? 0.6 : 1 }}
-                                            disabled={isInvitee}
-                                        />
-                                    </div>
-                                ) : (
-                                    <div className={styles.margemInputGroup} style={{ marginTop: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                        <label htmlFor="fixedMarginInput">Valor Fixo (R$):</label>
-                                        <input
-                                            id="fixedMarginInput"
-                                            type="text"
-                                            value={inputFixedMargin}
-                                            onChange={(e) => {
-                                                const value = e.target.value;
-                                                if (/^\d*\.?\d*$/.test(value)) {
-                                                    setInputFixedMargin(value);
-                                                }
-                                            }}
-                                            className={styles.searchInput}
-                                            style={{ width: '120px', opacity: isInvitee ? 0.6 : 1 }}
-                                            disabled={isInvitee}
-                                        />
-                                    </div>
-                                )}
-
-                                {/* Informação da margem atual e exemplo */}
-                                <div className={styles.margemInfo} style={{ marginTop: '20px', padding: '15px', background: 'var(--admin-panel, #f5f5f5)', borderRadius: '8px' }}>
-                                    <div style={{ marginBottom: '10px' }}>
-                                        <span>Margem Atual: </span>
-                                        <strong>
-                                            {marginMode === 'percent'
-                                                ? `${margem}%`
-                                                : `R$ ${fixedMargin.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-                                        </strong>
-                                    </div>
-                                    <div>
-                                        <span>Exemplo: </span>
-                                        {inputMarginMode === 'percent' ? (
-                                            <span>R$ 100.000 + {inputMargem || 0}% = R$ {(100000 * (1 + (parseFloat(inputMargem) || 0) / 100)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                                        ) : (
-                                            <span>R$ 100.000 + R$ {(parseFloat(inputFixedMargin) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} = R$ {(100000 + (parseFloat(inputFixedMargin) || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div className={modalStyles.modalActions}>
+                <AdminModal
+                    title="Configurar margem"
+                    subtitle="Margem aplicada ao preço de compra para calcular o preço de venda sugerido."
+                    onClose={() => setShowMargemModal(false)}
+                    size="sm"
+                    footer={<>
+                        <button
+                            type="button"
+                            className={adminModal.secondary}
+                            onClick={() => setShowMargemModal(false)}
+                        >
+                            Cancelar
+                        </button>
+                        {!isInvitee && (
                             <button
                                 type="button"
-                                className={modalStyles.cancelButton}
-                                onClick={() => setShowMargemModal(false)}
+                                className={adminModal.primary}
+                                onClick={handleSaveMargem}
+                                disabled={false}
                             >
-                                Cancelar
+                                Salvar
                             </button>
-                            {!isInvitee && (
-                                <button
-                                    type="button"
-                                    className={modalStyles.submitButton}
-                                    onClick={handleSaveMargem}
-                                    disabled={false}
-                                >
-                                    Salvar
-                                </button>
-                            )}
+                        )}
+                    </>}
+                >
+                    <div className={adminModal.stack}>
+                        {/* Seletor de Modo */}
+                        {(['admin', 'administrador', 'gerente', 'operator', 'operador', 'client'].includes(role)) && (
+                            <fieldset className={adminModal.group}>
+                                <legend className={adminModal.groupLabel}>Tipo de margem</legend>
+                                <div className={adminModal.choices}>
+                                    <label className={adminModal.choice}>
+                                        <input
+                                            type="radio"
+                                            name="marginMode"
+                                            checked={inputMarginMode === 'percent'}
+                                            onChange={() => setInputMarginMode('percent')}
+                                            disabled={isInvitee}
+                                        />
+                                        Percentual (%)
+                                    </label>
+                                    <label className={adminModal.choice}>
+                                        <input
+                                            type="radio"
+                                            name="marginMode"
+                                            checked={inputMarginMode === 'fixed'}
+                                            onChange={() => setInputMarginMode('fixed')}
+                                            disabled={isInvitee}
+                                        />
+                                        Valor fixo (R$)
+                                    </label>
+                                </div>
+                            </fieldset>
+                        )}
+
+                        {/* Input de margem conforme modo */}
+                        {inputMarginMode === 'percent' ? (
+                            <label className={adminModal.field} htmlFor="margemInput">
+                                Margem (%)
+                                <input
+                                    id="margemInput"
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={inputMargem}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        if (/^\d*\.?\d*$/.test(value)) {
+                                            setInputMargem(value);
+                                        }
+                                    }}
+                                    style={{ maxWidth: '160px' }}
+                                    disabled={isInvitee}
+                                />
+                            </label>
+                        ) : (
+                            <label className={adminModal.field} htmlFor="fixedMarginInput">
+                                Valor fixo (R$)
+                                <input
+                                    id="fixedMarginInput"
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={inputFixedMargin}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        if (/^\d*\.?\d*$/.test(value)) {
+                                            setInputFixedMargin(value);
+                                        }
+                                    }}
+                                    style={{ maxWidth: '160px' }}
+                                    disabled={isInvitee}
+                                />
+                            </label>
+                        )}
+
+                        {/* Informação da margem atual e exemplo */}
+                        <div className={adminModal.facts}>
+                            <div className={adminModal.fact}>
+                                <span className={adminModal.factLabel}>Margem atual</span>
+                                <strong className={adminModal.factValue}>
+                                    {marginMode === 'percent'
+                                        ? `${margem}%`
+                                        : `R$ ${fixedMargin.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                                </strong>
+                            </div>
+                            <div className={adminModal.fact}>
+                                <span className={adminModal.factLabel}>Exemplo</span>
+                                {inputMarginMode === 'percent' ? (
+                                    <span className={adminModal.factValue}>R$ 100.000 + {inputMargem || 0}% = R$ {(100000 * (1 + (parseFloat(inputMargem) || 0) / 100)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                ) : (
+                                    <span className={adminModal.factValue}>R$ 100.000 + R$ {(parseFloat(inputFixedMargin) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} = R$ {(100000 + (parseFloat(inputFixedMargin) || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
+                </AdminModal>
             )}
 
             {confirmCreditVehicle && (
-                <div className={modalStyles.modalOverlay} onClick={() => setConfirmCreditVehicle(null)}>
-                    <div className={modalStyles.modalContent} onClick={e => e.stopPropagation()} style={{ maxWidth: '440px', textAlign: 'center', padding: '0', overflow: 'hidden' }}>
-                        <div className={modalStyles.modalHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>Liberar Contato</h2>
-                            <button onClick={() => setConfirmCreditVehicle(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}>&times;</button>
-                        </div>
-                        <div style={{ padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1.2rem', alignItems: 'center' }}>
-                            <div style={{ fontSize: '3rem', background: '#e0e7ff', width: '80px', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}>💳</div>
-                            <div>
-                                <p style={{ fontSize: '1.1rem', color: '#1e293b', fontWeight: 600, margin: '0 0 0.5rem' }}>
-                                    Deseja usar <span style={{ color: '#2563eb' }}>1 crédito</span> para ver os detalhes e localização desta concessionária?
-                                </p>
-                                <p style={{ fontSize: '0.95rem', color: '#64748b', margin: 0 }}>
-                                    Você possui <strong>{localCredits}</strong> crédito{localCredits !== 1 ? 's' : ''} em sua conta.
-                                </p>
-                            </div>
-                            <div style={{ display: 'flex', gap: '1rem', width: '100%', marginTop: '0.5rem' }}>
-                                <button
-                                    onClick={() => setConfirmCreditVehicle(null)}
-                                    style={{ flex: 1, padding: '0.875rem', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}
-                                    disabled={isConsumingCredit}
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    onClick={confirmConsumeCredit}
-                                    style={{ flex: 1, padding: '0.875rem', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
-                                    disabled={isConsumingCredit}
-                                >
-                                    {isConsumingCredit ? 'Processando...' : 'Confirmar e Ver'}
-                                </button>
-                            </div>
-                        </div>
+                <AdminModal
+                    title="Liberar contato"
+                    onClose={() => setConfirmCreditVehicle(null)}
+                    size="sm"
+                    busy={isConsumingCredit}
+                    footer={<>
+                        <button
+                            type="button"
+                            className={adminModal.secondary}
+                            onClick={() => setConfirmCreditVehicle(null)}
+                            disabled={isConsumingCredit}
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="button"
+                            className={adminModal.primary}
+                            onClick={confirmConsumeCredit}
+                            disabled={isConsumingCredit}
+                        >
+                            {isConsumingCredit ? 'Processando...' : 'Confirmar e ver'}
+                        </button>
+                    </>}
+                >
+                    <div className={adminModal.stack}>
+                        <p style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--color-text)' }}>
+                            Deseja usar <span style={{ color: 'var(--color-accent)' }}>1 crédito</span> para ver os detalhes e a localização desta concessionária?
+                        </p>
+                        <p style={{ margin: 0, fontSize: '14px', color: 'var(--color-text-muted)' }}>
+                            Você possui <strong style={{ color: 'var(--color-text)' }}>{localCredits}</strong> crédito{localCredits !== 1 ? 's' : ''} em sua conta.
+                        </p>
                     </div>
-                </div>
+                </AdminModal>
             )}
 
             {locationVehicle && (
-                <div className={styles.modalOverlay} onClick={() => setLocationVehicle(null)}>
-                    <div
-                        style={{
-                            background: 'white',
-                            padding: '2rem',
-                            borderRadius: '12px',
-                            maxWidth: '500px',
-                            width: '90%',
-                            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-                            position: 'relative'
-                        }}
-                        onClick={e => e.stopPropagation()}
-                    >
+                <AdminModal
+                    title="Localização e contato"
+                    subtitle={locationVehicle.modelo || undefined}
+                    onClose={() => setLocationVehicle(null)}
+                    size="sm"
+                    footer={
                         <button
+                            type="button"
+                            className={adminModal.secondary}
                             onClick={() => setLocationVehicle(null)}
-                            style={{
-                                position: 'absolute',
-                                top: '1rem',
-                                right: '1rem',
-                                background: 'none',
-                                border: 'none',
-                                fontSize: '1.5rem',
-                                cursor: 'pointer',
-                                color: '#64748b'
-                            }}
                         >
-                            ✕
+                            Fechar
                         </button>
-
-                        <h3 style={{ marginTop: 0, marginBottom: '1.5rem', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            📍
-                            Localização e Contato
-                        </h3>
-
-                        <div style={{ display: 'grid', gap: '1rem' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>Cidade</label>
-                                    <div style={{ fontSize: '1rem', color: '#334155' }}>{locationVehicle.cidade}</div>
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>Estado</label>
-                                    <div style={{ fontSize: '1rem', color: '#334155' }}>{locationVehicle.estado}</div>
-                                </div>
-                            </div>
-
-                            <div style={{ borderTop: '1px solid #e2e8f0', margin: '0.5rem 0' }}></div>
-
-                            {locationVehicle.concessionaria && (
-                                <div style={{ marginBottom: '1rem' }}>
-                                    <label style={{ display: 'block', fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>Concessionária</label>
-                                    <div style={{ fontSize: '1rem', color: '#334155' }}>{locationVehicle.concessionaria}</div>
-                                </div>
-                            )}
-
-                            <div>
-                                <label style={{ display: 'block', fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>Contato Principal</label>
-                                <div style={{ fontSize: '1rem', color: '#334155' }}>{locationVehicle.nomeContato || '-'}</div>
-                            </div>
-
-                            <div>
-                                <label style={{ display: 'block', fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>Telefone</label>
-                                <div style={{ fontSize: '1rem', color: '#334155', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    {locationVehicle.telefone || '-'}
-                                    {locationVehicle.telefone && (
-                                        <a
-                                            href={`https://wa.me/55${locationVehicle.telefone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, tenho interesse no veículo ${locationVehicle.modelo} ${locationVehicle.cor} ${locationVehicle.ano} (R$ ${calculatePriceWithMargin(locationVehicle.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })})`)}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            style={{
-                                                fontSize: '0.875rem',
-                                                color: '#25d366',
-                                                textDecoration: 'none',
-                                                background: '#dcfce7',
-                                                padding: '2px 8px',
-                                                borderRadius: '12px',
-                                                fontWeight: 500
-                                            }}
-                                        >
-                                            WhatsApp
-                                        </a>
-                                    )}
-                                </div>
-                            </div>
+                    }
+                >
+                    <div className={adminModal.facts}>
+                        <div className={adminModal.fact}>
+                            <span className={adminModal.factLabel}>Cidade</span>
+                            <span className={adminModal.factValue}>{locationVehicle.cidade}</span>
                         </div>
-
-                        <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end' }}>
-                            <button
-                                onClick={() => setLocationVehicle(null)}
-                                style={{
-                                    padding: '0.5rem 1.5rem',
-                                    background: '#f1f5f9',
-                                    border: 'none',
-                                    borderRadius: '6px',
-                                    color: '#475569',
-                                    fontWeight: 500,
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                Fechar
-                            </button>
+                        <div className={adminModal.fact}>
+                            <span className={adminModal.factLabel}>Estado</span>
+                            <span className={adminModal.factValue}>{locationVehicle.estado}</span>
+                        </div>
+                        {locationVehicle.concessionaria && (
+                            <div className={`${adminModal.fact} ${adminModal.span2}`}>
+                                <span className={adminModal.factLabel}>Concessionária</span>
+                                <span className={adminModal.factValue}>{locationVehicle.concessionaria}</span>
+                            </div>
+                        )}
+                        <div className={adminModal.fact}>
+                            <span className={adminModal.factLabel}>Contato principal</span>
+                            <span className={adminModal.factValue}>{locationVehicle.nomeContato || '-'}</span>
+                        </div>
+                        <div className={adminModal.fact}>
+                            <span className={adminModal.factLabel}>Telefone</span>
+                            <span className={adminModal.factValue} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
+                                {locationVehicle.telefone || '-'}
+                                {locationVehicle.telefone && (
+                                    <a
+                                        href={`https://wa.me/55${locationVehicle.telefone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, tenho interesse no veículo ${locationVehicle.modelo} ${locationVehicle.cor} ${locationVehicle.ano} (R$ ${calculatePriceWithMargin(locationVehicle.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })})`)}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            fontSize: '13px',
+                                            fontWeight: 600,
+                                            color: 'var(--color-positive)',
+                                            textDecoration: 'none',
+                                            border: '1px solid currentColor',
+                                            padding: '2px 8px',
+                                            borderRadius: '999px'
+                                        }}
+                                    >
+                                        <FaWhatsapp aria-hidden="true" /> WhatsApp
+                                    </a>
+                                )}
+                            </span>
                         </div>
                     </div>
-                </div>
+                </AdminModal>
             )}
             {showUpgradeModal && <UpgradeModal onClose={() => setShowUpgradeModal(false)} paidOnly />}
         </div>

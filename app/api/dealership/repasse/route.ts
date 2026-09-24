@@ -5,7 +5,7 @@ import connectDB from '@/lib/mongodb';
 import RepasseVehicle from '@/models/RepasseVehicle';
 import VehicleVariation from '@/models/VehicleVariation';
 import { resolveDealershipScope } from '@/lib/services/dealershipScope';
-import { REPASSE_STATUS, serializeRepasse, validateRepasse } from '@/lib/utils/repasse';
+import { REPASSE_STATUS, parseRepasseFipe, serializeRepasse, validateRepasse } from '@/lib/utils/repasse';
 import { MSG_PLANO_REPASSE_INATIVO, isPlanoRepasseAtivo, serializePlanoRepasse } from '@/lib/utils/planoRepasse';
 
 export const dynamic = 'force-dynamic';
@@ -83,14 +83,17 @@ export async function POST(request: Request) {
         const { data, errors } = validateRepasse(body, false);
         if (errors.length) return NextResponse.json({ error: errors.join(' '), errors }, { status: 400 });
 
-        // Modelo vem do catálogo. Texto livre só com a marcação explícita, usada
-        // em carro antigo que saiu de linha e não existe mais no catálogo.
+        const fipe = parseRepasseFipe(body);
+        if (fipe.error) return NextResponse.json({ error: fipe.error }, { status: 400 });
+
+        // Modelo vem da FIPE (ou, nos cadastros antigos, do catálogo). Texto livre só
+        // com a marcação explícita, para veículo que não aparece na FIPE.
         const foraDoCatalogo = body?.foraDoCatalogo === true;
-        if (!foraDoCatalogo && data.modelo) {
+        if (!foraDoCatalogo && !fipe.codigoFipe && data.modelo) {
             const existe = await VehicleVariation.exists({ modelo: data.modelo, ativo: true });
             if (!existe) {
                 return NextResponse.json({
-                    error: `"${data.modelo}" não está no catálogo. Escolha um modelo da lista ou marque "modelo fora do catálogo".`,
+                    error: `"${data.modelo}" não foi escolhido na lista da FIPE. Escolha marca, modelo e ano na lista ou marque "não encontrei na FIPE".`,
                     code: 'MODELO_FORA_DO_CATALOGO',
                 }, { status: 400 });
             }
@@ -99,6 +102,7 @@ export async function POST(request: Request) {
         const created = await RepasseVehicle.create({
             ...data,
             foraDoCatalogo,
+            ...(fipe.codigoFipe ? { codigoFipe: fipe.codigoFipe, descricaoFipe: fipe.descricaoFipe || undefined } : {}),
             concessionariaId: scope.concessionaria._id,
             createdBy: session.user?.email || undefined,
         });

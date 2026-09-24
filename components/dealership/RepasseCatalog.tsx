@@ -1,8 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { FaPlus } from 'react-icons/fa';
 import { Pagination } from '../Pagination';
+import { AdminModal, modalStyles } from '../admin/AdminModal';
+import { AutocompleteField, matchLocalBrand, useFipeCascade } from '../catalog/FipeLookup';
+import type { FipeDetail } from '../../lib/services/fipeService';
 import { PlanoRepasseCard } from './PlanoRepasseCard';
 import { REPASSE_COMBUSTIVEIS, REPASSE_TRANSMISSOES, formatKm } from '../../lib/utils/repasse';
 import base from './PricingCatalog.module.css';
@@ -23,6 +26,9 @@ interface RepasseRow {
     preco: number;
     observacoes: string;
     updatedAt: string;
+    foraDoCatalogo?: boolean;
+    codigoFipe?: string;
+    descricaoFipe?: string;
 }
 
 type FormState = {
@@ -37,8 +43,10 @@ type FormState = {
     opcionais: string;
     preco: string;
     observacoes: string;
-    /** Modelo antigo que não existe mais no catálogo mestre. */
+    /** Veículo que não aparece na FIPE: marca e modelo digitados à mão. */
     foraDoCatalogo: boolean;
+    codigoFipe: string;
+    descricaoFipe: string;
 };
 
 const EMPTY_FORM: FormState = {
@@ -54,7 +62,15 @@ const EMPTY_FORM: FormState = {
     preco: '',
     observacoes: '',
     foraDoCatalogo: false,
+    codigoFipe: '',
+    descricaoFipe: '',
 };
+
+/** Combustível da FIPE na grafia usada no repasse. */
+function fipeFuel(fuel: string) {
+    const map: Record<string, string> = { alcool: 'Etanol', 'álcool': 'Etanol', gasolina: 'Gasolina', diesel: 'Diesel', flex: 'Flex', 'elétrico': 'Elétrico', eletrico: 'Elétrico', 'híbrido': 'Híbrido', hibrido: 'Híbrido' };
+    return map[fuel.trim().toLowerCase()] || fuel.trim();
+}
 
 const PAGE_SIZE = 50;
 
@@ -86,12 +102,11 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
     const [saving, setSaving] = useState(false);
     const [rowSaving, setRowSaving] = useState<Record<string, boolean>>({});
     const [marcas, setMarcas] = useState<string[]>([]);
-    // Modelo sai do catálogo mestre: texto livre virava três grafias do mesmo
-    // carro e quebrava busca e filtros da vitrine.
-    const [modelos, setModelos] = useState<string[]>([]);
-    const [modelosAbertos, setModelosAbertos] = useState(false);
-    const [buscandoModelos, setBuscandoModelos] = useState(false);
-    const modeloBox = useRef<HTMLLabelElement>(null);
+    // Marca, modelo e ano vêm da FIPE: a loja encontra qualquer carro e a vitrine
+    // recebe uma grafia única. Texto livre só marcando "não encontrei na FIPE".
+    const fipe = useFipeCascade(form.tipoVeiculo);
+    const [fipeRef, setFipeRef] = useState<{ price: string; month: string } | null>(null);
+    const [originalModelo, setOriginalModelo] = useState('');
     // null = ainda carregando. Sem plano ativo a loja não cadastra repasse novo.
     const [planoAtivo, setPlanoAtivo] = useState<boolean | null>(null);
 
@@ -145,43 +160,14 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
             .catch(() => setMarcas([]));
     }, []);
 
-    // Sugestões conforme digita, restritas à marca e ao tipo escolhidos.
-    useEffect(() => {
-        if (!formOpen || form.foraDoCatalogo) return;
-        const termo = form.modelo.trim();
-        const t = setTimeout(async () => {
-            setBuscandoModelos(true);
-            try {
-                const params = new URLSearchParams({ tipoVeiculo: form.tipoVeiculo, limit: '20' });
-                if (form.marca.trim()) params.set('marca', form.marca.trim());
-                if (termo) params.set('q', termo);
-                const res = await fetch(`/api/catalog/modelos?${params.toString()}`);
-                const body = await res.json();
-                setModelos(res.ok ? body.modelos || [] : []);
-            } catch {
-                setModelos([]);
-            } finally {
-                setBuscandoModelos(false);
-            }
-        }, 250);
-        return () => clearTimeout(t);
-    }, [formOpen, form.modelo, form.marca, form.tipoVeiculo, form.foraDoCatalogo]);
-
-    // Fecha a lista ao clicar fora.
-    useEffect(() => {
-        if (!modelosAbertos) return;
-        const fechar = (e: MouseEvent) => {
-            if (modeloBox.current && !modeloBox.current.contains(e.target as Node)) setModelosAbertos(false);
-        };
-        document.addEventListener('mousedown', fechar);
-        return () => document.removeEventListener('mousedown', fechar);
-    }, [modelosAbertos]);
-
-    const modeloNoCatalogo = modelos.some(m => m.toLowerCase() === form.modelo.trim().toLowerCase());
+    const { reset: resetFipe } = fipe;
 
     const openNew = () => {
         setEditingId(null);
         setForm(EMPTY_FORM);
+        setOriginalModelo('');
+        setFipeRef(null);
+        resetFipe();
         setFormError(null);
         setFormOpen(true);
     };
@@ -200,11 +186,15 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
             opcionais: row.opcionais || '',
             preco: row.preco ? row.preco.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '',
             observacoes: row.observacoes || '',
-            foraDoCatalogo: Boolean((row as any).foraDoCatalogo),
+            foraDoCatalogo: Boolean(row.foraDoCatalogo),
+            codigoFipe: row.codigoFipe || '',
+            descricaoFipe: row.descricaoFipe || '',
         });
+        setOriginalModelo(row.modelo || '');
+        setFipeRef(null);
+        resetFipe();
         setFormError(null);
         setFormOpen(true);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const closeForm = () => {
@@ -213,10 +203,25 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
         setFormError(null);
     };
 
+    const applyFipeDetail = (detail: FipeDetail) => {
+        setForm(prev => ({
+            ...prev,
+            codigoFipe: detail.codeFipe,
+            descricaoFipe: detail.model,
+            combustivel: fipeFuel(detail.fuel) || prev.combustivel,
+            ano: detail.modelYear === 32000 ? prev.ano : (prev.ano.includes('/') ? `${prev.ano.split('/')[0]}/${String(detail.modelYear).slice(-2)}` : String(detail.modelYear)),
+        }));
+        setFipeRef(detail.price ? { price: detail.price, month: detail.referenceMonth } : null);
+    };
+    const brandList = marcas.map(nome => ({ nome }));
+    const combustiveis = form.combustivel && !REPASSE_COMBUSTIVEIS.includes(form.combustivel) ? [...REPASSE_COMBUSTIVEIS, form.combustivel] : REPASSE_COMBUSTIVEIS;
+
     const submit = async (event: React.FormEvent) => {
         event.preventDefault();
-        if (!form.foraDoCatalogo && !modeloNoCatalogo) {
-            setFormError('Escolha um modelo da lista do catálogo. Se o carro é antigo e não aparece, marque "modelo fora do catálogo".');
+        // Edição de cadastro antigo sem trocar o modelo continua valendo.
+        const modeloMantido = Boolean(editingId) && form.modelo === originalModelo;
+        if (!form.foraDoCatalogo && !form.codigoFipe && !modeloMantido) {
+            setFormError('Escolha marca, modelo e ano-modelo na lista da FIPE. Se o veículo não aparece, marque "Não encontrei na FIPE".');
             return;
         }
         setSaving(true);
@@ -226,7 +231,7 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
             const res = await fetch(withScope(url), {
                 method: editingId ? 'PATCH' : 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(form),
+                body: JSON.stringify(form.foraDoCatalogo ? { ...form, codigoFipe: '', descricaoFipe: '' } : form),
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
@@ -274,79 +279,109 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
 
             <PlanoRepasseCard key={concessionariaId || 'loja'} concessionariaId={concessionariaId} onChange={setPlanoAtivo} />
 
-            {!formOpen && (
-                <div className={base.bulkActionsRow}>
-                    <button
-                        type="button"
-                        className={styles.primaryBtn}
-                        onClick={openNew}
-                        disabled={planoAtivo !== true}
-                        title={planoAtivo === false ? 'Contrate um plano de repasse para anunciar' : undefined}
-                    >
-                        <FaPlus /> Adicionar repasse
-                    </button>
-                </div>
-            )}
+            <div className={base.bulkActionsRow}>
+                <button
+                    type="button"
+                    className={styles.primaryBtn}
+                    onClick={openNew}
+                    disabled={planoAtivo !== true}
+                    title={planoAtivo === false ? 'Contrate um plano de repasse para anunciar' : undefined}
+                >
+                    <FaPlus /> Adicionar carro
+                </button>
+            </div>
 
             {formOpen && (
-                <form className={styles.formPanel} onSubmit={submit}>
-                    <div className={styles.formHeader}>
-                        <h3>{editingId ? 'Editar repasse' : 'Novo repasse'}</h3>
-                    </div>
+                <AdminModal
+                    size="lg"
+                    title={editingId ? 'Editar carro' : 'Adicionar carro'}
+                    subtitle="Escolha marca, modelo e ano na lista da FIPE. Depois informe quilometragem, preço e detalhes."
+                    onClose={closeForm}
+                    busy={saving}
+                    onSubmit={submit}
+                    footer={<>
+                        <button type="button" className={modalStyles.secondary} onClick={closeForm} disabled={saving}>Cancelar</button>
+                        <button type="submit" className={modalStyles.primary} disabled={saving}>
+                            {saving ? 'Salvando...' : editingId ? 'Salvar alterações' : 'Cadastrar carro'}
+                        </button>
+                    </>}
+                >
                     <div className={styles.formGrid}>
                         <label>
                             Tipo
-                            <select value={form.tipoVeiculo} onChange={set('tipoVeiculo')}>
+                            <select value={form.tipoVeiculo} onChange={event => {
+                                fipe.clearBrand();
+                                setFipeRef(null);
+                                setForm(prev => ({ ...prev, tipoVeiculo: event.target.value as FormState['tipoVeiculo'], marca: '', modelo: '', codigoFipe: '', descricaoFipe: '' }));
+                            }}>
                                 <option value="carro">Carro</option>
                                 <option value="moto">Moto</option>
                             </select>
                         </label>
-                        <label>
-                            <span className={styles.required}>Marca</span>
-                            <input value={form.marca} onChange={set('marca')} list="repasse-marcas" placeholder="Ex.: CHEVROLET" required />
-                            <datalist id="repasse-marcas">
-                                {marcas.map(m => <option key={m} value={m} />)}
-                            </datalist>
-                        </label>
-                        <label className={styles.comboWrap} ref={modeloBox}>
-                            <span className={styles.required}>Modelo</span>
-                            <input
-                                value={form.modelo}
-                                onChange={event => { setForm(prev => ({ ...prev, modelo: event.target.value })); setModelosAbertos(true); }}
-                                onFocus={() => setModelosAbertos(true)}
-                                placeholder={form.foraDoCatalogo ? 'Digite o modelo' : 'Digite para buscar no catálogo'}
-                                autoComplete="off"
-                                required
-                            />
-                            {!form.foraDoCatalogo && modelosAbertos && (
-                                <div className={styles.combo}>
-                                    {buscandoModelos && modelos.length === 0 && <span className={styles.comboVazio}>Buscando...</span>}
-                                    {!buscandoModelos && modelos.length === 0 && (
-                                        <span className={styles.comboVazio}>
-                                            Nenhum modelo do catálogo com esse texto{form.marca.trim() ? ` para ${form.marca.trim()}` : ''}.
-                                        </span>
-                                    )}
-                                    {modelos.map(m => (
-                                        <button
-                                            key={m}
-                                            type="button"
-                                            className={styles.comboItem}
-                                            onClick={() => { setForm(prev => ({ ...prev, modelo: m })); setModelosAbertos(false); }}
-                                        >
-                                            {m}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                            <label className={styles.comboEscape}>
-                                <input
-                                    type="checkbox"
-                                    checked={form.foraDoCatalogo}
-                                    onChange={event => { setForm(prev => ({ ...prev, foraDoCatalogo: event.target.checked })); setModelosAbertos(false); }}
-                                />
-                                Modelo fora do catálogo (carro antigo)
+                        <AutocompleteField
+                            label="Marca *"
+                            value={form.marca}
+                            options={form.foraDoCatalogo ? [] : fipe.brands}
+                            loading={!form.foraDoCatalogo && fipe.loading === 'brands'}
+                            onOpen={() => { if (!form.foraDoCatalogo) void fipe.loadBrands(); }}
+                            placeholder={form.foraDoCatalogo ? 'Ex.: CHEVROLET' : 'Digite para buscar na FIPE'}
+                            onText={text => {
+                                fipe.clearBrand();
+                                if (!form.foraDoCatalogo && !fipe.brands.length) void fipe.loadBrands();
+                                setFipeRef(null);
+                                setForm(prev => ({ ...prev, marca: text, ...(prev.foraDoCatalogo ? {} : { modelo: '', codigoFipe: '', descricaoFipe: '' }) }));
+                            }}
+                            onPick={option => {
+                                void fipe.pickBrand(option.code);
+                                setFipeRef(null);
+                                setForm(prev => ({ ...prev, marca: matchLocalBrand(option.name, brandList, prev.tipoVeiculo), modelo: '', codigoFipe: '', descricaoFipe: '' }));
+                            }}
+                        />
+                        <AutocompleteField
+                            className={styles.wideHalf}
+                            label="Modelo / versão *"
+                            value={form.modelo}
+                            options={form.foraDoCatalogo ? [] : fipe.models}
+                            loading={!form.foraDoCatalogo && fipe.loading === 'models'}
+                            emptyText={form.foraDoCatalogo || fipe.brandCode ? undefined : 'Escolha a marca na lista para ver os modelos.'}
+                            placeholder={form.foraDoCatalogo ? 'Digite o modelo' : 'Digite para filtrar os modelos da FIPE'}
+                            onText={text => {
+                                if (!form.foraDoCatalogo) { fipe.clearModel(); setFipeRef(null); }
+                                setForm(prev => ({ ...prev, modelo: text, ...(prev.foraDoCatalogo ? {} : { codigoFipe: '', descricaoFipe: '' }) }));
+                            }}
+                            onPick={option => {
+                                void fipe.pickModel(option.code);
+                                setFipeRef(null);
+                                setForm(prev => ({ ...prev, modelo: option.name, codigoFipe: '', descricaoFipe: '' }));
+                            }}
+                        />
+                        {!form.foraDoCatalogo && fipe.years.length > 0 && (
+                            <label>
+                                <span className={styles.required}>Ano-modelo / combustível FIPE</span>
+                                <select value={fipe.year} onChange={async event => { const detail = await fipe.pickYear(event.target.value); if (detail) applyFipeDetail(detail); }}>
+                                    <option value="">Selecione…</option>
+                                    {fipe.years.map(option => <option key={option.code} value={option.code}>{option.name}</option>)}
+                                </select>
                             </label>
+                        )}
+                        <label className={`${styles.wide} ${styles.checkRow}`}>
+                            <input
+                                type="checkbox"
+                                checked={form.foraDoCatalogo}
+                                onChange={event => {
+                                    const manual = event.target.checked;
+                                    fipe.clearBrand();
+                                    setFipeRef(null);
+                                    setForm(prev => ({ ...prev, foraDoCatalogo: manual, codigoFipe: '', descricaoFipe: '' }));
+                                }}
+                            />
+                            Não encontrei na FIPE: digitar marca e modelo manualmente
                         </label>
+                        {!form.foraDoCatalogo && (fipe.error || ['years', 'detail', 'code'].includes(fipe.loading) || form.codigoFipe) && (
+                            <p className={`${styles.wide} ${styles.fipeStatus}`} role={fipe.error ? 'alert' : 'status'}>
+                                {fipe.error || (fipe.loading && fipe.loading !== 'brands' && fipe.loading !== 'models' ? 'Consultando FIPE…' : `FIPE ${form.codigoFipe}${form.descricaoFipe ? ` · ${form.descricaoFipe}` : ''}`)}
+                            </p>
+                        )}
                         <label>
                             <span className={styles.required}>Ano</span>
                             <input value={form.ano} onChange={set('ano')} placeholder="19/20" required />
@@ -358,6 +393,7 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
                         <label>
                             <span className={styles.required}>Preço</span>
                             <input value={form.preco} onChange={set('preco')} inputMode="decimal" placeholder="Ex.: 72.900,00" required />
+                            {fipeRef && <span className={styles.hint}>FIPE: {fipeRef.price}{fipeRef.month ? ` (${fipeRef.month.trim()})` : ''}</span>}
                         </label>
                         <label>
                             Cor
@@ -366,14 +402,14 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
                         <label>
                             Combustível
                             <select value={form.combustivel} onChange={set('combustivel')}>
-                                <option value="">—</option>
-                                {REPASSE_COMBUSTIVEIS.map(c => <option key={c} value={c}>{c}</option>)}
+                                <option value="">-</option>
+                                {combustiveis.map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
                         </label>
                         <label>
                             Câmbio
                             <select value={form.transmissao} onChange={set('transmissao')}>
-                                <option value="">—</option>
+                                <option value="">-</option>
                                 {REPASSE_TRANSMISSOES.map(t => <option key={t} value={t}>{t}</option>)}
                             </select>
                         </label>
@@ -388,14 +424,7 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
                     </div>
 
                     {formError && <div className={base.error} style={{ marginTop: '0.85rem' }}>{formError}</div>}
-
-                    <div className={styles.formActions}>
-                        <button type="button" className={styles.ghostBtn} onClick={closeForm} disabled={saving}>Cancelar</button>
-                        <button type="submit" className={styles.primaryBtn} disabled={saving}>
-                            {saving ? 'Salvando...' : editingId ? 'Salvar alterações' : 'Cadastrar repasse'}
-                        </button>
-                    </div>
-                </form>
+                </AdminModal>
             )}
 
             <div className={base.filters}>
@@ -432,7 +461,7 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
                         ) : rows.length === 0 ? (
                             <tr>
                                 <td colSpan={11} className={base.empty}>
-                                    {search ? 'Nenhum repasse encontrado com essa busca.' : 'Nenhum repasse cadastrado. Clique em "Adicionar repasse" para começar.'}
+                                    {search ? 'Nenhum repasse encontrado com essa busca.' : 'Nenhum carro cadastrado. Clique em "Adicionar carro" para começar.'}
                                 </td>
                             </tr>
                         ) : rows.map(row => (

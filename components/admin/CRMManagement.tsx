@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react';
 import styles from './CRMManagement.module.css';
+import { AdminModal, modalStyles } from './AdminModal';
 import { ClienteFinanceiro } from './ClienteFinanceiro';
 import { getUserAccessStatus, updateUserProfiles, toggleUserStatus, deleteUser } from '@/app/dashboard/admin/users/actions';
 import { toggleProfileSelection, DIRETIVO_PROFILES, OPERACIONAL_PROFILES, CLIENT_PROFILES } from '@/lib/utils/userProfiles';
@@ -1046,73 +1047,46 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
 
             {/* Client Detail Modal */}
             {selectedClient && (
-                <div className={styles.overlay} onClick={() => setSelectedClient(null)}>
-                    <div className={styles.clientModal} onClick={e => e.stopPropagation()}>
-
-                        {/* Header */}
-                        <div className={styles.clientModalHeader}>
-                            <div className={styles.clientModalAvatar}>
-                                {(selectedClient.displayName || selectedClient.email)[0].toUpperCase()}
-                            </div>
-                            <div className={styles.clientModalHeaderInfo}>
-                                <div className={styles.clientModalTitleRow}>
-                                    <h3 className={styles.clientModalName}>{selectedClient.displayName || '(sem nome)'}</h3>
-                                    <span className={styles.statusBadge} style={{ background: STATUS_COLORS[selectedClient.status] + '22', color: STATUS_COLORS[selectedClient.status], border: `1px solid ${STATUS_COLORS[selectedClient.status]}` }}>
-                                        {STATUS_LABELS[selectedClient.status]}
-                                    </span>
-                                </div>
-                                <div className={styles.clientModalSubInfo}>
-                                    <span>{selectedClient.email}</span>
-                                    {selectedClient.phoneNumber && <span>{selectedClient.phoneNumber}</span>}
-                                </div>
-                                {/* O essencial no cabeçalho: antes era preciso trocar de
-                                    aba para saber plano e vencimento. */}
-                                <div className={styles.headerFacts}>
-                                    <span className={styles.fact}>
-                                        <em>Plano</em>{selectedClient.planName || 'Sem plano'}
-                                    </span>
-                                    <span className={styles.fact}>
-                                        <em>{selectedClient.status === 'expired' ? 'Expirou' : 'Expira'}</em>
-                                        {selectedClient.expiresAt ? formatDate(selectedClient.expiresAt) : '—'}
-                                    </span>
-                                    <span className={styles.fact}>
-                                        <em>Pagamento</em>{getPaymentInfo(selectedClient)?.label.replace(/^[^ ]+ /, '') || 'Sem pagamento'}
-                                    </span>
-                                </div>
-                            </div>
-                            <button className={styles.closeBtn} onClick={() => setSelectedClient(null)}>✕</button>
+                <AdminModal
+                    size="lg"
+                    onClose={() => setSelectedClient(null)}
+                    bodyClassName={styles.clientModalBody}
+                    leading={<div className={styles.clientModalAvatar}>{(selectedClient.displayName || selectedClient.email)[0].toUpperCase()}</div>}
+                    title={selectedClient.displayName || '(sem nome)'}
+                    titleAside={
+                        <span className={styles.statusBadge} style={{ background: STATUS_COLORS[selectedClient.status] + '22', color: STATUS_COLORS[selectedClient.status], border: `1px solid ${STATUS_COLORS[selectedClient.status]}` }}>
+                            {STATUS_LABELS[selectedClient.status]}
+                        </span>
+                    }
+                    subtitle={<>
+                        <span>{selectedClient.email}{selectedClient.phoneNumber ? ` · ${selectedClient.phoneNumber}` : ''}</span>
+                        {/* O essencial no cabeçalho: plano e vencimento sem trocar de aba. */}
+                        <div className={styles.headerFacts}>
+                            <span className={styles.fact}><em>Plano</em>{selectedClient.planName || 'Sem plano'}</span>
+                            <span className={styles.fact}>
+                                <em>{selectedClient.status === 'expired' ? 'Expirou' : 'Expira'}</em>
+                                {selectedClient.expiresAt ? formatDate(selectedClient.expiresAt) : '-'}
+                            </span>
+                            <span className={styles.fact}><em>Pagamento</em>{getPaymentInfo(selectedClient)?.label.replace(/^[^ ]+ /, '') || 'Sem pagamento'}</span>
                         </div>
-
-                        {/* Tabs */}
-                        <div className={styles.clientModalTabs}>
-                            <button
-                                className={`${styles.clientModalTab} ${modalTab === 'dados' ? styles.clientModalTabActive : ''}`}
-                                onClick={() => setModalTab('dados')}
-                            >
-                                Dados do Cliente
-                            </button>
-                            <button
-                                className={`${styles.clientModalTab} ${modalTab === 'assinatura' ? styles.clientModalTabActive : ''}`}
-                                onClick={() => setModalTab('assinatura')}
-                            >
-                                Assinatura & Ações
-                            </button>
-                            <button
-                                className={`${styles.clientModalTab} ${modalTab === 'financeiro' ? styles.clientModalTabActive : ''}`}
-                                onClick={() => setModalTab('financeiro')}
-                            >
-                                Financeiro
-                            </button>
-                            <button
-                                className={`${styles.clientModalTab} ${modalTab === 'acessos' ? styles.clientModalTabActive : ''}`}
-                                onClick={() => { setModalTab('acessos'); if (!acesso) carregarAcesso(selectedClient); }}
-                            >
-                                Acessos
-                            </button>
+                    </>}
+                    toolbar={
+                        <div className={styles.clientModalTabs} role="tablist">
+                            {([['dados', 'Dados do cliente'], ['assinatura', 'Assinatura e ações'], ['financeiro', 'Financeiro'], ['acessos', 'Acessos']] as const).map(([tab, label]) => (
+                                <button
+                                    key={tab}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={modalTab === tab}
+                                    className={`${styles.clientModalTab} ${modalTab === tab ? styles.clientModalTabActive : ''}`}
+                                    onClick={() => { setModalTab(tab); if (tab === 'acessos' && !acesso) carregarAcesso(selectedClient); }}
+                                >
+                                    {label}
+                                </button>
+                            ))}
                         </div>
-
-                        {/* Body */}
-                        <div className={styles.clientModalBody}>
+                    }
+                >
 
                             {/* ── Dados tab ── */}
                             {modalTab === 'dados' && (
@@ -1123,7 +1097,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                             <span className={styles.clientSectionTitle}>Informações Pessoais</span>
                                             {!editMode && (
                                                 <button className={styles.editToggleBtn} onClick={() => startEditClient(selectedClient)}>
-                                                    ✏️ Editar
+                                                    Editar
                                                 </button>
                                             )}
                                         </div>
@@ -1260,7 +1234,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                                     disabled={editSavingClient}
                                                     onClick={handleSaveClientEdit}
                                                 >
-                                                    {editSavingClient ? 'Salvando...' : '💾 Salvar'}
+                                                    {editSavingClient ? 'Salvando...' : 'Salvar'}
                                                 </button>
                                             </div>
                                         </div>
@@ -1562,20 +1536,29 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                     </div>
                                 </div>
                             )}
-                        </div>
-                    </div>
-                </div>
+                </AdminModal>
             )}
 
             {/* Assign Plan Modal */}
             {assignModal && (
-                <div className={styles.overlay} onClick={() => setAssignModal(null)}>
-                    <div className={styles.detailPanel} onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
-                        <button className={styles.closeBtn} onClick={() => setAssignModal(null)}>✕</button>
-                        <h3 className={styles.detailName} style={{ marginBottom: '0.25rem' }}>Atribuir plano</h3>
-                        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
-                            {assignModal.client.displayName || assignModal.client.email}
-                        </p>
+                <AdminModal
+                    size="sm"
+                    title="Atribuir plano"
+                    subtitle={assignModal.client.displayName || assignModal.client.email}
+                    onClose={() => setAssignModal(null)}
+                    busy={assigning}
+                    footer={<>
+                        <button type="button" className={modalStyles.secondary} onClick={() => setAssignModal(null)} disabled={assigning}>Cancelar</button>
+                        <button
+                            type="button"
+                            className={modalStyles.primary}
+                            disabled={assigning || !assignModal.planId || (assignPlanRequiresStartDate && !assignModal.startDate)}
+                            onClick={handleAssignPlan}
+                        >
+                            {assigning ? 'Salvando...' : 'Confirmar'}
+                        </button>
+                    </>}
+                >
 
                         <div style={{ marginBottom: '1.25rem' }}>
                             <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -1678,9 +1661,9 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                     value={assignModal.paymentMethod || 'pix'}
                                     onChange={e => setAssignModal({ ...assignModal, paymentMethod: e.target.value as 'pix' | 'boleto' | 'card' })}
                                 >
-                                    <option value="pix">🪙 PIX</option>
-                                    <option value="boleto">📄 Boleto</option>
-                                    <option value="card">💳 Cartão de Crédito</option>
+                                    <option value="pix">PIX</option>
+                                    <option value="boleto">Boleto</option>
+                                    <option value="card">Cartão de crédito</option>
                                 </select>
                             </div>
                         )}
@@ -1689,36 +1672,17 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                             <p style={{ color: 'var(--color-negative)', fontSize: '0.85rem', marginBottom: '1rem' }}>{assignError}</p>
                         )}
 
-                        <div className={styles.detailActions}>
-                            <button
-                                className={`${styles.detailBtn}`}
-                                style={{ flex: 1, background: 'var(--color-highlight)', color: 'var(--color-text)', border: '1px solid var(--color-highlight)' }}
-                                onClick={() => setAssignModal(null)}
-                                disabled={assigning}
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                className={`${styles.detailBtn} ${styles.btnPlanLg}`}
-                                disabled={assigning || !assignModal.planId || (assignPlanRequiresStartDate && !assignModal.startDate)}
-                                onClick={handleAssignPlan}
-                            >
-                                {assigning ? 'Salvando...' : 'Confirmar'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                </AdminModal>
             )}
 
             {/* Invite Management Modal */}
             {inviteModal && (
-                <div className={styles.overlay} onClick={() => setInviteModal(null)}>
-                    <div className={styles.detailPanel} onClick={e => e.stopPropagation()} style={{ maxWidth: 820 }}>
-                        <button className={styles.closeBtn} onClick={() => setInviteModal(null)}>✕</button>
-                        <h3 className={styles.detailName} style={{ marginBottom: '0.25rem' }}>👥 Convidados de {inviteModal.client.displayName || inviteModal.client.email}</h3>
-                        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
-                            Adicione ou gerencie usuários vinculados a esta conta.
-                        </p>
+                <AdminModal
+                    size="lg"
+                    title={`Convidados de ${inviteModal.client.displayName || inviteModal.client.email}`}
+                    subtitle="Adicione ou gerencie usuários vinculados a esta conta."
+                    onClose={() => setInviteModal(null)}
+                >
 
                         {/* Add invite form */}
                         <div style={{
@@ -1925,19 +1889,30 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                 </table>
                             </div>
                         )}
-                    </div>
-                </div>
+                </AdminModal>
             )}
 
             {/* Create Client Modal */}
             {createModal && (
-                <div className={styles.overlay} onClick={() => setCreateModal(false)}>
-                    <div className={styles.detailPanel} onClick={e => e.stopPropagation()} style={{ maxWidth: 600 }}>
-                        <button className={styles.closeBtn} onClick={() => setCreateModal(false)}>✕</button>
-                        <h3 className={styles.detailName} style={{ marginBottom: '0.25rem' }}>➕ Cadastrar Novo Cliente</h3>
-                        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
-                            Preencha os dados abaixo para cadastrar um novo cliente na plataforma.
-                        </p>
+                <AdminModal
+                    title="Cadastrar novo cliente"
+                    subtitle="Preencha os dados abaixo para cadastrar um novo cliente na plataforma."
+                    onClose={() => setCreateModal(false)}
+                    busy={createSending}
+                    footer={createdPassword
+                        ? <button type="button" className={modalStyles.primary} onClick={() => setCreateModal(false)}>Concluir</button>
+                        : <>
+                            <button type="button" className={modalStyles.secondary} onClick={() => setCreateModal(false)} disabled={createSending}>Cancelar</button>
+                            <button
+                                type="button"
+                                className={modalStyles.primary}
+                                onClick={handleCreateClient}
+                                disabled={createSending || !createForm.nome.trim() || !createForm.email.trim()}
+                            >
+                                {createSending ? 'Cadastrando...' : 'Cadastrar cliente'}
+                            </button>
+                        </>}
+                >
 
                         <div style={{
                             background: 'var(--color-bg)',
@@ -2072,17 +2047,6 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                 </div>
                             </div>
 
-                            {!createdPassword && (
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
-                                    <button
-                                        className={`${styles.detailBtn} ${styles.btnPlanLg}`}
-                                        onClick={handleCreateClient}
-                                        disabled={createSending || !createForm.nome.trim() || !createForm.email.trim()}
-                                    >
-                                        {createSending ? 'Cadastrando...' : '+ Cadastrar Cliente'}
-                                    </button>
-                                </div>
-                            )}
                         </div>
 
                         {createFeedback && (
@@ -2092,21 +2056,14 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                         )}
 
                         {createdPassword && (
-                            <div style={{ background: '#064e3b', border: '1px solid #10b981', borderRadius: '8px', padding: '12px 16px', marginBottom: '1rem' }}>
-                                <p style={{ color: '#6ee7b7', fontWeight: 700, marginBottom: '4px' }}>✓ Cliente criado com sucesso!</p>
-                                <p style={{ color: '#a7f3d0', fontSize: '0.85rem', marginBottom: '8px' }}>
-                                    A senha padrão é:
-                                </p>
-                                <div style={{ background: '#022c22', borderRadius: '6px', padding: '8px 14px', fontFamily: 'monospace', fontSize: '1.1rem', color: '#fff', letterSpacing: '0.1em', textAlign: 'center' }}>
-                                    {createdPassword}
-                                </div>
-                                <p style={{ color: '#a7f3d0', fontSize: '0.85rem', marginTop: '8px' }}>
-                                    O usuário será solicitado a trocar a senha no primeiro acesso.
-                                </p>
+                            <div className={styles.successBox} role="status">
+                                <strong>Cliente criado com sucesso</strong>
+                                <p>A senha padrão é:</p>
+                                <code className={styles.passwordBox}>{createdPassword}</code>
+                                <p>O usuário será solicitado a trocar a senha no primeiro acesso.</p>
                             </div>
                         )}
-                    </div>
-                </div>
+                </AdminModal>
             )}
         </div>
     );

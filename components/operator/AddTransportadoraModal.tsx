@@ -5,7 +5,7 @@ import { Transportadora, TransportadoraService } from '../../lib/services/transp
 import { AutocompleteInput } from './AutocompleteInput';
 import { CurrencyInput } from './CurrencyInput';
 import { getEstados } from '../../lib/data/estadosCidades';
-import styles from './AddVehicleModal.module.css';
+import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
 
 interface AddTransportadoraModalProps {
     isOpen: boolean;
@@ -74,60 +74,53 @@ export function AddTransportadoraModal({
     if (!isOpen) return null;
 
     return (
-        <div className={styles.overlay}>
-            <div className={styles.modal}>
-                <div className={styles.header}>
-                    <h2>{isEditing ? 'Editar Frete' : 'Adicionar Frete'}</h2>
-                    <button onClick={onClose} className={styles.closeButton}>&times;</button>
+        <AdminModal
+            title={isEditing ? 'Editar frete' : 'Adicionar frete'}
+            onClose={onClose}
+            size="md"
+            busy={isSubmitting}
+            onSubmit={handleSubmit}
+            footer={<>
+                <button type="button" onClick={onClose} className={modalStyles.secondary} disabled={isSubmitting}>
+                    Cancelar
+                </button>
+                <button type="submit" className={modalStyles.primary} disabled={isSubmitting}>
+                    {isSubmitting ? 'Salvando...' : (isEditing ? 'Salvar alterações' : 'Adicionar frete')}
+                </button>
+            </>}
+        >
+            <div className={modalStyles.grid2}>
+                <div className={modalStyles.field}>
+                    <span>Estado</span>
+                    <AutocompleteInput
+                        options={estados}
+                        value={formData.estado}
+                        onChange={(value) => setFormData({ ...formData, estado: value })}
+                        placeholder="Selecione o estado"
+                    />
                 </div>
 
-                <form onSubmit={handleSubmit} className={styles.form}>
-                    <div className={styles.formGrid}>
-                        <div className={styles.formGroup}>
-                            <label>Estado</label>
-                            <AutocompleteInput
-                                options={estados}
-                                value={formData.estado}
-                                onChange={(value) => setFormData({ ...formData, estado: value })}
-                                placeholder="Selecione o estado"
-                            />
-                        </div>
+                <div className={modalStyles.field}>
+                    <label htmlFor="transportadora-valor">Valor do frete</label>
+                    <CurrencyInput
+                        name="transportadora-valor"
+                        value={formData.valor}
+                        onValueChange={(value) => setFormData({ ...formData, valor: value || 0 })}
+                        placeholder="R$ 0,00"
+                        required
+                    />
+                </div>
 
-                        <div className={styles.formGroup}>
-                            <label>Valor do Frete</label>
-                            <CurrencyInput
-                                value={formData.valor}
-                                onValueChange={(value) => setFormData({ ...formData, valor: value || 0 })}
-                                placeholder="R$ 0,00"
-                                required
-                            />
-                        </div>
-
-                        <div className={styles.formGroupFull}>
-                            <label>Observação</label>
-                            <textarea
-                                value={formData.observacao}
-                                onChange={(e) => setFormData({ ...formData, observacao: e.target.value })}
-                                placeholder="Observações adicionais"
-                                rows={3}
-                            />
-                        </div>
-                    </div>
-
-                    <div className={styles.formActions}>
-                        <button type="button" onClick={onClose} className={styles.cancelButton}>
-                            Cancelar
-                        </button>
-                        <button
-                            type="submit"
-                            className={styles.submitButton}
-                            disabled={isSubmitting}
-                        >
-                            {isSubmitting ? 'Salvando...' : (isEditing ? 'Salvar Alterações' : 'Adicionar Frete')}
-                        </button>
-                    </div>
-                </form>
+                <label className={`${modalStyles.field} ${modalStyles.span2}`}>
+                    Observação
+                    <textarea
+                        value={formData.observacao}
+                        onChange={(e) => setFormData({ ...formData, observacao: e.target.value })}
+                        placeholder="Observações adicionais"
+                        rows={3}
+                    />
+                </label>
             </div>
-        </div>
+        </AdminModal>
     );
 }

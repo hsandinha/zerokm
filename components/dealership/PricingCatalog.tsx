@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
-import { FaFileExport, FaFileImport, FaTrash, FaCheckCircle, FaTimesCircle, FaTimes } from 'react-icons/fa';
+import { FaFileExport, FaFileImport, FaTrash, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
 import { Pagination } from '../Pagination';
 import styles from './PricingCatalog.module.css';
+import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
 
 type PricingStatus = 'todos' | 'ativo' | 'inativo';
 
@@ -868,110 +869,102 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
             )}
 
             {importReport && (
-                <div className={styles.modalOverlay} onClick={() => setImportReport(null)}>
-                    <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
-                        <div className={styles.modalHeader}>
-                            <h3>Relatório de Importação</h3>
-                            <button className={styles.modalClose} onClick={() => setImportReport(null)}>
-                                <FaTimes />
-                            </button>
-                        </div>
-
-                        <div className={styles.modalSummary}>
-                            <div className={styles.summaryCard + ' ' + styles.summarySuccess}>
-                                <FaCheckCircle />
-                                <div>
-                                    <strong>{importReport.successes.length}</strong>
-                                    <span>Atualizados</span>
-                                </div>
+                <AdminModal
+                    title="Relatório de importação"
+                    onClose={() => setImportReport(null)}
+                    size="md"
+                    footer={<>
+                        <button type="button" className={modalStyles.secondary} onClick={() => setImportReport(null)}>
+                            Fechar
+                        </button>
+                        <button type="button" className={modalStyles.primary} onClick={() => {
+                            if (!importReport) return;
+                            let txt = `RELATÓRIO DE IMPORTAÇÃO\nData: ${new Date().toLocaleString()}\n`;
+                            txt += `Sucesso: ${importReport.successes.length} registros.\n`;
+                            txt += `Erros: ${importReport.errors.length} não encontrados.\n\n`;
+                            if (importReport.successes.length > 0) {
+                                txt += `--- SUCESSOS ---\n`;
+                                importReport.successes.forEach((s: any) => {
+                                    txt += `[QTD: ${s.item.quantidade}] ${s.item.modelo} | ${s.item.cor} | ${s.item.ano} | ${s.item.opcionais} -> Preço: ${s.item.preco}\n`;
+                                });
+                                txt += `\n`;
+                            }
+                            if (importReport.errors.length > 0) {
+                                txt += `--- ERROS ---\n`;
+                                importReport.errors.forEach((e: any) => {
+                                    txt += `[QTD: ${e.item.quantidade}] ${e.item.modelo} | ${e.item.cor} | ${e.item.ano} | ${e.item.opcionais} | ${e.item.combustivel} | ${e.item.transmissao} -> Motivo: ${e.message || 'Erro'}\n`;
+                                });
+                            }
+                            const blob = new Blob([txt], { type: 'text/plain;charset=utf-8;' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = 'relatorio_importacao.txt';
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                        }}>
+                            <FaFileExport /> Baixar relatório
+                        </button>
+                    </>}
+                >
+                    <div className={styles.modalSummary}>
+                        <div className={styles.summaryCard + ' ' + styles.summarySuccess}>
+                            <FaCheckCircle />
+                            <div>
+                                <strong>{importReport.successes.length}</strong>
+                                <span>Atualizados</span>
                             </div>
-                            <div className={styles.summaryCard + ' ' + styles.summaryError}>
-                                <FaTimesCircle />
-                                <div>
-                                    <strong>{importReport.errors.length}</strong>
-                                    <span>Não encontrados</span>
-                                </div>
+                        </div>
+                        <div className={styles.summaryCard + ' ' + styles.summaryError}>
+                            <FaTimesCircle />
+                            <div>
+                                <strong>{importReport.errors.length}</strong>
+                                <span>Não encontrados</span>
                             </div>
-                        </div>
-
-                        <div className={styles.modalBody}>
-                            {importReport.successes.length > 0 && (
-                                <details open>
-                                    <summary className={styles.sectionTitle + ' ' + styles.successTitle}>
-                                        Veículos atualizados ({importReport.successes.length})
-                                    </summary>
-                                    <ul className={styles.reportList}>
-                                        {importReport.successes.map((s: any, i: number) => (
-                                            <li key={`s-${i}`} className={styles.reportItemSuccess}>
-                                                <span className={styles.reportQtd}>QTD: {s.item.quantidade}</span>
-                                                <span>{s.item.modelo}</span>
-                                                {s.item.cor && <span className={styles.reportDetail}>{s.item.cor}</span>}
-                                                {s.item.ano && <span className={styles.reportDetail}>{s.item.ano}</span>}
-                                                <span className={styles.reportPrice}>R$ {formatCurrency(s.item.preco)}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </details>
-                            )}
-
-                            {importReport.errors.length > 0 && (
-                                <details open>
-                                    <summary className={styles.sectionTitle + ' ' + styles.errorTitle}>
-                                        Não encontrados no catálogo ({importReport.errors.length})
-                                    </summary>
-                                    <ul className={styles.reportList}>
-                                        {importReport.errors.map((e: any, i: number) => (
-                                            <li key={`e-${i}`} className={styles.reportItemError}>
-                                                <span className={styles.reportQtd}>QTD: {e.item.quantidade}</span>
-                                                <span>{e.item.modelo}</span>
-                                                {e.item.cor && <span className={styles.reportDetail}>{e.item.cor}</span>}
-                                                {e.item.ano && <span className={styles.reportDetail}>{e.item.ano}</span>}
-                                                {e.item.combustivel && <span className={styles.reportDetail}>{e.item.combustivel}</span>}
-                                                {e.item.transmissao && <span className={styles.reportDetail}>{e.item.transmissao}</span>}
-                                                {e.message && <span className={styles.reportDetail} style={{ color: '#e74c3c', marginLeft: 'auto', fontWeight: 'bold' }}>{e.message}</span>}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </details>
-                            )}
-                        </div>
-
-                        <div className={styles.modalFooter}>
-                            <button className={styles.actionBtn} onClick={() => {
-                                if (!importReport) return;
-                                let txt = `RELATÓRIO DE IMPORTAÇÃO\nData: ${new Date().toLocaleString()}\n`;
-                                txt += `Sucesso: ${importReport.successes.length} registros.\n`;
-                                txt += `Erros: ${importReport.errors.length} não encontrados.\n\n`;
-                                if (importReport.successes.length > 0) {
-                                    txt += `--- SUCESSOS ---\n`;
-                                    importReport.successes.forEach((s: any) => {
-                                        txt += `[QTD: ${s.item.quantidade}] ${s.item.modelo} | ${s.item.cor} | ${s.item.ano} | ${s.item.opcionais} -> Preço: ${s.item.preco}\n`;
-                                    });
-                                    txt += `\n`;
-                                }
-                                if (importReport.errors.length > 0) {
-                                    txt += `--- ERROS ---\n`;
-                                    importReport.errors.forEach((e: any) => {
-                                        txt += `[QTD: ${e.item.quantidade}] ${e.item.modelo} | ${e.item.cor} | ${e.item.ano} | ${e.item.opcionais} | ${e.item.combustivel} | ${e.item.transmissao} -> Motivo: ${e.message || 'Erro'}\n`;
-                                    });
-                                }
-                                const blob = new Blob([txt], { type: 'text/plain;charset=utf-8;' });
-                                const url = URL.createObjectURL(blob);
-                                const a = document.createElement('a');
-                                a.href = url;
-                                a.download = 'relatorio_importacao.txt';
-                                document.body.appendChild(a);
-                                a.click();
-                                document.body.removeChild(a);
-                            }}>
-                                <FaFileExport /> Baixar Relatório
-                            </button>
-                            <button className={styles.actionBtn} onClick={() => setImportReport(null)}>
-                                Fechar
-                            </button>
                         </div>
                     </div>
-                </div>
+
+                    {importReport.successes.length > 0 && (
+                        <details open>
+                            <summary className={styles.sectionTitle + ' ' + styles.successTitle}>
+                                Veículos atualizados ({importReport.successes.length})
+                            </summary>
+                            <ul className={styles.reportList}>
+                                {importReport.successes.map((s: any, i: number) => (
+                                    <li key={`s-${i}`} className={styles.reportItemSuccess}>
+                                        <span className={styles.reportQtd}>QTD: {s.item.quantidade}</span>
+                                        <span>{s.item.modelo}</span>
+                                        {s.item.cor && <span className={styles.reportDetail}>{s.item.cor}</span>}
+                                        {s.item.ano && <span className={styles.reportDetail}>{s.item.ano}</span>}
+                                        <span className={styles.reportPrice}>R$ {formatCurrency(s.item.preco)}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </details>
+                    )}
+
+                    {importReport.errors.length > 0 && (
+                        <details open>
+                            <summary className={styles.sectionTitle + ' ' + styles.errorTitle}>
+                                Não encontrados no catálogo ({importReport.errors.length})
+                            </summary>
+                            <ul className={styles.reportList}>
+                                {importReport.errors.map((e: any, i: number) => (
+                                    <li key={`e-${i}`} className={styles.reportItemError}>
+                                        <span className={styles.reportQtd}>QTD: {e.item.quantidade}</span>
+                                        <span>{e.item.modelo}</span>
+                                        {e.item.cor && <span className={styles.reportDetail}>{e.item.cor}</span>}
+                                        {e.item.ano && <span className={styles.reportDetail}>{e.item.ano}</span>}
+                                        {e.item.combustivel && <span className={styles.reportDetail}>{e.item.combustivel}</span>}
+                                        {e.item.transmissao && <span className={styles.reportDetail}>{e.item.transmissao}</span>}
+                                        {e.message && <span className={styles.reportDetail} style={{ color: 'var(--color-negative)', marginLeft: 'auto', fontWeight: 'bold' }}>{e.message}</span>}
+                                    </li>
+                                ))}
+                            </ul>
+                        </details>
+                    )}
+                </AdminModal>
             )}
         </div>
     );

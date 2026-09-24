@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
 import styles from './StockReminderModal.module.css';
 
 const STORAGE_KEY = 'zerokm-stock-reminder-last-shown';
@@ -73,24 +74,27 @@ export function StockReminderModal({ onUpdateStock }: StockReminderModalProps) {
     };
 
     return (
-        <div className={styles.overlay} onClick={handleClose}>
-            <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-                <div className={styles.header}>
-                    <h2 className={styles.headerTitle}>🔔 Lembrete diário</h2>
-                    <p className={styles.headerSubtitle}>Mantenha seu estoque atualizado para aparecer nas consultas.</p>
-                    <button className={styles.closeBtn} onClick={handleClose} aria-label="Fechar">✕</button>
+        <AdminModal
+            title="Lembrete diário"
+            subtitle="Mantenha seu estoque atualizado para aparecer nas consultas."
+            onClose={handleClose}
+            size="md"
+            footer={<>
+                <button type="button" className={modalStyles.secondary} onClick={handleClose}>Deixar para depois</button>
+                <button type="button" className={modalStyles.primary} onClick={handleUpdateStock}>Atualizar estoque agora</button>
+            </>}
+        >
+            <div className={modalStyles.stack}>
+                <div className={styles.statusRow}>
+                    <div className={`${styles.trafficLight} ${styles[statusColor]}`} aria-hidden="true"></div>
+                    <div className={styles.statusInfo}>
+                        <span className={styles.statusLabel}>Última atualização: <strong>{lastUpdateLabel}</strong></span>
+                        <span className={`${styles.statusMessage} ${styles[`msg_${statusColor}`]}`}>{statusMessage}</span>
+                    </div>
                 </div>
 
-                <div className={styles.body}>
-                    <div className={styles.statusRow}>
-                        <div className={`${styles.trafficLight} ${styles[statusColor]}`}></div>
-                        <div className={styles.statusInfo}>
-                            <span className={styles.statusLabel}>Última atualização: <strong>{lastUpdateLabel}</strong></span>
-                            <span className={`${styles.statusMessage} ${styles[`msg_${statusColor}`]}`}>{statusMessage}</span>
-                        </div>
-                    </div>
-
-                    <div className={styles.breakdownTitle}>Gestão do estoque por status</div>
+                <section>
+                    <h3 className={styles.breakdownTitle}>Gestão do estoque por status</h3>
                     <div className={styles.breakdownGrid}>
                         <div className={`${styles.breakdownCard} ${styles.cardGreen}`}>
                             <span className={styles.breakdownCount}>{breakdown.verde}</span>
@@ -108,13 +112,8 @@ export function StockReminderModal({ onUpdateStock }: StockReminderModalProps) {
                             <span className={styles.breakdownHint}>mais de 3 dias sem atualização</span>
                         </div>
                     </div>
-                </div>
-
-                <div className={styles.footer}>
-                    <button className={styles.secondaryBtn} onClick={handleClose}>Deixar para depois</button>
-                    <button className={styles.primaryBtn} onClick={handleUpdateStock}>Atualizar estoque agora</button>
-                </div>
+                </section>
             </div>
-        </div>
+        </AdminModal>
     );
 }

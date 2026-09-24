@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { MdClose } from 'react-icons/md';
+import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
+import crm from './crmModals.module.css';
 import { FiArrowRight, FiPlusCircle, FiTrash2, FiClock } from 'react-icons/fi';
 import { lostReasonLabel } from '@/lib/utils/crmFunnel';
 import { LeadDetail, LeadTaskItem, Owner, formatDateTime } from './types';
@@ -11,18 +12,6 @@ interface Props {
   onClose: () => void;
   onSaved: () => void;
 }
-
-const labelStyle: React.CSSProperties = {
-  display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)',
-  textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px',
-};
-
-const valueStyle: React.CSSProperties = { color: 'var(--color-text)', fontSize: '0.9375rem' };
-
-const inputStyle: React.CSSProperties = {
-  width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--color-highlight)',
-  color: 'var(--color-text)', borderRadius: '8px', padding: '10px 12px', outline: 'none',
-};
 
 const STATUS_LABEL: Record<string, string> = {
   open: 'Em andamento',
@@ -206,216 +195,203 @@ export default function LeadDetailModal({ leadId, onClose, onSaved }: Props) {
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 55, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: '16px' }}>
-      <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-highlight)', width: '100%', maxWidth: '640px', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '90vh', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
-        <div style={{ padding: '20px', borderBottom: '1px solid var(--color-highlight)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--color-text)', margin: 0 }}>
-            {lead ? lead.name : 'Carregando…'}
-          </h2>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer' }} aria-label="Fechar">
-            <MdClose size={24} />
-          </button>
-        </div>
+    <AdminModal
+      title={lead ? lead.name : 'Carregando…'}
+      onClose={onClose}
+      size="lg"
+      busy={saving}
+      footer={<>
+        {/* Vai para a lixeira, não apaga: o histórico segue disponível para restaurar. */}
+        <button
+          type="button"
+          onClick={handleMoveToTrash}
+          disabled={!lead || saving}
+          title="Mover para a lixeira"
+          className={`${modalStyles.danger} ${crm.footerStart}`}
+        >
+          Mover para lixeira
+        </button>
+        <button type="button" onClick={onClose} className={modalStyles.secondary}>
+          Fechar
+        </button>
+        <button type="button" onClick={handleSave} disabled={!lead || saving} className={modalStyles.primary}>
+          {saving ? 'Salvando…' : 'Salvar'}
+        </button>
+      </>}
+    >
+      <div className={modalStyles.stack}>
+        {error && <div className={crm.error} role="alert">{error}</div>}
 
-        <div style={{ padding: '20px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {error && (
-            <div style={{ background: 'rgba(220,38,38,0.12)', border: '1px solid #DC2626', color: '#FCA5A5', padding: '10px 12px', borderRadius: '8px', fontSize: '0.875rem' }}>
-              {error}
-            </div>
-          )}
-
-          {lead && (
-            <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '16px' }}>
-                <div>
-                  <span style={labelStyle}>Criado em</span>
-                  <span style={valueStyle}>{formatDateTime(lead.createdAt)}</span>
-                </div>
-                <div>
-                  <span style={labelStyle}>Etapa atual</span>
-                  <span style={valueStyle}>{lead.stageName}</span>
-                </div>
-                <div>
-                  <span style={labelStyle}>Status</span>
-                  <span style={valueStyle}>{STATUS_LABEL[lead.stageType] ?? lead.stageType}</span>
-                </div>
-                <div>
-                  <span style={labelStyle}>Contato</span>
-                  <span style={valueStyle}>{lead.phone}{lead.email ? ` • ${lead.email}` : ''}</span>
-                </div>
+        {lead && (
+          <>
+            <div className={modalStyles.facts}>
+              <div className={modalStyles.fact}>
+                <span className={modalStyles.factLabel}>Criado em</span>
+                <span className={modalStyles.factValue}>{formatDateTime(lead.createdAt)}</span>
               </div>
+              <div className={modalStyles.fact}>
+                <span className={modalStyles.factLabel}>Etapa atual</span>
+                <span className={modalStyles.factValue}>{lead.stageName}</span>
+              </div>
+              <div className={modalStyles.fact}>
+                <span className={modalStyles.factLabel}>Status</span>
+                <span className={modalStyles.factValue}>{STATUS_LABEL[lead.stageType] ?? lead.stageType}</span>
+              </div>
+              <div className={modalStyles.fact}>
+                <span className={modalStyles.factLabel}>Contato</span>
+                <span className={modalStyles.factValue}>{lead.phone}{lead.email ? ` • ${lead.email}` : ''}</span>
+              </div>
+            </div>
 
-              <div>
-                <span style={labelStyle}>Origem</span>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {lead.tags.length > 0 ? lead.tags.map(tag => (
-                    <span key={tag} style={{ fontSize: '0.75rem', padding: '4px 10px', background: 'rgba(59,130,246,0.15)', color: '#93C5FD', borderRadius: '9999px', fontWeight: 600 }}>{tag}</span>
-                  )) : (
-                    <span style={{ ...valueStyle, color: 'var(--color-text-muted)' }}>{lead.source || 'Não identificada'}</span>
-                  )}
-                </div>
-                {lead.firstMessage && (
-                  <p style={{ marginTop: '8px', marginBottom: 0, fontSize: '0.8125rem', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
-                    “{lead.firstMessage}”
-                  </p>
+            <div className={modalStyles.fact}>
+              <span className={modalStyles.factLabel}>Origem</span>
+              <div className={crm.tags}>
+                {lead.tags.length > 0 ? lead.tags.map(tag => (
+                  <span key={tag} className={crm.tag}>{tag}</span>
+                )) : (
+                  <span className={modalStyles.factValue} style={{ color: 'var(--color-text-muted)' }}>{lead.source || 'Não identificada'}</span>
                 )}
               </div>
-
-              {lead.lostReason && (
-                <div>
-                  <span style={labelStyle}>Motivo da perda</span>
-                  <span style={valueStyle}>{lostReasonLabel(lead.lostReason)}</span>
-                  {lead.lostReasonNote && (
-                    <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>{lead.lostReasonNote}</p>
-                  )}
-                </div>
+              {lead.firstMessage && (
+                <p className={crm.quote}>“{lead.firstMessage}”</p>
               )}
+            </div>
 
-              <div>
-                <label style={labelStyle} htmlFor="lead-owner">Responsável</label>
-                <select id="lead-owner" value={ownerId} onChange={(e) => setOwnerId(e.target.value)} style={inputStyle}>
-                  <option value="" style={{ color: '#000' }}>Sem responsável</option>
+            {lead.lostReason && (
+              <div className={modalStyles.fact}>
+                <span className={modalStyles.factLabel}>Motivo da perda</span>
+                <span className={modalStyles.factValue}>{lostReasonLabel(lead.lostReason)}</span>
+                {lead.lostReasonNote && <p className={crm.note}>{lead.lostReasonNote}</p>}
+              </div>
+            )}
+
+            <div className={modalStyles.grid2}>
+              <div className={modalStyles.field}>
+                <label htmlFor="lead-owner">Responsável</label>
+                <select id="lead-owner" value={ownerId} onChange={(e) => setOwnerId(e.target.value)}>
+                  <option value="">Sem responsável</option>
                   {owners.map(o => (
-                    <option key={o.id} value={o.id} style={{ color: '#000' }}>{o.name}</option>
+                    <option key={o.id} value={o.id}>{o.name}</option>
                   ))}
                 </select>
               </div>
 
-              <div>
-                <label style={labelStyle} htmlFor="lead-proposal">Valor da proposta (R$)</label>
+              <div className={modalStyles.field}>
+                <label htmlFor="lead-proposal">Valor da proposta (R$)</label>
                 <input
                   id="lead-proposal"
                   value={proposalValue}
                   onChange={(e) => setProposalValue(e.target.value)}
                   placeholder="0,00"
                   inputMode="decimal"
-                  style={inputStyle}
                 />
               </div>
 
-              <div>
-                <label style={labelStyle} htmlFor="lead-notes">Anotações</label>
-                <textarea id="lead-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+              <div className={`${modalStyles.field} ${modalStyles.span2}`}>
+                <label htmlFor="lead-notes">Anotações</label>
+                <textarea id="lead-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} style={{ resize: 'vertical' }} />
               </div>
+            </div>
 
-              <div>
-                <span style={labelStyle}>Tarefas e follow-up</span>
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
-                  <input
-                    value={newTaskTitle}
-                    onChange={(e) => setNewTaskTitle(e.target.value)}
-                    placeholder="Ex.: Ligar para negociar entrada"
-                    style={{ ...inputStyle, flex: '1 1 200px' }}
-                  />
-                  <input
-                    type="datetime-local"
-                    value={newTaskDue}
-                    onChange={(e) => setNewTaskDue(e.target.value)}
-                    style={{ ...inputStyle, flex: '0 1 200px', colorScheme: 'dark' }}
-                  />
-                  <button
-                    onClick={handleAddTask}
-                    disabled={taskBusy}
-                    style={{ background: 'var(--color-primary)', color: 'var(--color-text)', padding: '10px 16px', borderRadius: '8px', fontWeight: 600, border: 'none', cursor: taskBusy ? 'not-allowed' : 'pointer', opacity: taskBusy ? 0.5 : 1 }}
-                  >
-                    Adicionar
-                  </button>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {tasks.length === 0 ? (
-                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', fontStyle: 'italic', margin: 0 }}>
-                      Nenhuma tarefa. Crie lembretes para não perder o follow-up deste lead.
-                    </p>
-                  ) : tasks.map(task => {
-                    const overdue = !task.done && new Date(task.dueAt) < new Date();
-                    return (
-                      <div key={task.id} style={{ display: 'flex', gap: '10px', alignItems: 'center', padding: '10px 12px', background: 'rgba(255,255,255,0.03)', border: `1px solid ${overdue ? '#DC2626' : 'var(--color-highlight)'}`, borderRadius: '8px' }}>
-                        <input
-                          type="checkbox"
-                          checked={task.done}
-                          onChange={() => handleToggleTask(task)}
-                          disabled={taskBusy}
-                          style={{ cursor: 'pointer', width: '16px', height: '16px', flexShrink: 0 }}
-                          aria-label={task.done ? 'Reabrir tarefa' : 'Concluir tarefa'}
-                        />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ color: 'var(--color-text)', fontSize: '0.875rem', textDecoration: task.done ? 'line-through' : 'none', opacity: task.done ? 0.6 : 1 }}>
-                            {task.title}
-                          </div>
-                          <div style={{ color: overdue ? '#FCA5A5' : 'var(--color-text-muted)', fontSize: '0.75rem', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <FiClock size={11} />
-                            {formatDateTime(task.dueAt)}
-                            {overdue && ' • Atrasada'}
-                            {task.done && task.doneAt && ` • Concluída em ${formatDateTime(task.doneAt)}`}
-                          </div>
+            <section className={modalStyles.section}>
+              <div className={modalStyles.sectionHead}>
+                <h3 className={modalStyles.sectionTitle}>Tarefas e follow-up</h3>
+              </div>
+              <div className={crm.inlineForm} style={{ marginBottom: '10px' }}>
+                <input
+                  value={newTaskTitle}
+                  onChange={(e) => setNewTaskTitle(e.target.value)}
+                  placeholder="Ex.: Ligar para negociar entrada"
+                  aria-label="Descrição da tarefa"
+                  className={crm.control}
+                />
+                <input
+                  type="datetime-local"
+                  value={newTaskDue}
+                  onChange={(e) => setNewTaskDue(e.target.value)}
+                  aria-label="Data da tarefa"
+                  className={`${crm.control} ${crm.controlNarrow}`}
+                />
+                <button type="button" onClick={handleAddTask} disabled={taskBusy} className={modalStyles.primary}>
+                  Adicionar
+                </button>
+              </div>
+              <div className={crm.list}>
+                {tasks.length === 0 ? (
+                  <p className={crm.empty}>
+                    Nenhuma tarefa. Crie lembretes para não perder o follow-up deste lead.
+                  </p>
+                ) : tasks.map(task => {
+                  const overdue = !task.done && new Date(task.dueAt) < new Date();
+                  return (
+                    <div key={task.id} className={`${crm.row} ${overdue ? crm.rowAlert : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={task.done}
+                        onChange={() => handleToggleTask(task)}
+                        disabled={taskBusy}
+                        className={crm.checkbox}
+                        aria-label={task.done ? 'Reabrir tarefa' : 'Concluir tarefa'}
+                      />
+                      <div className={crm.rowMain}>
+                        <div className={`${crm.rowText} ${task.done ? crm.rowDone : ''}`}>
+                          {task.title}
                         </div>
-                        <button
-                          onClick={() => handleDeleteTask(task)}
-                          disabled={taskBusy}
-                          style={{ background: 'transparent', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', padding: '4px', flexShrink: 0 }}
-                          title="Excluir tarefa"
-                        >
-                          <FiTrash2 size={15} />
-                        </button>
+                        <div className={`${crm.rowMeta} ${overdue ? crm.rowMetaAlert : ''}`}>
+                          <FiClock size={11} aria-hidden="true" />
+                          {formatDateTime(task.dueAt)}
+                          {overdue && ' • Atrasada'}
+                          {task.done && task.doneAt && ` • Concluída em ${formatDateTime(task.doneAt)}`}
+                        </div>
                       </div>
-                    );
-                  })}
-                </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteTask(task)}
+                        disabled={taskBusy}
+                        className={crm.iconButton}
+                        title="Excluir tarefa"
+                        aria-label="Excluir tarefa"
+                      >
+                        <FiTrash2 size={15} aria-hidden="true" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
+            </section>
 
-              <div>
-                <span style={labelStyle}>Histórico de movimentações</span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
-                  {lead.history.length === 0 ? (
-                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', fontStyle: 'italic', margin: 0 }}>
-                      Sem movimentações registradas. Leads criados antes desta versão não têm histórico.
-                    </p>
-                  ) : lead.history.map(event => (
-                    <div key={event.id} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', padding: '10px 12px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--color-highlight)', borderRadius: '8px' }}>
-                      <span style={{ color: 'var(--color-text-muted)', marginTop: '2px' }}>
-                        {event.type === 'created' ? <FiPlusCircle size={16} /> : <FiArrowRight size={16} />}
-                      </span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ color: 'var(--color-text)', fontSize: '0.875rem' }}>
-                          {event.type === 'created'
-                            ? <>Lead criado em <strong>{event.toStageName}</strong></>
-                            : <>{event.fromStageName} <FiArrowRight size={11} style={{ verticalAlign: 'middle', margin: '0 4px' }} /> <strong>{event.toStageName}</strong></>}
-                          {event.lostReason && <> — {lostReasonLabel(event.lostReason)}</>}
-                        </div>
-                        <div style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem', marginTop: '2px' }}>
-                          {formatDateTime(event.createdAt)} • {event.actor === 'webhook' ? 'Integração' : event.actorEmail || 'Usuário'}
-                        </div>
+            <section className={modalStyles.section}>
+              <div className={modalStyles.sectionHead}>
+                <h3 className={modalStyles.sectionTitle}>Histórico de movimentações</h3>
+              </div>
+              <div className={crm.list}>
+                {lead.history.length === 0 ? (
+                  <p className={crm.empty}>
+                    Sem movimentações registradas. Leads criados antes desta versão não têm histórico.
+                  </p>
+                ) : lead.history.map(event => (
+                  <div key={event.id} className={`${crm.row} ${crm.rowTop}`}>
+                    <span className={crm.rowIcon}>
+                      {event.type === 'created' ? <FiPlusCircle size={16} aria-hidden="true" /> : <FiArrowRight size={16} aria-hidden="true" />}
+                    </span>
+                    <div className={crm.rowMain}>
+                      <div className={crm.rowText}>
+                        {event.type === 'created'
+                          ? <>Lead criado em <strong>{event.toStageName}</strong></>
+                          : <>{event.fromStageName} <FiArrowRight size={11} style={{ verticalAlign: 'middle', margin: '0 4px' }} aria-hidden="true" /> <strong>{event.toStageName}</strong></>}
+                        {event.lostReason && <>: {lostReasonLabel(event.lostReason)}</>}
+                      </div>
+                      <div className={crm.rowMeta}>
+                        {formatDateTime(event.createdAt)} • {event.actor === 'webhook' ? 'Integração' : event.actorEmail || 'Usuário'}
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </div>
-            </>
-          )}
-        </div>
-
-        <div style={{ padding: '16px 20px', borderTop: '1px solid var(--color-highlight)', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-          {/* Vai para a lixeira, não apaga: o histórico segue disponível para restaurar. */}
-          <button
-            onClick={handleMoveToTrash}
-            disabled={!lead || saving}
-            title="Mover para a lixeira"
-            style={{ marginRight: 'auto', background: 'transparent', color: '#B91C1C', padding: '10px 16px', borderRadius: '8px', fontWeight: 600, border: '1px solid #FCA5A5', cursor: (!lead || saving) ? 'not-allowed' : 'pointer', opacity: (!lead || saving) ? 0.5 : 1 }}
-          >
-            🗑️ Mover para lixeira
-          </button>
-          <button onClick={onClose} style={{ background: 'transparent', color: 'var(--color-text-muted)', padding: '10px 16px', borderRadius: '8px', fontWeight: 600, border: '1px solid var(--color-highlight)', cursor: 'pointer' }}>
-            Fechar
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!lead || saving}
-            style={{ background: 'var(--color-primary)', color: 'var(--color-text)', padding: '10px 20px', borderRadius: '8px', fontWeight: 600, border: 'none', cursor: (!lead || saving) ? 'not-allowed' : 'pointer', opacity: (!lead || saving) ? 0.5 : 1 }}
-          >
-            {saving ? 'Salvando…' : 'Salvar'}
-          </button>
-        </div>
+            </section>
+          </>
+        )}
       </div>
-    </div>
+    </AdminModal>
   );
 }

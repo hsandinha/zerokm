@@ -5,6 +5,7 @@ import { useTablesDatabase } from '../../lib/hooks/useTablesDatabase';
 import { Modelo, tablesService, PaginationResult } from '../../lib/services/tablesService';
 import { Pagination } from '../Pagination';
 import styles from './TablesManagement.module.css';
+import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
 import { GenericDataTable, ColumnDef } from './GenericDataTable';
 
 const formatDate = (dateString: string | Date | undefined) => {
@@ -355,90 +356,87 @@ export function ModelosTable() {
 
             {/* Modal de Importação */}
             {showImportModal && (
-                <div className={styles.modalOverlay}>
-                    <div className={styles.importModal}>
-                        <div className={styles.modalHeader}>
-                            <h3>Importar Modelos via CSV</h3>
-                            <button className={styles.closeButton} onClick={() => setShowImportModal(false)}>×</button>
-                        </div>
-                        
-                        <div className={styles.modalContent}>
-                            <p className={styles.importInstructions}>
-                                O arquivo CSV deve conter duas colunas (com ou sem cabeçalho):<br/>
-                                <strong>Coluna 1:</strong> Marca<br/>
-                                <strong>Coluna 2:</strong> Modelo
-                            </p>
-                            
-                            <div className={styles.fileUploadArea}>
-                                <input 
-                                    type="file" 
-                                    accept=".csv" 
-                                    id="csvFile"
-                                    className={styles.fileInput}
-                                    onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
-                                    disabled={importProgress.isImporting}
+                <AdminModal
+                    title="Importar modelos via CSV"
+                    onClose={() => setShowImportModal(false)}
+                    size="md"
+                    busy={importProgress.isImporting}
+                    footer={<>
+                        <button
+                            type="button"
+                            className={modalStyles.secondary}
+                            onClick={() => setShowImportModal(false)}
+                            disabled={importProgress.isImporting}
+                        >
+                            Fechar
+                        </button>
+                        <button
+                            type="button"
+                            className={modalStyles.primary}
+                            onClick={handleImportCSV}
+                            disabled={!csvFile || importProgress.isImporting}
+                        >
+                            {importProgress.isImporting ? 'Importando...' : 'Iniciar importação'}
+                        </button>
+                    </>}
+                >
+                    <p className={styles.importInstructions}>
+                        O arquivo CSV deve conter duas colunas (com ou sem cabeçalho):<br/>
+                        <strong>Coluna 1:</strong> Marca<br/>
+                        <strong>Coluna 2:</strong> Modelo
+                    </p>
+
+                    <div className={modalStyles.field}>
+                        <input
+                            type="file"
+                            accept=".csv"
+                            id="csvFile"
+                            className={styles.fileInput}
+                            onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+                            disabled={importProgress.isImporting}
+                        />
+                        <label htmlFor="csvFile" className={modalStyles.hint}>
+                            {csvFile ? csvFile.name : 'Clique para selecionar o arquivo CSV'}
+                        </label>
+                    </div>
+
+                    {importProgress.isImporting && (
+                        <div className={styles.progressContainer}>
+                            <div className={styles.progressInfo}>
+                                <span>Importando dados...</span>
+                                <span>{importProgress.current} / {importProgress.total}</span>
+                            </div>
+                            <div className={styles.progressBar}>
+                                <div
+                                    className={styles.progressFill}
+                                    style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
                                 />
-                                <label htmlFor="csvFile" className={styles.fileLabel}>
-                                    {csvFile ? csvFile.name : 'Clique para selecionar o arquivo CSV'}
-                                </label>
+                            </div>
+                        </div>
+                    )}
+
+                    {importResults && (
+                        <div className={styles.importResults}>
+                            <div className={styles.successMessage}>
+                                {importResults.success} modelos importados com sucesso
                             </div>
 
-                            {importProgress.isImporting && (
-                                <div className={styles.progressContainer}>
-                                    <div className={styles.progressInfo}>
-                                        <span>Importando dados...</span>
-                                        <span>{importProgress.current} / {importProgress.total}</span>
-                                    </div>
-                                    <div className={styles.progressBar}>
-                                        <div 
-                                            className={styles.progressFill} 
-                                            style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
-                                        />
-                                    </div>
-                                </div>
-                            )}
-
-                            {importResults && (
-                                <div className={styles.importResults}>
-                                    <div className={styles.successMessage}>
-                                        ✅ {importResults.success} modelos importados com sucesso
-                                    </div>
-                                    
-                                    {importResults.errors && importResults.errors.length > 0 && (
-                                        <div className={styles.errorsContainer}>
-                                            <h4>Erros encontrados ({importResults.errors.length}):</h4>
-                                            <ul className={styles.errorsList}>
-                                                {importResults.errors.map((err, idx) => (
-                                                    <li key={idx}>
-                                                        <strong>Linha {err.line}:</strong> {err.reason}
-                                                        {err.raw && <div className={styles.rawLine}>Original: {err.raw}</div>}
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    )}
+                            {importResults.errors && importResults.errors.length > 0 && (
+                                <div className={styles.errorsContainer}>
+                                    <h4>Erros encontrados ({importResults.errors.length}):</h4>
+                                    <ul className={styles.errorsList}>
+                                        {importResults.errors.map((err, idx) => (
+                                            <li key={idx}>
+                                                <strong>Linha {err.line}:</strong> {err.reason}
+                                                {err.raw && <div className={styles.rawLine}>Original: {err.raw}</div>}
+                                            </li>
+                                        ))}
+                                    </ul>
                                 </div>
                             )}
                         </div>
-
-                        <div className={styles.modalFooter}>
-                            <button 
-                                className={styles.cancelButton} 
-                                onClick={() => setShowImportModal(false)}
-                                disabled={importProgress.isImporting}
-                            >
-                                Fechar
-                            </button>
-                            <button 
-                                className={styles.submitButton}
-                                onClick={handleImportCSV}
-                                disabled={!csvFile || importProgress.isImporting}
-                            >
-                                {importProgress.isImporting ? 'Importando...' : 'Iniciar Importação'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                    )}
+                </AdminModal>
             )}
         </>
     );

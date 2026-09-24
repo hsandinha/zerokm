@@ -9,6 +9,7 @@ import { AutocompleteInput } from './AutocompleteInput';
 import { MaskedInput } from './MaskedInput';
 import { CurrencyInput } from './CurrencyInput';
 import { getEstados, getAllCidades, filterCidades } from '../../lib/data/estadosCidades';
+import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
 import styles from './AddVehicleModal.module.css';
 
 interface AddVehicleModalProps {
@@ -370,19 +371,27 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
     if (!isOpen) return null;
 
     return (
-        <section className={styles.panel}>
-            <div className={styles.header}>
-                <div>
-                    <h2>{isEditing ? 'Editar Veículo' : 'Cadastrar Novo Veículo'}</h2>
-                    <p>{isEditing ? 'Atualize as informações e mantenha o estoque sincronizado.' : 'Preencha os campos para cadastrar um novo veículo.'}</p>
-                </div>
-                <button type="button" className={styles.closeButton} onClick={onClose}>
-                    {isEditing ? 'Cancelar edição' : 'Fechar formulário'}
+        <AdminModal
+            title={isEditing ? 'Editar veículo' : 'Cadastrar novo veículo'}
+            subtitle={isEditing ? 'Atualize as informações e mantenha o estoque sincronizado.' : 'Preencha os campos para cadastrar um novo veículo.'}
+            onClose={onClose}
+            size="lg"
+            busy={isSubmitting}
+            onSubmit={handleSubmit}
+            footer={<>
+                <button type="button" onClick={onClose} className={modalStyles.secondary} disabled={isSubmitting}>
+                    Cancelar
                 </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className={styles.form}>
-                <div className={styles.formGrid}>
+                <button type="submit" disabled={isSubmitting} className={modalStyles.primary}>
+                    {isSubmitting
+                        ? (isEditing ? 'Salvando...' : 'Cadastrando...')
+                        : (isEditing ? 'Salvar alterações' : 'Cadastrar veículo')
+                    }
+                </button>
+            </>}
+        >
+            <div className={modalStyles.stack}>
+                <div className={styles.formGrid} style={{ marginBottom: 0 }}>
                     <div className={styles.formGroup}>
                         <label htmlFor="dataEntrada">Data de Entrada</label>
                         <input
@@ -603,7 +612,7 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                                     name="operador"
                                     value={formData.operador}
                                     readOnly
-                                    style={{ opacity: 0.7, cursor: 'not-allowed', background: 'var(--color-surface, #1e293b)' }}
+                                    style={{ opacity: 0.7, cursor: 'not-allowed', background: 'var(--color-panel)' }}
                                 />
                             ) : (
                                 <select
@@ -628,7 +637,7 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                     )}
                 </div>
 
-                <div className={styles.formGroupFull}>
+                <div className={styles.formGroupFull} style={{ marginBottom: 0 }}>
                     <label htmlFor="opcionais">Opcionais</label>
                     <textarea
                         id="opcionais"
@@ -640,7 +649,7 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                     />
                 </div>
 
-                <div className={styles.formGroupFull}>
+                <div className={styles.formGroupFull} style={{ marginBottom: 0 }}>
                     <label htmlFor="observacoes">Observações</label>
                     <textarea
                         id="observacoes"
@@ -652,18 +661,7 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                     />
                 </div>
 
-                <div className={styles.formActions}>
-                    <button type="button" onClick={onClose} className={styles.cancelButton}>
-                        Cancelar
-                    </button>
-                    <button type="submit" disabled={isSubmitting} className={styles.submitButton}>
-                        {isSubmitting
-                            ? (isEditing ? 'Salvando...' : 'Cadastrando...')
-                            : (isEditing ? 'Salvar Alterações' : 'Cadastrar Veículo')
-                        }
-                    </button>
-                </div>
-            </form>
-        </section>
+            </div>
+        </AdminModal>
     );
 }

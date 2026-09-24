@@ -1,10 +1,11 @@
 'use client';
-import { AutocompleteField, normalizeSearch, useFipeCascade } from '@/components/catalog/FipeLookup';
+import { AutocompleteField, matchLocalBrand, useFipeCascade } from '@/components/catalog/FipeLookup';
 import fipeStyles from '@/components/catalog/FipeLookup.module.css';
 import type { FipeDetail } from '@/lib/services/fipeService';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import styles from './CatalogVariationsManagement.module.css';
+import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
 
 interface Marca {
     id: string;
@@ -346,14 +347,7 @@ export function CatalogVariationsManagement() {
     useEffect(() => { resetFipe(); }, [fipeReset, editingId, resetFipe]);
 
     /** Usa o nome da marca já cadastrada (FIAT, VW, HONDA MOTOS…) para não duplicar marcas com a grafia da FIPE. */
-    const toLocalMarca = (fipeName: string) => {
-        const parts = fipeName.split(' - ').map(normalizeSearch).filter(Boolean);
-        const keys = new Set([normalizeSearch(fipeName), ...parts, ...(fipe.type === 'motorcycles' ? parts.map(part => `${part} motos`) : [])]);
-        const matches = marcas.filter(m => keys.has(normalizeSearch(m.nome)));
-        const tipo = fipe.type === 'motorcycles' ? 'moto' : fipe.type === 'trucks' ? 'caminhao' : 'carro';
-        const found = matches.find(m => (m.tipoVeiculo || 'carro') === tipo) || matches[0];
-        return found?.nome || (fipeName.split(' - ').pop() || fipeName).trim().toUpperCase();
-    };
+    const toLocalMarca = (fipeName: string) => matchLocalBrand(fipeName, marcas, fipe.type === 'motorcycles' ? 'moto' : fipe.type === 'trucks' ? 'caminhao' : 'carro');
 
     const applyFipeDetail = (detail: FipeDetail) => setForm(prev => ({
         ...prev,
@@ -843,150 +837,141 @@ export function CatalogVariationsManagement() {
             </div>
 
             {importPreview && (
-                <div className={styles.modalBackdrop} role="dialog" aria-modal="true" aria-labelledby="import-preview-title">
-                    <div className={styles.modal}>
-                        <div className={styles.modalHeader}>
-                            <div>
-                                <h3 id="import-preview-title">Prévia da importação</h3>
-                                <p>Confira as linhas novas antes de gravar no catálogo.</p>
-                            </div>
-                            <button type="button" className={styles.iconButton} onClick={() => setImportPreview(null)} disabled={importCommitting}>
-                                ×
-                            </button>
+                <AdminModal
+                    title="Prévia da importação"
+                    subtitle="Confira as linhas novas antes de gravar no catálogo."
+                    onClose={() => setImportPreview(null)}
+                    size="xl"
+                    busy={importCommitting}
+                    footer={<>
+                        <button type="button" className={modalStyles.secondary} onClick={() => setImportPreview(null)} disabled={importCommitting}>
+                            Cancelar
+                        </button>
+                        <button
+                            type="button"
+                            className={modalStyles.primary}
+                            onClick={confirmImport}
+                            disabled={importCommitting || importPreview.summary.importable === 0}
+                        >
+                            {importCommitting ? 'Importando...' : `Confirmar ${importPreview.summary.importable} novas`}
+                        </button>
+                    </>}
+                >
+                    <div className={styles.summaryGrid}>
+                        <div>
+                            <strong>{importPreview.summary.total}</strong>
+                            <span>Total</span>
                         </div>
-
-                        <div className={styles.summaryGrid}>
-                            <div>
-                                <strong>{importPreview.summary.total}</strong>
-                                <span>Total</span>
-                            </div>
-                            <div>
-                                <strong>{importPreview.summary.new}</strong>
-                                <span>Novas</span>
-                            </div>
-                            <div>
-                                <strong>{importPreview.summary.existing}</strong>
-                                <span>Existentes</span>
-                            </div>
-                            <div>
-                                <strong>{importPreview.summary.duplicate}</strong>
-                                <span>Duplicadas</span>
-                            </div>
-                            <div>
-                                <strong>{importPreview.summary.invalid}</strong>
-                                <span>Com erro</span>
-                            </div>
+                        <div>
+                            <strong>{importPreview.summary.new}</strong>
+                            <span>Novas</span>
                         </div>
-
-                        {importPreview.truncated && (
-                            <div className={`${styles.feedback} ${styles.feedbackError}`}>
-                                A prévia foi limitada às primeiras 2500 linhas.
-                            </div>
-                        )}
-
-                        <div className={styles.modalTableShell}>
-                            <table className={styles.previewTable}>
-                                <thead>
-                                    <tr>
-                                        <th>Linha / Situação</th>
-                                        <th>Marca</th>
-                                        <th>Modelo</th>
-                                        <th>FIPE / Revisão</th>
-                                        <th>Ano</th>
-                                        <th>Combustível</th>
-                                        <th>Cor</th>
-                                        <th>Câmbio</th>
-                                        <th>Opcionais</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {importPreview.rows.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={9} className={styles.empty}>Nenhuma linha para importar.</td>
-                                        </tr>
-                                    ) : importPreview.rows.map((row, index) => (
-                                        <tr key={`${row.rowNumber}-${index}`}>
-                                            <td>{row.rowNumber} · {{ new: 'Nova', existing: 'Existente', duplicate: 'Duplicada', invalid: 'Com erro' }[row.status]}</td>
-                                            <td>{row.marca || '-'}</td>
-                                            <td><strong>{row.modelo || '-'}</strong></td>
-                                            <td style={{ minWidth: 230, whiteSpace: 'normal' }}>{row.codigoFipe || 'Sem vínculo'}{[...row.errors, ...row.warnings].map((message, i) => <p key={i}>{message}</p>)}</td>
-                                            <td>{row.ano || row.anoModelo || '-'}</td>
-                                            <td>{row.combustivel || '-'}</td>
-                                            <td>{row.cor || '-'}</td>
-                                            <td>{row.transmissao || '-'}</td>
-                                            <td>{row.opcionais || '-'}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                        <div>
+                            <strong>{importPreview.summary.existing}</strong>
+                            <span>Existentes</span>
                         </div>
-
-                        <div className={styles.modalFooter}>
-                            <button type="button" className={styles.secondaryButton} onClick={() => setImportPreview(null)} disabled={importCommitting}>
-                                Cancelar
-                            </button>
-                            <button
-                                type="button"
-                                className={styles.primaryButton}
-                                onClick={confirmImport}
-                                disabled={importCommitting || importPreview.summary.importable === 0}
-                            >
-                                {importCommitting ? 'Importando...' : `Confirmar ${importPreview.summary.importable} novas`}
-                            </button>
+                        <div>
+                            <strong>{importPreview.summary.duplicate}</strong>
+                            <span>Duplicadas</span>
+                        </div>
+                        <div>
+                            <strong>{importPreview.summary.invalid}</strong>
+                            <span>Com erro</span>
                         </div>
                     </div>
-                </div>
+
+                    {importPreview.truncated && (
+                        <div className={`${styles.feedback} ${styles.feedbackError}`}>
+                            A prévia foi limitada às primeiras 2500 linhas.
+                        </div>
+                    )}
+
+                    <div className={styles.modalTableShell}>
+                        <table className={styles.previewTable}>
+                            <thead>
+                                <tr>
+                                    <th>Linha / Situação</th>
+                                    <th>Marca</th>
+                                    <th>Modelo</th>
+                                    <th>FIPE / Revisão</th>
+                                    <th>Ano</th>
+                                    <th>Combustível</th>
+                                    <th>Cor</th>
+                                    <th>Câmbio</th>
+                                    <th>Opcionais</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {importPreview.rows.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={9} className={styles.empty}>Nenhuma linha para importar.</td>
+                                    </tr>
+                                ) : importPreview.rows.map((row, index) => (
+                                    <tr key={`${row.rowNumber}-${index}`}>
+                                        <td>{row.rowNumber} · {{ new: 'Nova', existing: 'Existente', duplicate: 'Duplicada', invalid: 'Com erro' }[row.status]}</td>
+                                        <td>{row.marca || '-'}</td>
+                                        <td><strong>{row.modelo || '-'}</strong></td>
+                                        <td style={{ minWidth: 230, whiteSpace: 'normal' }}>{row.codigoFipe || 'Sem vínculo'}{[...row.errors, ...row.warnings].map((message, i) => <p key={i}>{message}</p>)}</td>
+                                        <td>{row.ano || row.anoModelo || '-'}</td>
+                                        <td>{row.combustivel || '-'}</td>
+                                        <td>{row.cor || '-'}</td>
+                                        <td>{row.transmissao || '-'}</td>
+                                        <td>{row.opcionais || '-'}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </AdminModal>
             )}
             {fotoModal && (
-                <div className={styles.modalBackdrop} role="dialog" aria-modal="true" aria-labelledby="foto-modal-title">
-                    <div className={styles.modal} style={{ maxWidth: '540px' }}>
-                        <div className={styles.modalHeader}>
-                            <h3 id="foto-modal-title">Foto do veículo</h3>
-                            <p>
-                                {fotoModal.variation.marca} {fotoModal.variation.modelo}
-                                {fotoModal.variation.cor ? ` · ${fotoModal.variation.cor}` : ''}
-                            </p>
-                        </div>
-
-                        <div className={styles.formGrid} style={{ padding: '20px' }}>
-                            <label className={styles.wideField}>
-                                Link da foto
-                                <input
-                                    type="url"
-                                    autoFocus
-                                    value={fotoModal.url}
-                                    onChange={e => setFotoModal({ ...fotoModal, url: e.target.value })}
-                                    onKeyDown={e => { if (e.key === 'Enter') handleSaveFoto(); }}
-                                    placeholder="https://..."
-                                />
-                            </label>
-                            <p className={styles.fotoHint}>
+                <AdminModal
+                    title="Foto do veículo"
+                    subtitle={<>
+                        {fotoModal.variation.marca} {fotoModal.variation.modelo}
+                        {fotoModal.variation.cor ? ` · ${fotoModal.variation.cor}` : ''}
+                    </>}
+                    onClose={() => setFotoModal(null)}
+                    size="sm"
+                    busy={savingFoto}
+                    footer={<>
+                        <button type="button" className={modalStyles.secondary} onClick={() => setFotoModal(null)} disabled={savingFoto}>
+                            Cancelar
+                        </button>
+                        <button type="button" className={modalStyles.primary} onClick={handleSaveFoto} disabled={savingFoto}>
+                            {savingFoto ? 'Salvando...' : 'Salvar foto'}
+                        </button>
+                    </>}
+                >
+                    <div className={modalStyles.stack}>
+                        <label className={modalStyles.field}>
+                            Link da foto
+                            <input
+                                type="url"
+                                autoFocus
+                                value={fotoModal.url}
+                                onChange={e => setFotoModal({ ...fotoModal, url: e.target.value })}
+                                onKeyDown={e => { if (e.key === 'Enter') handleSaveFoto(); }}
+                                placeholder="https://..."
+                            />
+                            <span className={modalStyles.hint}>
                                 Cole o endereço de uma imagem já hospedada. Deixe em branco para remover a foto.
-                            </p>
+                            </span>
+                        </label>
 
-                            {fotoModal.url.trim() && (
-                                <div className={styles.fotoPreview}>
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
-                                        src={fotoModal.url.trim()}
-                                        alt={`Pré-visualização de ${fotoModal.variation.modelo}`}
-                                        onError={e => { (e.currentTarget as HTMLImageElement).dataset.erro = '1'; }}
-                                        onLoad={e => { delete (e.currentTarget as HTMLImageElement).dataset.erro; }}
-                                    />
-                                </div>
-                            )}
-                        </div>
-
-                        <div className={styles.modalFooter}>
-                            <button className={styles.secondaryButton} onClick={() => setFotoModal(null)} disabled={savingFoto}>
-                                Cancelar
-                            </button>
-                            <button className={styles.primaryButton} onClick={handleSaveFoto} disabled={savingFoto}>
-                                {savingFoto ? 'Salvando...' : 'Salvar foto'}
-                            </button>
-                        </div>
+                        {fotoModal.url.trim() && (
+                            <div className={styles.fotoPreview}>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={fotoModal.url.trim()}
+                                    alt={`Pré-visualização de ${fotoModal.variation.modelo}`}
+                                    onError={e => { (e.currentTarget as HTMLImageElement).dataset.erro = '1'; }}
+                                    onLoad={e => { delete (e.currentTarget as HTMLImageElement).dataset.erro; }}
+                                />
+                            </div>
+                        )}
                     </div>
-                </div>
+                </AdminModal>
             )}
         </div>
     );

@@ -8,6 +8,19 @@ export const fipeTypeFor = (tipo?: string) => tipo === 'moto' ? 'motorcycles' : 
 const MAX_VISIBLE = 60;
 
 /**
+ * Converte a marca da FIPE para a grafia já usada na plataforma, evitando duplicidade:
+ * Fiat → FIAT, GM - Chevrolet → CHEVROLET, VW - VolksWagen → VW, HONDA (motos) → HONDA MOTOS.
+ * Sem correspondência, usa o nome da FIPE (sem o prefixo "GM - ") em maiúsculas.
+ */
+export function matchLocalBrand(fipeName: string, locals: Array<{ nome: string; tipoVeiculo?: string }>, tipo: string) {
+    const parts = fipeName.split(' - ').map(normalizeSearch).filter(Boolean);
+    const keys = new Set([normalizeSearch(fipeName), ...parts, ...(tipo === 'moto' ? parts.map(part => `${part} motos`) : [])]);
+    const matches = locals.filter(local => keys.has(normalizeSearch(local.nome)));
+    const found = matches.find(local => (local.tipoVeiculo || 'carro') === tipo) || matches[0];
+    return found?.nome || (fipeName.split(' - ').pop() || fipeName).trim().toUpperCase();
+}
+
+/**
  * Campo de texto livre com sugestões. Digitar nunca bloqueia o cadastro manual:
  * as sugestões só ajudam a escolher o nome padronizado da FIPE.
  */

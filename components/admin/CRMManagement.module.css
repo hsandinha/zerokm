@@ -1149,18 +1149,16 @@
 /* Plano, vencimento e forma de pagamento sempre visíveis. */
 .headerFacts {
     display: flex;
-    gap: 1.25rem;
+    gap: 24px;
     flex-wrap: wrap;
-    margin-top: 0.55rem;
-    padding-top: 0.55rem;
-    border-top: 1px solid var(--color-highlight);
+    margin-top: 10px;
 }
 
 .fact {
     display: flex;
     flex-direction: column;
     gap: 1px;
-    font-size: 0.82rem;
+    font-size: 13px;
     font-weight: 600;
     color: var(--color-text);
     min-width: 0;
@@ -1168,139 +1166,91 @@
 
 .fact em {
     font-style: normal;
-    font-size: 0.64rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    font-size: 12px;
+    font-weight: 400;
     color: var(--color-text-muted);
 }
 
-.clientModalHeaderInfo {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.clientModalName {
-    font-size: 1.15rem;
-    font-weight: 700;
-    color: var(--color-text);
-    margin: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.clientModalSubInfo {
-    font-size: 0.8rem;
-    color: var(--color-text-muted);
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.9rem;
-}
-
+/* Abas na faixa fixa do AdminModal. */
 .clientModalTabs {
     display: flex;
-    border-bottom: 1px solid var(--color-highlight);
-    background: var(--color-bg);
-    flex-shrink: 0;
+    gap: 4px;
+    margin: 0 -4px;
+    overflow-x: auto;
+    scrollbar-width: none;
 }
 
 .clientModalTab {
-    padding: 0.7rem 1.1rem;
+    padding: 12px 10px;
+    min-height: 0 !important;
     border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
     background: transparent;
     color: var(--color-text-muted);
-    font-size: 0.85rem;
+    font-size: 14px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.15s;
-    border-bottom: 2px solid transparent;
     white-space: nowrap;
 }
 
-.clientModalTab:hover {
-    color: var(--color-text);
-    background: var(--color-highlight);
-}
+.clientModalTab:hover { color: var(--color-text); }
 
 .clientModalTabActive {
-    color: var(--color-accent) !important;
+    color: var(--color-text) !important;
     border-bottom-color: var(--color-accent) !important;
-    background: transparent !important;
-    font-weight: 700;
+    font-weight: 600;
 }
 
-.clientModalBody {
-    flex: 1;
-    overflow-y: auto;
-    padding: 1.25rem 1.5rem;
-}
+.clientModalBody::-webkit-scrollbar { width: 6px; }
+.clientModalBody::-webkit-scrollbar-thumb { background: var(--admin-border, var(--color-highlight)); border-radius: 3px; }
 
-.clientModalBody::-webkit-scrollbar {
-    width: 5px;
-}
-
-.clientModalBody::-webkit-scrollbar-track {
-    background: var(--color-bg);
-}
-
-.clientModalBody::-webkit-scrollbar-thumb {
-    background: var(--color-highlight);
-    border-radius: 3px;
-}
-
-.clientSection {
-    margin-bottom: 1.25rem;
+/* Seções de leitura: sem caixas cinza, só título, grade e divisória. */
+.clientSection + .clientSection {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--admin-border, var(--color-highlight));
 }
 
 .clientSectionHeader {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 0.65rem;
+    gap: 12px;
+    margin-bottom: 12px;
 }
 
 .clientSectionTitle {
-    font-size: 0.68rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--color-text-muted);
+    font-size: 14px;
+    font-weight: 650;
+    color: var(--color-text);
 }
 
 .editToggleBtn {
-    font-size: 0.75rem;
-    color: var(--color-accent);
-    background: rgba(37, 99, 235, 0.1);
-    border: 1px solid rgba(37, 99, 235, 0.3);
-    border-radius: 6px;
-    padding: 3px 10px;
+    min-height: 32px !important;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text);
+    background: var(--color-surface);
+    border: 1px solid var(--admin-border, var(--color-highlight));
+    border-radius: 8px;
     cursor: pointer;
-    transition: all 0.15s;
-    font-weight: 600;
 }
 
-.editToggleBtn:hover {
-    background: rgba(37, 99, 235, 0.2);
-}
+.editToggleBtn:hover { background: var(--admin-hover, var(--color-panel)); }
 
 .clientFormGrid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
-    background: var(--color-bg);
-    border: 1px solid var(--color-highlight);
-    border-radius: 10px;
-    padding: 1rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 24px;
 }
 
 .clientFormField {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
+    min-width: 0;
 }
 
 .spanFull {
@@ -1308,18 +1258,46 @@
 }
 
 .clientFormLabel {
-    font-size: 0.66rem;
+    font-size: 12px;
+    font-weight: 400;
     color: var(--color-text-muted);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
 }
 
 .clientFormValue {
-    font-size: 0.875rem;
+    font-size: 14px;
     color: var(--color-text);
     font-weight: 500;
-    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+.successBox {
+    padding: 14px 16px;
+    margin-top: 16px;
+    border: 1px solid var(--color-positive);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--color-positive) 8%, var(--color-surface));
+    color: var(--color-text);
+    font-size: 13px;
+}
+
+.successBox strong { display: block; color: var(--color-positive); font-size: 14px; }
+.successBox p { margin: 6px 0; }
+
+.passwordBox {
+    display: block;
+    padding: 10px 14px;
+    font-size: 17px;
+    letter-spacing: 0.1em;
+    text-align: center;
+    color: var(--color-text);
+    background: var(--color-surface);
+    border: 1px solid var(--admin-border, var(--color-highlight));
+    border-radius: 8px;
+}
+
+@media (max-width: 640px) {
+    .clientFormGrid { grid-template-columns: minmax(0, 1fr); }
+    .headerFacts { gap: 16px; }
 }
 
 .clientActionsGrid {
@@ -1369,13 +1347,11 @@
 :global([data-admin-design]) .detailBtn,
 :global([data-admin-design]) .detailsButton,
 :global([data-admin-design]) .textBtn { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--admin-border); border-radius: 8px; box-shadow: none; font-weight: 500; }
-:global([data-admin-design]) .clientModal,
 :global([data-admin-design]) .detailPanel,
 :global([data-admin-design]) .summaryCard,
 :global([data-admin-design]) .tableContainer { background: var(--color-surface); border: 1px solid var(--admin-border); border-radius: 12px; box-shadow: var(--admin-shadow); }
 :global([data-admin-design]) .searchInput { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--admin-border); border-radius: 8px; min-height: 40px; }
 :global([data-admin-design]) .title { font-size: 28px; font-weight: 650; letter-spacing: -.035em; }
-:global([data-admin-design]) .clientModalTabActive,
 :global([data-admin-design]) .summaryCardActive,
 :global([data-admin-design]) .tabActive { color: var(--admin-selected-text) !important; background: var(--admin-selected); border-color: var(--color-accent); }
 :global([data-admin-design]) .table th { background: var(--color-panel); color: var(--color-text-muted); font-size: 12px; font-weight: 600; text-transform: none; padding: 12px 16px; border: 0; border-bottom: 1px solid var(--admin-border); }

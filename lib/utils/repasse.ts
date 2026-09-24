@@ -176,6 +176,19 @@ export function validateRepasse(input: RepasseInput, partial = false): { data: P
     return { data, errors };
 }
 
+/**
+ * Vínculo FIPE vindo do formulário. Código vazio = sem vínculo (null);
+ * código fora do formato 000000-0 é erro. Ausente no corpo = não mexe (undefined).
+ */
+export function parseRepasseFipe(input: { codigoFipe?: unknown; descricaoFipe?: unknown }): { codigoFipe?: string | null; descricaoFipe?: string | null; error?: string } {
+    if (!Object.prototype.hasOwnProperty.call(input || {}, 'codigoFipe')) return {};
+    const raw = text(input.codigoFipe);
+    if (!raw) return { codigoFipe: null, descricaoFipe: null };
+    const digits = raw.replace(/[-\s]/g, '');
+    if (!/^\d{7}$/.test(digits)) return { error: 'Código FIPE inválido. Escolha o veículo na lista da FIPE.' };
+    return { codigoFipe: `${digits.slice(0, 6)}-${digits.slice(6)}`, descricaoFipe: text(input.descricaoFipe) || null };
+}
+
 /** Formato devolvido ao painel da concessionária. */
 export function serializeRepasse(doc: any) {
     const obj = typeof doc.toObject === 'function' ? doc.toObject() : doc;
@@ -196,6 +209,8 @@ export function serializeRepasse(doc: any) {
         preco: obj.preco,
         observacoes: obj.observacoes || '',
         foraDoCatalogo: Boolean(obj.foraDoCatalogo),
+        codigoFipe: obj.codigoFipe || '',
+        descricaoFipe: obj.descricaoFipe || '',
         status: obj.status,
         createdAt: obj.createdAt,
         updatedAt: obj.updatedAt,

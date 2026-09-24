@@ -13,6 +13,13 @@ describe('API do catálogo FIPE', () => {
         expect((await GET(new Request('http://localhost/api/catalog/fipe'))).status).toBe(403);
         expect(query).not.toHaveBeenCalled();
     });
+    it('concessionária consulta a FIPE para cadastrar repasse', async () => {
+        session.mockResolvedValue({ user: { profile: 'concessionaria' } });
+        query.mockResolvedValue([{ code: '21', name: 'Fiat' }]);
+        const response = await GET(new Request('http://localhost/api/catalog/fipe?type=cars'));
+        expect(response.status).toBe(200);
+        expect(await response.json()).toEqual([{ code: '21', name: 'Fiat' }]);
+    });
     it('rejeita identificadores arbitrários e trata falhas do fornecedor', async () => {
         session.mockResolvedValue({ user: { profile: 'administrador' } });
         expect((await GET(new Request('http://localhost/api/catalog/fipe?brand=../x'))).status).toBe(400);

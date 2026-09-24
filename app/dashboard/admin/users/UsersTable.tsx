@@ -6,6 +6,49 @@ import { UserProfile } from '@/lib/types/auth';
 import { toggleProfileSelection } from '@/lib/utils/userProfiles';
 import { ConcessionariaService, Concessionaria } from '@/lib/services/concessionariaService';
 import styles from './UsersTable.module.css';
+import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
+
+const PROFILE_GROUPS: Array<{ key: string; label: string; hint: string; type: 'radio' | 'checkbox'; profiles: Array<{ value: UserProfile; label: string }> }> = [
+    { key: 'diretivo', label: 'Diretivo', hint: 'escolha um', type: 'radio', profiles: [{ value: 'administrador', label: 'Administrador' }, { value: 'gerente', label: 'Gerente' }, { value: 'marketing', label: 'Marketing' }] },
+    { key: 'operacional', label: 'Operacional', hint: 'escolha um', type: 'radio', profiles: [{ value: 'operador', label: 'Operador' }, { value: 'vendedor', label: 'Vendedor' }, { value: 'administrativo', label: 'Administrativo' }] },
+    { key: 'concessionaria', label: 'Concessionária', hint: 'acesso ao painel da loja', type: 'checkbox', profiles: [{ value: 'concessionaria', label: 'Concessionária' }] },
+];
+
+/** Grupos de perfis. Radio com clique para desmarcar: cada grupo é opcional. */
+function ProfileChoices({ name, selected, restricted, onToggle }: { name: string; selected: UserProfile[]; restricted: UserProfile[]; onToggle: (profile: UserProfile) => void }) {
+    return <>
+        {PROFILE_GROUPS.map(group => (
+            <fieldset key={group.key} className={modalStyles.group}>
+                <legend className={modalStyles.groupLabel}>{group.label} <span className={modalStyles.groupHint}>· {group.hint}</span></legend>
+                <div className={modalStyles.choices}>
+                    {group.profiles.map(profile => {
+                        const disabled = restricted.includes(profile.value);
+                        return (
+                            <label key={profile.value} className={modalStyles.choice}>
+                                {group.type === 'radio'
+                                    ? <input type="radio" name={`${name}-${group.key}`} checked={selected.includes(profile.value)} onClick={() => !disabled && onToggle(profile.value)} disabled={disabled} readOnly />
+                                    : <input type="checkbox" checked={selected.includes(profile.value)} onChange={() => !disabled && onToggle(profile.value)} disabled={disabled} />}
+                                {profile.label}
+                            </label>
+                        );
+                    })}
+                </div>
+            </fieldset>
+        ))}
+    </>;
+}
+
+function DealershipSelect({ dealerships, value, onChange, required }: { dealerships: Concessionaria[]; value: string; onChange: (value: string) => void; required?: boolean }) {
+    return (
+        <label className={modalStyles.field}>
+            Vincular concessionária
+            <select value={value} onChange={event => onChange(event.target.value)} required={required}>
+                <option value="">Selecione uma concessionária...</option>
+                {dealerships.map(dealership => <option key={dealership.id} value={dealership.id}>{dealership.nome}</option>)}
+            </select>
+        </label>
+    );
+}
 
 interface CrmEntry {
     status: 'active' | 'expired' | 'no_plan';
@@ -348,250 +391,64 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableP
                 </tbody>
             </table>
 
-            {/* Add User Modal */}
             {isAddModalOpen && (
-                <div className={styles.modalOverlay}>
-                    <div className={styles.modalContent}>
-                        <h3 className={styles.modalTitle}>Adicionar Novo Usuário</h3>
-                        <form onSubmit={handleCreateUser}>
-                            <div className={styles.formGroup}>
-                                <label className={styles.label}>Nome Completo</label>
-                                <input
-                                    type="text"
-                                    className={styles.input}
-                                    value={newUser.displayName}
-                                    onChange={e => setNewUser({ ...newUser, displayName: e.target.value })}
-                                    required
-                                    placeholder="Ex: João Silva"
-                                />
-                            </div>
-
-                            <div className={styles.formGroup}>
-                                <label className={styles.label}>E-mail</label>
-                                <input
-                                    type="email"
-                                    className={styles.input}
-                                    value={newUser.email}
-                                    onChange={e => setNewUser({ ...newUser, email: e.target.value })}
-                                    required
-                                    placeholder="email@exemplo.com"
-                                />
-                            </div>
-
-                            <div className={styles.formGroup}>
-                                <label className={styles.label}>Senha Inicial</label>
-                                <input
-                                    type="password"
-                                    className={styles.input}
-                                    value={newUser.password}
-                                    onChange={e => setNewUser({ ...newUser, password: e.target.value })}
-                                    required
-                                    placeholder="Mínimo 6 caracteres"
-                                    minLength={6}
-                                />
-                            </div>
-
-                            <div className={styles.formGroup}>
-                                <label className={styles.label}>Perfis de Acesso</label>
-
-                                {/* Grupo 1: Diretivo */}
-                                <div style={{ marginBottom: '1rem', padding: '0.75rem', border: '1px solid #334155', borderRadius: '8px', background: 'rgba(99,102,241,0.06)' }}>
-                                    <p style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: '#818cf8', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>Diretivo — escolha um</p>
-                                    <div style={{ display: 'flex', gap: '1.5rem' }}>
-                                        {['administrador', 'gerente', 'marketing'].map(p => {
-                                            const isRestricted = restrictedProfiles.includes(p as UserProfile);
-                                            return (
-                                            <label key={p} className={styles.checkboxLabel} style={{ cursor: isRestricted ? 'not-allowed' : 'pointer', opacity: isRestricted ? 0.4 : 1 }}>
-                                                <input
-                                                    type="radio"
-                                                    name="newDiretivo"
-                                                    checked={newUser.allowedProfiles.includes(p as UserProfile)}
-                                                    onClick={() => !isRestricted && toggleNewUserProfile(p as UserProfile)}
-                                                    disabled={isRestricted}
-                                                    readOnly
-                                                />
-                                                {p.charAt(0).toUpperCase() + p.slice(1)}
-                                            </label>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-
-                                {/* Grupo 2: Operacional */}
-                                <div style={{ marginBottom: '1rem', padding: '0.75rem', border: '1px solid #334155', borderRadius: '8px', background: 'rgba(245,158,11,0.06)' }}>
-                                    <p style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: '#f59e0b', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>Operacional — escolha um</p>
-                                    <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-                                        {['operador', 'vendedor', 'administrativo'].map(p => {
-                                            const isRestricted = restrictedProfiles.includes(p as UserProfile);
-                                            return (
-                                            <label key={p} className={styles.checkboxLabel} style={{ cursor: isRestricted ? 'not-allowed' : 'pointer', opacity: isRestricted ? 0.4 : 1 }}>
-                                                <input
-                                                    type="radio"
-                                                    name="newOperacional"
-                                                    checked={newUser.allowedProfiles.includes(p as UserProfile)}
-                                                    onClick={() => !isRestricted && toggleNewUserProfile(p as UserProfile)}
-                                                    disabled={isRestricted}
-                                                    readOnly
-                                                />
-                                                {p.charAt(0).toUpperCase() + p.slice(1)}
-                                            </label>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-
-                                {/* Grupo 3: Concessionária */}
-                                <div style={{ marginBottom: '1rem', padding: '0.75rem', border: '1px solid #334155', borderRadius: '8px', background: 'rgba(16,185,129,0.06)' }}>
-                                    <p style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: '#10b981', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>Concessionária</p>
-                                    <label className={styles.checkboxLabel} style={{ cursor: 'pointer' }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={newUser.allowedProfiles.includes('concessionaria')}
-                                            onChange={() => toggleNewUserProfile('concessionaria')}
-                                        />
-                                        Concessionária
-                                    </label>
-                                </div>
-                            </div>
-
-                            {newUser.allowedProfiles.includes('concessionaria') && (
-                                <div className={styles.formGroup}>
-                                    <label className={styles.label}>Vincular Concessionária</label>
-                                    <select
-                                        className={styles.input}
-                                        value={newUser.dealershipId}
-                                        onChange={e => setNewUser({ ...newUser, dealershipId: e.target.value })}
-                                        required
-                                    >
-                                        <option value="">Selecione uma concessionária...</option>
-                                        {dealerships.map(dealership => (
-                                            <option key={dealership.id} value={dealership.id}>
-                                                {dealership.nome}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
-
-                            <div className={styles.modalActions}>
-                                <button
-                                    type="button"
-                                    className={styles.cancelButton}
-                                    onClick={() => setIsAddModalOpen(false)}
-                                    disabled={isCreating}
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    type="submit"
-                                    className={styles.saveButton}
-                                    disabled={isCreating}
-                                >
-                                    {isCreating ? 'Criando...' : 'Criar Usuário'}
-                                </button>
-                            </div>
-                        </form>
+                <AdminModal
+                    title="Adicionar usuário"
+                    subtitle="Cria o acesso e define o que a pessoa pode usar na plataforma."
+                    onClose={() => setIsAddModalOpen(false)}
+                    busy={isCreating}
+                    onSubmit={handleCreateUser}
+                    footer={<>
+                        <button type="button" className={modalStyles.secondary} onClick={() => setIsAddModalOpen(false)} disabled={isCreating}>Cancelar</button>
+                        <button type="submit" className={modalStyles.primary} disabled={isCreating}>{isCreating ? 'Criando...' : 'Criar usuário'}</button>
+                    </>}
+                >
+                    <div className={modalStyles.stack}>
+                        <div className={modalStyles.grid2}>
+                            <label className={`${modalStyles.field} ${modalStyles.span2}`}>
+                                Nome completo
+                                <input type="text" value={newUser.displayName} onChange={e => setNewUser({ ...newUser, displayName: e.target.value })} required placeholder="Ex.: João Silva" />
+                            </label>
+                            <label className={modalStyles.field}>
+                                E-mail
+                                <input type="email" value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} required placeholder="email@exemplo.com" />
+                            </label>
+                            <label className={modalStyles.field}>
+                                Senha inicial
+                                <input type="password" value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} required placeholder="Mínimo 6 caracteres" minLength={6} />
+                            </label>
+                        </div>
+                        <ProfileChoices name="new" selected={newUser.allowedProfiles} restricted={restrictedProfiles} onToggle={toggleNewUserProfile} />
+                        {newUser.allowedProfiles.includes('concessionaria') && (
+                            <DealershipSelect dealerships={dealerships} value={newUser.dealershipId} onChange={value => setNewUser({ ...newUser, dealershipId: value })} required />
+                        )}
                     </div>
-                </div>
+                </AdminModal>
             )}
 
             {editingUser && (
-                <div className={styles.modalOverlay}>
-                    <div className={styles.modal}>
-                        <h3 className={styles.modalTitle}>Editar Acessos: {editingUser.email}</h3>
-
-                        {/* Grupo 1: Diretivo */}
-                        <div style={{ marginBottom: '1rem', padding: '0.75rem', border: '1px solid #334155', borderRadius: '8px', background: 'rgba(99,102,241,0.06)' }}>
-                            <p style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: '#818cf8', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>Diretivo — escolha um</p>
-                            <div style={{ display: 'flex', gap: '1.5rem' }}>
-                                {['administrador', 'gerente', 'marketing'].map(p => {
-                                    const isRestricted = restrictedProfiles.includes(p as UserProfile);
-                                    return (
-                                    <label key={p} className={styles.checkboxLabel} style={{ cursor: isRestricted ? 'not-allowed' : 'pointer', opacity: isRestricted ? 0.4 : 1 }}>
-                                        <input
-                                            type="radio"
-                                            name="editDiretivo"
-                                            checked={selectedProfiles.includes(p as UserProfile)}
-                                            onClick={() => !isRestricted && toggleProfile(p as UserProfile)}
-                                            disabled={isRestricted}
-                                            readOnly
-                                        />
-                                        {p.charAt(0).toUpperCase() + p.slice(1)}
-                                    </label>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        {/* Grupo 2: Operacional */}
-                        <div style={{ marginBottom: '1rem', padding: '0.75rem', border: '1px solid #334155', borderRadius: '8px', background: 'rgba(245,158,11,0.06)' }}>
-                            <p style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: '#f59e0b', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>Operacional — escolha um</p>
-                            <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-                                {['operador', 'vendedor', 'administrativo'].map(p => {
-                                    const isRestricted = restrictedProfiles.includes(p as UserProfile);
-                                    return (
-                                    <label key={p} className={styles.checkboxLabel} style={{ cursor: isRestricted ? 'not-allowed' : 'pointer', opacity: isRestricted ? 0.4 : 1 }}>
-                                        <input
-                                            type="radio"
-                                            name="editOperacional"
-                                            checked={selectedProfiles.includes(p as UserProfile)}
-                                            onClick={() => !isRestricted && toggleProfile(p as UserProfile)}
-                                            disabled={isRestricted}
-                                            readOnly
-                                        />
-                                        {p.charAt(0).toUpperCase() + p.slice(1)}
-                                    </label>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        {/* Grupo 3: Concessionária */}
-                        <div style={{ marginBottom: '1rem', padding: '0.75rem', border: '1px solid #334155', borderRadius: '8px', background: 'rgba(16,185,129,0.06)' }}>
-                            <p style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: '#10b981', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>Concessionária</p>
-                            <label className={styles.checkboxLabel} style={{ cursor: 'pointer' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={selectedProfiles.includes('concessionaria')}
-                                    onChange={() => toggleProfile('concessionaria')}
-                                />
-                                Concessionária
-                            </label>
-                        </div>
-
+                <AdminModal
+                    title="Editar acessos"
+                    subtitle={editingUser.email}
+                    onClose={() => setEditingUser(null)}
+                    footer={<>
+                        <button type="button" className={modalStyles.secondary} onClick={() => setEditingUser(null)}>Cancelar</button>
+                        <button type="button" className={modalStyles.primary} onClick={handleSaveProfiles}>Salvar alterações</button>
+                    </>}
+                >
+                    <div className={modalStyles.stack}>
+                        <ProfileChoices name="edit" selected={selectedProfiles} restricted={restrictedProfiles} onToggle={toggleProfile} />
                         {(selectedProfiles.includes('cliente') || selectedProfiles.includes('gratis')) && (
-                            <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0 0 0.75rem' }}>
-                                Este usuário também tem perfil de {selectedProfiles.includes('cliente') ? 'cliente' : 'teste grátis'} — esse acesso é controlado pela assinatura, no CRM.
+                            <p className={modalStyles.hint} style={{ margin: 0 }}>
+                                Este usuário também tem perfil de {selectedProfiles.includes('cliente') ? 'cliente' : 'teste grátis'}. Esse acesso é controlado pela assinatura, no CRM.
                             </p>
                         )}
                         {selectedProfiles.includes('concessionaria') && (
-                            <div className={styles.formGroup} style={{ marginTop: '1rem' }}>
-                                <label className={styles.label}>Vincular Concessionária</label>
-                                <select
-                                    className={styles.input}
-                                    value={selectedDealershipId}
-                                    onChange={e => setSelectedDealershipId(e.target.value)}
-                                >
-                                    <option value="">Selecione uma concessionária...</option>
-                                    {dealerships.map(dealership => (
-                                        <option key={dealership.id} value={dealership.id}>
-                                            {dealership.nome}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+                            <DealershipSelect dealerships={dealerships} value={selectedDealershipId} onChange={setSelectedDealershipId} />
                         )}
-
-                        <div className={styles.modalActions}>
-                            <button className={styles.cancelButton} onClick={() => setEditingUser(null)}>Cancelar</button>
-                            <button className={styles.saveButton} onClick={handleSaveProfiles}>Salvar Alterações</button>
-                        </div>
                     </div>
-                </div>
-            )
-            }
-
-
+                </AdminModal>
+            )}
         </div >
     );
 }

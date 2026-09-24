@@ -176,6 +176,17 @@ describe('painel da concessionária — /api/dealership/repasse', () => {
         expect(body.code).toBe('MODELO_FORA_DO_CATALOGO');
     });
 
+    it('modelo escolhido na FIPE passa com o código FIPE, mesmo fora do catálogo', async () => {
+        const { res, body } = await criarComoDonoA({ ...onix, modelo: 'Onix Hatch LT 1.0 12V Flex 5p Mec.', codigoFipe: '0040996', descricaoFipe: 'Onix Hatch LT 1.0 12V Flex 5p Mec.' });
+        expect(res.status).toBe(201);
+        expect(body).toMatchObject({ codigoFipe: '004099-6', descricaoFipe: 'Onix Hatch LT 1.0 12V Flex 5p Mec.', foraDoCatalogo: false });
+    });
+
+    it('código FIPE fora do formato é recusado', async () => {
+        const { res } = await criarComoDonoA({ ...onix, modelo: 'qualquer', codigoFipe: '12-3' });
+        expect(res.status).toBe(400);
+    });
+
     it('modelo antigo passa quando marcado como fora do catálogo', async () => {
         const { res, body } = await criarComoDonoA({ ...onix, modelo: 'gol g4 1.0', foraDoCatalogo: true });
         expect(res.status).toBe(201);

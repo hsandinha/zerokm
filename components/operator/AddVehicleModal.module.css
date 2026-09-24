@@ -1,11 +1,3 @@
-.panel {
-    background: var(--color-surface);
-    border-radius: 16px;
-    border: 1px solid var(--color-highlight);
-    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
-    overflow: hidden;
-}
-
 .header {
     display: flex;
     align-items: flex-start;
@@ -107,7 +99,7 @@
 .dualInput input:focus {
     outline: none;
     border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
 
 .formGroup label,
@@ -134,7 +126,7 @@
 .formGroupFull textarea:focus {
     outline: none;
     border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
 
 .formGroup input:invalid,
@@ -196,4 +188,3 @@
 /* Shared administration design; other profiles keep their existing presentation. */
 :global([data-admin-design]) .submitButton { background: var(--color-accent); color: var(--admin-on-accent); border: 1px solid transparent; border-radius: 8px; min-height: 40px; padding: 10px 16px; font-size: 14px; font-weight: 600; box-shadow: none; }
 :global([data-admin-design]) .cancelButton { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--admin-border); border-radius: 8px; box-shadow: none; font-weight: 500; }
-:global([data-admin-design]) .panel { background: var(--color-surface); border: 1px solid var(--admin-border); border-radius: 12px; box-shadow: var(--admin-shadow); }

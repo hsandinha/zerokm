@@ -277,3 +277,27 @@
 :global([data-admin-design]) .primaryBtn { color: var(--admin-on-accent); min-height: 40px; font-weight: 600; }
 :global([data-admin-design]) .formPanel { border-radius: 12px; box-shadow: var(--admin-shadow); }
 :global([data-admin-design]) .formGrid input, :global([data-admin-design]) .formGrid select { background: var(--color-surface); }
+
+/* Campos do modal de carro (o modal em si é o AdminModal). */
+.wideHalf { grid-column: span 2; }
+
+.formGrid label.checkRow {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+}
+
+.formGrid label.checkRow input { min-height: 0; width: 16px; height: 16px; }
+
+.fipeStatus {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+}
+
+.fipeStatus[role=alert] { color: var(--color-danger, #b42318); }
+
+@media (max-width: 640px) {
+    .wideHalf { grid-column: 1 / -1; }
+}

@@ -2,14 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
-import Image from 'next/image';
 import { getSession } from 'next-auth/react';
 import { UsersTable } from './users/UsersTable';
 import { ConcessionariasManagement } from '../../../components/admin/ConcessionariasManagement';
 import { TransportadorasManagement } from '../../../components/admin/TransportadorasManagement';
 import { TabelasManagement } from '../../../components/admin/TabelasManagement';
 import { ConfigContext } from '../../../lib/contexts/ConfigContext';
-import UserMenu from '../../../components/UserMenu';
 import { PlansManagement } from '../../../components/settings/PlansManagement';
 import { CRMManagement } from '../../../components/admin/CRMManagement';
 import { CobrancasManagement } from '../../../components/admin/CobrancasManagement';
@@ -20,9 +18,9 @@ import { VisaoGeralTab } from '../../../components/admin/VisaoGeralTab';
 import { CatalogVariationsManagement } from '../../../components/admin/CatalogVariationsManagement';
 import { AdminDealershipVehicles } from '../../../components/admin/AdminDealershipVehicles';
 import KanbanBoard from '../../../components/crm/KanbanBoard';
-import { MobileTabBar } from '../../../components/mobile/MobileTabBar';
+import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import styles from './admin.module.css';
-import { LayoutDashboard, Users, CarFront, Warehouse, BookOpen, Building2, Truck, Table2, Settings2, CreditCard, Receipt, ContactRound, Funnel, Plug, Images, MessageCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Users, CarFront, Warehouse, BookOpen, Building2, Truck, Table2, Settings2, CreditCard, Receipt, ContactRound, Funnel, Plug, Images, MessageCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 const VehicleConsultation = dynamic<any>(
@@ -48,7 +46,6 @@ export default function AdminDashboard() {
     const [fixedMargin, setFixedMargin] = useState<number>(0);
     const [marginMode, setMarginMode] = useState<'percent' | 'fixed'>('percent');
     const [userInfo, setUserInfo] = useState<{ name?: string | null; email?: string | null; profile?: string }>({});
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(true);
     useEffect(() => {
         const fetchMargem = async () => {
             try {
@@ -119,7 +116,7 @@ export default function AdminDashboard() {
         { id: 'visao-geral', label: 'Visão Geral', icon: <LayoutDashboard size={20} aria-hidden="true" /> },
         { id: 'usuarios', label: 'Equipe', icon: <Users size={20} aria-hidden="true" /> },
         { id: 'veiculos', label: 'Veículos', icon: <CarFront size={20} aria-hidden="true" /> },
-        { id: 'estoque-concessionarias', label: 'Estoque das lojas', icon: <Warehouse size={20} aria-hidden="true" /> },
+        { id: 'estoque-concessionarias', label: 'Estoque', icon: <Warehouse size={20} aria-hidden="true" /> },
         { id: 'catalogo', label: 'Catálogo', icon: <BookOpen size={20} aria-hidden="true" /> },
         { id: 'concessionarias', label: 'Concessionárias', icon: <Building2 size={20} aria-hidden="true" /> },
         { id: 'transportadoras', label: 'Frete', icon: <Truck size={20} aria-hidden="true" /> },
@@ -253,102 +250,20 @@ export default function AdminDashboard() {
 
     return (
         <ConfigContext.Provider value={{ margem, fixedMargin, marginMode, setMargem: (v: number) => updateMargem(v, marginMode, fixedMargin), setMarginConfig: ({ margem: v, marginMode: m, fixedMargin: f }) => updateMargem(v, m, f) }}>
-            <div className={styles.layoutWrapper}>
-                <aside
-                    className={`${styles.sidebar} ${isSidebarCollapsed ? styles.sidebarCollapsed : ''}`}
-                    onMouseEnter={() => setIsSidebarCollapsed(false)}
-                    onMouseLeave={() => setIsSidebarCollapsed(true)}
-                    onFocusCapture={(event) => {
-                        if (event.target.matches(':focus-visible')) setIsSidebarCollapsed(false);
-                    }}
-                    onBlurCapture={(event) => {
-                        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setIsSidebarCollapsed(true);
-                    }}
-                >
-                    <div className={styles.sidebarHeader}>
-                        {!isSidebarCollapsed && (
-                            <Image
-                                src="/images/logo.png"
-                                alt="Logo"
-                                width={160}
-                                height={54}
-                                className={styles.sidebarLogo}
-                                priority
-                            />
-                        )}
-                        {isSidebarCollapsed && (
-                            <div className={styles.collapsedLogoPlaceholder}>
-                                <strong>CNV</strong>
-                            </div>
-                        )}
-                        <button 
-                            className={styles.sidebarToggle}
-                            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                            title={isSidebarCollapsed ? "Expandir menu" : "Minimizar menu"}
-                            aria-label={isSidebarCollapsed ? "Expandir menu" : "Minimizar menu"}
-                            aria-expanded={!isSidebarCollapsed}
-                        >
-                            {isSidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-                        </button>
-                    </div>
-
-                    <div className={styles.sidebarMenuSection}>
-                        {!isSidebarCollapsed && <p className={styles.sidebarMenuLabel}>ADMINISTRAÇÃO</p>}
-                        <nav className={styles.sidebarNav} aria-label="Administração">
-                            {tabs.map((tab) => (
-                                <button
-                                    key={tab.id}
-                                    className={`${styles.sidebarItem} ${activeTab === tab.id ? styles.sidebarItemActive : ''}`}
-                                    onClick={() => abrirTab(tab.id)}
-                                    title={tab.label}
-                                    aria-label={tab.label}
-                                    aria-current={activeTab === tab.id ? "page" : undefined}
-                                >
-                                    <span className={styles.sidebarItemIcon}>{tab.icon}</span>
-                                    <span className={styles.sidebarItemLabel}>{tab.label}</span>
-                                </button>
-                            ))}
-                        </nav>
-                    </div>
-
-                    <div className={styles.sidebarFooter}>
-                        <UserMenu
-                            name={userInfo.name || 'Administrador'}
-                            email={userInfo.email}
-                            role={userInfo.profile === 'gerente' ? 'Gerente' : userInfo.profile === 'marketing' ? 'Marketing' : 'Administrador'}
-                            isDropup={true}
-                            alignLeft={true}
-                            compact={isSidebarCollapsed}
-                        />
-                    </div>
-                </aside>
-
-                <main className={styles.mainContent}>
-                    <header className={styles.mobileHeader}>
-                        <Image
-                            src="/images/logo.png"
-                            alt="Logo"
-                            width={110}
-                            height={37}
-                            className={styles.mobileHeaderLogo}
-                            priority
-                        />
-                    </header>
-                    {renderTabContent()}
-                </main>
-
-                <MobileTabBar
-                    items={tabs.map((tab) => ({ id: tab.id, label: tab.label, icon: tab.icon }))}
-                    primaryIds={['visao-geral', 'veiculos', 'crm', 'usuarios']}
-                    activeId={activeTab}
-                    onSelect={abrirTab}
-                    user={{
-                        name: userInfo.name || 'Administrador',
-                        email: userInfo.email,
-                        role: userInfo.profile === 'gerente' ? 'Gerente' : userInfo.profile === 'marketing' ? 'Marketing' : 'Administrador',
-                    }}
-                />
-            </div>
+            <DashboardShell
+                sectionLabel="Administração"
+                tabs={tabs}
+                activeId={activeTab}
+                onSelect={abrirTab}
+                primaryIds={['visao-geral', 'veiculos', 'crm', 'usuarios']}
+                user={{
+                    name: userInfo.name || 'Administrador',
+                    email: userInfo.email,
+                    role: userInfo.profile === 'gerente' ? 'Gerente' : userInfo.profile === 'marketing' ? 'Marketing' : 'Administrador',
+                }}
+            >
+                {renderTabContent()}
+            </DashboardShell>
         </ConfigContext.Provider>
     );
 }

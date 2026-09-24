@@ -24,6 +24,9 @@ export interface IRepasseVehicle extends Document {
     observacoes?: string;
     /** true = modelo digitado à mão, sem correspondência no catálogo mestre. */
     foraDoCatalogo?: boolean;
+    /** Vínculo FIPE escolhido no cadastro (000000-0) e a descrição original da FIPE. */
+    codigoFipe?: string;
+    descricaoFipe?: string;
     status: RepasseStatus;
     /** false = removido pela concessionária (vendeu ou desistiu). Fica no histórico. */
     ativo: boolean;
@@ -49,6 +52,8 @@ const RepasseVehicleSchema: Schema = new Schema({
     preco: { type: Number, required: true, min: 0 },
     observacoes: { type: String, trim: true },
     foraDoCatalogo: { type: Boolean, default: false },
+    codigoFipe: { type: String, trim: true, index: true },
+    descricaoFipe: { type: String, trim: true },
     status: { type: String, enum: REPASSE_STATUS, default: 'Disponível', index: true },
     ativo: { type: Boolean, default: true, index: true },
     removidoEm: { type: Date, default: null },

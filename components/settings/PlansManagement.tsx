@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
 
 type Publico = 'cliente' | 'concessionaria';
 
@@ -94,14 +95,6 @@ export function PlansManagement() {
     };
 
     useEffect(() => { fetchPlans(); }, []);
-
-    // ESC fecha o modal — clicar fora já fechava, o teclado não.
-    useEffect(() => {
-        if (!showModal) return;
-        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowModal(false); };
-        window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
-    }, [showModal]);
 
     const openCreate = () => {
         setEditing(null);
@@ -342,239 +335,183 @@ export function PlansManagement() {
             )}
 
             {showModal && (
-                <div
-                    style={{
-                        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
-                    }}
-                    onClick={e => { if (e.target === e.currentTarget) setShowModal(false); }}
+                <AdminModal
+                    title={editing ? 'Editar plano' : 'Novo plano'}
+                    onClose={() => setShowModal(false)}
+                    size="md"
+                    busy={saving}
+                    onSubmit={handleSave}
+                    footer={<>
+                        <button type="button" className={modalStyles.secondary} onClick={() => setShowModal(false)}>
+                            Cancelar
+                        </button>
+                        <button type="submit" className={modalStyles.primary} disabled={saving}>
+                            {saving ? 'Salvando...' : 'Salvar'}
+                        </button>
+                    </>}
                 >
-                    <div role="dialog" aria-modal="true" aria-label={editing ? 'Editar plano' : 'Novo plano'} style={{
-                        background: 'var(--color-surface)', borderRadius: '12px', padding: '2rem',
-                        width: '100%', maxWidth: '460px',
-                        // O formulário é mais alto que a janela: sem rolagem
-                        // própria, o título e os primeiros campos ficavam fora
-                        // da tela, sem como alcançá-los.
-                        maxHeight: '90vh', overflowY: 'auto', margin: '1rem',
-                        boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
-                    }}>
-                        <h3 style={{ margin: '0 0 1.5rem', fontWeight: 700, fontSize: '1.1rem' }}>
-                            {editing ? 'Editar Plano' : 'Novo Plano'}
-                        </h3>
-                        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            <div>
-                                <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: 'var(--admin-text, #374151)' }}>
-                                    Nome do plano *
-                                </label>
-                                <input
-                                    required
-                                    value={form.name}
-                                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                                    placeholder="Ex: Plano Profissional"
-                                    style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid var(--admin-border, #e5e7eb)', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
-                                />
-                            </div>
-                            <div>
-                                <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: 'var(--admin-text, #374151)' }}>
-                                    Descrição
-                                </label>
-                                <input
-                                    value={form.description}
-                                    onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                                    placeholder="Descrição opcional"
-                                    style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid var(--admin-border, #e5e7eb)', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
-                                />
-                            </div>
-                            <div>
-                                <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: 'var(--admin-text, #374151)' }}>
-                                    Para quem é o plano *
-                                </label>
-                                <select
-                                    value={form.publico}
-                                    onChange={e => {
-                                        const publico = e.target.value as Publico;
-                                        setForm(f => ({ ...f, publico, ...(publico === 'concessionaria' ? { type: 'monthly' as const } : {}) }));
-                                    }}
-                                    style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid var(--admin-border, #e5e7eb)', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
-                                >
-                                    <option value="cliente">Lojista (acesso à vitrine)</option>
-                                    <option value="concessionaria">Concessionária (anunciar repasse)</option>
-                                </select>
-                                {form.publico === 'concessionaria' && (
-                                    <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: 'var(--admin-muted, #6b7280)' }}>
-                                        A concessionária contrata no painel Estoque e Preços, aba Repasse, e paga por PIX. Sempre mensal, com opção anual. Não aparece na landing nem para o lojista.
-                                    </p>
-                                )}
-                            </div>
-                            {form.publico === 'cliente' && (
-                            <div>
-                                <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: 'var(--admin-text, #374151)' }}>
-                                    Tipo *
-                                </label>
+                    <div className={modalStyles.stack}>
+                        <label className={modalStyles.field}>
+                            Nome do plano *
+                            <input
+                                required
+                                value={form.name}
+                                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                                placeholder="Ex: Plano Profissional"
+                            />
+                        </label>
+                        <label className={modalStyles.field}>
+                            Descrição
+                            <input
+                                value={form.description}
+                                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                                placeholder="Descrição opcional"
+                            />
+                        </label>
+                        <label className={modalStyles.field}>
+                            Para quem é o plano *
+                            <select
+                                value={form.publico}
+                                onChange={e => {
+                                    const publico = e.target.value as Publico;
+                                    setForm(f => ({ ...f, publico, ...(publico === 'concessionaria' ? { type: 'monthly' as const } : {}) }));
+                                }}
+                            >
+                                <option value="cliente">Lojista (acesso à vitrine)</option>
+                                <option value="concessionaria">Concessionária (anunciar repasse)</option>
+                            </select>
+                            {form.publico === 'concessionaria' && (
+                                <span className={modalStyles.hint}>
+                                    A concessionária contrata no painel Estoque e Preços, aba Repasse, e paga por PIX. Sempre mensal, com opção anual. Não aparece na landing nem para o lojista.
+                                </span>
+                            )}
+                        </label>
+                        {form.publico === 'cliente' && (
+                            <label className={modalStyles.field}>
+                                Tipo *
                                 <select
                                     value={form.type}
                                     onChange={e => setForm(f => ({ ...f, type: e.target.value as 'monthly' | 'credits' }))}
-                                    style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid var(--admin-border, #e5e7eb)', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
                                 >
                                     <option value="credits">Pacote de Créditos</option>
                                     <option value="monthly">Plano Mensal (ilimitado)</option>
                                 </select>
-                            </div>
-                            )}
-                            {form.publico === 'cliente' && form.type === 'credits' && (
-                                <div>
-                                    <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: 'var(--admin-text, #374151)' }}>
-                                        Quantidade de créditos *
-                                    </label>
-                                    <input
-                                        required
-                                        type="text"
-                                        inputMode="numeric"
-                                        value={form.credits}
-                                        onChange={e => setForm(f => ({ ...f, credits: e.target.value.replace(/\D/g, '') }))}
-                                        placeholder="Ex: 10"
-                                        style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid var(--admin-border, #e5e7eb)', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
-                                    />
-                                </div>
-                            )}
-                            <div>
-                                <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: 'var(--admin-text, #374151)' }}>
-                                    {form.type === 'credits' ? 'Preço do pacote (R$) *' : 'Preço mensal (R$) *'}
-                                </label>
+                            </label>
+                        )}
+                        {form.publico === 'cliente' && form.type === 'credits' && (
+                            <label className={modalStyles.field}>
+                                Quantidade de créditos *
                                 <input
                                     required
                                     type="text"
+                                    inputMode="numeric"
+                                    value={form.credits}
+                                    onChange={e => setForm(f => ({ ...f, credits: e.target.value.replace(/\D/g, '') }))}
+                                    placeholder="Ex: 10"
+                                />
+                            </label>
+                        )}
+                        <label className={modalStyles.field}>
+                            {form.type === 'credits' ? 'Preço do pacote (R$) *' : 'Preço mensal (R$) *'}
+                            <input
+                                required
+                                type="text"
+                                inputMode="decimal"
+                                value={form.price}
+                                onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
+                                placeholder="Ex: 699,90"
+                            />
+                        </label>
+                        {form.type === 'monthly' && (
+                            <label className={modalStyles.field}>
+                                Preço anual total (R$)
+                                <input
+                                    type="text"
                                     inputMode="decimal"
-                                    value={form.price}
-                                    onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
-                                    placeholder="Ex: 699,90"
-                                    style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid var(--admin-border, #e5e7eb)', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
+                                    value={form.annualPrice}
+                                    onChange={e => setForm(f => ({ ...f, annualPrice: e.target.value }))}
+                                    placeholder="Ex: 7198,80"
                                 />
-                            </div>
-                            {form.type === 'monthly' && (
-                                <div>
-                                    <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: 'var(--admin-text, #374151)' }}>
-                                        Preço anual total (R$)
-                                    </label>
-                                    <input
-                                        type="text"
-                                        inputMode="decimal"
-                                        value={form.annualPrice}
-                                        onChange={e => setForm(f => ({ ...f, annualPrice: e.target.value }))}
-                                        placeholder="Ex: 7198,80"
-                                        style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid var(--admin-border, #e5e7eb)', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
-                                    />
-                                    {(() => {
-                                        const anual = parseAmount(form.annualPrice);
-                                        const mensal = parseAmount(form.price);
-                                        if (!anual || !mensal || mensal <= 0) return null;
-                                        const monthlyEquiv = anual / 12;
-                                        const saving = mensal - monthlyEquiv;
-                                        const pct = Math.round((saving / mensal) * 100);
-                                        return (
-                                            <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#16a34a', fontWeight: 700 }}>
-                                                🏷️ {pct > 0 ? `${pct}% de desconto` : 'Desconto'} · equivale a R$ {monthlyEquiv.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mês
-                                            </p>
-                                        );
-                                    })()}
-                                    <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: 'var(--admin-muted, #6b7280)' }}>
-                                        Deixe em branco para não mostrar opção anual neste plano.
-                                    </p>
-                                </div>
-                            )}
-                            <div>
-                                <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: 'var(--admin-text, #374151)' }}>
-                                    Recursos incluídos
-                                </label>
-                                <textarea
-                                    rows={5}
-                                    value={form.featuresText}
-                                    onChange={e => setForm(f => ({ ...f, featuresText: e.target.value }))}
-                                    placeholder={`Um recurso por linha. Ex:\nVisualização completa do estoque\nDados completos da concessionária\nNegociação direta sem intermediários`}
-                                    style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid var(--admin-border, #e5e7eb)', borderRadius: '8px', fontSize: '0.875rem', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }}
-                                />
-                                <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: 'var(--admin-muted, #6b7280)' }}>
-                                    {form.publico === 'concessionaria'
-                                        ? 'Aparece na tela de contratação do painel da concessionária.'
-                                        : 'Aparece como lista de benefícios no card do plano na LP.'}
-                                </p>
-                            </div>
-                            {form.publico === 'cliente' && (<>
-                            <div>
-                                <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: 4, color: 'var(--admin-text, #374151)' }}>
-                                    Preço por convidado (R$/mês)
-                                </label>
+                                {(() => {
+                                    const anual = parseAmount(form.annualPrice);
+                                    const mensal = parseAmount(form.price);
+                                    if (!anual || !mensal || mensal <= 0) return null;
+                                    const monthlyEquiv = anual / 12;
+                                    const saving = mensal - monthlyEquiv;
+                                    const pct = Math.round((saving / mensal) * 100);
+                                    return (
+                                        <span style={{ fontSize: '0.8rem', color: 'var(--color-positive)', fontWeight: 700 }}>
+                                            {pct > 0 ? `${pct}% de desconto` : 'Desconto'} · equivale a R$ {monthlyEquiv.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mês
+                                        </span>
+                                    );
+                                })()}
+                                <span className={modalStyles.hint}>
+                                    Deixe em branco para não mostrar opção anual neste plano.
+                                </span>
+                            </label>
+                        )}
+                        <label className={modalStyles.field}>
+                            Recursos incluídos
+                            <textarea
+                                rows={5}
+                                value={form.featuresText}
+                                onChange={e => setForm(f => ({ ...f, featuresText: e.target.value }))}
+                                placeholder={`Um recurso por linha. Ex:\nVisualização completa do estoque\nDados completos da concessionária\nNegociação direta sem intermediários`}
+                                style={{ resize: 'vertical', fontFamily: 'inherit' }}
+                            />
+                            <span className={modalStyles.hint}>
+                                {form.publico === 'concessionaria'
+                                    ? 'Aparece na tela de contratação do painel da concessionária.'
+                                    : 'Aparece como lista de benefícios no card do plano na LP.'}
+                            </span>
+                        </label>
+                        {form.publico === 'cliente' && (
+                            <label className={modalStyles.field}>
+                                Preço por convidado (R$/mês)
                                 <input
                                     type="text"
                                     inputMode="decimal"
                                     value={form.invitePrice}
                                     onChange={e => setForm(f => ({ ...f, invitePrice: e.target.value }))}
                                     placeholder="Ex: 9,90"
-                                    style={{ width: '100%', padding: '0.65rem 0.875rem', border: '1px solid var(--admin-border, #e5e7eb)', borderRadius: '8px', fontSize: '0.95rem', boxSizing: 'border-box' }}
                                 />
-                                <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: 'var(--admin-muted, #6b7280)' }}>
+                                <span className={modalStyles.hint}>
                                     Cobrado mensalmente por cada usuário convidado ativo.
-                                </p>
-                            </div>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={form.popular}
-                                    onChange={e => setForm(f => ({ ...f, popular: e.target.checked }))}
-                                    style={{ width: '16px', height: '16px' }}
-                                />
-                                <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>
-                                    Destacar como “Mais popular” na LP
                                 </span>
                             </label>
-                            </>)}
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                        )}
+                        <div className={modalStyles.choices}>
+                            {form.publico === 'cliente' && (
+                                <label className={modalStyles.choice}>
+                                    <input
+                                        type="checkbox"
+                                        checked={form.popular}
+                                        onChange={e => setForm(f => ({ ...f, popular: e.target.checked }))}
+                                    />
+                                    Destacar como “Mais popular” na LP
+                                </label>
+                            )}
+                            <label className={modalStyles.choice}>
                                 <input
                                     type="checkbox"
                                     checked={form.active}
                                     onChange={e => setForm(f => ({ ...f, active: e.target.checked }))}
-                                    style={{ width: '16px', height: '16px' }}
                                 />
-                                <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>
-                                    Plano ativo (visível para usuários)
-                                </span>
+                                Plano ativo (visível para usuários)
                             </label>
-                            {formError && (
-                                <p role="alert" style={{
-                                    margin: 0, padding: '0.65rem 0.875rem', borderRadius: '8px',
-                                    background: '#fef2f2', border: '1px solid #fecaca',
-                                    color: '#b91c1c', fontSize: '0.85rem', fontWeight: 600
-                                }}>
-                                    {formError}
-                                </p>
-                            )}
-                            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowModal(false)}
-                                    style={{
-                                        flex: 1, background: 'var(--admin-panel, #f3f4f6)', border: '1px solid var(--admin-border, #e5e7eb)',
-                                        borderRadius: '8px', padding: '0.75rem', fontWeight: 600, cursor: 'pointer'
-                                    }}
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={saving}
-                                    style={{
-                                        flex: 1, background: saving ? '#93c5fd' : '#2563eb',
-                                        color: 'white', border: 'none', borderRadius: '8px',
-                                        padding: '0.75rem', fontWeight: 700,
-                                        cursor: saving ? 'not-allowed' : 'pointer'
-                                    }}
-                                >
-                                    {saving ? 'Salvando...' : 'Salvar'}
-                                </button>
-                            </div>
-                        </form>
+                        </div>
+                        {formError && (
+                            <p role="alert" style={{
+                                margin: 0, padding: '0.65rem 0.875rem', borderRadius: '8px',
+                                background: 'color-mix(in srgb, var(--color-negative) 10%, transparent)',
+                                border: '1px solid color-mix(in srgb, var(--color-negative) 30%, transparent)',
+                                color: 'var(--color-negative)', fontSize: '0.85rem', fontWeight: 600
+                            }}>
+                                {formError}
+                            </p>
+                        )}
                     </div>
-                </div>
+                </AdminModal>
             )}
         </div>
     );
