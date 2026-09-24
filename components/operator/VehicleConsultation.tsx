@@ -22,7 +22,7 @@ import { VehicleGrid, getStatusColor } from './VehicleGrid';
 import { VehicleTable } from './VehicleTable';
 import { VehicleSidebar, TipoSegmento } from './VehicleSidebar';
 import { VehicleFiltersBar } from './VehicleFiltersBar';
-import { VehicleActionsHeader } from './VehicleActionsHeader';
+import { VehicleActionsHeader, ViewToggle } from './VehicleActionsHeader';
 
 import { BRAZIL_STATES, STATUS_OPTIONS, YEAR_REGEX, fuelLookup, statusLookup, transmissionLookup } from '../../lib/utils/constants';
 import { calculateDaysSinceUpdate, formatDate, formatDateForInput, getUpdateStatusColor, normalizeString } from '../../lib/utils/formatters';
@@ -1269,6 +1269,20 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                 onClose={onClose}
                 setShowUpgradeModal={setShowUpgradeModal}
                 banner={showBanners || bannerRole ? <BannerCarouselHorizontal role={bannerRole ?? 'client'} /> : undefined}
+                aside={
+                    <div className={styles.freteHeader}>
+                        <span className={styles.freteBannerLabel}>Transportadora parceira</span>
+                        <span className={styles.freteBannerNome}>{TRANSPORTADORA_PARCEIRA.nome}</span>
+                        <a
+                            href={whatsappTransportadora()}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={styles.freteBannerContato}
+                        >
+                            <FaWhatsapp aria-hidden="true" /> {telefoneTransportadora()}
+                        </a>
+                    </div>
+                }
                 title={favoritesOnly ? 'Favoritos' : undefined}
             />
 
@@ -1311,20 +1325,8 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                         setCurrentPage={setCurrentPage}
                         totalItems={totalItems}
                         totalQuantidade={totalQuantidade}
+                        rightSlot={isMobile ? undefined : <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />}
                     />
-
-                    <div className={styles.freteBanner}>
-                        <span className={styles.freteBannerLabel}>Transportadora parceira</span>
-                        <span className={styles.freteBannerNome}>{TRANSPORTADORA_PARCEIRA.nome}</span>
-                        <a
-                            href={whatsappTransportadora()}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={styles.freteBannerContato}
-                        >
-                            <FaWhatsapp aria-hidden="true" /> {telefoneTransportadora()}
-                        </a>
-                    </div>
 
                     {favoritesOnly && favoritos.count > 0 && (
                         <div className={styles.monitorados} aria-label="Carros monitorados">
@@ -1424,6 +1426,11 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                                     <option value={-1}>Todos</option>
                                 </select>
                             </div>
+
+                            {/* Total de veículos no rodapé, centralizado entre "Itens por página" e a paginação. */}
+                            <span className={styles.paginationTotal}>
+                                {(totalQuantidade || 0).toLocaleString('pt-BR')} {totalQuantidade === 1 ? 'veículo disponível' : 'veículos disponíveis'}
+                            </span>
 
                             <div className={styles.paginationControls}>
                                 <button

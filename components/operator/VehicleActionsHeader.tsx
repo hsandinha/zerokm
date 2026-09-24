@@ -20,6 +20,10 @@ interface VehicleActionsHeaderProps {
     banner?: React.ReactNode;
     /** Título do cabeçalho. Padrão: "Consulta de Veículos"; a aba Favoritos do cliente usa "Favoritos". */
     title?: string;
+    /** Linha abaixo do título (ex.: quantidade de veículos disponíveis). */
+    subtitle?: React.ReactNode;
+    /** Bloco ao lado do banner (ex.: transportadora parceira). */
+    aside?: React.ReactNode;
 }
 
 export function VehicleActionsHeader({
@@ -37,12 +41,20 @@ export function VehicleActionsHeader({
     onClose,
     setShowUpgradeModal,
     banner,
-    title = 'Consulta de Veículos'
+    title = 'Consulta de Veículos',
+    subtitle,
+    aside
 }: VehicleActionsHeaderProps) {
     return (
         <div className={styles.header}>
-            <h2>{title}</h2>
+            <div className={styles.headerTitleGroup}>
+                <div className={styles.headerTitleRow}>
+                    <h2>{title}</h2>
+                    {subtitle && <span className={styles.headerCount}>{subtitle}</span>}
+                </div>
+            </div>
             {banner && <div className={styles.headerBanner}><div className={styles.headerBannerInner}>{banner}</div></div>}
+            {aside}
             <div className={styles.headerActions}>
                 {role !== 'client' && selectedIds.length > 0 && (
                     <>
@@ -117,32 +129,40 @@ export function VehicleActionsHeader({
                     </button>
                 )}
 
-                <div className={styles.viewToggle}>
-                    <button
-                        className={`${styles.viewButton} ${viewMode === 'table' ? styles.active : ''}`}
-                        onClick={() => setViewMode('table')}
-                        title="Visualização em Tabela"
-                        aria-label="Visualização em Tabela"
-                        aria-pressed={viewMode === 'table'}
-                    >
-                        <Table2 size={17} aria-hidden="true" />
-                    </button>
-                    <button
-                        className={`${styles.viewButton} ${viewMode === 'grid' ? styles.active : ''}`}
-                        onClick={() => setViewMode('grid')}
-                        title="Visualização em Grade"
-                        aria-label="Visualização em Grade"
-                        aria-pressed={viewMode === 'grid'}
-                    >
-                        <LayoutGrid size={17} aria-hidden="true" />
-                    </button>
-                </div>
                 {onClose && (
                     <button className={styles.closeButton} onClick={onClose} aria-label="Fechar consulta">
                         <X size={16} aria-hidden="true" />
                     </button>
                 )}
             </div>
+        </div>
+    );
+}
+
+/** Alternância entre tabela e cards. Fica na linha da busca, junto de "Limpar filtros". */
+export function ViewToggle({ viewMode, setViewMode }: { viewMode: 'table' | 'grid'; setViewMode: (mode: 'table' | 'grid') => void }) {
+    return (
+        <div className={styles.viewToggle} role="group" aria-label="Forma de exibição">
+            <button
+                type="button"
+                className={`${styles.viewButton} ${viewMode === 'table' ? styles.active : ''}`}
+                onClick={() => setViewMode('table')}
+                title="Ver em tabela"
+                aria-label="Ver em tabela"
+                aria-pressed={viewMode === 'table'}
+            >
+                <Table2 size={17} aria-hidden="true" />
+            </button>
+            <button
+                type="button"
+                className={`${styles.viewButton} ${viewMode === 'grid' ? styles.active : ''}`}
+                onClick={() => setViewMode('grid')}
+                title="Ver em cards"
+                aria-label="Ver em cards"
+                aria-pressed={viewMode === 'grid'}
+            >
+                <LayoutGrid size={17} aria-hidden="true" />
+            </button>
         </div>
     );
 }

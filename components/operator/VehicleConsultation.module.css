@@ -152,7 +152,6 @@
     display: flex;
     gap: 0.5rem;
     align-items: center;
-    margin-bottom: 1rem;
 }
 
 .searchInput {
@@ -203,7 +202,7 @@
     justify-content: flex-start;
     align-items: center;
     gap: 1rem;
-    margin-top: 1rem;
+    margin-top: 0.75rem;
 }
 
 .searchText {
@@ -2035,3 +2034,74 @@
 }
 
 .monitoradoRemover:hover { background: var(--admin-hover, var(--color-panel)); color: var(--color-text); }
+
+
+/* Cabeçalho compacto: título com a contagem, banner, transportadora parceira e ações
+   numa linha só; busca, "Limpar filtros" e tabela/cards na linha de baixo. */
+.headerTitleGroup { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: none; }
+.headerTitleGroup h2 { margin: 0; }
+.headerTitleRow { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+/* Total de veículos ao lado do título: visível sem ocupar uma linha própria. */
+.headerCount {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--admin-selected-text, var(--color-text));
+    background: var(--admin-selected, var(--color-panel));
+    border: 1px solid var(--admin-border, var(--color-highlight));
+}
+
+.freteHeader {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 10px 12px;
+    border: 1px solid var(--admin-border, var(--color-highlight));
+    border-left: 3px solid var(--color-positive, #25d366);
+    border-radius: 10px;
+    background: var(--color-surface);
+}
+.freteHeader .freteBannerLabel { font-size: 10px; }
+.freteHeader .freteBannerNome { font-size: 14px; line-height: 1.2; }
+.freteHeader .freteBannerContato { margin-left: 0; padding: 0.3rem 0.65rem; font-size: 0.78rem; }
+
+.searchContainer .viewToggle { flex: none; }
+
+:global([data-admin-design]) .header:has(.headerBanner) { padding-top: 12px; padding-bottom: 12px; }
+
+/* Tela estreita: a transportadora desce para uma faixa fina no fim do cabeçalho. */
+@media (max-width: 1100px) {
+    .header:has(.freteHeader) { flex-wrap: wrap; }
+    .freteHeader { order: 5; flex-basis: 100%; flex-direction: row; align-items: center; flex-wrap: wrap; gap: 10px; padding: 8px 12px; }
+    .freteHeader .freteBannerContato { margin-left: auto; }
+}
+
+@media (max-width: 768px) {
+}
+
+/* Rodapé: "Itens por página" | total de veículos (centro) | paginação.
+   Laterais com o mesmo peso para o total ficar exatamente no meio. */
+.paginationContainer > .itemsPerPage { flex: 1 1 0; }
+.paginationContainer > .paginationControls { flex: 1 1 0; justify-content: flex-end; }
+.paginationTotal {
+    flex: none;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--admin-selected-text, var(--color-text));
+    background: var(--admin-selected, var(--color-panel));
+}
+
+@media (max-width: 768px) {
+    .paginationContainer > .itemsPerPage,
+    .paginationContainer > .paginationControls { flex: none; justify-content: center; }
+    .paginationTotal { order: -1; }
+}

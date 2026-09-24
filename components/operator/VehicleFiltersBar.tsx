@@ -14,6 +14,8 @@ interface VehicleFiltersBarProps {
     setCurrentPage: (page: number) => void;
     totalItems: number;
     totalQuantidade: number;
+    /** Controles no fim da linha da busca (ex.: tabela ou cards). */
+    rightSlot?: React.ReactNode;
 }
 
 export function VehicleFiltersBar({
@@ -28,8 +30,11 @@ export function VehicleFiltersBar({
     setPrefixWarnings,
     setCurrentPage,
     totalItems,
-    totalQuantidade
+    totalQuantidade,
+    rightSlot
 }: VehicleFiltersBarProps) {
+    // Linha de filtros aplicados só existe quando há algo aplicado: libera altura para a lista.
+    const temChips = Boolean(searchTerm) || Object.values(filters || {}).some(Boolean) || prefixWarnings.length > 0;
     return (
         <div className={styles.searchSection}>
             <div className={styles.searchContainer}>
@@ -51,9 +56,10 @@ export function VehicleFiltersBar({
                 <button onClick={clearFilters} className={styles.clearButton}>
                     Limpar filtros
                 </button>
+                {rightSlot}
             </div>
 
-            <div className={styles.searchInfo}>
+            {temChips && <div className={styles.searchInfo}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', width: '100%' }}>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
                         {searchTerm && (
@@ -136,7 +142,6 @@ export function VehicleFiltersBar({
                         )}
                     </div>
 
-                    <h3 style={{ margin: 0, marginLeft: 'auto' }}>Veículos Disponíveis ({totalQuantidade})</h3>
                 </div>
 
                 {prefixWarnings.length > 0 && (
@@ -144,7 +149,7 @@ export function VehicleFiltersBar({
                         {prefixWarnings.map((w, i) => (<div key={i}>⚠️ {w}</div>))}
                     </div>
                 )}
-            </div>
+            </div>}
         </div>
     );
 }
