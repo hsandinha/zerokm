@@ -1,11 +1,12 @@
 .carouselContainer {
     width: 100%;
-    margin-bottom: 0;
+    margin: -8px 0 0;
     border-radius: 12px;
     overflow: hidden;
     position: relative;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    background: var(--color-surface, #fff);
+    border: 1px solid var(--admin-border, var(--color-highlight));
+    box-shadow: var(--admin-shadow, none);
+    background: var(--color-surface);
     display: flex;
     height: 100%;
 }
@@ -41,13 +42,13 @@
     position: absolute;
     top: 0.5rem;
     left: 0.5rem;
-    background: linear-gradient(135deg, #ff6b00 0%, #ff8c00 100%);
-    color: white;
-    padding: 0.2rem 0.5rem;
-    font-size: 0.6rem;
-    font-weight: 800;
-    border-radius: 4px;
-    box-shadow: 0 2px 5px rgba(255, 107, 0, 0.3);
+    background: var(--color-accent);
+    color: var(--admin-on-accent, #102333);
+    padding: 3px 8px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    border-radius: 999px;
     z-index: 2;
     text-transform: uppercase;
 }
@@ -70,7 +71,7 @@
 .price {
     font-size: 1.2rem;
     font-weight: 800;
-    color: #00d284;
+    color: var(--color-positive);
     line-height: 1;
 }
 
@@ -202,7 +203,7 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.2);
+    background: color-mix(in srgb, var(--color-text) 22%, transparent);
     border: none;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -210,7 +211,7 @@
 }
 
 .dotActive {
-    background: #000;
+    background: var(--color-text);
     transform: scale(1.3);
 }
 
@@ -218,8 +219,8 @@
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    background: rgba(255, 255, 255, 0.9);
-    border: none;
+    background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+    border: 1px solid var(--admin-border, var(--color-highlight));
     border-radius: 50%;
     width: 28px;
     height: 28px;
@@ -228,13 +229,13 @@
     justify-content: center;
     cursor: pointer;
     z-index: 10;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
-    color: #333;
+    box-shadow: var(--admin-shadow, none);
+    color: var(--color-text);
     transition: background 0.2s;
 }
 
 .navButton:hover {
-    background: #fff;
+    background: var(--color-surface);
 }
 
 .navButtonLeft {

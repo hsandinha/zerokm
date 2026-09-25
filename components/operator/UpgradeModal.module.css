@@ -1,179 +1,137 @@
 /* Corpo: o AdminModal cuida de padding e rolagem */
-.body {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-}
+.body { display: flex; flex-direction: column; gap: 20px; }
 
 .loading,
-.empty {
-    text-align: center;
-    color: var(--color-text-muted);
-    padding: 2rem 0;
-    font-size: 0.9rem;
-}
+.empty { margin: 0; padding: 32px 0; text-align: center; font-size: 14px; color: var(--color-text-muted); }
 
 .error {
-    background: color-mix(in srgb, var(--color-negative) 10%, transparent);
-    border: 1px solid color-mix(in srgb, var(--color-negative) 30%, transparent);
+    margin: 0; padding: 10px 14px; border-radius: 10px; font-size: 13.5px; font-weight: 500;
     color: var(--color-negative);
-    border-radius: 8px;
-    padding: 0.75rem 1rem;
-    font-size: 0.875rem;
+    background: color-mix(in srgb, var(--color-negative) 9%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-negative) 28%, transparent);
 }
 
-/* Section labels */
-.sectionLabel {
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    margin: 0 0 0.75rem;
+.success { margin: 0; text-align: center; font-size: 16px; font-weight: 650; color: var(--color-positive); }
+
+/* ---------- Etapas (dados, forma de pagamento, PIX, boleto) ---------- */
+.step { display: flex; flex-direction: column; gap: 16px; }
+
+.stepCenter { align-items: center; text-align: center; }
+
+.stepTitle { margin: 0; font-size: 18px; font-weight: 650; color: var(--color-text); }
+
+.stepIntro { margin: 0; max-width: 460px; font-size: 14px; line-height: 1.55; color: var(--color-text-muted); }
+
+.stepCenter .stepIntro { margin: 0 auto; }
+
+.stepActions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+.hint { margin: 0; font-size: 12.5px; font-weight: 400; color: var(--color-text-muted); }
+
+.formGrid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px 12px; }
+
+.c1 { grid-column: span 1; }
+
+.c2 { grid-column: span 2; }
+
+.c3 { grid-column: span 3; }
+
+.c4 { grid-column: span 4; }
+
+.summary { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 16px; border-radius: 12px; background: var(--color-panel); text-align: center; width: 100%; }
+
+.summaryLabel { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted); }
+
+.summaryValue { font-size: 30px; font-weight: 750; letter-spacing: -.03em; line-height: 1.15; color: var(--color-text); font-variant-numeric: tabular-nums; }
+
+.summaryValue small { font-size: 14px; font-weight: 500; letter-spacing: 0; color: var(--color-text-muted); }
+
+.summaryNote { font-size: 13px; color: var(--color-text-muted); }
+
+.summaryNote strong { color: var(--color-text); }
+
+.methodList { display: flex; flex-direction: column; gap: 10px; }
+
+.methodOption {
+    display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 16px; text-align: left;
+    border: 1px solid var(--admin-border, var(--color-highlight)); border-radius: 12px;
+    background: var(--color-surface); color: var(--color-text); cursor: pointer;
+    transition: border-color 150ms, background 150ms;
 }
 
-/* Monthly plan card */
-.monthlyCard {
-    border: 2px solid var(--color-accent);
-    border-radius: 12px;
-    padding: 1.1rem 1.25rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: color-mix(in srgb, var(--color-accent) 7%, transparent);
-    transition: background 0.15s;
-}
+.methodOption:hover:not(:disabled) { border-color: var(--color-primary); background: var(--admin-hover, var(--color-panel)); }
 
-.monthlyCard:hover {
-    background: color-mix(in srgb, var(--color-accent) 12%, transparent);
-}
+.methodOption:disabled { opacity: .6; cursor: progress; }
 
-.planName {
-    font-weight: 700;
-    font-size: 1rem;
-    color: var(--color-text);
-    margin-bottom: 2px;
-}
+.methodIcon { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: 10px; background: var(--color-panel); color: var(--color-text); }
 
-.planDesc {
-    font-size: 0.8rem;
-    color: var(--color-text-muted);
-    margin-bottom: 4px;
-}
+.methodText { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
 
-.planPerks {
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: var(--color-positive);
-}
+.methodText strong { font-size: 15px; font-weight: 600; }
 
-.planPriceBlock {
-    text-align: right;
-    flex-shrink: 0;
-    margin-left: 1rem;
-}
+.methodText span { font-size: 13px; color: var(--color-text-muted); }
 
-.planPrice {
-    font-size: 1.5rem;
-    font-weight: 800;
-    color: var(--color-accent);
-    display: block;
-    line-height: 1;
-    margin-bottom: 8px;
-}
+.methodArrow { flex: none; color: var(--color-text-muted); }
 
-.btnPrimary {
-    background: var(--color-accent);
-    color: var(--admin-on-accent, #102333);
-    border: none;
-    border-radius: 8px;
-    padding: 0.5rem 1.25rem;
-    font-size: 0.875rem;
-    font-weight: 700;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: opacity 0.15s;
-}
-
-.btnPrimary:hover:not(:disabled) {
-    opacity: 0.88;
-}
-
-.btnPrimary:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-/* Credit packs grid */
-.creditsGrid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 0.75rem;
-}
-
-.creditCard {
-    border: 1px solid var(--admin-border, var(--color-highlight));
-    border-radius: 12px;
-    padding: 1rem;
-    text-align: center;
-    background: var(--color-surface);
-    transition: border-color 0.15s, background 0.15s;
-}
-
-.creditCard:hover {
-    border-color: var(--color-accent);
-    background: color-mix(in srgb, var(--color-accent) 5%, transparent);
-}
-
-.creditQty {
-    font-size: 1.8rem;
-    font-weight: 800;
-    color: var(--color-accent);
-    line-height: 1;
-}
-
-.creditUnit {
-    font-size: 0.72rem;
-    color: var(--color-text-muted);
-    margin-bottom: 0.5rem;
-}
-
-.creditDesc {
-    font-size: 0.72rem;
-    color: var(--color-text-muted);
-    margin-bottom: 0.4rem;
-}
-
-.creditPrice {
-    font-weight: 700;
-    color: var(--color-text);
-    font-size: 0.95rem;
-    margin-bottom: 0.75rem;
-}
-
+.btnPrimary,
 .btnSecondary {
-    width: 100%;
-    background: var(--color-highlight);
-    color: var(--color-text);
-    border: 1px solid var(--color-highlight);
-    border-radius: 8px;
-    padding: 0.45rem;
-    font-size: 0.8rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 44px; padding: 0 18px; border-radius: 10px;
+    font-size: 15px; font-weight: 650; text-decoration: none; cursor: pointer; white-space: nowrap;
+    transition: filter 150ms, background 150ms, border-color 150ms;
 }
 
-.btnSecondary:hover:not(:disabled) {
-    background: var(--color-accent);
-    color: var(--admin-on-accent, #102333);
-    border-color: var(--color-accent);
+.btnPrimary { width: 100%; border: 0; background: var(--color-primary); color: var(--color-surface); }
+
+.btnPrimary:hover:not(:disabled) { filter: brightness(1.08); }
+
+.btnSecondary { border: 1px solid var(--admin-border, var(--color-highlight)); background: var(--color-surface); color: var(--color-text); }
+
+.btnSecondary:hover:not(:disabled) { background: var(--admin-hover, var(--color-panel)); }
+
+.btnSecondary[data-copiado] { color: var(--color-positive); border-color: color-mix(in srgb, var(--color-positive) 40%, transparent); }
+
+.btnPrimary:disabled,
+.btnSecondary:disabled { opacity: .5; cursor: not-allowed; }
+
+.linkBack {
+    display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
+    min-height: 36px !important; padding: 0 4px; border: 0; background: transparent;
+    font-size: 13.5px; font-weight: 500; color: var(--color-text-muted); cursor: pointer;
 }
 
-.btnSecondary:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
+.stepCenter .linkBack { align-self: center; }
+
+.linkBack:hover { color: var(--color-text); }
+
+.cvvField { display: flex; flex-direction: column; align-items: center; gap: 6px; align-self: center; font-size: 13px; font-weight: 500; color: var(--color-text-muted); }
+
+.cvvField input { width: 160px; min-height: 52px; text-align: center; font-size: 22px !important; font-weight: 700; letter-spacing: .4em; border-radius: 10px; }
+
+.qrFrame { padding: 16px; border-radius: 16px; background: #fff; border: 1px solid var(--admin-border, var(--color-highlight)); box-shadow: var(--admin-shadow, 0 2px 8px rgb(16 35 51 / 12%)); }
+
+.qrFrame img { display: block; width: 200px; height: 200px; }
+
+.copyRow { display: flex; gap: 8px; width: 100%; }
+
+.copyRow input { flex: 1; min-width: 0; min-height: 44px; padding: 0 12px; border-radius: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px !important; color: var(--color-text-muted); text-overflow: ellipsis; }
+
+.waiting { display: inline-flex; align-items: center; gap: 8px; margin: 0; padding: 8px 14px; border-radius: 999px; font-size: 13px; font-weight: 500; color: var(--color-text); background: var(--color-panel); }
+
+.spin { animation: girar 1s linear infinite; }
+
+.bigSpinner { color: var(--color-primary); }
+
+.pulseDot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-positive); animation: pulsar 1.2s ease-in-out infinite; }
+@keyframes girar { to { transform: rotate(360deg); } }
+@keyframes pulsar { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+
+.altMethods { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; padding-top: 12px; width: 100%; border-top: 1px solid var(--admin-border, var(--color-highlight)); font-size: 13px; color: var(--color-text-muted); }
+
+.chip { display: inline-flex; align-items: center; gap: 6px; min-height: 32px !important; padding: 0 14px; border-radius: 999px; border: 1px solid var(--admin-border, var(--color-highlight)); background: var(--color-surface); color: var(--color-text); font-size: 13px; font-weight: 600; cursor: pointer; }
+
+.chip:hover:not(:disabled) { background: var(--admin-hover, var(--color-panel)); }
+
 /* ---------- Escolha de planos (tabela de preços) ---------- */
 .pricing { display: flex; flex-direction: column; gap: 20px; }
 
@@ -186,6 +144,7 @@
     background: var(--color-panel);
     border: 1px solid var(--admin-border, var(--color-highlight));
 }
+
 .billingSwitch button {
     display: inline-flex;
     align-items: center;
@@ -200,7 +159,9 @@
     font-weight: 600;
     cursor: pointer;
 }
+
 .billingSwitch .billingOn { background: var(--color-surface); color: var(--color-text); box-shadow: 0 1px 3px rgb(16 35 51 / 12%); }
+
 .billingSave {
     padding: 2px 8px;
     border-radius: 999px;
@@ -210,7 +171,11 @@
     background: color-mix(in srgb, var(--color-positive) 14%, transparent);
 }
 
-.pricingGrid { display: grid; gap: 16px; align-items: stretch; }
+.pricingGrid { display: grid; gap: 16px; align-items: stretch; grid-template-columns: minmax(0, 1fr); }
+
+.pricingGrid[data-colunas='2'] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.pricingGrid[data-colunas='3'] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
 .pricingCard {
     position: relative;
@@ -223,7 +188,9 @@
     background: var(--color-surface);
     transition: transform 150ms, box-shadow 150ms, border-color 150ms;
 }
+
 .pricingCard:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgb(16 35 51 / 10%); }
+
 .pricingCardFeatured {
     border: 2px solid var(--color-accent);
     background: linear-gradient(180deg, color-mix(in srgb, var(--color-accent) 9%, var(--color-surface)) 0%, var(--color-surface) 45%);
@@ -245,14 +212,21 @@
 }
 
 .pricingHead { display: flex; flex-direction: column; gap: 4px; }
+
 .pricingName { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; color: var(--color-text); }
+
 .pricingTagline { margin: 0; font-size: 13px; color: var(--color-text-muted); line-height: 1.4; }
 
 .pricingPrice { display: flex; align-items: baseline; gap: 4px; color: var(--color-text); }
+
 .pricingCurrency { font-size: 16px; font-weight: 600; color: var(--color-text-muted); }
+
 .pricingValue { font-size: 38px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; font-variant-numeric: tabular-nums; }
+
 .pricingPeriod { font-size: 15px; font-weight: 500; color: var(--color-text-muted); }
+
 .pricingNote { margin: -8px 0 0; font-size: 12px; color: var(--color-text-muted); }
+
 .pricingNote strong { color: var(--color-positive); font-weight: 700; }
 
 .pricingCta,
@@ -265,9 +239,13 @@
     cursor: pointer;
     transition: filter 150ms, background 150ms;
 }
-.pricingCtaPrimary { border: 0; background: var(--color-accent); color: var(--admin-on-accent, #102333); }
-.pricingCtaPrimary:hover { filter: brightness(0.96); }
+
+.pricingCtaPrimary { border: 0; background: var(--color-primary); color: var(--color-surface); }
+
+.pricingCtaPrimary:hover { filter: brightness(1.08); }
+
 .pricingCta { border: 1px solid var(--color-text); background: transparent; color: var(--color-text); }
+
 .pricingCta:hover { background: var(--admin-hover, var(--color-panel)); }
 
 .pricingFeatures {
@@ -279,7 +257,9 @@
     list-style: none;
     border-top: 1px solid var(--admin-border, var(--color-highlight));
 }
+
 .pricingFeatures li { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; line-height: 1.4; color: var(--color-text); }
+
 .pricingFeatures svg { flex: none; margin-top: 2px; color: var(--color-positive); }
 
 .pricingFooter {
@@ -293,6 +273,14 @@
 }
 
 @media (max-width: 720px) {
-    .pricingGrid { grid-template-columns: minmax(0, 1fr) !important; }
-    .pricingValue { font-size: 32px; }
+
+.pricingGrid[data-colunas] { grid-template-columns: minmax(0, 1fr); }
+
+.formGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.c1, .c2 { grid-column: span 1; }
+
+.c3, .c4 { grid-column: span 2; }
+
+.pricingValue { font-size: 32px; }
 }

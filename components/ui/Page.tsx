@@ -380,3 +380,28 @@ export function Button({ variant = 'secondary', icon, children, ...rest }: React
         </button>
     );
 }
+
+/* ─────────────────────────── Avisos ─────────────────────────── */
+
+/**
+ * Faixa de aviso dentro da página (plano vencendo, assinatura recorrente):
+ * ícone, título curto, explicação e uma ação à direita.
+ */
+export function Callout({ tone = 'info', icon, title, children, action }: {
+    tone?: 'info' | 'warning' | 'negative' | 'positive';
+    icon?: ReactNode;
+    title: ReactNode;
+    children?: ReactNode;
+    action?: ReactNode;
+}) {
+    return (
+        <div className={styles.callout} data-tone={tone} role={tone === 'negative' ? 'alert' : 'status'}>
+            {icon && <span className={styles.calloutIcon}>{icon}</span>}
+            <div className={styles.calloutBody}>
+                <strong>{title}</strong>
+                {children && <p>{children}</p>}
+            </div>
+            {action && <div className={styles.calloutAction}>{action}</div>}
+        </div>
+    );
+}

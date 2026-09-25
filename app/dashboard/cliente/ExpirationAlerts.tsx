@@ -1,67 +1,65 @@
-import { useState } from 'react';
+import { CalendarClock } from 'lucide-react';
 import { UpgradeModal } from '../../../components/operator/UpgradeModal';
+import { Button, Callout } from '@/components/ui/Page';
 
-export function ExpirationAlerts({ userInfo }: { userInfo: any }) {
-    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-    const { daysUntilExpiry } = userInfo;
+type InfoVencimento = {
+    profile?: string | null;
+    daysUntilExpiry?: number | null;
+    subscriptionPlanId?: string | null;
+    subscriptionBillingType?: 'monthly' | 'annual' | null;
+};
 
-    // Do nothing if they are not approaching expiry or already downgraded to 'gratis'
-    if (daysUntilExpiry === undefined || daysUntilExpiry === null) return null;
-    if (userInfo.profile === 'gratis' || userInfo.profile === 'administrador') return null;
+/** Faixa de vencimento: faltam 1 a 5 dias. Venceu (0 ou menos) vira bloqueio. */
+function situacao(info: InfoVencimento) {
+    const dias = info.daysUntilExpiry;
+    if (dias === undefined || dias === null) return null;
+    if (info.profile === 'gratis' || info.profile === 'administrador') return null;
+    if (dias <= 0) return 'vencido' as const;
+    if (dias <= 5) return 'vencendo' as const;
+    return null;
+}
 
-    // Se estiver faltando até 5 dias (daysUntilExpiry de 1 a 5)
-    const isWarningZone = daysUntilExpiry > 0 && daysUntilExpiry <= 5;
+/** Aviso dentro da consulta enquanto o plano está para vencer. */
+export function ExpirationNotice({ userInfo, onRenovar }: { userInfo: InfoVencimento; onRenovar: () => void }) {
+    if (situacao(userInfo) !== 'vencendo') return null;
+    const dias = userInfo.daysUntilExpiry as number;
+    return (
+        <Callout
+            tone="warning"
+            icon={<CalendarClock size={18} aria-hidden="true" />}
+            title={`Seu plano vence em ${dias} ${dias === 1 ? 'dia' : 'dias'}`}
+            action={<Button variant="primary" onClick={onRenovar}>Renovar com PIX</Button>}
+        >
+            Renove agora para não perder o acesso ao estoque e aos contatos das concessionárias.
+        </Callout>
+    );
+}
 
-    // Venceu: bloqueia imediatamente e mostra QR Code PIX do plano atual.
-    const isBlocked = daysUntilExpiry <= 0;
-
-    if (!isWarningZone && !isBlocked) return null;
+/**
+ * Modal de renovação: abre sozinho e trava a tela quando o plano venceu, ou
+ * quando o cliente pede para renovar pelo aviso.
+ */
+export function ExpirationAlerts({ userInfo, renovar = false, onFecharRenovacao }: {
+    userInfo: InfoVencimento;
+    renovar?: boolean;
+    onFecharRenovacao?: () => void;
+}) {
+    const estado = situacao(userInfo);
+    const bloqueado = estado === 'vencido';
+    if (!bloqueado && !(renovar && estado === 'vencendo')) return null;
 
     return (
-        <>
-            {/* Banner amarelo de aviso: faltam X dias para vencer */}
-            {isWarningZone && (
-                <div style={{
-                    backgroundColor: '#eab308',
-                    color: '#fff',
-                    padding: '12px 24px',
-                    textAlign: 'center',
-                    fontWeight: 600,
-                    fontSize: '0.95rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '15px'
-                    }}>
-                    <span>⚠️ Atenção: Seu plano vencerá em {daysUntilExpiry} {daysUntilExpiry === 1 ? 'dia' : 'dias'}.</span>
-                    <button 
-                        onClick={() => setShowUpgradeModal(true)}
-                        style={{
-                            backgroundColor: '#fff', color: '#eab308',
-                            border: 'none', borderRadius: '4px', padding: '6px 12px',
-                            fontWeight: 'bold', cursor: 'pointer'
-                        }}>
-                        Gerar PIX
-                    </button>
-                </div>
-            )}
-
-            {(isBlocked || showUpgradeModal) && (
-                <UpgradeModal
-                    locked={isBlocked}
-                    paidOnly
-                    pixOnly
-                    initialPlanId={userInfo.subscriptionPlanId || undefined}
-                    initialBilling={userInfo.subscriptionBillingType === 'annual' ? 'annual' : 'monthly'}
-                    title={isBlocked ? 'Assinatura vencida' : 'Renovar com PIX'}
-                    subtitle={isBlocked
-                        ? 'Sua tela fica bloqueada até a confirmação do pagamento. Escaneie o QR Code PIX para renovar o acesso.'
-                        : 'Escaneie o QR Code PIX para renovar seu acesso antes do vencimento.'}
-                    onClose={() => {
-                        if (!isBlocked) setShowUpgradeModal(false);
-                    }}
-                />
-            )}
-        </>
+        <UpgradeModal
+            locked={bloqueado}
+            paidOnly
+            pixOnly
+            initialPlanId={userInfo.subscriptionPlanId || undefined}
+            initialBilling={userInfo.subscriptionBillingType === 'annual' ? 'annual' : 'monthly'}
+            title={bloqueado ? 'Assinatura vencida' : 'Renovar com PIX'}
+            subtitle={bloqueado
+                ? 'Sua tela fica bloqueada até a confirmação do pagamento. Escaneie o QR Code PIX para renovar o acesso.'
+                : 'Escaneie o QR Code PIX para renovar seu acesso antes do vencimento.'}
+            onClose={() => { if (!bloqueado) onFecharRenovacao?.(); }}
+        />
     );
 }

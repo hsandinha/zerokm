@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { CalendarRange } from 'lucide-react';
 import { PaymentHistory } from '@/components/PaymentHistory';
-import { modalStyles } from '@/components/admin/AdminModal';
-import styles from './Financeiro.module.css';
+import {
+    EmptyState, Panel, PanelFooter, SkeletonRows, StatusBadge, pageStyles, type BadgeTone,
+} from '@/components/ui/Page';
 
 interface ItemExtrato {
     date?: string;
@@ -15,7 +16,11 @@ interface ItemExtrato {
 }
 
 const TIPO: Record<string, string> = { subscription: 'Assinatura', invite: 'Convidado', credit: 'Crédito' };
-const STATUS: Record<string, string> = { paid: 'Pago', pending: 'Pendente', cancelled: 'Cancelado' };
+const STATUS: Record<string, { label: string; tone: BadgeTone }> = {
+    paid: { label: 'Pago', tone: 'positive' },
+    pending: { label: 'Pendente', tone: 'warning' },
+    cancelled: { label: 'Cancelado', tone: 'negative' },
+};
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 function mesAtual() {
@@ -40,63 +45,65 @@ export function Financeiro() {
         return () => { ativo = false; };
     }, [mes]);
 
+    const itens = extrato?.items ?? [];
+
     return (
-        <div className={styles.financeiro}>
-            <section className={styles.card}>
-                <header className={styles.cardHead}>
+        <div className={pageStyles.formStack}>
+            <Panel>
+                <div className={`${pageStyles.panelHead} ${pageStyles.panelHeadSplit}`}>
                     <div>
-                        <h2>Extrato do mês</h2>
-                        <p>Assinatura e cobranças do período.</p>
+                        <h2 className={pageStyles.panelTitle}>Extrato do mês</h2>
+                        <p className={pageStyles.panelDescription}>Assinatura, convidados e créditos cobrados no período.</p>
                     </div>
-                    <label className={`${modalStyles.field} ${styles.mes}`}>
+                    <label className={pageStyles.monthField}>
                         Mês de referência
                         <input type="month" value={mes} onChange={e => e.target.value && setMes(e.target.value)} />
                     </label>
-                </header>
+                </div>
 
-                {carregando ? (
-                    <p className={styles.vazio}><Loader2 size={16} className={styles.girando} aria-hidden="true" /> Carregando...</p>
-                ) : !extrato || extrato.items.length === 0 ? (
-                    <p className={styles.vazio}>Nenhum lançamento neste mês.</p>
-                ) : (
-                    <div className={styles.tabelaWrap}>
-                        <table className={styles.tabela}>
+                {(carregando || itens.length > 0) && (
+                    <div className={pageStyles.tableWrap}>
+                        <table className={pageStyles.table}>
                             <thead>
                                 <tr>
                                     <th>Data</th>
                                     <th>Descrição</th>
                                     <th>Tipo</th>
-                                    <th>Status</th>
-                                    <th className={styles.valor}>Valor</th>
+                                    <th>Situação</th>
+                                    <th className={pageStyles.num}>Valor</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {extrato.items.map((item, i) => (
-                                    <tr key={i}>
-                                        <td className={styles.data}>{item.date ? new Date(item.date).toLocaleDateString('pt-BR') : '-'}</td>
-                                        <td>{item.description}</td>
-                                        <td><span className={styles.tag}>{TIPO[item.type] ?? 'Info'}</span></td>
-                                        <td><span className={styles.status} data-status={item.status}>{STATUS[item.status] ?? '-'}</span></td>
-                                        <td className={styles.valor}>{item.amount > 0 ? brl(item.amount) : '-'}</td>
-                                    </tr>
-                                ))}
+                                {carregando && <SkeletonRows rows={2} columns={5} />}
+                                {!carregando && itens.map((item, i) => {
+                                    const status = STATUS[item.status];
+                                    return (
+                                        <tr key={i}>
+                                            <td className={`${pageStyles.nowrap} ${pageStyles.muted}`}>{item.date ? new Date(item.date).toLocaleDateString('pt-BR') : '-'}</td>
+                                            <td className={pageStyles.colMain}>{item.description}</td>
+                                            <td><StatusBadge dot={false}>{TIPO[item.type] ?? 'Outro'}</StatusBadge></td>
+                                            <td>{status ? <StatusBadge tone={status.tone}>{status.label}</StatusBadge> : <span className={pageStyles.muted}>-</span>}</td>
+                                            <td className={`${pageStyles.num} ${pageStyles.nowrap}`}><strong>{item.amount > 0 ? brl(item.amount) : '-'}</strong></td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
-                            {extrato.total > 0 && (
-                                <tfoot>
-                                    <tr>
-                                        <td colSpan={4}>Total do mês</td>
-                                        <td className={styles.valor}>{brl(extrato.total)}</td>
-                                    </tr>
-                                </tfoot>
-                            )}
                         </table>
                     </div>
                 )}
-            </section>
 
-            <section className={styles.card}>
-                <PaymentHistory month={mes} />
-            </section>
+                {!carregando && itens.length === 0 && (
+                    <EmptyState icon={<CalendarRange size={20} />} title="Nenhum lançamento neste mês." description="Escolha outro mês de referência para ver o extrato." />
+                )}
+
+                {!carregando && itens.length > 0 && (
+                    <PanelFooter aside={<strong className={pageStyles.nowrap}>{brl(extrato?.total ?? 0)}</strong>}>
+                        Total do mês
+                    </PanelFooter>
+                )}
+            </Panel>
+
+            <PaymentHistory month={mes} />
         </div>
     );
 }

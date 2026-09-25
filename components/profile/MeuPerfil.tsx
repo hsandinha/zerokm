@@ -142,12 +142,12 @@ export function MeuPerfil() {
                     </label>
                     <div className={modalStyles.field}>
                         <span>CPF</span>
-                        <MaskedInput mask="cpf" value={dados.cpf || ''} onChange={v => { setDados(p => ({ ...p, cpf: v })); setCpfErro(''); }} onBlur={validarCpf} placeholder="000.000.000-00" />
+                        <MaskedInput plain mask="cpf" value={dados.cpf || ''} onChange={v => { setDados(p => ({ ...p, cpf: v })); setCpfErro(''); }} onBlur={validarCpf} placeholder="000.000.000-00" />
                         {cpfErro && <span className={styles.erro}>{cpfErro}</span>}
                     </div>
                     <div className={modalStyles.field}>
                         <span>Telefone</span>
-                        <MaskedInput mask="phone" value={dados.phoneNumber || ''} onChange={v => setDados(p => ({ ...p, phoneNumber: v }))} placeholder="(00) 00000-0000" />
+                        <MaskedInput plain mask="phone" value={dados.phoneNumber || ''} onChange={v => setDados(p => ({ ...p, phoneNumber: v }))} placeholder="(00) 00000-0000" />
                     </div>
                 </div>
             </section>
@@ -170,7 +170,7 @@ export function MeuPerfil() {
                                 {cepStatus === 'erro' && 'não encontrado'}
                             </span>
                         </span>
-                        <MaskedInput mask="cep" value={endereco.zipCode || ''} onChange={aoMudarCep} placeholder="00000-000" />
+                        <MaskedInput plain mask="cep" value={endereco.zipCode || ''} onChange={aoMudarCep} placeholder="00000-000" />
                     </div>
                     <label className={`${modalStyles.field} ${styles.c4}`}>
                         Rua

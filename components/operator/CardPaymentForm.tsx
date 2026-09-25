@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { ArrowLeft, Lock, ShieldCheck } from 'lucide-react';
 import { detectBrand, lookupBin, type BrandInfo } from '@/lib/utils/cardValidation';
 import { validateCPF } from '@/lib/utils/cpf';
 import MPSecureCardFields, { type MPSecureCardFieldsHandle } from '@/components/payments/MPSecureCardFields';
@@ -10,7 +11,7 @@ import styles from './CardPaymentForm.module.css';
 
 /**
  * Dados retornados após tokenização via Secure Fields (PCI compliant).
- * O backend NUNCA recebe PAN/CVV — apenas tokens descartáveis.
+ * O backend NUNCA recebe PAN/CVV, apenas tokens descartáveis.
  *
  * Geramos um token descartável no browser e enviamos ao backend para criar
  * a assinatura recorrente nativa do Mercado Pago (`/preapproval`).
@@ -329,7 +330,7 @@ export function CardPaymentForm({
                     </>
                 ) : (
                     <>
-                        <span aria-hidden>🔒</span>
+                        <Lock size={16} aria-hidden="true" />
                         Assinar por R$ {formatBRL(amount)}
                         <span className={styles.amountTag}>
                             ({billingType === 'annual' ? 'Anual' : 'Mensal'})
@@ -344,16 +345,16 @@ export function CardPaymentForm({
                 disabled={busy}
                 className={styles.backBtn}
             >
-                ← Voltar
+                <ArrowLeft size={15} aria-hidden="true" /> Voltar
             </button>
 
             {/* Trust strip */}
             <div className={styles.trustStrip}>
                 <span className={styles.trustItem}>
-                    <span aria-hidden>🔒</span> SSL 256-bit
+                    <Lock size={13} aria-hidden="true" /> SSL 256-bit
                 </span>
                 <span className={styles.trustItem}>
-                    <span aria-hidden>🛡️</span> PCI Compliant
+                    <ShieldCheck size={13} aria-hidden="true" /> PCI Compliant
                 </span>
                 <span className={styles.brandList}>
                     <BrandIcon brand="visa" size="sm" />

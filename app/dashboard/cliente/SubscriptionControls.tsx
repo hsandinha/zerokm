@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { CreditCard, Receipt } from 'lucide-react';
+import { Button, Callout } from '@/components/ui/Page';
+import { useFeedback } from '@/components/ui/Feedback';
 
 type SubscriptionInfo = {
     planName: string | null;
@@ -27,8 +30,7 @@ export function SubscriptionControls() {
     const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
     const [loading, setLoading] = useState(true);
     const [cancelling, setCancelling] = useState(false);
-    const [message, setMessage] = useState('');
-    const [error, setError] = useState('');
+    const { confirm, notify, feedback } = useFeedback();
 
     useEffect(() => {
         let cancelled = false;
@@ -40,7 +42,7 @@ export function SubscriptionControls() {
                 if (data?.subscription) setSubscription(data.subscription);
             })
             .catch(() => {
-                if (!cancelled) setError('Não foi possível carregar sua assinatura.');
+                if (!cancelled) setSubscription(null);
             })
             .finally(() => {
                 if (!cancelled) setLoading(false);
@@ -54,21 +56,23 @@ export function SubscriptionControls() {
     const cancelSubscription = async () => {
         if (!subscription?.canCancel || cancelling) return;
 
-        const confirmed = window.confirm(
-            'Cancelar a cobrança recorrente no cartão? Seu acesso continuará ativo até o fim do período já pago.'
-        );
+        const confirmed = await confirm({
+            title: 'Cancelar a cobrança recorrente?',
+            description: 'O cartão deixa de ser cobrado todo mês. Seu acesso continua ativo até o fim do período já pago.',
+            confirmLabel: 'Cancelar recorrência',
+            cancelLabel: 'Manter',
+            danger: true,
+        });
         if (!confirmed) return;
 
         setCancelling(true);
-        setError('');
-        setMessage('');
 
         try {
             const res = await fetch('/api/user/subscription/cancel', { method: 'POST' });
             const data = await res.json();
 
             if (!res.ok || !data.ok) {
-                setError(data.error || 'Não foi possível cancelar a assinatura.');
+                notify(data.error || 'Não foi possível cancelar a assinatura.');
                 return;
             }
 
@@ -81,13 +85,14 @@ export function SubscriptionControls() {
                 }
                 : prev
             );
-            setMessage(
+            notify(
                 data.accessUntil
                     ? `Recorrência cancelada. Seu acesso continua ativo até ${formatDate(data.accessUntil)}.`
-                    : 'Recorrência cancelada.'
+                    : 'Recorrência cancelada.',
+                'positive',
             );
         } catch {
-            setError('Erro de conexão ao cancelar assinatura.');
+            notify('Erro de conexão ao cancelar a assinatura.');
         } finally {
             setCancelling(false);
         }
@@ -96,66 +101,25 @@ export function SubscriptionControls() {
     if (loading || !subscription) return null;
     if (subscription.activationMethod !== 'card' && subscription.activationMethod !== 'boleto' && !subscription.recurrenceCancelledAt) return null;
 
-    return (
-        <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '12px',
-            margin: '0 0 16px',
-            padding: '12px 14px',
-            border: '1px solid var(--admin-border, var(--color-highlight))',
-            borderRadius: '8px',
-            background: 'var(--color-surface)',
-            color: 'var(--color-text)',
-            flexWrap: 'wrap',
-        }}>
-            <div style={{ minWidth: 220 }}>
-                <div style={{ fontSize: '0.92rem', fontWeight: 700 }}>
-                    {subscription.planName || 'Assinatura'}
-                    {subscription.billingType && (
-                        <span style={{ fontWeight: 500, color: 'var(--color-text-muted)' }}>
-                            {' '}({subscription.billingType === 'annual' ? 'Anual' : 'Mensal'})
-                        </span>
-                    )}
-                </div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 2 }}>
-                    {subscription.activationMethod === 'boleto'
-                        ? `Renovação por boleto${subscription.expiresAt ? ` · acesso até ${formatDate(subscription.expiresAt)}` : ''}`
-                        : subscription.canCancel
-                            ? `Cobrança recorrente no cartão ativa${subscription.nextPaymentDate ? ` · próxima cobrança ${formatDate(subscription.nextPaymentDate)}` : ''}`
-                            : `Recorrência cancelada${subscription.expiresAt ? ` · acesso até ${formatDate(subscription.expiresAt)}` : ''}`}
-                </div>
-                {(message || error) && (
-                    <div style={{
-                        fontSize: '0.8rem',
-                        marginTop: 6,
-                        color: error ? 'var(--color-negative)' : 'var(--color-positive)',
-                    }}>
-                        {error || message}
-                    </div>
-                )}
-            </div>
+    const plano = `${subscription.planName || 'Assinatura'}${subscription.billingType ? ` ${subscription.billingType === 'annual' ? 'anual' : 'mensal'}` : ''}`;
+    const detalhe = subscription.activationMethod === 'boleto'
+        ? `Renovação por boleto${subscription.expiresAt ? `. Acesso até ${formatDate(subscription.expiresAt)}.` : '.'}`
+        : subscription.canCancel
+            ? `Cobrança recorrente no cartão${subscription.nextPaymentDate ? `. Próxima cobrança em ${formatDate(subscription.nextPaymentDate)}.` : '.'}`
+            : `Recorrência cancelada${subscription.expiresAt ? `. Acesso até ${formatDate(subscription.expiresAt)}.` : '.'}`;
 
-            {subscription.canCancel && (
-                <button
-                    type="button"
-                    onClick={cancelSubscription}
-                    disabled={cancelling}
-                    style={{
-                        border: '1px solid var(--color-negative)',
-                        color: 'var(--color-negative)',
-                        background: 'transparent',
-                        borderRadius: '6px',
-                        padding: '8px 12px',
-                        cursor: cancelling ? 'not-allowed' : 'pointer',
-                        opacity: cancelling ? 0.65 : 1,
-                        fontWeight: 700,
-                    }}
-                >
-                    {cancelling ? 'Cancelando...' : 'Cancelar recorrência'}
-                </button>
-            )}
-        </div>
+    return (
+        <>
+            <Callout
+                icon={subscription.activationMethod === 'boleto' ? <Receipt size={18} aria-hidden="true" /> : <CreditCard size={18} aria-hidden="true" />}
+                title={plano}
+                action={subscription.canCancel
+                    ? <Button variant="danger" onClick={cancelSubscription} disabled={cancelling}>{cancelling ? 'Cancelando...' : 'Cancelar recorrência'}</Button>
+                    : undefined}
+            >
+                {detalhe}
+            </Callout>
+            {feedback}
+        </>
     );
 }

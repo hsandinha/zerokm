@@ -1,19 +1,19 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, type ReactNode } from 'react';
 import { useSession, getSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { VehicleConsultation } from '../../../components/operator/VehicleConsultation';
 import { ConfigContext } from '../../../lib/contexts/ConfigContext';
-import { ExpirationAlerts } from './ExpirationAlerts';
+import { ExpirationAlerts, ExpirationNotice } from './ExpirationAlerts';
 import { AutoUpgradeFromQuery } from './AutoUpgradeFromQuery';
 import { FreeTrialGate } from './FreeTrialGate';
 import { UpgradeModal } from '../../../components/operator/UpgradeModal';
 import { SubscriptionControls } from './SubscriptionControls';
 import { DashboardShell, shellStyles } from '@/components/dashboard/DashboardShell';
-import { Page, PageHeader } from '@/components/ui/Page';
+import { Page, PageHeader, pageStyles } from '@/components/ui/Page';
 import { useFavoritos } from '@/lib/hooks/useFavoritos';
-import { CarFront, Heart, UserRound, Wallet } from 'lucide-react';
+import { AlertTriangle, CarFront, CheckCircle2, Clock3, Heart, UserRound, Wallet } from 'lucide-react';
 import { MeuPerfil } from '@/components/profile/MeuPerfil';
 import { Financeiro } from '@/components/profile/Financeiro';
 
@@ -69,40 +69,17 @@ function PaymentBanner() {
 
     if (!visible || !currentStatus) return null;
 
-    const bannerConfig = {
-        success: {
-            bg: '#10b981',
-            text: '✅ Pagamento aprovado! Atualizando seu acesso...',
-        },
-        failure: {
-            bg: '#ef4444',
-            text: '❌ Pagamento não aprovado. Tente novamente.',
-        },
-        pending: {
-            bg: '#f59e0b',
-            text: '⏳ Pagamento em análise. Verificando automaticamente...',
-        },
-    } as const;
-
-    const config = bannerConfig[currentStatus as keyof typeof bannerConfig];
-    if (!config) return null;
+    const aviso = {
+        success: { tone: 'positive', icone: <CheckCircle2 size={18} aria-hidden="true" />, texto: 'Pagamento aprovado. Atualizando seu acesso...' },
+        failure: { tone: 'negative', icone: <AlertTriangle size={18} aria-hidden="true" />, texto: 'Pagamento não aprovado. Tente novamente.' },
+        pending: { tone: 'warning', icone: <Clock3 size={18} aria-hidden="true" />, texto: 'Pagamento em análise. Verificando automaticamente...' },
+    }[currentStatus as 'success' | 'failure' | 'pending'];
+    if (!aviso) return null;
 
     return (
-        <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            background: config.bg,
-            color: '#fff',
-            padding: '14px 24px',
-            textAlign: 'center',
-            fontWeight: 600,
-            fontSize: '0.95rem',
-            zIndex: 9999,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-        }}>
-            {config.text}
+        <div className={pageStyles.toast} data-tone={aviso.tone} role={aviso.tone === 'negative' ? 'alert' : 'status'}>
+            {aviso.icone}
+            <span>{aviso.texto}</span>
         </div>
     );
 }
@@ -114,7 +91,7 @@ export default function ClientDashboard() {
     const [marginMode, setMarginMode] = useState<'percent' | 'fixed'>('percent');
     const [isInvitee, setIsInvitee] = useState<boolean>(false);
     const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-    const router = useRouter();
+    const [renovar, setRenovar] = useState(false);
 
     useEffect(() => {
         getSession()
@@ -173,7 +150,7 @@ export default function ClientDashboard() {
             <Suspense>
                 <PaymentBanner />
             </Suspense>
-            <ExpirationAlerts userInfo={userInfo} />
+            <ExpirationAlerts userInfo={userInfo} renovar={renovar} onFecharRenovacao={() => setRenovar(false)} />
             <Suspense>
                 <AutoUpgradeFromQuery />
             </Suspense>
@@ -182,6 +159,7 @@ export default function ClientDashboard() {
                 userInfo={userInfo}
                 isInvitee={isInvitee}
                 onUpgradeClick={userInfo.profile === 'gratis' ? () => setShowUpgradeModal(true) : undefined}
+                aviso={<ExpirationNotice userInfo={userInfo} onRenovar={() => setRenovar(true)} />}
             />
 
             {showUpgradeModal && (
@@ -204,10 +182,12 @@ const ABAS_CLIENTE: AbaCliente[] = ['veiculos', 'favoritos', 'perfil', 'financei
  * abre pelo menu do usuário. Perfil e Financeiro abrem dentro do painel, sem
  * perder a consulta (ela fica montada, só oculta).
  */
-function ClienteShell({ userInfo, isInvitee, onUpgradeClick }: {
+function ClienteShell({ userInfo, isInvitee, onUpgradeClick, aviso }: {
     userInfo: { name?: string | null; email?: string | null; profile?: string | null; credits?: number };
     isInvitee: boolean;
     onUpgradeClick?: () => void;
+    /** Aviso de vencimento, mostrado acima da consulta. */
+    aviso?: ReactNode;
 }) {
     const [aba, setAba] = useState<AbaCliente>('veiculos');
     // Consulta que fica montada por trás do perfil/financeiro (Veículos ou Favoritos).
@@ -273,9 +253,10 @@ function ClienteShell({ userInfo, isInvitee, onUpgradeClick }: {
                 </Page>
             )}
             <div hidden={!naConsulta} className={shellStyles.shellContent}>
-                {consultaAtual === 'veiculos' && (
-                    <div className={shellStyles.clienteSubscription}><SubscriptionControls /></div>
-                )}
+                <div className={shellStyles.clienteSubscription}>
+                    {aviso}
+                    {consultaAtual === 'veiculos' && <SubscriptionControls />}
+                </div>
                 {/* key: cada aba tem sua própria consulta (filtros e página não se misturam). */}
                 <VehicleConsultation
                     key={consultaAtual}

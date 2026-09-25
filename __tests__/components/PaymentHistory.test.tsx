@@ -37,7 +37,7 @@ describe('PaymentHistory Component', () => {
         expect(emptyMessage).toBeInTheDocument();
     });
 
-    it('deve exibir o título "Minhas Transações"', async () => {
+    it('deve exibir o título "Histórico de pagamentos"', async () => {
         mockFetch.mockResolvedValueOnce({
             ok: true,
             json: async () => ([]),
@@ -45,7 +45,7 @@ describe('PaymentHistory Component', () => {
 
         render(React.createElement(PaymentHistory));
 
-        const title = await screen.findByText(/Minhas Transações/);
+        const title = await screen.findByText(/Histórico de pagamentos/);
         expect(title).toBeInTheDocument();
     });
 
@@ -121,7 +121,7 @@ describe('PaymentHistory Component', () => {
 
         render(React.createElement(PaymentHistory));
 
-        const boletoLink = await screen.findByText(/Ver Boleto/);
+        const boletoLink = await screen.findByText(/Ver boleto/);
         expect(boletoLink).toBeInTheDocument();
         expect(boletoLink.closest('a')).toHaveAttribute('href', 'https://mp.com/boleto/123');
         expect(boletoLink.closest('a')).toHaveAttribute('target', '_blank');

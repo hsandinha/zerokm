@@ -123,7 +123,7 @@ export function VehicleHeaderActions({
             </>
         )}
         {role !== 'client' && role !== 'gratis' && role !== 'dealership' && role !== 'vendedor' && (
-            <div className={styles.exportWrapper} style={{ position: 'relative', display: 'inline-block' }}>
+            <div className={styles.exportWrapper}>
                 <button
                     className={styles.importButton}
                     onClick={() => setShowExportMenu(!showExportMenu)}
@@ -133,29 +133,18 @@ export function VehicleHeaderActions({
                     <Download size={16} aria-hidden="true" /> {isExporting ? 'Exportando...' : 'Exportar'}
                 </button>
                 {showExportMenu && (
-                    <div className={styles.exportMenu} style={{
-                        position: 'absolute',
-                        top: 'calc(100% + 4px)',
-                        right: 0,
-                        zIndex: 20,
-                        background: 'var(--color-surface)',
-                        border: '1px solid var(--admin-border, var(--color-highlight))',
-                        borderRadius: '10px',
-                        boxShadow: '0 8px 24px rgba(16, 35, 51, 0.18)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        minWidth: '140px',
-                        overflow: 'hidden'
-                    }}>
+                    <div className={styles.exportMenu} role="menu">
                         <button
+                            type="button"
+                            role="menuitem"
                             onClick={() => handleExport('csv')}
-                            style={{ padding: '10px 14px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', borderBottom: '1px solid var(--admin-border, var(--color-highlight))', color: 'var(--color-text)' }}
                         >
                             CSV (.csv)
                         </button>
                         <button
+                            type="button"
+                            role="menuitem"
                             onClick={() => handleExport('json')}
-                            style={{ padding: '10px 14px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', color: 'var(--color-text)' }}
                         >
                             JSON (.json)
                         </button>

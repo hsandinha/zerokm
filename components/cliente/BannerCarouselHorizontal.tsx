@@ -72,7 +72,7 @@ export function BannerCarouselHorizontal({ role }: BannerCarouselHorizontalProps
     if (banners.length === 0) return null; // Não exibe o container se não houver banners
 
     return (
-        <div className={styles.carouselContainer} style={{ marginTop: '-8px' }}>
+        <div className={styles.carouselContainer}>
             {banners.map((banner, index) => {
                 const isActive = index === currentIndex;
                 const transformValue = `translateX(${(index - currentIndex) * 100}%)`;

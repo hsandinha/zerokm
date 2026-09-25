@@ -357,3 +357,24 @@
 .fact dt { font-size: 12.5px; color: var(--color-text-muted); }
 .fact dd { margin: 2px 0 0; font-size: 14px; color: var(--color-text); overflow-wrap: anywhere; }
 .toolbarGroupEnd { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.panelHeadSplit { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.monthField { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500; color: var(--color-text-muted); }
+.monthField input { min-height: 40px; width: 200px; border-radius: 10px; }
+
+/* Faixa de aviso (Callout) */
+.callout {
+    --tone: var(--color-text-muted);
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 12px 16px; border-radius: 12px;
+    background: var(--color-surface); color: var(--color-text);
+    border: 1px solid var(--admin-border, var(--color-highlight));
+}
+.callout[data-tone='warning'] { --tone: var(--color-warning); background: color-mix(in srgb, var(--color-warning) 8%, var(--color-surface)); border-color: color-mix(in srgb, var(--color-warning) 30%, transparent); }
+.callout[data-tone='negative'] { --tone: var(--color-negative); background: color-mix(in srgb, var(--color-negative) 7%, var(--color-surface)); border-color: color-mix(in srgb, var(--color-negative) 28%, transparent); }
+.callout[data-tone='positive'] { --tone: var(--color-positive); background: color-mix(in srgb, var(--color-positive) 7%, var(--color-surface)); border-color: color-mix(in srgb, var(--color-positive) 28%, transparent); }
+.calloutIcon { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: 8px; color: var(--tone); background: color-mix(in srgb, var(--tone) 12%, transparent); }
+.calloutBody { flex: 1 1 260px; min-width: 0; }
+.calloutBody strong { display: block; font-size: 14px; font-weight: 600; }
+.calloutBody p { margin: 2px 0 0; font-size: 13px; color: var(--color-text-muted); }
+.calloutAction { display: flex; align-items: center; gap: 8px; flex: none; }
+.toast[data-tone='warning'] svg:first-child { color: var(--color-warning); flex: none; }

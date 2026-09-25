@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
 import styles from './UpgradeModal.module.css';
-import { Check, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Barcode, Check, ChevronRight, Copy, CreditCard, ExternalLink, Loader2, QrCode, ShieldCheck } from 'lucide-react';
 import { MaskedInput } from '@/components/operator/MaskedInput';
 import { CardPaymentForm, type CardFormData } from '@/components/operator/CardPaymentForm';
 import { getUserProfile, updateUserProfile, UserProfileData } from '@/app/dashboard/profile/actions';
@@ -787,8 +787,8 @@ export function UpgradeModal({ onClose, initialPlanId, initialBilling, locked = 
                 </button>
             ) : undefined}
         >
-            {error && <p className={styles.error} style={{ margin: 0, textAlign: 'center' }}>{error}</p>}
-            {successMessage && <p style={{ color: 'var(--color-positive)', margin: 0, textAlign: 'center', fontWeight: 'bold', fontSize: '1.2rem' }}>{successMessage}</p>}
+            {error && <p className={styles.error} role="alert">{error}</p>}
+            {successMessage && <p className={styles.success} role="status">{successMessage}</p>}
 
             {/* ETAPA 1: ESCOLHER O PLANO */}
             {flow === 'plans' && (
@@ -814,7 +814,7 @@ export function UpgradeModal({ onClose, initialPlanId, initialBilling, locked = 
                                     </div>
                                 )}
 
-                                <div className={styles.pricingGrid} style={{ gridTemplateColumns: `repeat(${Math.min(ordenados.length, 3)}, minmax(0, 1fr))` }}>
+                                <div className={styles.pricingGrid} data-colunas={Math.min(ordenados.length, 3)}>
                                     {ordenados.map(plan => {
                                         const anual = planBilling === 'annual' && hasAnnualOption(plan);
                                         const { titulo, resumo } = dividirNomePlano(plan.name);
@@ -870,250 +870,145 @@ export function UpgradeModal({ onClose, initialPlanId, initialBilling, locked = 
                 </>
             )}
 
-            {/* ETAPA DE CONFIRMAÇÃO DE DADOS BÁSICOS (MISSING_INFO) */}
+            {/* DADOS OBRIGATÓRIOS PARA FATURAMENTO (MISSING_INFO) */}
             {flow === 'missing_info' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <p style={{ textAlign: 'center', marginBottom: '1rem', color: 'var(--color-text-muted)', fontSize: '0.95rem' }}>
-                        Para continuar com a assinatura, precisamos que você complete os seguintes dados obrigatórios para faturamento:
+                <div className={styles.step}>
+                    <p className={styles.stepIntro}>
+                        Para emitir a cobrança, complete os dados de faturamento abaixo.
                     </p>
 
-                    {missingInfoError && (
-                        <p style={{ color: 'var(--color-negative)', textAlign: 'center', fontSize: '0.9rem', marginBottom: '10px', padding: '8px', background: 'color-mix(in srgb, var(--color-negative) 10%, transparent)', borderRadius: '6px' }}>
-                            {missingInfoError}
-                        </p>
-                    )}
+                    {missingInfoError && <p className={styles.error} role="alert">{missingInfoError}</p>}
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        <div>
-                            <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.9rem' }}>CPF</label>
+                    <div className={styles.formGrid}>
+                        <div className={`${modalStyles.field} ${styles.c3}`}>
+                            <span>CPF</span>
+                            <MaskedInput plain mask="cpf" value={missingInfoData.cpf || ''} onChange={(v: string) => setMissingInfoData(p => ({ ...p, cpf: v }))} placeholder="000.000.000-00" />
+                        </div>
+                        <div className={`${modalStyles.field} ${styles.c3}`}>
+                            <span>Telefone</span>
+                            <MaskedInput plain mask="phone" value={missingInfoData.phoneNumber || ''} onChange={(v: string) => setMissingInfoData(p => ({ ...p, phoneNumber: v }))} placeholder="(00) 00000-0000" />
+                        </div>
+                        <div className={`${modalStyles.field} ${styles.c2}`}>
+                            <span>CEP {cepLoading && <span className={styles.hint}>buscando...</span>}</span>
                             <MaskedInput
-                                mask="cpf"
-                                value={missingInfoData.cpf || ''}
-                                onChange={(v: string) => setMissingInfoData(p => ({ ...p, cpf: v }))}
-                                placeholder="000.000.000-00"
+                                plain
+                                mask="cep"
+                                value={missingInfoData.address?.zipCode || ''}
+                                onChange={(v: string) => setMissingInfoData(p => ({ ...p, address: { ...p.address!, zipCode: v } }))}
+                                onBlur={(v: string) => handleCepBlur(v)}
+                                placeholder="00000-000"
                             />
                         </div>
-                        <div>
-                            <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.9rem' }}>Telefone</label>
-                            <MaskedInput
-                                mask="phone"
-                                value={missingInfoData.phoneNumber || ''}
-                                onChange={(v: string) => setMissingInfoData(p => ({ ...p, phoneNumber: v }))}
-                                placeholder="(00) 00000-0000"
-                            />
-                        </div>
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            <div style={{ flex: 1 }}>
-                                <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.9rem' }}>CEP {cepLoading && <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>(buscando...)</span>}</label>
-                                <MaskedInput
-                                    mask="cep"
-                                    value={missingInfoData.address?.zipCode || ''}
-                                    onChange={(v: string) => setMissingInfoData(p => ({ ...p, address: { ...p.address!, zipCode: v } }))}
-                                    onBlur={(v: string) => handleCepBlur(v)}
-                                    placeholder="00000-000"
-                                />
-                            </div>
-                            <div style={{ flex: 2 }}>
-                                <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.9rem' }}>Rua</label>
-                                <input type="text" value={missingInfoData.address?.street || ''} onChange={e => setMissingInfoData(p => ({ ...p, address: { ...p.address!, street: e.target.value } }))} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--admin-border, var(--color-highlight))', background: 'var(--color-surface)', color: 'var(--color-text)' }} />
-                            </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            <div style={{ flex: 1 }}>
-                                <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.9rem' }}>Número</label>
-                                <input type="text" value={missingInfoData.address?.number || ''} onChange={e => setMissingInfoData(p => ({ ...p, address: { ...p.address!, number: e.target.value } }))} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--admin-border, var(--color-highlight))', background: 'var(--color-surface)', color: 'var(--color-text)' }} />
-                            </div>
-                            <div style={{ flex: 1 }}>
-                                <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.9rem' }}>Complemento</label>
-                                <input type="text" value={missingInfoData.address?.complement || ''} onChange={e => setMissingInfoData(p => ({ ...p, address: { ...p.address!, complement: e.target.value } }))} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--admin-border, var(--color-highlight))', background: 'var(--color-surface)', color: 'var(--color-text)' }} placeholder="Opcional" />
-                            </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            <div style={{ flex: 1 }}>
-                                <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.9rem' }}>Bairro</label>
-                                <input type="text" value={missingInfoData.address?.neighborhood || ''} onChange={e => setMissingInfoData(p => ({ ...p, address: { ...p.address!, neighborhood: e.target.value } }))} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--admin-border, var(--color-highlight))', background: 'var(--color-surface)', color: 'var(--color-text)' }} />
-                            </div>
-                            <div style={{ flex: 1 }}>
-                                <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.9rem' }}>Cidade</label>
-                                <input type="text" value={missingInfoData.address?.city || ''} onChange={e => setMissingInfoData(p => ({ ...p, address: { ...p.address!, city: e.target.value } }))} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--admin-border, var(--color-highlight))', background: 'var(--color-surface)', color: 'var(--color-text)' }} />
-                            </div>
-                            <div style={{ flex: 0.5 }}>
-                                <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.9rem' }}>UF</label>
-                                <input type="text" maxLength={2} value={missingInfoData.address?.state || ''} onChange={e => setMissingInfoData(p => ({ ...p, address: { ...p.address!, state: e.target.value.toUpperCase() } }))} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--admin-border, var(--color-highlight))', background: 'var(--color-surface)', color: 'var(--color-text)' }} placeholder="UF" />
-                            </div>
-                        </div>
+                        <label className={`${modalStyles.field} ${styles.c4}`}>
+                            Rua
+                            <input type="text" value={missingInfoData.address?.street || ''} onChange={e => setMissingInfoData(p => ({ ...p, address: { ...p.address!, street: e.target.value } }))} />
+                        </label>
+                        <label className={`${modalStyles.field} ${styles.c2}`}>
+                            Número
+                            <input type="text" value={missingInfoData.address?.number || ''} onChange={e => setMissingInfoData(p => ({ ...p, address: { ...p.address!, number: e.target.value } }))} />
+                        </label>
+                        <label className={`${modalStyles.field} ${styles.c4}`}>
+                            Complemento
+                            <input type="text" value={missingInfoData.address?.complement || ''} onChange={e => setMissingInfoData(p => ({ ...p, address: { ...p.address!, complement: e.target.value } }))} placeholder="Opcional" />
+                        </label>
+                        <label className={`${modalStyles.field} ${styles.c2}`}>
+                            Bairro
+                            <input type="text" value={missingInfoData.address?.neighborhood || ''} onChange={e => setMissingInfoData(p => ({ ...p, address: { ...p.address!, neighborhood: e.target.value } }))} />
+                        </label>
+                        <label className={`${modalStyles.field} ${styles.c3}`}>
+                            Cidade
+                            <input type="text" value={missingInfoData.address?.city || ''} onChange={e => setMissingInfoData(p => ({ ...p, address: { ...p.address!, city: e.target.value } }))} />
+                        </label>
+                        <label className={`${modalStyles.field} ${styles.c1}`}>
+                            UF
+                            <input type="text" maxLength={2} value={missingInfoData.address?.state || ''} onChange={e => setMissingInfoData(p => ({ ...p, address: { ...p.address!, state: e.target.value.toUpperCase() } }))} placeholder="UF" />
+                        </label>
                     </div>
 
-                    <button className={styles.btnPrimary} style={{ marginTop: '10px', padding: '14px' }} onClick={handleSaveMissingInfo}>
-                        Salvar e Continuar
-                    </button>
-
-                    <button className={styles.btnSecondary} onClick={() => setFlow('plans')} style={{ border: 'none', background: 'transparent', color: 'var(--color-text-muted)' }}>
-                        ← Voltar aos Planos
-                    </button>
+                    <div className={styles.stepActions}>
+                        <button type="button" className={styles.linkBack} onClick={() => setFlow('plans')}>
+                            <ArrowLeft size={15} aria-hidden="true" /> Voltar aos planos
+                        </button>
+                        <button type="button" className={styles.btnPrimary} onClick={handleSaveMissingInfo}>
+                            Salvar e continuar
+                        </button>
+                    </div>
                 </div>
             )}
 
-            {/* ETAPA 2: ESCOLHER O MÉTODO DE PAGAMENTO (Auto-Renovação vs Pix) */}
+            {/* ETAPA 2: FORMA DE PAGAMENTO */}
             {flow === 'method' && selectedPlan && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <p style={{ textAlign: 'center', fontSize: '1.1rem', marginBottom: '0.25rem' }}>
-                        Você escolheu o <strong>{selectedPlan.name}</strong>.
-                    </p>
+                <div className={styles.step}>
+                    <div className={styles.summary}>
+                        <span className={styles.summaryLabel}>{selectedPlan.name}</span>
+                        <strong className={styles.summaryValue}>
+                            R$ {formatBRL(getEffectiveMonthlyPrice(selectedPlan, billingType))}<small> /mês</small>
+                        </strong>
+                        <span className={styles.summaryNote}>
+                            {billingType === 'annual'
+                                ? <>Cobrança única de <strong>R$ {formatBRL(getTotalChargeAmount(selectedPlan, 'annual'))}</strong> por ano</>
+                                : 'Cobrança mensal'}
+                        </span>
+                    </div>
 
-                    {/* Toggle Mensal / Anual: só aparece se o plano tiver annualPrice configurado */}
                     {hasAnnualOption(selectedPlan) && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '0.25rem' }}>
-                            <div
-                                role="tablist"
-                                aria-label="Periodicidade de cobrança"
-                                style={{
-                                    display: 'flex',
-                                    background: 'var(--color-surface)',
-                                    border: '1px solid var(--admin-border, var(--color-highlight))',
-                                    borderRadius: '10px',
-                                    padding: '4px',
-                                    gap: '4px',
-                                }}
-                            >
-                                <button
-                                    type="button"
-                                    role="tab"
-                                    aria-selected={billingType === 'monthly'}
-                                    onClick={() => setBillingType('monthly')}
-                                    style={{
-                                        flex: 1,
-                                        padding: '10px 12px',
-                                        borderRadius: '8px',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        fontSize: '0.95rem',
-                                        fontWeight: billingType === 'monthly' ? 700 : 500,
-                                        color: billingType === 'monthly' ? 'var(--admin-on-accent, #102333)' : 'var(--color-text-muted)',
-                                        background: billingType === 'monthly' ? 'var(--color-accent)' : 'transparent',
-                                        transition: 'all 0.15s ease',
-                                    }}
-                                >
-                                    Mensal
-                                </button>
-                                <button
-                                    type="button"
-                                    role="tab"
-                                    aria-selected={billingType === 'annual'}
-                                    onClick={() => setBillingType('annual')}
-                                    style={{
-                                        flex: 1,
-                                        padding: '10px 12px',
-                                        borderRadius: '8px',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        fontSize: '0.95rem',
-                                        fontWeight: billingType === 'annual' ? 700 : 500,
-                                        color: billingType === 'annual' ? 'var(--color-surface)' : 'var(--color-text-muted)',
-                                        background: billingType === 'annual' ? 'var(--color-positive)' : 'transparent',
-                                        transition: 'all 0.15s ease',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '6px',
-                                    }}
-                                >
-                                    Anual
-                                    {annualSavingsPct(selectedPlan) && (
-                                        <span
-                                            style={{
-                                                background: billingType === 'annual' ? 'color-mix(in srgb, var(--color-surface) 25%, transparent)' : 'color-mix(in srgb, var(--color-positive) 18%, transparent)',
-                                                color: billingType === 'annual' ? 'var(--color-surface)' : 'var(--color-positive)',
-                                                fontSize: '0.72rem',
-                                                padding: '2px 8px',
-                                                borderRadius: '999px',
-                                                fontWeight: 700,
-                                            }}
-                                        >
-                                            -{annualSavingsPct(selectedPlan)}%
-                                        </span>
-                                    )}
-                                </button>
-                            </div>
-
-                            {/* Resumo de preço conforme a periodicidade */}
-                            <div
-                                style={{
-                                    textAlign: 'center',
-                                    background: 'color-mix(in srgb, var(--color-accent) 8%, transparent)',
-                                    border: '1px solid color-mix(in srgb, var(--color-accent) 25%, transparent)',
-                                    padding: '10px 12px',
-                                    borderRadius: '8px',
-                                }}
-                            >
-                                <div style={{ fontSize: '1.15rem', fontWeight: 700 }}>
-                                    R$ {formatBRL(getEffectiveMonthlyPrice(selectedPlan, billingType))} <span style={{ fontSize: '0.85rem', opacity: 0.75, fontWeight: 500 }}>/ mês</span>
-                                </div>
-                                {billingType === 'annual' ? (
-                                    <div style={{ fontSize: '0.8rem', opacity: 0.8, marginTop: '2px' }}>
-                                        Cobrança única de <strong>R$ {formatBRL(getTotalChargeAmount(selectedPlan, 'annual'))}</strong> no cartão · renovação anual
-                                    </div>
-                                ) : (
-                                    <div style={{ fontSize: '0.8rem', opacity: 0.8, marginTop: '2px' }}>
-                                        Cobrança mensal recorrente
-                                    </div>
-                                )}
-                            </div>
+                        <div className={styles.billingSwitch} role="group" aria-label="Periodicidade de cobrança">
+                            <button type="button" aria-pressed={billingType === 'monthly'} className={billingType === 'monthly' ? styles.billingOn : ''} onClick={() => setBillingType('monthly')}>Mensal</button>
+                            <button type="button" aria-pressed={billingType === 'annual'} className={billingType === 'annual' ? styles.billingOn : ''} onClick={() => setBillingType('annual')}>
+                                Anual{annualSavingsPct(selectedPlan) && <span className={styles.billingSave}>-{annualSavingsPct(selectedPlan)}%</span>}
+                            </button>
                         </div>
                     )}
 
-                    {!hasAnnualOption(selectedPlan) && (
-                        <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.95rem', marginTop: 0 }}>
-                            Valor: <strong>R$ {formatBRL(selectedPlan.price)}</strong> / mês
-                        </p>
-                    )}
+                    <div className={styles.methodList}>
+                        <button
+                            type="button"
+                            className={styles.methodOption}
+                            onClick={() => {
+                                if (hasCard) { setCvvInput(''); setError(''); setFlow('cvv_confirm'); }
+                                else { setFlow('card_form'); }
+                            }}
+                            disabled={checkingCard}
+                        >
+                            <span className={styles.methodIcon}><CreditCard size={20} aria-hidden="true" /></span>
+                            <span className={styles.methodText}>
+                                <strong>{billingType === 'annual' ? 'Cartão de crédito, anual' : 'Cartão de crédito, recorrente'}</strong>
+                                <span>
+                                    {checkingCard ? 'Verificando cartão salvo...' :
+                                        hasCard
+                                            ? `Cobrar R$ ${formatBRL(getTotalChargeAmount(selectedPlan, billingType))} no cartão final ${cardLastFour}`
+                                            : (billingType === 'annual' ? 'Pagamento único: 12 meses de acesso' : 'Débito automático todo mês, sem interrupção')}
+                                </span>
+                            </span>
+                            <ChevronRight size={18} aria-hidden="true" className={styles.methodArrow} />
+                        </button>
 
-                    <button
-                        className={styles.btnPrimary}
-                        style={{ padding: '16px', fontSize: '1.05rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
-                        onClick={() => {
-                            if (hasCard) { setCvvInput(''); setError(''); setFlow('cvv_confirm'); }
-                            else { setFlow('card_form'); }
-                        }}
-                        disabled={checkingCard}
-                    >
-                        <span>{billingType === 'annual' ? 'Assinatura Anual no Cartão' : 'Assinatura no Cartão de Crédito'}</span>
-                        <span style={{ fontSize: '0.8rem', opacity: 0.8, marginTop: '4px' }}>
-                            {checkingCard ? 'Verificando...' :
-                                hasCard
-                                    ? `(Cobrar R$ ${formatBRL(getTotalChargeAmount(selectedPlan, billingType))} no Cartão final •••• ${cardLastFour})`
-                                    : (billingType === 'annual'
-                                        ? 'Pagamento único anual: 12 meses de acesso'
-                                        : 'Débito automático mensal sem interrupções')}
-                        </span>
-                    </button>
+                        <button type="button" className={styles.methodOption} onClick={handlePixPayment}>
+                            <span className={styles.methodIcon}><QrCode size={20} aria-hidden="true" /></span>
+                            <span className={styles.methodText}>
+                                <strong>PIX</strong>
+                                <span>QR Code instantâneo, pague pelo app do banco</span>
+                            </span>
+                            <ChevronRight size={18} aria-hidden="true" className={styles.methodArrow} />
+                        </button>
 
-                    <button
-                        className={styles.btnSecondary}
-                        style={{ padding: '16px', fontSize: '1.05rem', border: '2px solid var(--color-positive)', color: 'var(--color-positive)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
-                        onClick={handlePixPayment}
-                    >
-                        <span>Pagar com PIX</span>
-                        <span style={{ fontSize: '0.8rem', opacity: 0.8, marginTop: '4px' }}>QR Code instantâneo: pague pelo app do banco</span>
-                    </button>
+                        <button type="button" className={styles.methodOption} onClick={handleBoletoPayment}>
+                            <span className={styles.methodIcon}><Barcode size={20} aria-hidden="true" /></span>
+                            <span className={styles.methodText}>
+                                <strong>Boleto bancário</strong>
+                                <span>Pague pelo banco ou lotérica; libera após a compensação</span>
+                            </span>
+                            <ChevronRight size={18} aria-hidden="true" className={styles.methodArrow} />
+                        </button>
+                    </div>
 
-                    <button
-                        className={styles.btnSecondary}
-                        style={{ padding: '16px', fontSize: '1.05rem', border: '2px solid var(--color-text-muted)', color: 'var(--color-text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
-                        onClick={handleBoletoPayment}
-                    >
-                        <span>Boleto bancário</span>
-                        <span style={{ fontSize: '0.8rem', opacity: 0.8, marginTop: '4px' }}>Gere o boleto e pague pelo banco ou lotérica</span>
-                    </button>
-
-                    <button className={styles.btnSecondary} onClick={() => setFlow('plans')} style={{ border: 'none', background: 'transparent', color: 'var(--color-text-muted)' }}>
-                        ← Voltar aos Planos
+                    <button type="button" className={styles.linkBack} onClick={() => setFlow('plans')}>
+                        <ArrowLeft size={15} aria-hidden="true" /> Voltar aos planos
                     </button>
                 </div>
             )}
 
-
-            {/* ETAPA 3: CADASTRAR CARTÃO: novo formulário premium */}
+            {/* ETAPA 3: CADASTRAR CARTÃO */}
             {flow === 'card_form' && selectedPlan && (
                 <CardPaymentForm
                     amount={getTotalChargeAmount(selectedPlan, billingType)}
@@ -1125,417 +1020,173 @@ export function UpgradeModal({ onClose, initialPlanId, initialBilling, locked = 
                 />
             )}
 
-            {/* ETAPA CVV: CONFIRMAR CVV PARA PROCESSAR PAGAMENTO */}
+            {/* ETAPA CVV: CONFIRMAR O CARTÃO SALVO */}
             {flow === 'cvv_confirm' && selectedPlan && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <p style={{ textAlign: 'center', fontSize: '1rem', marginBottom: '0.5rem', color: 'var(--color-text)' }}>
+                <div className={styles.step}>
+                    <p className={styles.stepIntro}>
                         {hasCard
-                            ? <>Informe o CVV do cartão <strong>•••• {cardLastFour}</strong></>
-                            : 'Informe o código de segurança (CVV) do seu cartão'
-                        }
+                            ? <>Informe o código de segurança do cartão final <strong>{cardLastFour}</strong>.</>
+                            : 'Informe o código de segurança (CVV) do seu cartão.'}
                     </p>
 
-                    <div style={{ display: 'flex', justifyContent: 'center' }}>
-                        <div style={{ width: '160px' }}>
-                            <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>CVV</label>
-                            <input
-                                type="text"
-                                maxLength={4}
-                                value={cvvInput}
-                                onChange={e => {
-                                    const val = e.target.value.replace(/\D/g, '').slice(0, 4);
-                                    setCvvInput(val);
-                                    setError('');
-                                }}
-                                style={{
-                                    width: '100%', padding: '14px', borderRadius: '8px',
-                                    border: '2px solid var(--color-accent)', background: 'var(--color-surface)',
-                                    color: 'var(--color-text)', fontSize: '1.3rem', textAlign: 'center',
-                                    letterSpacing: '8px', fontWeight: 700,
-                                }}
-                                placeholder="•••"
-                                autoFocus
-                            />
-                        </div>
-                    </div>
+                    <label className={styles.cvvField}>
+                        CVV
+                        <input
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={4}
+                            value={cvvInput}
+                            onChange={e => {
+                                setCvvInput(e.target.value.replace(/\D/g, '').slice(0, 4));
+                                setError('');
+                            }}
+                            placeholder="•••"
+                            autoFocus
+                        />
+                    </label>
 
-                    <button
-                        className={styles.btnPrimary}
-                        style={{ padding: '14px', fontSize: '1rem' }}
-                        onClick={handleChargeSavedCard}
-                        disabled={cvvInput.length < 3}
-                    >
-                        Pagar R$ {formatBRL(getTotalChargeAmount(selectedPlan, billingType))}
-                        <span style={{ fontSize: '0.78rem', opacity: 0.85, fontWeight: 500, marginLeft: 6 }}>
-                            ({billingType === 'annual' ? 'Anual' : 'Mensal'})
-                        </span>
+                    <button type="button" className={styles.btnPrimary} onClick={handleChargeSavedCard} disabled={cvvInput.length < 3}>
+                        Pagar R$ {formatBRL(getTotalChargeAmount(selectedPlan, billingType))} ({billingType === 'annual' ? 'anual' : 'mensal'})
                     </button>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                        <button className={styles.btnSecondary} onClick={() => pixData ? setFlow('pix') : setFlow('plans')} style={{ border: 'none', background: 'transparent', color: 'var(--color-text-muted)', flex: 1, textAlign: 'left' }}>
-                            ← Voltar
+                    <div className={styles.stepActions}>
+                        <button type="button" className={styles.linkBack} onClick={() => pixData ? setFlow('pix') : setFlow('plans')}>
+                            <ArrowLeft size={15} aria-hidden="true" /> Voltar
                         </button>
-                        <button
-                            className={styles.btnSecondary}
-                            onClick={() => { setCvvInput(''); setError(''); setFlow('card_form'); }}
-                            style={{ border: '1px solid var(--admin-border, var(--color-highlight))', background: 'transparent', color: 'var(--color-text-muted)', fontSize: '0.85rem', padding: '8px 14px', borderRadius: '6px', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                        >
-                            Trocar cartão
+                        <button type="button" className={styles.btnSecondary} onClick={() => { setCvvInput(''); setError(''); setFlow('card_form'); }}>
+                            Usar outro cartão
                         </button>
                     </div>
                 </div>
             )}
 
-
-            {/* ETAPA PIX: QR CODE: Material Design */}
+            {/* ETAPA PIX: QR CODE */}
             {flow === 'pix' && pixData && selectedPlan && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0' }}>
+                <div className={`${styles.step} ${styles.stepCenter}`}>
+                    <div className={styles.summary}>
+                        <span className={styles.summaryLabel}>{selectedPlan.name}</span>
+                        <strong className={styles.summaryValue}>R$ {pixData.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>
+                    </div>
 
-                    {/* Plan name */}
-                    <p style={{ margin: '0 0 2px 0', fontSize: '0.8rem', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
-                        {selectedPlan.name}
-                    </p>
-
-                    {/* Amount */}
-                    <p style={{ margin: '0 0 16px 0', fontSize: '2rem', fontWeight: 700, color: 'var(--color-text)', lineHeight: 1.2 }}>
-                        R$ {pixData.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
-
-                    {/* Billing toggle: só se plano tiver opção anual */}
                     {hasAnnualOption(selectedPlan) && (
-                        <div
-                            role="tablist"
-                            aria-label="Periodicidade"
-                            style={{
-                                display: 'flex',
-                                background: 'var(--color-surface)',
-                                border: '1px solid var(--admin-border, var(--color-highlight))',
-                                borderRadius: '8px',
-                                padding: '3px',
-                                gap: '3px',
-                                marginBottom: '16px',
-                                width: '100%',
-                            }}
-                        >
+                        <div className={styles.billingSwitch} role="group" aria-label="Periodicidade">
                             {(['monthly', 'annual'] as const).map(b => (
-                                <button
-                                    key={b}
-                                    type="button"
-                                    role="tab"
-                                    aria-selected={billingType === b}
-                                    onClick={() => handlePixBillingChange(b)}
-                                    style={{
-                                        flex: 1,
-                                        padding: '8px 10px',
-                                        borderRadius: '6px',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        fontSize: '0.85rem',
-                                        fontWeight: billingType === b ? 700 : 500,
-                                        color: billingType === b ? (b === 'annual' ? 'var(--color-surface)' : 'var(--admin-on-accent, #102333)') : 'var(--color-text-muted)',
-                                        background: billingType === b ? (b === 'annual' ? 'var(--color-positive)' : 'var(--color-accent)') : 'transparent',
-                                        transition: 'all 0.15s ease',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '5px',
-                                    }}
-                                >
+                                <button key={b} type="button" aria-pressed={billingType === b} className={billingType === b ? styles.billingOn : ''} onClick={() => handlePixBillingChange(b)}>
                                     {b === 'monthly' ? 'Mensal' : 'Anual'}
-                                    {b === 'annual' && annualSavingsPct(selectedPlan) && (
-                                        <span style={{
-                                            background: billingType === 'annual' ? 'color-mix(in srgb, var(--color-surface) 25%, transparent)' : 'color-mix(in srgb, var(--color-positive) 20%, transparent)',
-                                            color: billingType === 'annual' ? 'var(--color-surface)' : 'var(--color-positive)',
-                                            fontSize: '0.68rem',
-                                            padding: '1px 6px',
-                                            borderRadius: '999px',
-                                            fontWeight: 700,
-                                        }}>-{annualSavingsPct(selectedPlan)}%</span>
-                                    )}
+                                    {b === 'annual' && annualSavingsPct(selectedPlan) && <span className={styles.billingSave}>-{annualSavingsPct(selectedPlan)}%</span>}
                                 </button>
                             ))}
                         </div>
                     )}
 
-                    {/* QR Code card: fundo branco fixo para o leitor do banco reconhecer o código */}
-                    <div style={{
-                        background: '#fff',
-                        borderRadius: '16px',
-                        padding: '18px',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
-                        marginBottom: '12px',
-                        display: 'inline-block',
-                    }}>
-                        <img
-                            src={`data:image/png;base64,${pixData.qrCodeBase64}`}
-                            alt="QR Code PIX"
-                            style={{ width: '200px', height: '200px', display: 'block' }}
-                        />
+                    {/* Fundo branco fixo: o leitor do banco precisa de contraste para ler o código. */}
+                    <div className={styles.qrFrame}>
+                        <img src={`data:image/png;base64,${pixData.qrCodeBase64}`} alt="QR Code PIX" width={200} height={200} />
                     </div>
+                    <p className={styles.hint}>Escaneie com o app do seu banco. A aprovação é imediata.</p>
 
-                    {/* PIX logo + label */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
-                        <span style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>
-                            Escaneie com o app do seu banco · aprovação imediata
-                        </span>
-                    </div>
-
-                    {/* Copy code row */}
-                    <div style={{ width: '100%', display: 'flex', gap: '8px', marginBottom: '14px' }}>
-                        <input
-                            type="text"
-                            readOnly
-                            value={pixData.qrCode}
-                            style={{
-                                flex: 1,
-                                padding: '9px 12px',
-                                borderRadius: '8px',
-                                border: '1px solid var(--admin-border, var(--color-highlight))',
-                                background: 'var(--color-surface)',
-                                color: 'var(--color-text-muted)',
-                                fontSize: '0.68rem',
-                                textOverflow: 'ellipsis',
-                                minWidth: 0,
-                            }}
-                        />
-                        <button
-                            onClick={handleCopyPix}
-                            style={{
-                                padding: '9px 18px',
-                                borderRadius: '8px',
-                                border: 'none',
-                                background: pixCopied ? 'var(--color-positive)' : 'var(--color-accent)',
-                                color: pixCopied ? 'var(--color-surface)' : 'var(--admin-on-accent, #102333)',
-                                fontWeight: 600,
-                                fontSize: '0.8rem',
-                                cursor: 'pointer',
-                                whiteSpace: 'nowrap',
-                                transition: 'background 0.2s',
-                                letterSpacing: '0.02em',
-                            }}
-                        >
-                            {pixCopied ? 'Copiado' : 'Copiar'}
+                    <div className={styles.copyRow}>
+                        <input type="text" readOnly value={pixData.qrCode} aria-label="Código PIX copia e cola" />
+                        <button type="button" className={styles.btnSecondary} data-copiado={pixCopied || undefined} onClick={handleCopyPix}>
+                            {pixCopied ? <><Check size={15} aria-hidden="true" /> Copiado</> : <><Copy size={15} aria-hidden="true" /> Copiar</>}
                         </button>
                     </div>
 
-                    {/* Polling indicator */}
                     {pixPolling && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--admin-selected-text, var(--color-accent))', fontSize: '0.82rem', marginBottom: '10px' }}>
-                            <div style={{ width: '14px', height: '14px', border: '2px solid var(--color-accent)', borderTop: '2px solid transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', flexShrink: 0 }} />
-                            Aguardando confirmação do pagamento...
-                        </div>
+                        <p className={styles.waiting} role="status"><Loader2 size={15} className={styles.spin} aria-hidden="true" /> Aguardando a confirmação do pagamento...</p>
                     )}
 
-                    {/* Divider */}
-                    <div style={{ width: '100%', height: '1px', background: 'var(--admin-border, var(--color-highlight))', margin: '6px 0 14px 0' }} />
-
                     {!pixOnly && (
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '6px' }}>
+                        <div className={styles.altMethods}>
+                            <span>Prefere outra forma?</span>
                             <button
+                                type="button"
+                                className={styles.chip}
                                 onClick={() => {
                                     if (hasCard) { setCvvInput(''); setError(''); setFlow('cvv_confirm'); }
                                     else { setFlow('card_form'); }
                                 }}
                                 disabled={checkingCard}
-                                style={{
-                                    background: 'transparent',
-                                    border: '1px solid color-mix(in srgb, var(--color-accent) 50%, transparent)',
-                                    borderRadius: '20px',
-                                    color: 'var(--admin-selected-text, var(--color-accent))',
-                                    fontSize: '0.78rem',
-                                    padding: '6px 18px',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    letterSpacing: '0.02em',
-                                }}
                             >
-                                Pagar com cartão
-                                {checkingCard && <span style={{ fontSize: '0.7rem', opacity: 0.7 }}>...</span>}
+                                <CreditCard size={14} aria-hidden="true" /> Cartão{checkingCard ? '...' : ''}
                             </button>
-                            <button
-                                onClick={handleBoletoPayment}
-                                style={{
-                                    background: 'transparent',
-                                    border: '1px solid color-mix(in srgb, var(--color-text-muted) 50%, transparent)',
-                                    borderRadius: '20px',
-                                    color: 'var(--color-text-muted)',
-                                    fontSize: '0.78rem',
-                                    padding: '6px 18px',
-                                    cursor: 'pointer',
-                                    letterSpacing: '0.02em',
-                                }}
-                            >
-                                Boleto
+                            <button type="button" className={styles.chip} onClick={handleBoletoPayment}>
+                                <Barcode size={14} aria-hidden="true" /> Boleto
                             </button>
                         </div>
                     )}
 
                     {!locked && (
-                        <button
-                            onClick={() => { setFlow('plans'); setPixData(null); }}
-                            style={{ background: 'transparent', border: 'none', color: 'var(--color-text-muted)', fontSize: '0.75rem', cursor: 'pointer', padding: '4px 8px' }}
-                        >
-                            ← Voltar aos planos
+                        <button type="button" className={styles.linkBack} onClick={() => { setFlow('plans'); setPixData(null); }}>
+                            <ArrowLeft size={15} aria-hidden="true" /> Voltar aos planos
                         </button>
                     )}
-
-                    <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
                 </div>
             )}
 
             {/* ETAPA BOLETO */}
             {flow === 'boleto' && boletoData && selectedPlan && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
-                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
-                        {selectedPlan.name}
-                    </p>
-                    <p style={{ margin: 0, fontSize: '2rem', fontWeight: 700, color: 'var(--color-text)', lineHeight: 1.2 }}>
-                        R$ {boletoData.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
-
-                    {boletoData.expiresAt && (
-                        <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--color-text-muted)' }}>
-                            Vencimento: {new Date(boletoData.expiresAt).toLocaleDateString('pt-BR')}
-                        </p>
-                    )}
+                <div className={`${styles.step} ${styles.stepCenter}`}>
+                    <div className={styles.summary}>
+                        <span className={styles.summaryLabel}>{selectedPlan.name}</span>
+                        <strong className={styles.summaryValue}>R$ {boletoData.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>
+                        {boletoData.expiresAt && <span className={styles.summaryNote}>Vence em {new Date(boletoData.expiresAt).toLocaleDateString('pt-BR')}</span>}
+                    </div>
 
                     {boletoData.boletoUrl && (
-                        <a
-                            href={boletoData.boletoUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className={styles.btnPrimary}
-                            style={{ textDecoration: 'none', textAlign: 'center', width: '100%', padding: '14px' }}
-                        >
-                            Abrir boleto
+                        <a href={boletoData.boletoUrl} target="_blank" rel="noreferrer" className={styles.btnPrimary}>
+                            <ExternalLink size={16} aria-hidden="true" /> Abrir boleto
                         </a>
                     )}
 
-                    <div style={{ width: '100%', display: 'flex', gap: '8px' }}>
-                        <input
-                            type="text"
-                            readOnly
-                            value={boletoData.boletoBarcode || boletoData.boletoUrl || ''}
-                            style={{
-                                flex: 1,
-                                padding: '9px 12px',
-                                borderRadius: '8px',
-                                border: '1px solid var(--admin-border, var(--color-highlight))',
-                                background: 'var(--color-surface)',
-                                color: 'var(--color-text-muted)',
-                                fontSize: '0.68rem',
-                                textOverflow: 'ellipsis',
-                                minWidth: 0,
-                            }}
-                        />
-                        <button
-                            onClick={handleCopyBoleto}
-                            style={{
-                                padding: '9px 18px',
-                                borderRadius: '8px',
-                                border: 'none',
-                                background: boletoCopied ? 'var(--color-positive)' : 'var(--color-text-muted)',
-                                color: 'var(--color-surface)',
-                                fontWeight: 600,
-                                fontSize: '0.8rem',
-                                cursor: 'pointer',
-                                whiteSpace: 'nowrap',
-                            }}
-                        >
-                            {boletoCopied ? 'Copiado' : 'Copiar'}
+                    <div className={styles.copyRow}>
+                        <input type="text" readOnly value={boletoData.boletoBarcode || boletoData.boletoUrl || ''} aria-label="Linha digitável do boleto" />
+                        <button type="button" className={styles.btnSecondary} data-copiado={boletoCopied || undefined} onClick={handleCopyBoleto}>
+                            {boletoCopied ? <><Check size={15} aria-hidden="true" /> Copiado</> : <><Copy size={15} aria-hidden="true" /> Copiar</>}
                         </button>
                     </div>
 
                     {boletoPolling && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-text-muted)', fontSize: '0.82rem' }}>
-                            <div style={{ width: '14px', height: '14px', border: '2px solid var(--color-text-muted)', borderTop: '2px solid transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', flexShrink: 0 }} />
-                            Aguardando compensação do boleto...
-                        </div>
+                        <p className={styles.waiting} role="status"><Loader2 size={15} className={styles.spin} aria-hidden="true" /> Aguardando a compensação do boleto...</p>
                     )}
 
-                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-text-muted)', textAlign: 'center', lineHeight: 1.5 }}>
-                        Após a compensação pelo Mercado Pago, seu acesso é renovado automaticamente.
-                    </p>
+                    <p className={styles.hint}>Depois da compensação pelo Mercado Pago, seu acesso é renovado automaticamente.</p>
 
-                    <button
-                        onClick={() => { setFlow('pix'); setBoletoData(null); }}
-                        style={{ background: 'transparent', border: 'none', color: 'var(--color-text-muted)', fontSize: '0.75rem', cursor: 'pointer', padding: '4px 8px' }}
-                    >
-                        ← Voltar ao PIX
+                    <button type="button" className={styles.linkBack} onClick={() => { setFlow('pix'); setBoletoData(null); }}>
+                        <ArrowLeft size={15} aria-hidden="true" /> Voltar ao PIX
                     </button>
-
-                    <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
                 </div>
             )}
 
             {/* ETAPA CARD_PENDING: cobrança aceita, emissor analisando.
-                 Polling a cada 5s. Se aprovar → redireciona. Se recusar → volta ao método.
-                 Usuário pode fechar: o webhook libera o acesso quando o MP confirmar. */}
+                 Polling a cada 5s. Se aprovar, redireciona. Se recusar, volta ao método.
+                 O usuário pode fechar: o webhook libera o acesso quando o MP confirmar. */}
             {flow === 'card_pending' && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', padding: '1rem 0' }}>
-                    <div style={{
-                        width: '56px', height: '56px',
-                        border: '4px solid color-mix(in srgb, var(--color-accent) 20%, transparent)',
-                        borderTop: '4px solid var(--color-accent)',
-                        borderRadius: '50%',
-                        animation: 'spin 1s linear infinite',
-                    }} />
-                    <h3 style={{ margin: 0, fontSize: '1.15rem', textAlign: 'center' }}>
-                        Assinatura em ativação
-                    </h3>
-                    <p style={{ margin: 0, textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.95rem', lineHeight: 1.5, maxWidth: '420px' }}>
-                        O Mercado Pago está autorizando a cobrança recorrente no cartão.
-                        Verificamos o status automaticamente e liberamos seu acesso
-                        assim que a assinatura for autorizada.
+                <div className={`${styles.step} ${styles.stepCenter}`}>
+                    <Loader2 size={44} className={`${styles.spin} ${styles.bigSpinner}`} aria-hidden="true" />
+                    <h3 className={styles.stepTitle}>Assinatura em ativação</h3>
+                    <p className={styles.stepIntro}>
+                        O Mercado Pago está autorizando a cobrança recorrente no cartão. Verificamos sozinhos e
+                        liberamos seu acesso assim que a assinatura for autorizada.
                     </p>
 
                     {cardPending && (
-                        <div style={{
-                            display: 'flex', alignItems: 'center', gap: '8px',
-                            fontSize: '0.85rem',
-                            color: cardPending.pollingActive ? 'var(--color-accent)' : 'var(--color-text-muted)',
-                            background: 'color-mix(in srgb, var(--color-accent) 8%, transparent)',
-                            padding: '8px 14px',
-                            borderRadius: '999px',
-                        }}>
-                            {cardPending.pollingActive ? (
-                                <>
-                                    <span style={{
-                                        width: '8px', height: '8px', borderRadius: '50%',
-                                        background: 'var(--color-accent)',
-                                        animation: 'pulse 1.2s ease-in-out infinite',
-                                    }} />
-                                    Aguardando confirmação… ({Math.floor(cardPending.elapsedSec / 60)}m{String(cardPending.elapsedSec % 60).padStart(2, '0')}s)
-                                </>
-                            ) : (
-                                <>A autorização ainda não foi concluída. Você pode fechar esta janela e tentar novamente mais tarde.</>
-                            )}
-                        </div>
+                        <p className={styles.waiting} role="status">
+                            {cardPending.pollingActive
+                                ? <><span className={styles.pulseDot} aria-hidden="true" /> Aguardando confirmação ({Math.floor(cardPending.elapsedSec / 60)}m{String(cardPending.elapsedSec % 60).padStart(2, '0')}s)</>
+                                : 'A autorização ainda não foi concluída. Você pode fechar esta janela e tentar mais tarde.'}
+                        </p>
                     )}
 
                     {!locked && (
-                        <button
-                            className={styles.btnSecondary}
-                            onClick={onClose}
-                            style={{ border: 'none', background: 'transparent', color: 'var(--color-text-muted)', marginTop: '8px' }}
-                        >
-                            Fechar
-                        </button>
+                        <button type="button" className={styles.btnSecondary} onClick={onClose}>Fechar</button>
                     )}
-
-                    <style>{`
-                        @keyframes spin { 100% { transform: rotate(360deg); } }
-                        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-                    `}</style>
                 </div>
             )}
 
             {flow === 'processing' && (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
-                    <div className="spinner" style={{ width: '40px', height: '40px', border: '4px solid var(--admin-border, var(--color-highlight))', borderTop: '4px solid var(--color-accent)', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-                    <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
+                <div className={`${styles.step} ${styles.stepCenter}`} role="status" aria-label="Processando pagamento...">
+                    <Loader2 size={40} className={`${styles.spin} ${styles.bigSpinner}`} aria-hidden="true" />
                 </div>
             )}
         </AdminModal>
