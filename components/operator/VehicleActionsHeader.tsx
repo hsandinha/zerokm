@@ -56,86 +56,131 @@ export function VehicleActionsHeader({
             {banner && <div className={styles.headerBanner}><div className={styles.headerBannerInner}>{banner}</div></div>}
             {aside}
             <div className={styles.headerActions}>
-                {role !== 'client' && selectedIds.length > 0 && (
-                    <>
-                        <button
-                            className={styles.importButton}
-                            onClick={handleBulkUpdateDate}
-                            title="Atualizar Data de Atualização"
-                            style={{ marginRight: '8px' }}
-                        >
-                            <CalendarDays size={16} aria-hidden="true" /> Atualizar data ({selectedIds.length})
-                        </button>
-                        <button
-                            className={styles.bulkDeleteButton}
-                            onClick={handleBulkDelete}
-                            title="Excluir Selecionados"
-                        >
-                            <Trash2 size={16} aria-hidden="true" /> Excluir ({selectedIds.length})
-                        </button>
-                    </>
-                )}
-                {role !== 'client' && role !== 'gratis' && role !== 'dealership' && role !== 'vendedor' && (
-                    <div className={styles.exportWrapper} style={{ position: 'relative', display: 'inline-block' }}>
-                        <button
-                            className={styles.importButton}
-                            onClick={() => setShowExportMenu(!showExportMenu)}
-                            title="Exportar Veículos"
-                            disabled={isExporting}
-                            style={{ marginRight: '8px' }}
-                        >
-                            <Download size={16} aria-hidden="true" /> {isExporting ? 'Exportando...' : 'Exportar'}
-                        </button>
-                        {showExportMenu && (
-                            <div className={styles.exportMenu} style={{
-                                position: 'absolute',
-                                top: '100%',
-                                left: 0,
-                                zIndex: 10,
-                                background: 'white',
-                                border: '1px solid #ccc',
-                                borderRadius: '4px',
-                                boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                minWidth: '120px'
-                            }}>
-                                <button
-                                    onClick={() => handleExport('csv')}
-                                    style={{ padding: '8px 12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', borderBottom: '1px solid #eee', color: '#333' }}
-                                >
-                                    CSV (.csv)
-                                </button>
-                                <button
-                                    onClick={() => handleExport('json')}
-                                    style={{ padding: '8px 12px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', color: '#333' }}
-                                >
-                                    JSON (.json)
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* Margem: admin, gerente e client (plano pago) editam */}
-                {['admin', 'administrador', 'gerente', 'client'].includes(role) && (
-                    <button
-                        className={styles.importButton}
-                        onClick={() => setShowMargemModal(true)}
-                        title="Configurar Margem"
-                        style={{ marginRight: '8px' }}
-                    >
-                        <ChartNoAxesCombined size={16} aria-hidden="true" /> Margem
-                    </button>
-                )}
-
-                {onClose && (
-                    <button className={styles.closeButton} onClick={onClose} aria-label="Fechar consulta">
-                        <X size={16} aria-hidden="true" />
-                    </button>
-                )}
+                <VehicleHeaderActions
+                    role={role}
+                    selectedIds={selectedIds}
+                    handleBulkUpdateDate={handleBulkUpdateDate}
+                    handleBulkDelete={handleBulkDelete}
+                    showExportMenu={showExportMenu}
+                    setShowExportMenu={setShowExportMenu}
+                    isExporting={isExporting}
+                    handleExport={handleExport}
+                    setShowMargemModal={setShowMargemModal}
+                    onClose={onClose}
+                />
             </div>
         </div>
+    );
+}
+
+interface VehicleHeaderActionsProps {
+    role: string;
+    selectedIds: string[];
+    handleBulkUpdateDate: () => void;
+    handleBulkDelete: () => void;
+    showExportMenu: boolean;
+    setShowExportMenu: (show: boolean) => void;
+    isExporting: boolean;
+    handleExport: (format: 'csv' | 'json') => void;
+    setShowMargemModal: (show: boolean) => void;
+    onClose?: () => void;
+}
+
+/**
+ * Ações da consulta (lote, Exportar, Margem, fechar). No cabeçalho do cliente ou,
+ * nos painéis da equipe (sem cabeçalho), na linha da busca ao lado de "Limpar filtros".
+ */
+export function VehicleHeaderActions({
+    role,
+    selectedIds,
+    handleBulkUpdateDate,
+    handleBulkDelete,
+    showExportMenu,
+    setShowExportMenu,
+    isExporting,
+    handleExport,
+    setShowMargemModal,
+    onClose,
+}: VehicleHeaderActionsProps) {
+    return (
+        <>
+        {role !== 'client' && selectedIds.length > 0 && (
+            <>
+                <button
+                    className={styles.importButton}
+                    onClick={handleBulkUpdateDate}
+                    title="Atualizar Data de Atualização"
+                >
+                    <CalendarDays size={16} aria-hidden="true" /> Atualizar data ({selectedIds.length})
+                </button>
+                <button
+                    className={styles.bulkDeleteButton}
+                    onClick={handleBulkDelete}
+                    title="Excluir Selecionados"
+                >
+                    <Trash2 size={16} aria-hidden="true" /> Excluir ({selectedIds.length})
+                </button>
+            </>
+        )}
+        {role !== 'client' && role !== 'gratis' && role !== 'dealership' && role !== 'vendedor' && (
+            <div className={styles.exportWrapper} style={{ position: 'relative', display: 'inline-block' }}>
+                <button
+                    className={styles.importButton}
+                    onClick={() => setShowExportMenu(!showExportMenu)}
+                    title="Exportar Veículos"
+                    disabled={isExporting}
+                >
+                    <Download size={16} aria-hidden="true" /> {isExporting ? 'Exportando...' : 'Exportar'}
+                </button>
+                {showExportMenu && (
+                    <div className={styles.exportMenu} style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 4px)',
+                        right: 0,
+                        zIndex: 20,
+                        background: 'var(--color-surface)',
+                        border: '1px solid var(--admin-border, var(--color-highlight))',
+                        borderRadius: '10px',
+                        boxShadow: '0 8px 24px rgba(16, 35, 51, 0.18)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        minWidth: '140px',
+                        overflow: 'hidden'
+                    }}>
+                        <button
+                            onClick={() => handleExport('csv')}
+                            style={{ padding: '10px 14px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', borderBottom: '1px solid var(--admin-border, var(--color-highlight))', color: 'var(--color-text)' }}
+                        >
+                            CSV (.csv)
+                        </button>
+                        <button
+                            onClick={() => handleExport('json')}
+                            style={{ padding: '10px 14px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', color: 'var(--color-text)' }}
+                        >
+                            JSON (.json)
+                        </button>
+                    </div>
+                )}
+            </div>
+        )}
+
+        {/* Margem: admin, gerente e client (plano pago) editam */}
+        {['admin', 'administrador', 'gerente', 'client'].includes(role) && (
+            <button
+                className={styles.importButton}
+                onClick={() => setShowMargemModal(true)}
+                title="Configurar Margem"
+            >
+                <ChartNoAxesCombined size={16} aria-hidden="true" /> Margem
+            </button>
+        )}
+
+        {onClose && (
+            <button className={styles.closeButton} onClick={onClose} aria-label="Fechar consulta">
+                <X size={16} aria-hidden="true" />
+            </button>
+        )}
+        </>
     );
 }
 

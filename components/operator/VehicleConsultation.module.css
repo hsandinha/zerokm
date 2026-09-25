@@ -2163,3 +2163,12 @@ th.colAcoes { background: var(--color-panel); z-index: 3; }
     outline: 2px solid var(--color-accent);
     outline-offset: 2px;
 }
+
+/* Painéis da equipe: Exportar/Margem (e ações em lote) na linha da busca, com a altura do "Limpar filtros". */
+.searchActions { display: flex; align-items: stretch; gap: 0.5rem; flex: none; align-self: stretch; }
+.searchActions .exportWrapper { display: flex !important; }
+.searchActions .importButton,
+.searchActions .bulkDeleteButton { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; height: 100%; margin: 0; }
+@media (max-width: 768px) {
+    .searchActions { flex: 1 1 100%; flex-wrap: wrap; }
+}

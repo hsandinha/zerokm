@@ -22,7 +22,7 @@ import { VehicleGrid, getStatusColor } from './VehicleGrid';
 import { VehicleTable } from './VehicleTable';
 import { VehicleSidebar, TipoSegmento } from './VehicleSidebar';
 import { VehicleFiltersBar } from './VehicleFiltersBar';
-import { VehicleActionsHeader, ViewToggle } from './VehicleActionsHeader';
+import { VehicleActionsHeader, VehicleHeaderActions, ViewToggle } from './VehicleActionsHeader';
 
 import { BRAZIL_STATES, STATUS_OPTIONS, YEAR_REGEX, fuelLookup, statusLookup, transmissionLookup } from '../../lib/utils/constants';
 import { calculateDaysSinceUpdate, formatDate, formatDateForInput, getUpdateStatusColor, normalizeString } from '../../lib/utils/formatters';
@@ -164,6 +164,9 @@ function EditableDateCell({ value, onSave }: EditableDateCellProps) {
 export function VehicleConsultation({ onClose, role = 'operator', isInvitee = false, showBanners = false, bannerRole, enableFavorites = false, favoritesOnly = false, onUpgradeClick }: VehicleConsultationProps) {
     // Favoritos é recurso dos planos pagos.
     const favoritesEnabled = (enableFavorites || favoritesOnly) && role !== 'gratis';
+    // Cabeçalho (título, banner, transportadora) só no painel do cliente. Na equipe a busca
+    // sobe para o topo e Exportar/Margem vão para a linha da busca.
+    const comCabecalho = role === 'client' || role === 'gratis';
     const favoritos = useFavoritos(favoritesEnabled);
     const { data: session } = useSession();
     const isClientReadOnly = true; // All edits moved to Pricing Catalog
@@ -1258,7 +1261,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                 </div>
             )}
 
-            <VehicleActionsHeader
+            {comCabecalho && <VehicleActionsHeader
                 role={role}
                 selectedIds={selectedIds}
                 handleBulkUpdateDate={handleBulkUpdateDate}
@@ -1295,7 +1298,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                     </div>
                 }
                 title={favoritesOnly ? 'Favoritos' : undefined}
-            />
+            />}
 
             {showVehicleForm && (
                 <AddVehicleModal
@@ -1336,7 +1339,25 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                         setCurrentPage={setCurrentPage}
                         totalItems={totalItems}
                         totalQuantidade={totalQuantidade}
-                        rightSlot={isMobile ? undefined : <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />}
+                        rightSlot={<>
+                            {!comCabecalho && (
+                                <div className={styles.searchActions}>
+                                    <VehicleHeaderActions
+                                        role={role}
+                                        selectedIds={selectedIds}
+                                        handleBulkUpdateDate={handleBulkUpdateDate}
+                                        handleBulkDelete={handleBulkDelete}
+                                        showExportMenu={showExportMenu}
+                                        setShowExportMenu={setShowExportMenu}
+                                        isExporting={isExporting}
+                                        handleExport={handleExport}
+                                        setShowMargemModal={setShowMargemModal}
+                                        onClose={onClose}
+                                    />
+                                </div>
+                            )}
+                            {!isMobile && <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />}
+                        </>}
                     />
 
                     {favoritesOnly && favoritos.count > 0 && (
