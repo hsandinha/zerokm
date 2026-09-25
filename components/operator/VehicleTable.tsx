@@ -8,6 +8,7 @@ import { EditableTextCell, EditableSelectCell, EditableAutocompleteCell, Editabl
 import { formatPrazo } from '../../lib/utils/prazo';
 import { formatKm } from '../../lib/utils/repasse';
 import { FaWhatsapp } from 'react-icons/fa';
+import { Images } from 'lucide-react';
 import { TRANSPORTADORA_PARCEIRA, whatsappTransportadora } from '../../lib/utils/transportadora';
 import { abrirCotacaoDoVeiculo } from '../../lib/utils/cotacaoVeiculo';
 import styles from './VehicleConsultation.module.css';
@@ -41,6 +42,8 @@ interface VehicleTableProps {
     handleUpdatePreco: (vehicle: Vehicle, newValue: number | undefined) => void;
     handleLocationClick: (vehicle: Vehicle) => void;
     onWhatsApp: (vehicle: Vehicle) => void;
+    /** Criar banner a partir da linha. Só chega preenchido para quem administra. */
+    onCreateBanner?: (vehicle: Vehicle) => void;
     getFreteTabela?: (estado?: string) => { min: number; count: number } | null;
     onFreteTabelaClick?: (estado?: string) => void;
     nomeCliente?: string;
@@ -77,6 +80,7 @@ export function VehicleTable({
     handleUpdatePreco,
     handleLocationClick,
     onWhatsApp,
+    onCreateBanner,
     getFreteTabela,
     onFreteTabelaClick,
     nomeCliente,
@@ -438,6 +442,19 @@ export function VehicleTable({
                                             onClick={(e) => { e.stopPropagation(); onWhatsApp(vehicle); }}
                                         >
                                             <FaWhatsapp size={18} aria-hidden="true" />
+                                        </button>
+                                    )}
+                                    {/* Anunciar no topo da consulta dos lojistas. Só administração
+                                        vê: a rota de banners recusa os demais perfis. */}
+                                    {onCreateBanner && (
+                                        <button
+                                            type="button"
+                                            className={styles.rowActionButton}
+                                            title="Criar banner deste veículo"
+                                            aria-label="Criar banner deste veículo"
+                                            onClick={(e) => { e.stopPropagation(); onCreateBanner(vehicle); }}
+                                        >
+                                            <Images size={18} aria-hidden="true" />
                                         </button>
                                     )}
                                     {/* Cotação de frete com a transportadora: recurso dos planos pagos. */}

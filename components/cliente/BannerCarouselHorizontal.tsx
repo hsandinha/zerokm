@@ -1,26 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { MdChevronLeft, MdChevronRight, MdLocalGasStation, MdColorLens, MdDateRange, MdLocalShipping, MdInfo } from 'react-icons/md';
-import { FaWhatsapp } from 'react-icons/fa';
+import { MdChevronLeft, MdChevronRight } from 'react-icons/md';
 import styles from './BannerCarouselHorizontal.module.css';
+import { BannerCard, type BannerData } from './BannerCard';
 
-interface Banner {
+interface Banner extends BannerData {
     _id: string;
-    title: string;
-    imageUrl: string;
-    linkUrl?: string;
-    badge?: string;
-    price?: string;
-    priceSubtitle?: string;
-    vehicleModel?: string;
-    storeName?: string;
-    year?: string;
-    color?: string;
-    fuel?: string;
-    delivery?: string;
-    statusCondition?: string;
-    ctaText?: string;
 }
 
 interface BannerCarouselHorizontalProps {
@@ -77,87 +63,7 @@ export function BannerCarouselHorizontal({ role }: BannerCarouselHorizontalProps
                 const isActive = index === currentIndex;
                 const transformValue = `translateX(${(index - currentIndex) * 100}%)`;
 
-                const content = (
-                    <div className={styles.slideInner}>
-                        <div className={styles.imageWrapper}>
-                            {banner.badge && <div className={styles.badge}>{banner.badge}</div>}
-                            <img 
-                                src={banner.imageUrl} 
-                                alt={banner.vehicleModel || banner.title} 
-                                className={styles.bannerImage} 
-                            />
-                        </div>
-
-                        <div className={styles.contentWrapper}>
-                            <div className={styles.titleContainer}>
-                                <div className={styles.titleRow}>
-                                    {banner.vehicleModel && <div className={styles.vehicleModel}>{banner.vehicleModel}</div>}
-                                    {banner.linkUrl && role !== 'gratis' && (
-                                        <div className={styles.whatsappIconOnly}>
-                                            <FaWhatsapp size={20} />
-                                        </div>
-                                    )}
-                                </div>
-                                <div className={styles.storeRow}>
-                                    {banner.storeName && <div className={styles.storeName}>{banner.storeName}</div>}
-                                </div>
-                            </div>
-                            
-                            <div className={styles.priceRow}>
-                                {(banner.price || banner.priceSubtitle) && (
-                                    <div className={styles.priceGroup}>
-                                        {banner.priceSubtitle && <div className={styles.priceSubtitle}>{banner.priceSubtitle}</div>}
-                                        {banner.price && <div className={styles.price}>{banner.price}</div>}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Specifications Container (Inline) */}
-                            <div className={styles.specsContainer}>
-                                {banner.year && (
-                                    <div className={styles.specItem}>
-                                        <MdDateRange className={styles.specIcon} />
-                                        <div className={styles.specTextGroup}>
-                                            <span className={styles.specValue}>{banner.year}</span>
-                                        </div>
-                                    </div>
-                                )}
-                                {banner.color && (
-                                    <div className={styles.specItem}>
-                                        <MdColorLens className={styles.specIcon} />
-                                        <div className={styles.specTextGroup}>
-                                            <span className={styles.specValue}>{banner.color}</span>
-                                        </div>
-                                    </div>
-                                )}
-                                {banner.fuel && (
-                                    <div className={styles.specItem}>
-                                        <MdLocalGasStation className={styles.specIcon} />
-                                        <div className={styles.specTextGroup}>
-                                            <span className={styles.specValue}>{banner.fuel}</span>
-                                        </div>
-                                    </div>
-                                )}
-                                {banner.delivery && (
-                                    <div className={styles.specItem}>
-                                        <MdLocalShipping className={styles.specIcon} />
-                                        <div className={styles.specTextGroup}>
-                                            <span className={styles.specValue}>{banner.delivery}</span>
-                                        </div>
-                                    </div>
-                                )}
-                                {banner.statusCondition && (
-                                    <div className={styles.specItem}>
-                                        <MdInfo className={styles.specIcon} />
-                                        <div className={styles.specTextGroup}>
-                                            <span className={styles.specValue}>{banner.statusCondition}</span>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                );
+                const content = <BannerCard banner={banner} role={role} />;
 
                 return (
                     <div 

@@ -13,6 +13,7 @@ import { Vehicle, VehicleService } from '../../lib/services/vehicleService';
 import { TransportadoraService, Transportadora } from '../../lib/services/transportadoraService';
 import { TRANSPORTADORA_PARCEIRA, telefoneTransportadora, whatsappTransportadora } from '../../lib/utils/transportadora';
 import { BannerCarouselHorizontal } from '../cliente/BannerCarouselHorizontal';
+import { CriarBannerModal } from '../admin/CriarBannerModal';
 import { AddVehicleModal } from './AddVehicleModal';
 import styles from './VehicleConsultation.module.css';
 import { AdminModal, modalStyles as adminModal } from '@/components/admin/AdminModal';
@@ -172,6 +173,10 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
     const { confirm, notify, feedback } = useFeedback();
     const { data: session } = useSession();
     const isClientReadOnly = true; // All edits moved to Pricing Catalog
+    // Quem pode anunciar. A rota /api/admin/banners recusa os demais perfis —
+    // esconder o botão só evita oferecer o que daria 401.
+    const podeCriarBanner = ['admin', 'administrador', 'administrativo'].includes(role);
+    const [veiculoParaBanner, setVeiculoParaBanner] = useState<Vehicle | null>(null);
     const { margem, fixedMargin, marginMode, setMargem, setMarginConfig } = useConfig();
     const [showMargemModal, setShowMargemModal] = useState(false);
     const [inputMargem, setInputMargem] = useState<string>(margem.toString());
@@ -1423,6 +1428,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                                 handleUpdatePreco={handleUpdatePreco}
                                 handleLocationClick={handleLocationClick}
                                 onWhatsApp={handleWhatsAppClick}
+                                onCreateBanner={podeCriarBanner ? setVeiculoParaBanner : undefined}
                                 getFreteTabela={getFreteTabela}
                                 onFreteTabelaClick={handleFreteTabelaClick}
                                 nomeCliente={session?.user?.name || (session?.user as any)?.displayName || session?.user?.email || ''}
@@ -1435,6 +1441,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                                 fixedMargin={fixedMargin}
                                 marginMode={marginMode}
                                 onWhatsApp={handleWhatsAppClick}
+                                onCreateBanner={podeCriarBanner ? setVeiculoParaBanner : undefined}
                                 onLocationClick={handleLocationClick}
                                 role={role as any}
                                 canViewLocation={(session?.user as any)?.canViewLocation}
@@ -1767,6 +1774,18 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                 </AdminModal>
             )}
             {showUpgradeModal && <UpgradeModal onClose={() => setShowUpgradeModal(false)} paidOnly />}
+            {veiculoParaBanner && (
+                <CriarBannerModal
+                    veiculo={veiculoParaBanner}
+                    // O mesmo preço que a linha mostra — com a margem desta tela.
+                    preco={calculateClientPrice(veiculoParaBanner)}
+                    onClose={() => setVeiculoParaBanner(null)}
+                    onCriado={() => {
+                        setVeiculoParaBanner(null);
+                        notify('Banner criado. Fica 24 horas no ar.', 'positive');
+                    }}
+                />
+            )}
             {feedback}
         </div>
     );

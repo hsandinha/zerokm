@@ -18,6 +18,7 @@ export async function GET(req: Request) {
         const page = parseInt(searchParams.get('page') || '1');
         const limit = parseInt(searchParams.get('limit') || '10');
         const statusFilter = searchParams.get('status') || 'all';
+        const modelFilter = (searchParams.get('model') || '').trim();
         const skip = (page - 1) * limit;
 
         await connectDB();
@@ -38,6 +39,25 @@ export async function GET(req: Request) {
             query.status = { $nin: ['pending', 'awaiting_payment', 'expired', 'rejected'] };
         }
 
+        if (modelFilter) {
+            // O banner criado pelo checkout da concessionária grava só `title`
+            // — `vehicleModel` fica vazio. Sem este segundo caso, os anúncios
+            // em "Aprovação" e "Aguardando pagamento" sumiriam do filtro.
+            query.$or = [
+                { vehicleModel: modelFilter },
+                { vehicleModel: { $in: [null, ''] }, title: modelFilter },
+            ];
+        }
+
+        // Opções do filtro: os modelos de TODOS os banners, não só os da
+        // situação escolhida — assim a lista do seletor não muda embaixo de
+        // quem está usando. São poucas dezenas de documentos; ler os dois
+        // campos e resolver em memória sai mais legível que uma agregação.
+        const todos = await Banner.find({}, { vehicleModel: 1, title: 1 }).lean() as any[];
+        const models = Array.from(
+            new Set(todos.map(b => String(b.vehicleModel || b.title || '').trim()).filter(Boolean))
+        ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
         const totalCount = await Banner.countDocuments(query);
         const totalPages = Math.ceil(totalCount / limit);
 
@@ -49,6 +69,7 @@ export async function GET(req: Request) {
 
         return NextResponse.json({
             banners,
+            models,
             currentPage: page,
             totalPages,
             totalCount

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Check, Eye, EyeOff, Images, Pencil, Plus, Trash2 } from 'lucide-react';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
 import {
-    Button, EmptyState, IconAction, Page, PageHeader, Pagination, Panel, PanelFooter, PanelToolbar, PrimaryCell, RowActions,
+    Button, EmptyState, FilterSelect, IconAction, Page, PageHeader, Pagination, Panel, PanelFooter, PanelToolbar, PrimaryCell, RowActions,
     Segmented, SkeletonRows, StatusBadge, TwoLine, pageStyles, type BadgeTone,
 } from '@/components/ui/Page';
 import { InlineNotice, useFeedback } from '@/components/ui/Feedback';
@@ -36,6 +36,8 @@ export function BannersManagement() {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [statusFilter, setStatusFilter] = useState<FiltroBanner>('all');
+    const [modelFilter, setModelFilter] = useState('');
+    const [models, setModels] = useState<string[]>([]);
 
     const [newBanner, setNewBanner] = useState({
         title: '',
@@ -102,12 +104,17 @@ export function BannersManagement() {
         carregarVeiculos();
     }, []);
 
-    const carregarBanners = async (page = 1, status: FiltroBanner = statusFilter) => {
+    // O filtro vai para o servidor: a lista é paginada de 10 em 10, e filtrar
+    // no cliente esconderia todo banner que não estivesse na página aberta.
+    const carregarBanners = async (page = 1, status: FiltroBanner = statusFilter, model = modelFilter) => {
         try {
             setIsLoading(true);
-            const res = await fetch(`/api/admin/banners?page=${page}&limit=10&status=${status}`);
+            const busca = new URLSearchParams({ page: String(page), limit: '10', status });
+            if (model) busca.set('model', model);
+            const res = await fetch(`/api/admin/banners?${busca}`);
             if (res.ok) {
                 const data = await res.json();
+                if (Array.isArray(data.models)) setModels(data.models);
                 // Verifica se é a resposta paginada ou o formato antigo
                 if (data.banners) {
                     setBanners(data.banners);
@@ -404,7 +411,7 @@ export function BannersManagement() {
                     <Segmented<FiltroBanner>
                         label="Filtrar banners"
                         value={statusFilter}
-                        onChange={(valor) => { setStatusFilter(valor); carregarBanners(1, valor); }}
+                        onChange={(valor) => { setStatusFilter(valor); carregarBanners(1, valor, modelFilter); }}
                         options={[
                             { value: 'all', label: 'Todos' },
                             { value: 'active', label: 'No ar' },
@@ -412,6 +419,15 @@ export function BannersManagement() {
                             { value: 'awaiting_payment', label: 'Aguardando pagamento' },
                             { value: 'inactive', label: 'Ocultos' },
                             { value: 'expired', label: 'Expirados' },
+                        ]}
+                    />
+                    <FilterSelect
+                        label="Filtrar por modelo do veículo"
+                        value={modelFilter}
+                        onChange={(valor) => { setModelFilter(valor); carregarBanners(1, statusFilter, valor); }}
+                        options={[
+                            { value: '', label: 'Todos os modelos' },
+                            ...models.map(m => ({ value: m, label: m })),
                         ]}
                     />
                 </PanelToolbar>
@@ -483,14 +499,30 @@ export function BannersManagement() {
                 {!carregando && banners.length === 0 && (
                     <EmptyState
                         icon={<Images size={20} />}
-                        title={statusFilter === 'all' ? 'Nenhum banner cadastrado' : 'Nenhum banner nesta situação'}
-                        description={statusFilter === 'all' ? 'Crie um banner para destacar uma oferta no topo da consulta dos clientes.' : 'Escolha outro filtro para ver os demais banners.'}
-                        action={statusFilter === 'all' ? <Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={openNewBanner}>Novo banner</Button> : undefined}
+                        title={
+                            modelFilter ? `Nenhum banner de ${modelFilter}`
+                                : statusFilter === 'all' ? 'Nenhum banner cadastrado'
+                                    : 'Nenhum banner nesta situação'
+                        }
+                        description={
+                            modelFilter ? (statusFilter === 'all'
+                                ? 'Esse modelo não tem banner cadastrado.'
+                                : 'Esse modelo não tem banner nesta situação. Troque a situação ou volte para todos os modelos.')
+                                : statusFilter === 'all' ? 'Crie um banner para destacar uma oferta no topo da consulta dos clientes.'
+                                    : 'Escolha outro filtro para ver os demais banners.'
+                        }
+                        action={
+                            modelFilter
+                                ? <Button onClick={() => { setModelFilter(''); carregarBanners(1, statusFilter, ''); }}>Ver todos os modelos</Button>
+                                : statusFilter === 'all'
+                                    ? <Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={openNewBanner}>Novo banner</Button>
+                                    : undefined
+                        }
                     />
                 )}
 
                 {!carregando && banners.length > 0 && (
-                    <PanelFooter aside={<Pagination page={currentPage} totalPages={totalPages} onChange={(p) => carregarBanners(p, statusFilter)} />}>
+                    <PanelFooter aside={<Pagination page={currentPage} totalPages={totalPages} onChange={(p) => carregarBanners(p, statusFilter, modelFilter)} />}>
                         Mostrando <strong>{banners.length}</strong> {banners.length === 1 ? 'banner' : 'banners'}{totalPages > 1 ? ' nesta página' : ''}
                     </PanelFooter>
                 )}

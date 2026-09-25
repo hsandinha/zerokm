@@ -1,0 +1,20 @@
+/* O cartão do banner se estica para preencher o pai, então é este invólucro
+   que define o tamanho — as mesmas medidas do carrossel do lojista, para a
+   prévia não mentir sobre o recorte da foto nem sobre o que cabe de texto. */
+.previa {
+    width: 100%;
+    max-width: 750px;
+    height: 180px;
+    margin: 0 auto 4px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--color-surface, #fff);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    display: flex;
+}
+
+@media (max-width: 640px) {
+    .previa {
+        height: 150px;
+    }
+}

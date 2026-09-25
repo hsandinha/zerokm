@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bike, Car, FileText, Heart, MapPin } from 'lucide-react';
+import { Bike, Car, FileText, Heart, Images, MapPin } from 'lucide-react';
 import { Vehicle } from '../../lib/services/vehicleService';
 import { calculateDaysSinceUpdate, formatDate, getUpdateStatusColor } from '../../lib/utils/formatters';
 import { FaWhatsapp } from 'react-icons/fa';
@@ -90,6 +90,8 @@ interface VehicleCardProps {
     fixedMargin: number;
     marginMode: 'percent' | 'fixed';
     onWhatsApp: (vehicle: Vehicle) => void;
+    /** Criar banner a partir do cartão. Só chega preenchido para quem administra. */
+    onCreateBanner?: (vehicle: Vehicle) => void;
     onLocationClick: (vehicle: Vehicle) => void;
     role?: string;
     canViewLocation?: boolean;
@@ -102,7 +104,7 @@ interface VehicleCardProps {
     nomeCliente?: string;
 }
 
-export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsApp, onLocationClick, role = 'operator', canViewLocation = false, onUpdatePreco, onUpdateObservacoes, onUpdateQuantidade, isFavorite = false, onToggleFavorite, nomeCliente }: VehicleCardProps) {
+export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsApp, onCreateBanner, onLocationClick, role = 'operator', canViewLocation = false, onUpdatePreco, onUpdateObservacoes, onUpdateQuantidade, isFavorite = false, onToggleFavorite, nomeCliente }: VehicleCardProps) {
     const isRepasse = vehicle.origem === 'repasse';
     // Usado se edita no painel Repasse da concessionária, não aqui.
     const canEditPriceAndNotes = !isRepasse && ['admin', 'administrador', 'administrativo', 'operator', 'operador', 'gerente'].includes(role || '');
@@ -279,6 +281,17 @@ export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsA
                     </div>
                 </div>
                 <div className={styles.cardActions}>
+                    {onCreateBanner && (
+                        <button
+                            type="button"
+                            className={styles.cardPdfButton}
+                            title="Criar banner deste veículo"
+                            aria-label="Criar banner deste veículo"
+                            onClick={() => onCreateBanner(vehicle)}
+                        >
+                            <Images size={16} aria-hidden="true" /> Banner
+                        </button>
+                    )}
                     {role !== 'gratis' && (
                         <button
                             type="button"
@@ -314,6 +327,8 @@ interface VehicleGridProps {
     fixedMargin: number;
     marginMode: 'percent' | 'fixed';
     onWhatsApp: (vehicle: Vehicle) => void;
+    /** Criar banner a partir do cartão. Só chega preenchido para quem administra. */
+    onCreateBanner?: (vehicle: Vehicle) => void;
     onLocationClick: (vehicle: Vehicle) => void;
     role?: string;
     canViewLocation?: boolean;
@@ -325,7 +340,7 @@ interface VehicleGridProps {
     nomeCliente?: string;
 }
 
-export function VehicleGrid({ vehicles, margem, fixedMargin, marginMode, onWhatsApp, onLocationClick, role, canViewLocation, onUpdatePreco, onUpdateObservacoes, onUpdateQuantidade, isFavorite, onToggleFavorite, nomeCliente }: VehicleGridProps) {
+export function VehicleGrid({ vehicles, margem, fixedMargin, marginMode, onWhatsApp, onCreateBanner, onLocationClick, role, canViewLocation, onUpdatePreco, onUpdateObservacoes, onUpdateQuantidade, isFavorite, onToggleFavorite, nomeCliente }: VehicleGridProps) {
     return (
         <div className={styles.gridContainer}>
             {vehicles.length === 0 ? (
@@ -341,6 +356,7 @@ export function VehicleGrid({ vehicles, margem, fixedMargin, marginMode, onWhats
                         fixedMargin={fixedMargin}
                         marginMode={marginMode}
                         onWhatsApp={onWhatsApp}
+                        onCreateBanner={onCreateBanner}
                         onLocationClick={onLocationClick}
                         role={role}
                         canViewLocation={canViewLocation}
