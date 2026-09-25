@@ -1,8 +1,11 @@
 'use client';
 
+import { CarFront, Pencil, Plus, Trash2 } from 'lucide-react';
+import {
+    Button, EmptyState, IconAction, Pagination, Panel, PanelFooter, PanelToolbar, PrimaryCell, RowActions, SearchField, SkeletonRows, pageStyles,
+} from '@/components/ui/Page';
+import { InlineNotice, useFeedback } from '@/components/ui/Feedback';
 import { useCallback, useEffect, useState } from 'react';
-import { FaPlus } from 'react-icons/fa';
-import { Pagination } from '../Pagination';
 import { AdminModal, modalStyles } from '../admin/AdminModal';
 import { AutocompleteField, matchLocalBrand, useFipeCascade } from '../catalog/FipeLookup';
 import type { FipeDetail } from '../../lib/services/fipeService';
@@ -85,11 +88,11 @@ export interface RepasseCatalogProps {
 }
 
 export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
+    const { confirm, feedback } = useFeedback();
     const [rows, setRows] = useState<RepasseRow[]>([]);
     const [total, setTotal] = useState(0);
     const [contagem, setContagem] = useState<Record<string, number>>({ 'Disponível': 0 });
     const [page, setPage] = useState(1);
-    const [hasNextPage, setHasNextPage] = useState(false);
     const [search, setSearch] = useState('');
 
     const [loading, setLoading] = useState(true);
@@ -127,7 +130,6 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
             if (!res.ok) throw new Error(data.error || 'Erro ao carregar repasse');
             setRows(data.data || []);
             setTotal(data.total || 0);
-            setHasNextPage(Boolean(data.hasNextPage));
             setContagem(data.contagem || {});
         } catch (err: any) {
             setError(err?.message || 'Erro ao carregar repasse');
@@ -245,7 +247,8 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
     };
 
     const remove = async (row: RepasseRow) => {
-        if (!window.confirm(`Remover ${row.marca} ${row.modelo} do repasse?\n\nUse quando o carro for vendido ou sair do anúncio. Ele some da vitrine na hora.`)) return;
+        const ok = await confirm({ title: 'Remover do repasse', description: <><strong>{row.marca} {row.modelo}</strong> sai da vitrine na hora. Use quando o carro for vendido ou sair do anúncio.</>, confirmLabel: 'Remover anúncio', danger: true });
+        if (!ok) return;
         setRowSaving(prev => ({ ...prev, [row.id]: true }));
         try {
             const res = await fetch(withScope(`/api/dealership/repasse/${row.id}`), { method: 'DELETE' });
@@ -265,31 +268,7 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
 
     return (
         <div className={base.container}>
-            <div className={base.toolbar}>
-                <div>
-                    <h2 className={base.title}>Repasse</h2>
-                    <p className={base.subtitle}>
-                        Usados recebidos na troca. Ficam visíveis para os lojistas enquanto o plano estiver em dia. Vendeu, remova o anúncio. Fotos e placa o lojista pede pelo WhatsApp.
-                    </p>
-                </div>
-                <div className={base.summary}>
-                    <span>{naVitrine} na vitrine</span>
-                </div>
-            </div>
-
             <PlanoRepasseCard key={concessionariaId || 'loja'} concessionariaId={concessionariaId} onChange={setPlanoAtivo} />
-
-            <div className={base.bulkActionsRow}>
-                <button
-                    type="button"
-                    className={styles.primaryBtn}
-                    onClick={openNew}
-                    disabled={planoAtivo !== true}
-                    title={planoAtivo === false ? 'Contrate um plano de repasse para anunciar' : undefined}
-                >
-                    <FaPlus /> Adicionar carro
-                </button>
-            </div>
 
             {formOpen && (
                 <AdminModal
@@ -423,81 +402,84 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
                         </label>
                     </div>
 
-                    {formError && <div className={base.error} style={{ marginTop: '0.85rem' }}>{formError}</div>}
+                    {formError && <div className={styles.formErrorGap}><InlineNotice>{formError}</InlineNotice></div>}
                 </AdminModal>
             )}
 
-            <div className={base.filters}>
-                <input
-                    value={search}
-                    onChange={event => setSearch(event.target.value)}
-                    placeholder="Buscar marca, modelo, cor..."
-                    className={base.search}
-                />
-            </div>
+            <Panel>
+                <PanelToolbar>
+                    <div className={pageStyles.toolbarGroup}>
+                        <SearchField value={search} onChange={setSearch} placeholder="Marca, modelo ou cor" label="Buscar no repasse" />
+                    </div>
+                    <Button
+                        variant="primary"
+                        icon={<Plus size={16} aria-hidden="true" />}
+                        onClick={openNew}
+                        disabled={planoAtivo !== true}
+                        title={planoAtivo === false ? 'Contrate um plano de repasse para anunciar' : undefined}
+                    >
+                        Adicionar carro
+                    </Button>
+                </PanelToolbar>
+                {error && <div className={pageStyles.panelNotice}><InlineNotice>{error}</InlineNotice></div>}
 
-            {error && <div className={base.error}>{error}</div>}
-
-            <div className={base.tableShell}>
-                <table className={base.table}>
-                    <thead>
-                        <tr>
-                            <th>Tipo</th>
-                            <th>Marca</th>
-                            <th>Modelo</th>
-                            <th>Ano</th>
-                            <th>KM</th>
-                            <th>Cor</th>
-                            <th>Combustível</th>
-                            <th>Câmbio</th>
-                            <th>Preço</th>
-                            <th style={{ minWidth: '150px' }}>Observações</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {loading && rows.length === 0 ? (
-                            <tr><td colSpan={11} className={base.empty}>Carregando...</td></tr>
-                        ) : rows.length === 0 ? (
+                <div className={pageStyles.tableWrap}>
+                    <table className={pageStyles.table}>
+                        <thead>
                             <tr>
-                                <td colSpan={11} className={base.empty}>
-                                    {search ? 'Nenhum repasse encontrado com essa busca.' : 'Nenhum carro cadastrado. Clique em "Adicionar carro" para começar.'}
-                                </td>
+                                <th>Veículo</th>
+                                <th>Ano</th>
+                                <th className={pageStyles.num}>KM</th>
+                                <th className={pageStyles.num}>Preço</th>
+                                <th>Observações</th>
+                                <th className={pageStyles.shrink}><span className={pageStyles.srOnly}>Ações</span></th>
                             </tr>
-                        ) : rows.map(row => (
-                            <tr key={row.id}>
-                                <td><span className={styles.tipoTag}>{row.tipoVeiculo === 'moto' ? 'MOTO' : 'CARRO'}</span></td>
-                                <td>{row.marca}</td>
-                                <td><strong>{row.modelo}</strong></td>
-                                <td>{row.ano || row.anoModelo}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{formatKm(row.km)}</td>
-                                <td>{row.cor || '-'}</td>
-                                <td>{row.combustivel || '-'}</td>
-                                <td>{row.transmissao || '-'}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{formatCurrency(row.preco)}</td>
-                                <td title={row.observacoes}>{row.observacoes || '-'}</td>
-                                <td>
-                                    <div className={styles.rowActions}>
-                                        <button type="button" className={styles.iconBtn} title="Editar" onClick={() => openEdit(row)} disabled={rowSaving[row.id]}>✏️</button>
-                                        <button type="button" className={styles.iconBtn} title="Remover do repasse (vendido ou fora de anúncio)" onClick={() => remove(row)} disabled={rowSaving[row.id]}>🗑️</button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+                        </thead>
+                        <tbody>
+                            {loading && rows.length === 0 && <SkeletonRows rows={3} columns={6} />}
+                            {rows.map(row => (
+                                <tr key={row.id}>
+                                    <td className={pageStyles.colMain}>
+                                        <PrimaryCell
+                                            title={`${row.marca} ${row.modelo}`}
+                                            subtitle={[row.tipoVeiculo === 'moto' ? 'Moto' : null, row.cor, row.combustivel, row.transmissao].filter(Boolean).join(' · ') || undefined}
+                                        />
+                                    </td>
+                                    <td className={pageStyles.nowrap}>{row.ano || row.anoModelo}</td>
+                                    <td className={`${pageStyles.num} ${pageStyles.nowrap}`}>{formatKm(row.km)}</td>
+                                    <td className={`${pageStyles.num} ${pageStyles.nowrap}`}><strong>{formatCurrency(row.preco)}</strong></td>
+                                    <td>{row.observacoes ? <span className={pageStyles.clamp2} title={row.observacoes}>{row.observacoes}</span> : <span className={pageStyles.muted}>Sem observações</span>}</td>
+                                    <td>
+                                        <RowActions>
+                                            <IconAction label="Editar carro" onClick={() => { if (!rowSaving[row.id]) openEdit(row); }}>
+                                                <Pencil size={17} aria-hidden="true" />
+                                            </IconAction>
+                                            <IconAction label="Remover do repasse" tone="danger" onClick={() => { if (!rowSaving[row.id]) remove(row); }}>
+                                                <Trash2 size={17} aria-hidden="true" />
+                                            </IconAction>
+                                        </RowActions>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
 
-            {total > PAGE_SIZE && (
-                <Pagination
-                    currentPage={page}
-                    totalItems={total}
-                    itemsPerPage={PAGE_SIZE}
-                    onPageChange={setPage}
-                    loading={loading}
-                    hasNextPage={hasNextPage}
-                />
-            )}
+                {!loading && rows.length === 0 && (
+                    <EmptyState
+                        icon={<CarFront size={20} />}
+                        title={search ? 'Nenhum carro encontrado' : 'Nenhum carro no repasse'}
+                        description={search ? 'Tente outro termo de busca.' : 'Cadastre os usados recebidos na troca. Eles ficam visíveis para os lojistas enquanto o plano estiver em dia.'}
+                    />
+                )}
+
+                {rows.length > 0 && (
+                    <PanelFooter aside={total > PAGE_SIZE ? <Pagination page={page} totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))} onChange={setPage} /> : undefined}>
+                        <strong>{naVitrine}</strong> na vitrine de <strong>{total}</strong> {total === 1 ? 'carro cadastrado' : 'carros cadastrados'}. Vendeu? Remova o anúncio.
+                    </PanelFooter>
+                )}
+            </Panel>
+            {feedback}
         </div>
     );
 }

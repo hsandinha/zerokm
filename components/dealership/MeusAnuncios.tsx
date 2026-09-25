@@ -1,9 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import styles from '../admin/ConfiguracoesManagement.module.css'; // Reusing admin styles
+import { Images, Plus } from 'lucide-react';
 import { BannerPaymentModal } from './BannerPaymentModal';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
+import {
+    Button, EmptyState, Page, PageHeader, Panel, PanelFooter, PrimaryCell, SkeletonRows, StatusBadge, pageStyles, type BadgeTone,
+} from '@/components/ui/Page';
+import { InlineNotice, useFeedback } from '@/components/ui/Feedback';
 
 interface Banner {
     _id: string;
@@ -15,12 +19,20 @@ interface Banner {
     expiresAt: string;
 }
 
+const SITUACAO: Record<string, { label: string; tone: BadgeTone }> = {
+    active: { label: 'No ar', tone: 'positive' },
+    pending: { label: 'Em aprovação', tone: 'warning' },
+    awaiting_payment: { label: 'Aguardando pagamento', tone: 'warning' },
+    rejected: { label: 'Recusado', tone: 'negative' },
+    expired: { label: 'Expirado', tone: 'neutral' },
+};
+
 export function MeusAnuncios() {
     const [banners, setBanners] = useState<Banner[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isCreating, setIsCreating] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
-    const [feedback, setFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
+    const { notify, feedback } = useFeedback();
 
     const [bannerConfig, setBannerConfig] = useState({ price_cents: 5000, duration_days: 7 });
 
@@ -45,26 +57,22 @@ export function MeusAnuncios() {
     }, []);
 
     const renderVencimento = (banner: Banner) => {
-        if (!banner.expiresAt) return '-';
+        if (!banner.expiresAt) return <span className={pageStyles.muted}>Após a aprovação</span>;
 
-        const expiresAt = new Date(banner.expiresAt).getTime();
-        const remainingMs = expiresAt - now;
+        const remainingMs = new Date(banner.expiresAt).getTime() - now;
 
         if (banner.status === 'active' && remainingMs > 0) {
             const hours = Math.floor(remainingMs / (60 * 60 * 1000));
             const minutes = Math.floor((remainingMs % (60 * 60 * 1000)) / (60 * 1000));
-            return (
-                <span style={{ color: hours < 3 ? '#d93025' : '#1e8e3e', fontWeight: 'bold' }}>
-                    ⏱ Expira em {hours}h {minutes}min
-                </span>
-            );
+            const tempo = hours >= 48 ? `${Math.floor(hours / 24)} dias` : `${hours}h ${minutes}min`;
+            return <span className={`${pageStyles.nowrap} ${hours < 3 ? pageStyles.textNegative : ''}`}>Sai do ar em {tempo}</span>;
         }
 
         if (banner.status === 'active' || banner.status === 'expired') {
-            return <span style={{ color: '#d93025', fontWeight: 'bold' }}>Vencido</span>;
+            return <span className={`${pageStyles.nowrap} ${pageStyles.textNegative}`}>Venceu em {new Date(banner.expiresAt).toLocaleDateString('pt-BR')}</span>;
         }
 
-        return new Date(banner.expiresAt).toLocaleDateString();
+        return <span className={pageStyles.nowrap}>{new Date(banner.expiresAt).toLocaleDateString('pt-BR')}</span>;
     };
 
     const carregarConfig = async () => {
@@ -125,7 +133,6 @@ export function MeusAnuncios() {
         }
 
         setFormError(null);
-        setFeedback(null);
         // Um modal por vez: o cadastro fecha (mantendo os dados) e abre o pagamento.
         setIsCreating(false);
         setShowModal(true);
@@ -155,43 +162,78 @@ export function MeusAnuncios() {
         setNewBanner({ title: '', linkUrl: '', imageBase64: '' });
         setFormError(null);
         carregarBanners();
-        setFeedback({ type: 'success', msg: 'Pagamento recebido! Seu banner será analisado pela equipe.' });
+        notify('Pagamento recebido. A equipe vai analisar o anúncio antes de colocá-lo no ar.', 'positive');
     };
 
-    if (isLoading) {
-        return <div className={styles.loading}>Carregando anúncios...</div>;
-    }
+    const preco = (bannerConfig.price_cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
     return (
-        <div className={styles.container}>
-            <div className={styles.header} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
-                <div>
-                    <h2 className={styles.title}>Meus Anúncios (Banners)</h2>
-                    <p className={styles.subtitle}>
-                        Anuncie seus veículos na tela inicial dos Clientes. O valor é de <strong>R$ {(bannerConfig.price_cents / 100).toFixed(2)}</strong> por um período de <strong>{bannerConfig.duration_days} dias</strong>.
-                    </p>
-                </div>
-                <button type="button" className={styles.btnSave} onClick={openCreate}>
-                    Novo anúncio
-                </button>
-            </div>
+        <Page>
+            <PageHeader
+                title="Meus anúncios"
+                count={isLoading ? null : banners.length}
+                description={<>Seu banner aparece no topo da consulta dos clientes. Cada anúncio custa <strong>{preco}</strong> e fica no ar por <strong>{bannerConfig.duration_days} dias</strong> depois de aprovado.</>}
+                actions={<Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={openCreate}>Novo anúncio</Button>}
+            />
 
-            {feedback && (
-                <div className={`${styles.feedback} ${feedback.type === 'success' ? styles.feedbackSuccess : styles.feedbackError}`}>
-                    {feedback.msg}
+            <Panel>
+                <div className={pageStyles.tableWrap}>
+                    <table className={pageStyles.table}>
+                        <thead>
+                            <tr>
+                                <th>Anúncio</th>
+                                <th>Situação</th>
+                                <th>Vencimento</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {isLoading && <SkeletonRows rows={3} columns={3} />}
+                            {!isLoading && banners.map(banner => {
+                                const situacao = SITUACAO[banner.status] ?? { label: banner.status, tone: 'neutral' as BadgeTone };
+                                return (
+                                    <tr key={banner._id}>
+                                        <td className={pageStyles.colMain}>
+                                            <PrimaryCell
+                                                leading={<img src={banner.imageUrl} alt="" className={pageStyles.thumbWide} />}
+                                                title={banner.title}
+                                                subtitle={banner.linkUrl ? (banner.linkUrl.includes('wa.me') ? 'Leva ao WhatsApp da loja' : 'Com link') : 'Sem link'}
+                                            />
+                                        </td>
+                                        <td><StatusBadge tone={situacao.tone}>{situacao.label}</StatusBadge></td>
+                                        <td>{renderVencimento(banner)}</td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
                 </div>
-            )}
+
+                {!isLoading && banners.length === 0 && (
+                    <EmptyState
+                        icon={<Images size={20} />}
+                        title="Nenhum anúncio ainda"
+                        description="Destaque um veículo para todos os clientes da plataforma. O anúncio entra no ar depois do pagamento e da aprovação da equipe."
+                        action={<Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={openCreate}>Novo anúncio</Button>}
+                    />
+                )}
+
+                {!isLoading && banners.length > 0 && (
+                    <PanelFooter>
+                        Mostrando <strong>{banners.length}</strong> {banners.length === 1 ? 'anúncio' : 'anúncios'}
+                    </PanelFooter>
+                )}
+            </Panel>
 
             {isCreating && (
                 <AdminModal
                     title="Novo anúncio"
-                    subtitle={<>Valor de R$ {(bannerConfig.price_cents / 100).toFixed(2)} por {bannerConfig.duration_days} dias. O pagamento é feito na próxima etapa.</>}
+                    subtitle={<>{preco} por {bannerConfig.duration_days} dias. O pagamento é feito na próxima etapa.</>}
                     onClose={closeCreate}
                     size="md"
                     onSubmit={handleCreateBanner}
                     footer={<>
                         <button type="button" className={modalStyles.secondary} onClick={closeCreate}>Cancelar</button>
-                        <button type="submit" className={modalStyles.primary}>Pagar e publicar anúncio</button>
+                        <button type="submit" className={modalStyles.primary}>Continuar para o pagamento</button>
                     </>}
                 >
                     <div className={modalStyles.grid2}>
@@ -199,13 +241,13 @@ export function MeusAnuncios() {
                             Título do anúncio
                             <input
                                 type="text"
-                                placeholder="Ex: Creta 2024 Imperdível"
+                                placeholder="Ex.: Creta 2024 com taxa zero"
                                 value={newBanner.title}
                                 onChange={e => setNewBanner({ ...newBanner, title: e.target.value })}
                             />
                         </label>
                         <label className={modalStyles.field}>
-                            Link para o veículo (opcional)
+                            Link do veículo (opcional)
                             <input
                                 type="url"
                                 placeholder="https://wa.me/..."
@@ -215,71 +257,21 @@ export function MeusAnuncios() {
                         </label>
                         <label className={`${modalStyles.field} ${modalStyles.span2}`}>
                             Imagem do banner
-                            <input
-                                type="file"
-                                accept="image/*"
-                                onChange={handleImageUpload}
-                                style={{ padding: '0.5rem' }}
-                            />
-                            <span className={modalStyles.hint}>Recomendado: 1200x300, máx. 2MB.</span>
+                            <input type="file" accept="image/*" onChange={handleImageUpload} />
+                            <span className={modalStyles.hint}>Recomendado 1200 x 300 px, até 2 MB.</span>
                         </label>
                         {newBanner.imageBase64 && (
                             <div className={modalStyles.span2}>
-                                <img src={newBanner.imageBase64} alt="Prévia do banner" style={{ maxWidth: '100%', maxHeight: '150px', borderRadius: '8px', border: '1px solid var(--color-highlight)' }} />
+                                <img src={newBanner.imageBase64} alt="Prévia do banner" className={pageStyles.bannerPreview} />
                             </div>
                         )}
-                        {formError && (
-                            <div className={`${styles.feedback} ${styles.feedbackError} ${modalStyles.span2}`} role="alert" style={{ marginBottom: 0 }}>
-                                {formError}
-                            </div>
-                        )}
+                        {formError && <div className={modalStyles.span2}><InlineNotice>{formError}</InlineNotice></div>}
                     </div>
                 </AdminModal>
             )}
 
-            <div className={styles.formGroupPanel} style={{ marginTop: '2rem' }}>
-                <h3 className={styles.groupTitle}>Histórico de Anúncios</h3>
-                
-                {banners.length === 0 ? (
-                    <p style={{ color: '#666' }}>Nenhum anúncio criado até o momento.</p>
-                ) : (
-                    <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1rem' }}>
-                        <thead>
-                            <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
-                                <th style={{ padding: '1rem' }}>Imagem</th>
-                                <th style={{ padding: '1rem' }}>Título</th>
-                                <th style={{ padding: '1rem' }}>Status</th>
-                                <th style={{ padding: '1rem' }}>Vencimento</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {banners.map(banner => (
-                                <tr key={banner._id} style={{ borderBottom: '1px solid #eee' }}>
-                                    <td style={{ padding: '1rem', width: '200px' }}>
-                                        <img src={banner.imageUrl} alt={banner.title} style={{ width: '150px', height: 'auto', borderRadius: '4px', border: '1px solid #ddd' }} />
-                                    </td>
-                                    <td style={{ padding: '1rem' }}>
-                                        <strong>{banner.title}</strong>
-                                    </td>
-                                    <td style={{ padding: '1rem' }}>
-                                        {banner.status === 'active' && <span style={{ color: '#1e8e3e', fontWeight: 'bold' }}>Ativo</span>}
-                                        {banner.status === 'pending' && <span style={{ color: '#f29900', fontWeight: 'bold' }}>Aguardando Aprovação</span>}
-                                        {banner.status === 'awaiting_payment' && <span style={{ color: '#d93025', fontWeight: 'bold' }}>Pagamento Pendente</span>}
-                                        {banner.status === 'rejected' && <span style={{ color: '#d93025', fontWeight: 'bold' }}>Rejeitado</span>}
-                                        {banner.status === 'expired' && <span style={{ color: '#80868b', fontWeight: 'bold' }}>Expirado</span>}
-                                    </td>
-                                    <td style={{ padding: '1rem' }}>
-                                        {renderVencimento(banner)}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )}
-            </div>
-
             {showModal && (
-                <BannerPaymentModal 
+                <BannerPaymentModal
                     bannerData={{
                         title: newBanner.title,
                         imageUrl: newBanner.imageBase64,
@@ -287,9 +279,10 @@ export function MeusAnuncios() {
                         amount: bannerConfig.price_cents / 100
                     }}
                     onClose={handlePaymentClose}
-                    onSuccess={handleSuccess} 
+                    onSuccess={handleSuccess}
                 />
             )}
-        </div>
+            {feedback}
+        </Page>
     );
 }

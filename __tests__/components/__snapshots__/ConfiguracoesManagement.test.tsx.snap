@@ -3,204 +3,243 @@
 exports[`ConfiguracoesManagement > should match snapshot after loading 1`] = `
 <div>
   <div
-    class="container"
+    class="page "
   >
-    <div
-      class="header"
-    >
-      <h2
-        class="title"
-      >
-        Painel de Contatos e Rodapé Global
-      </h2>
-      <p
-        class="subtitle"
-      >
-        Estes dados alimentam o rodapé (Footer) global do portal, e o número de WhatsApp principal é o destino do botão flutuante.
-      </p>
-    </div>
     <form
-      class="form"
+      class="formStack"
     >
-      <div
-        class="formGroupPanel"
+      <header
+        class="header"
       >
-        <h3
-          class="groupTitle"
-        >
-          Comunicação
-        </h3>
         <div
-          class="grid2"
+          class="headerText"
         >
           <div
-            class="formGroup"
+            class="titleRow"
           >
-            <label>
-              WhatsApp (Link Flutuante e Rodapé)
+            <h1
+              class="title"
+            >
+              Configurações
+            </h1>
+          </div>
+          <p
+            class="description"
+          >
+            Contatos do rodapé do site, WhatsApp do botão flutuante e regras dos anúncios em banner.
+          </p>
+        </div>
+        <div
+          class="headerActions"
+        >
+          <button
+            class="button "
+            data-variant="primary"
+            type="submit"
+          >
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-save"
+              fill="none"
+              height="16"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="16"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"
+              />
+              <path
+                d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"
+              />
+              <path
+                d="M7 3v4a1 1 0 0 0 1 1h7"
+              />
+            </svg>
+            Salvar alterações
+          </button>
+        </div>
+      </header>
+      <section
+        class="section"
+      >
+        <header
+          class="sectionHead"
+        >
+          <div>
+            <h2
+              class="sectionTitle"
+            >
+              Contatos
+            </h2>
+            <p
+              class="sectionDescription"
+            >
+              WhatsApp do botão flutuante e e-mails exibidos no rodapé de todas as páginas públicas.
+            </p>
+          </div>
+        </header>
+        <div
+          class="sectionBody"
+        >
+          <div
+            class="row"
+          >
+            <label
+              class="field"
+            >
+              WhatsApp com DDI e DDD
+              <input
+                inputmode="numeric"
+                placeholder="5531999999999"
+                type="text"
+                value="5511926384826"
+              />
+              <span
+                class="hint"
+              >
+                Só números.
+              </span>
             </label>
-            <input
-              class="input"
-              placeholder="Ex: 5511999999999 (Apenas números com DDI)"
-              type="text"
-              value="5511926384826"
-            />
-            <small>
-              Digitar DDI + DDD + Número. Ex: 5511926384826.
-            </small>
+            <label
+              class="field"
+            >
+              E-mail geral
+              <input
+                type="email"
+                value="geral@test.com"
+              />
+            </label>
+            <label
+              class="field"
+            >
+              E-mail de suporte
+              <input
+                type="email"
+                value="suporte@test.com"
+              />
+            </label>
+            <label
+              class="field"
+            >
+              E-mail comercial
+              <input
+                type="email"
+                value="vendas@test.com"
+              />
+            </label>
           </div>
         </div>
-      </div>
-      <div
-        class="formGroupPanel"
+      </section>
+      <section
+        class="section"
       >
-        <h3
-          class="groupTitle"
+        <header
+          class="sectionHead"
         >
-          E-mails (Rodapé)
-        </h3>
+          <div>
+            <h2
+              class="sectionTitle"
+            >
+              Empresa
+            </h2>
+            <p
+              class="sectionDescription"
+            >
+              Dados institucionais exibidos no rodapé.
+            </p>
+          </div>
+        </header>
         <div
-          class="grid2"
+          class="sectionBody"
         >
           <div
-            class="formGroup"
+            class="row"
           >
-            <label>
-              E-mail Geral / Principal
+            <label
+              class="field"
+            >
+              Horário de atendimento
+              <input
+                placeholder="Seg a sex, 9h às 18h"
+                type="text"
+                value="Seg-Sex: 09-18"
+              />
             </label>
-            <input
-              class="input"
-              type="email"
-              value="geral@test.com"
-            />
-          </div>
-          <div
-            class="formGroup"
-          >
-            <label>
-              E-mail de Suporte
+            <label
+              class="field"
+            >
+              Cidade e estado
+              <input
+                placeholder="Belo Horizonte, MG"
+                type="text"
+                value="São Paulo, SP"
+              />
             </label>
-            <input
-              class="input"
-              type="email"
-              value="suporte@test.com"
-            />
-          </div>
-          <div
-            class="formGroup"
-          >
-            <label>
-              E-mail de Vendas (Comercial)
+            <label
+              class="field"
+            >
+              CNPJ
+              <input
+                type="text"
+                value="12.345.678/0001-90"
+              />
             </label>
-            <input
-              class="input"
-              type="email"
-              value="vendas@test.com"
-            />
           </div>
         </div>
-      </div>
-      <div
-        class="formGroupPanel"
+      </section>
+      <section
+        class="section"
       >
-        <h3
-          class="groupTitle"
+        <header
+          class="sectionHead"
         >
-          Dados Jurídicos e Localização
-        </h3>
+          <div>
+            <h2
+              class="sectionTitle"
+            >
+              Anúncios em banner
+            </h2>
+            <p
+              class="sectionDescription"
+            >
+              Valor e duração cobrados da concessionária por anúncio no topo da consulta.
+            </p>
+          </div>
+        </header>
         <div
-          class="grid2"
+          class="sectionBody"
         >
           <div
-            class="formGroup"
+            class="row"
           >
-            <label>
-              Horário de Funcionamento
+            <label
+              class="field"
+            >
+              Preço por anúncio (R$)
+              <input
+                inputmode="decimal"
+                type="text"
+                value="50,00"
+              />
             </label>
-            <input
-              class="input"
-              placeholder="Seg–Sex: 09:00–18:00"
-              type="text"
-              value="Seg-Sex: 09-18"
-            />
-          </div>
-          <div
-            class="formGroup"
-          >
-            <label>
-              Localização (Cidade/Estado)
+            <label
+              class="field"
+            >
+              Duração (dias)
+              <input
+                inputmode="numeric"
+                type="text"
+                value="7"
+              />
             </label>
-            <input
-              class="input"
-              placeholder="São Paulo, SP"
-              type="text"
-              value="São Paulo, SP"
-            />
-          </div>
-          <div
-            class="formGroup"
-          >
-            <label>
-              CNPJ Comercial
-            </label>
-            <input
-              class="input"
-              type="text"
-              value="12.345.678/0001-90"
-            />
           </div>
         </div>
-      </div>
-      <div
-        class="formGroupPanel"
-      >
-        <h3
-          class="groupTitle"
-        >
-          Configurações de Banners e Anúncios
-        </h3>
-        <div
-          class="grid2"
-        >
-          <div
-            class="formGroup"
-          >
-            <label>
-              Preço do Anúncio (R$)
-            </label>
-            <input
-              class="input"
-              min="0"
-              step="0.01"
-              type="number"
-              value="50.00"
-            />
-          </div>
-          <div
-            class="formGroup"
-          >
-            <label>
-              Duração do Anúncio (Dias)
-            </label>
-            <input
-              class="input"
-              min="1"
-              type="number"
-              value="7"
-            />
-          </div>
-        </div>
-      </div>
-      <div
-        class="formActions"
-      >
-        <button
-          class="btnSave"
-          type="submit"
-        >
-          Salvar Alterações Globais
-        </button>
-      </div>
+      </section>
     </form>
   </div>
 </div>

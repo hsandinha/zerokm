@@ -46,9 +46,9 @@ beforeEach(() => {
 
 afterEach(() => vi.unstubAllGlobals());
 
-/** Nomes das linhas, na ordem em que aparecem no grid. */
+/** Nomes das linhas, na ordem em que aparecem na tabela. */
 const ordemNaTela = () =>
-    Array.from(document.querySelectorAll('article'))
+    Array.from(document.querySelectorAll('tbody tr'))
         .map(a => within(a as HTMLElement).getByText(/Veículos|Motors|Auto/).textContent);
 
 const cabecalho = (nome: RegExp) => screen.getByRole('button', { name: nome });

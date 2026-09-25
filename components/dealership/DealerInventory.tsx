@@ -3,8 +3,7 @@
 import { useState } from 'react';
 import { PricingCatalog } from './PricingCatalog';
 import { RepasseCatalog } from './RepasseCatalog';
-import base from './PricingCatalog.module.css';
-import styles from './RepasseCatalog.module.css';
+import { Tabs } from '@/components/ui/Page';
 
 type Aba = 'novos' | 'repasse';
 
@@ -17,25 +16,16 @@ export function DealerInventory({ concessionariaId }: { concessionariaId?: strin
     const [aba, setAba] = useState<Aba>('novos');
 
     return (
-        <div>
-            <div className={`${base.segmented} ${styles.tabs}`} role="tablist" aria-label="Tipo de estoque">
-                {([['novos', 'Veículos 0KM'], ['repasse', 'Repasse']] as Array<[Aba, string]>).map(([value, label]) => (
-                    <button
-                        key={value}
-                        type="button"
-                        role="tab"
-                        aria-selected={aba === value}
-                        className={`${base.segment} ${aba === value ? base.segmentActive : ''}`}
-                        onClick={() => setAba(value)}
-                    >
-                        {label}
-                    </button>
-                ))}
-            </div>
-
+        <>
+            <Tabs<Aba>
+                label="Tipo de estoque"
+                value={aba}
+                onChange={setAba}
+                tabs={[{ value: 'novos', label: 'Veículos 0KM' }, { value: 'repasse', label: 'Repasse' }]}
+            />
             {aba === 'novos'
                 ? <PricingCatalog concessionariaId={concessionariaId} />
                 : <RepasseCatalog concessionariaId={concessionariaId} />}
-        </div>
+        </>
     );
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import KanbanBoard from '@/components/crm/KanbanBoard';
 
 const stages = [
@@ -76,7 +76,7 @@ describe('KanbanBoard', () => {
     it('mostra o radar comercial e as colunas do funil', async () => {
         render(<KanbanBoard />);
 
-        expect(await screen.findByText('Pipeline de leads')).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { level: 1, name: 'Leads' })).toBeInTheDocument();
 
         expect(screen.getByText('Leads criados')).toBeInTheDocument();
         expect(screen.getByText('10')).toBeInTheDocument();
@@ -94,7 +94,7 @@ describe('KanbanBoard', () => {
 
     it('alterna para os relatórios', async () => {
         render(<KanbanBoard />);
-        fireEvent.click(await screen.findByRole('button', { name: 'Relatórios' }));
+        fireEvent.click(await screen.findByRole('tab', { name: 'Relatórios' }));
 
         expect(await screen.findByText('Conversão por etapa')).toBeInTheDocument();
         expect(screen.getByText('Conversão por origem')).toBeInTheDocument();
@@ -128,14 +128,14 @@ describe('KanbanBoard', () => {
 
     it('pede período personalizado com dois campos de data', async () => {
         render(<KanbanBoard />);
-        fireEvent.click(await screen.findByRole('button', { name: 'Personalizado' }));
+        fireEvent.click(await screen.findByRole('tab', { name: 'Personalizado' }));
 
         expect(screen.getByLabelText('Data inicial')).toBeInTheDocument();
         expect(screen.getByLabelText('Data final')).toBeInTheDocument();
     });
     it('oferece as novas origens ao cadastrar um lead à mão', async () => {
         render(<KanbanBoard />);
-        fireEvent.click(await screen.findByRole('button', { name: /Novo Lead/ }));
+        fireEvent.click(await screen.findByRole('button', { name: /Novo lead/i }));
 
         const origem = await screen.findByDisplayValue('Manual');
         const opcoes = Array.from(origem.querySelectorAll('option')).map(o => o.textContent);
@@ -164,7 +164,7 @@ describe('KanbanBoard', () => {
 
     it('lista os leads descartados na lixeira', async () => {
         render(<KanbanBoard />);
-        fireEvent.click(await screen.findByRole('button', { name: /Lixeira/ }));
+        fireEvent.click(await screen.findByRole('tab', { name: /Lixeira/ }));
 
         expect(await screen.findByText('Lead Descartado')).toBeInTheDocument();
         // O lead ativo não aparece na lixeira.
@@ -173,12 +173,12 @@ describe('KanbanBoard', () => {
 
     it('mostra no botão quantos leads estão na lixeira', async () => {
         render(<KanbanBoard />);
-        expect(await screen.findByRole('button', { name: /Lixeira \(1\)/ })).toBeInTheDocument();
+        expect(await screen.findByRole('tab', { name: /Lixeira\s*1/ })).toBeInTheDocument();
     });
 
     it('restaura um lead da lixeira', async () => {
         render(<KanbanBoard />);
-        fireEvent.click(await screen.findByRole('button', { name: /Lixeira/ }));
+        fireEvent.click(await screen.findByRole('tab', { name: /Lixeira/ }));
         fireEvent.click(await screen.findByRole('button', { name: 'Restaurar' }));
 
         await waitFor(() => {
@@ -188,10 +188,11 @@ describe('KanbanBoard', () => {
     });
 
     it('exclui definitivamente após confirmação', async () => {
-        vi.stubGlobal('confirm', vi.fn(() => true));
         render(<KanbanBoard />);
-        fireEvent.click(await screen.findByRole('button', { name: /Lixeira/ }));
-        fireEvent.click(await screen.findByRole('button', { name: 'Excluir definitivamente' }));
+        fireEvent.click(await screen.findByRole('tab', { name: /Lixeira/ }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Excluir de vez' }));
+        // A confirmação é o modal do painel, não a janela do navegador.
+        fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Excluir de vez' }));
 
         await waitFor(() => {
             expect(chamadas.some(c => c.method === 'DELETE' && c.url.includes('/api/crm/leads/l9'))).toBe(true);
@@ -199,19 +200,23 @@ describe('KanbanBoard', () => {
     });
 
     it('não exclui quando a confirmação é recusada', async () => {
-        vi.stubGlobal('confirm', vi.fn(() => false));
         render(<KanbanBoard />);
-        fireEvent.click(await screen.findByRole('button', { name: /Lixeira/ }));
-        fireEvent.click(await screen.findByRole('button', { name: 'Excluir definitivamente' }));
+        fireEvent.click(await screen.findByRole('tab', { name: /Lixeira/ }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Excluir de vez' }));
+        fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancelar' }));
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
         expect(chamadas.some(c => c.method === 'DELETE')).toBe(false);
     });
 
     it('manda o lead para a lixeira pelo modal de detalhe', async () => {
-        vi.stubGlobal('confirm', vi.fn(() => true));
         render(<KanbanBoard />);
         fireEvent.click(await screen.findByTitle('Abrir lead'));
         fireEvent.click(await screen.findByRole('button', { name: /Mover para lixeira/ }));
+        // Confirmação aberta por cima do modal do lead: é o último diálogo.
+        await waitFor(() => expect(screen.getAllByRole('dialog')).toHaveLength(2));
+        const confirmacao = screen.getAllByRole('dialog').at(-1)!;
+        fireEvent.click(within(confirmacao).getByRole('button', { name: 'Mover para a lixeira' }));
 
         await waitFor(() => {
             const patch = chamadas.find(c => c.method === 'PATCH' && c.url.includes('/api/crm/leads/l1'));

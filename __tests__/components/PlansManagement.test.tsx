@@ -135,7 +135,7 @@ describe('PlansManagement — formulário de plano', () => {
     it('carrega o plano existente para edição sem perder os recursos', async () => {
         render(<PlansManagement />);
         await screen.findByText('Consultas Ilimitadas');
-        fireEvent.click(screen.getByRole('button', { name: 'Editar' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Editar plano' }));
 
         expect(campo('Ex: 699,90').value).toBe('699');
         expect((screen.getByPlaceholderText(/Um recurso por linha/) as HTMLTextAreaElement).value)
@@ -145,7 +145,7 @@ describe('PlansManagement — formulário de plano', () => {
     it('alternar ativo não manda popular no corpo', async () => {
         render(<PlansManagement />);
         await screen.findByText('Consultas Ilimitadas');
-        fireEvent.click(screen.getByRole('button', { name: 'Ativo' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Desativar plano' }));
 
         await waitFor(() => expect(requisicoes.find(r => r.method === 'PUT')).toBeTruthy());
         const corpo = requisicoes.find(r => r.method === 'PUT')!.body;

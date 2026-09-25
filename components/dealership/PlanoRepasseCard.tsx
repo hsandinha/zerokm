@@ -1,5 +1,7 @@
 'use client';
 
+import { InlineNotice, useFeedback } from '@/components/ui/Feedback';
+import { Button } from '@/components/ui/Page';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import styles from './RepasseCatalog.module.css';
 
@@ -36,6 +38,7 @@ const METODO_LABEL: Record<string, string> = {
  * - Equipe interna (com `concessionariaId`): ativa manualmente ou como cortesia, ou desativa.
  */
 export function PlanoRepasseCard({ concessionariaId, onChange }: { concessionariaId?: string; onChange?: (ativo: boolean) => void }) {
+    const { confirm, feedback } = useFeedback();
     const isStaff = Boolean(concessionariaId);
     const [plano, setPlano] = useState<PlanoInfo | null>(null);
     const [planos, setPlanos] = useState<PlanoVenda[]>([]);
@@ -108,7 +111,10 @@ export function PlanoRepasseCard({ concessionariaId, onChange }: { concessionari
     };
 
     const ativarManual = async (acao: 'ativar' | 'desativar') => {
-        if (acao === 'desativar' && !window.confirm('Desativar o plano de repasse? Os anúncios da loja saem da vitrine na hora.')) return;
+        if (acao === 'desativar') {
+            const ok = await confirm({ title: 'Desativar plano de repasse', description: 'Os anúncios de repasse da loja saem da vitrine na hora.', confirmLabel: 'Desativar plano', danger: true });
+            if (!ok) return;
+        }
         setBusy(true);
         setError(null);
         try {
@@ -147,14 +153,14 @@ export function PlanoRepasseCard({ concessionariaId, onChange }: { concessionari
                     </p>
                 </div>
                 {!expandido && (
-                    <button type="button" className={styles.primaryBtn} onClick={() => setExpandido(true)} disabled={planos.length === 0 && !isStaff}>
-                        {isStaff ? (ativo ? 'Renovar ou alterar' : 'Ativar plano') : ativo ? 'Renovar' : 'Contratar plano'}
-                    </button>
+                    <Button variant={ativo ? 'secondary' : 'primary'} onClick={() => setExpandido(true)} disabled={planos.length === 0 && !isStaff}>
+                        {isStaff ? (ativo ? 'Renovar ou alterar' : 'Ativar plano') : ativo ? 'Renovar plano' : 'Contratar plano'}
+                    </Button>
                 )}
             </div>
 
             {planos.length === 0 && !loading && (
-                <p className={styles.planoTexto}>Nenhum plano de concessionária cadastrado. Crie um em Configurações → Planos, escolhendo “Concessionária”.</p>
+                <p className={styles.planoTexto}>Nenhum plano de concessionária cadastrado. Crie um em Administração › Planos, com o público Concessionária.</p>
             )}
 
             {expandido && planos.length > 0 && (
@@ -165,7 +171,7 @@ export function PlanoRepasseCard({ concessionariaId, onChange }: { concessionari
                                 <input type="radio" name="plano-repasse" checked={planId === p.id} onChange={() => { setPlanId(p.id); if (!p.annualPrice) setBilling('monthly'); }} />
                                 <span>
                                     <strong>{p.name}</strong> · {brl(p.price)}/mês{p.annualPrice ? ` ou ${brl(p.annualPrice)}/ano` : ''}
-                                    {p.description && <span className={styles.planoTexto}> — {p.description}</span>}
+                                    {p.description && <span className={styles.planoTexto}> · {p.description}</span>}
                                     {p.features.length > 0 && <span className={styles.planoTexto}> {p.features.join(' · ')}</span>}
                                 </span>
                             </label>
@@ -198,37 +204,34 @@ export function PlanoRepasseCard({ concessionariaId, onChange }: { concessionari
                                 <strong>Pague {brl(pix.amount)} com PIX</strong>
                                 <p className={styles.planoTexto}>O plano ativa sozinho assim que o pagamento for confirmado. Pode deixar esta tela aberta.</p>
                                 {pix.qrCode && (
-                                    <button
-                                        type="button"
-                                        className={styles.ghostBtn}
-                                        onClick={() => { navigator.clipboard?.writeText(pix.qrCode || ''); setCopiado(true); setTimeout(() => setCopiado(false), 2000); }}
-                                    >
-                                        {copiado ? 'Copiado!' : 'Copiar código PIX'}
-                                    </button>
+                                    <Button onClick={() => { navigator.clipboard?.writeText(pix.qrCode || ''); setCopiado(true); setTimeout(() => setCopiado(false), 2000); }}>
+                                        {copiado ? 'Código copiado' : 'Copiar código PIX'}
+                                    </Button>
                                 )}
                             </div>
                         </div>
                     ) : (
                         <div className={styles.formActions}>
-                            <button type="button" className={styles.ghostBtn} onClick={() => setExpandido(false)} disabled={busy}>Cancelar</button>
+                            <Button variant="ghost" onClick={() => setExpandido(false)} disabled={busy}>Cancelar</Button>
                             {isStaff && ativo && (
-                                <button type="button" className={styles.ghostBtn} onClick={() => ativarManual('desativar')} disabled={busy}>Desativar plano</button>
+                                <Button variant="danger" onClick={() => ativarManual('desativar')} disabled={busy}>Desativar plano</Button>
                             )}
                             {isStaff ? (
-                                <button type="button" className={styles.primaryBtn} onClick={() => ativarManual('ativar')} disabled={busy || !planId}>
+                                <Button variant="primary" onClick={() => ativarManual('ativar')} disabled={busy || !planId}>
                                     {busy ? 'Salvando...' : ativo ? 'Renovar' : 'Ativar'}
-                                </button>
+                                </Button>
                             ) : (
-                                <button type="button" className={styles.primaryBtn} onClick={gerarPix} disabled={busy || !escolhido}>
+                                <Button variant="primary" onClick={gerarPix} disabled={busy || !escolhido}>
                                     {busy ? 'Gerando PIX...' : `Pagar ${brl(valor)} com PIX`}
-                                </button>
+                                </Button>
                             )}
                         </div>
                     )}
                 </div>
             )}
 
-            {error && <div className={styles.planoErro}>{error}</div>}
+            {error && <InlineNotice>{error}</InlineNotice>}
+            {feedback}
         </div>
     );
 }

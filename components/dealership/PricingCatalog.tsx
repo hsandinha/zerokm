@@ -1,7 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
-import { FaFileExport, FaFileImport, FaTrash, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
+import { FaFileExport, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
+import { BookOpen, CarFront, Download, Trash2, TriangleAlert, Upload } from 'lucide-react';
+import { Button, Panel, PanelToolbar, SearchField, Segmented, StatCard, StatGrid, pageStyles } from '@/components/ui/Page';
+import { InlineNotice, useFeedback } from '@/components/ui/Feedback';
 import { Pagination } from '../Pagination';
 import styles from './PricingCatalog.module.css';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
@@ -97,6 +100,7 @@ export interface PricingCatalogProps {
 }
 
 export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
+    const { confirm, feedback } = useFeedback();
     const [rows, setRows] = useState<PricingRow[]>([]);
     const [total, setTotal] = useState(0);
     const [backendActiveCount, setBackendActiveCount] = useState<number | null>(null);
@@ -533,7 +537,9 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
 
     const handleMassZerar = async () => {
         if (selectedIds.size === 0) return;
-        if (!confirm(`Tem certeza que deseja inativar (zerar preço) de ${selectedIds.size} veículos?`)) return;
+        const n = selectedIds.size;
+        const ok = await confirm({ title: `Zerar preço de ${n} ${n === 1 ? 'veículo' : 'veículos'}`, description: 'Os veículos saem da consulta dos clientes até você informar um preço de novo.', confirmLabel: 'Zerar preço', danger: true });
+        if (!ok) return;
         
         const updates = Array.from(selectedIds).map(id => ({ variationId: id, preco: 0 }));
         setLoading(true);
@@ -561,92 +567,52 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
 
     return (
         <div className={styles.container}>
-            <div className={styles.toolbar}>
-                <div>
-                    <h2 className={styles.title}>Catálogo e Preços</h2>
-                    <p className={styles.subtitle}>
-                        {concessionariaInfo?.marca ? `Marca vinculada: ${concessionariaInfo.marca}` : 'Preencha preços para ativar os veículos no catálogo do cliente.'}
-                    </p>
-                </div>
+            <StatGrid>
+                <StatCard label="Variações no catálogo" icon={<BookOpen size={18} />} value={total.toLocaleString('pt-BR')} caption={concessionariaInfo?.marca ? `Marca vinculada: ${concessionariaInfo.marca}` : 'Catálogo 0KM da CNV'} />
+                <StatCard label="Veículos disponíveis" icon={<CarFront size={18} />} value={totalQuantidade.toLocaleString('pt-BR')} caption="Soma das quantidades com preço" />
+                <StatCard
+                    label="Sem preço"
+                    icon={<TriangleAlert size={18} />}
+                    value={inactiveCount.toLocaleString('pt-BR')}
+                    tone={inactiveCount > 0 ? 'warning' : 'default'}
+                    progress={total ? ((total - inactiveCount) / total) * 100 : 0}
+                    caption={inactiveCount > 0 ? `${(total - inactiveCount).toLocaleString('pt-BR')} de ${total.toLocaleString('pt-BR')} já aparecem ao cliente` : 'Todas as versões já aparecem ao cliente'}
+                />
+            </StatGrid>
 
-                <div className={styles.summary}>
-                    <span>{total} variações</span>
-                    <span>{totalQuantidade} veículos disponíveis</span>
-                    <span>{inactiveCount} sem preço</span>
-                </div>
-            </div>
-
-            <div className={styles.bulkActionsRow}>
-                {selectedIds.size > 0 ? (
-                    <div className={styles.selectedActions}>
-                        <span>{selectedIds.size} item(s) selecionados</span>
-                        <button onClick={handleMassZerar} className={styles.dangerButton}>
-                            <FaTrash /> Zerar / Inativar Selecionados
-                        </button>
-                    </div>
-                ) : (
-                    <div className={styles.csvActions}>
-                        <button onClick={handleExportCSV} className={styles.actionBtn} disabled={exporting}>
-                            <FaFileExport /> {exporting ? 'Gerando planilha...' : 'Baixar Planilha Base'}
-                        </button>
-                        <button onClick={() => fileInputRef.current?.click()} className={styles.actionBtn}>
-                            <FaFileImport /> Importar CSV
-                        </button>
-                        <input
-                            type="file"
-                            accept=".csv"
-                            style={{ display: 'none' }}
-                            ref={fileInputRef}
-                            onChange={handleImportCSV}
+            <Panel className={pageStyles.panelVisible}>
+                <PanelToolbar>
+                    <div className={pageStyles.toolbarGroup}>
+                        <SearchField value={search} onChange={setSearch} placeholder="Modelo, cor ou código FIPE" />
+                        <Segmented<'todos' | 'carro' | 'moto'>
+                            label="Tipo de veículo"
+                            value={tipo}
+                            onChange={setTipo}
+                            options={[{ value: 'todos', label: 'Todos' }, { value: 'carro', label: 'Carros' }, { value: 'moto', label: 'Motos' }]}
+                        />
+                        <Segmented<PricingStatus>
+                            label="Situação do preço"
+                            value={status}
+                            onChange={setStatus}
+                            options={[{ value: 'todos', label: 'Todos' }, { value: 'inativo', label: 'Sem preço' }, { value: 'ativo', label: 'Com preço' }]}
                         />
                     </div>
-                )}
-            </div>
-
-            <div className={styles.filters}>
-                <input
-                    value={search}
-                    onChange={event => setSearch(event.target.value)}
-                    placeholder="Buscar modelo, cor, FIPE..."
-                    className={styles.search}
-                />
-
-                <div className={styles.segmented} aria-label="Tipo de veículo">
-                    {([
-                        ['todos', 'Todos'],
-                        ['carro', 'Carros'],
-                        ['moto', 'Motos'],
-                    ] as Array<['todos' | 'carro' | 'moto', string]>).map(([value, label]) => (
-                        <button
-                            key={`tipo-${value}`}
-                            type="button"
-                            className={`${styles.segment} ${tipo === value ? styles.segmentActive : ''}`}
-                            onClick={() => setTipo(value)}
-                        >
-                            {label}
-                        </button>
-                    ))}
-                </div>
-
-                <div className={styles.segmented}>
-                    {([
-                        ['todos', 'Todos'],
-                        ['inativo', 'Sem preço'],
-                        ['ativo', 'Ativos'],
-                    ] as Array<[PricingStatus, string]>).map(([value, label]) => (
-                        <button
-                            key={value}
-                            type="button"
-                            className={`${styles.segment} ${status === value ? styles.segmentActive : ''}`}
-                            onClick={() => setStatus(value)}
-                        >
-                            {label}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            {error && <div className={styles.error}>{error}</div>}
+                    {selectedIds.size > 0 ? (
+                        <Button variant="danger" icon={<Trash2 size={16} aria-hidden="true" />} onClick={handleMassZerar}>
+                            Zerar {selectedIds.size} {selectedIds.size === 1 ? 'selecionado' : 'selecionados'}
+                        </Button>
+                    ) : (
+                        <div className={pageStyles.toolbarGroupEnd}>
+                            <Button icon={<Download size={16} aria-hidden="true" />} onClick={handleExportCSV} disabled={exporting}>
+                                {exporting ? 'Gerando planilha...' : 'Baixar planilha'}
+                            </Button>
+                            <Button icon={<Upload size={16} aria-hidden="true" />} onClick={() => fileInputRef.current?.click()}>Importar CSV</Button>
+                            <input type="file" accept=".csv" hidden ref={fileInputRef} onChange={handleImportCSV} />
+                        </div>
+                    )}
+                </PanelToolbar>
+                {error && <div className={pageStyles.panelNotice}><InlineNotice>{error}</InlineNotice></div>}
+            </Panel>
 
             <div className={styles.tableShell} ref={tableRef}>
                 <table className={styles.table}>
@@ -804,7 +770,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                                             type="text"
                                             value={draftObs[row.variationId] ?? row.observacoes ?? ''}
                                             disabled={isSaving}
-                                            className={styles.priceInput}
+                                            className={`${styles.priceInput} ${styles.obsInput}`}
                                             placeholder="Ex.: pronta entrega, sem troca"
                                             title={row.observacoes || ''}
                                             onChange={event => setDraftObs(prev => ({
@@ -821,7 +787,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                                         />
                                     </td>
                                     <td>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'flex-start' }}>
+                                        <div className={styles.statusStack}>
                                             <select
                                                 data-row-index={index}
                                                 data-col="status"
@@ -958,7 +924,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                                         {e.item.ano && <span className={styles.reportDetail}>{e.item.ano}</span>}
                                         {e.item.combustivel && <span className={styles.reportDetail}>{e.item.combustivel}</span>}
                                         {e.item.transmissao && <span className={styles.reportDetail}>{e.item.transmissao}</span>}
-                                        {e.message && <span className={styles.reportDetail} style={{ color: 'var(--color-negative)', marginLeft: 'auto', fontWeight: 'bold' }}>{e.message}</span>}
+                                        {e.message && <span className={`${styles.reportDetail} ${styles.reportMotivo}`}>{e.message}</span>}
                                     </li>
                                 ))}
                             </ul>
@@ -966,6 +932,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                     )}
                 </AdminModal>
             )}
+            {feedback}
         </div>
     );
 }

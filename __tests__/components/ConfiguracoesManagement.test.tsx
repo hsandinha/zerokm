@@ -25,7 +25,9 @@ describe('ConfiguracoesManagement', () => {
     it('should show loading state initially', () => {
         mockFetch.mockReturnValue(new Promise(() => {})); // never resolves
         render(<ConfiguracoesManagement />);
-        expect(screen.getByText('Carregando configurações...')).toBeInTheDocument();
+        // Enquanto carrega, os campos e o botão de salvar ficam travados.
+        expect(screen.getByRole('button', { name: /Salvar alterações/ })).toBeDisabled();
+        expect(screen.getByLabelText(/WhatsApp com DDI/)).toBeDisabled();
     });
 
     it('should render the form after loading data from API', async () => {
@@ -36,7 +38,7 @@ describe('ConfiguracoesManagement', () => {
         render(<ConfiguracoesManagement />);
 
         await waitFor(() => {
-            expect(screen.getByText('Painel de Contatos e Rodapé Global')).toBeInTheDocument();
+            expect(screen.getByRole('heading', { level: 1, name: 'Configurações' })).toBeInTheDocument();
         });
     });
 
@@ -49,7 +51,7 @@ describe('ConfiguracoesManagement', () => {
         render(<ConfiguracoesManagement />);
 
         await waitFor(() => {
-            const whatsappInput = screen.getByPlaceholderText(/Apenas números com DDI/i);
+            const whatsappInput = screen.getByLabelText(/WhatsApp com DDI/);
             expect(whatsappInput).toHaveValue('5511926384826');
         });
     });
@@ -63,10 +65,11 @@ describe('ConfiguracoesManagement', () => {
         render(<ConfiguracoesManagement />);
 
         await waitFor(() => {
-            expect(screen.getByText('Painel de Contatos e Rodapé Global')).toBeInTheDocument();
+            expect(screen.getByRole('heading', { level: 1, name: 'Configurações' })).toBeInTheDocument();
         });
 
-        const whatsappInput = screen.getByPlaceholderText(/Apenas números com DDI/i) as HTMLInputElement;
+        await waitFor(() => expect(screen.getByLabelText(/WhatsApp com DDI/)).not.toBeDisabled());
+        const whatsappInput = screen.getByLabelText(/WhatsApp com DDI/) as HTMLInputElement;
         fireEvent.change(whatsappInput, { target: { value: '+55 (11) 92638-4826' } });
         expect(whatsappInput.value).toBe('5511926384826');
     });
@@ -82,10 +85,10 @@ describe('ConfiguracoesManagement', () => {
         render(<ConfiguracoesManagement />);
 
         await waitFor(() => {
-            expect(screen.getByText('Salvar Alterações Globais')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /Salvar alterações/ })).not.toBeDisabled();
         });
 
-        fireEvent.click(screen.getByText('Salvar Alterações Globais'));
+        fireEvent.click(screen.getByRole('button', { name: /Salvar alterações/ }));
 
         await waitFor(() => {
             expect(mockFetch).toHaveBeenCalledTimes(4);
@@ -109,13 +112,13 @@ describe('ConfiguracoesManagement', () => {
         render(<ConfiguracoesManagement />);
 
         await waitFor(() => {
-            expect(screen.getByText('Salvar Alterações Globais')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /Salvar alterações/ })).not.toBeDisabled();
         });
 
-        fireEvent.click(screen.getByText('Salvar Alterações Globais'));
+        fireEvent.click(screen.getByRole('button', { name: /Salvar alterações/ }));
 
         await waitFor(() => {
-            expect(screen.getByText('Configurações de contato salvas com sucesso!')).toBeInTheDocument();
+            expect(screen.getByText('Configurações salvas. O rodapé do site já usa os dados novos.')).toBeInTheDocument();
         });
     });
 
@@ -130,10 +133,10 @@ describe('ConfiguracoesManagement', () => {
         render(<ConfiguracoesManagement />);
 
         await waitFor(() => {
-            expect(screen.getByText('Salvar Alterações Globais')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /Salvar alterações/ })).not.toBeDisabled();
         });
 
-        fireEvent.click(screen.getByText('Salvar Alterações Globais'));
+        fireEvent.click(screen.getByRole('button', { name: /Salvar alterações/ }));
 
         await waitFor(() => {
             expect(screen.getByText('Sem permissão')).toBeInTheDocument();
@@ -149,13 +152,16 @@ describe('ConfiguracoesManagement', () => {
         render(<ConfiguracoesManagement />);
 
         await waitFor(() => {
-            expect(screen.getByText('WhatsApp (Link Flutuante e Rodapé)')).toBeInTheDocument();
-            expect(screen.getByText('E-mail Geral / Principal')).toBeInTheDocument();
-            expect(screen.getByText('E-mail de Suporte')).toBeInTheDocument();
-            expect(screen.getByText('E-mail de Vendas (Comercial)')).toBeInTheDocument();
-            expect(screen.getByText('Horário de Funcionamento')).toBeInTheDocument();
-            expect(screen.getByText('Localização (Cidade/Estado)')).toBeInTheDocument();
-            expect(screen.getByText('CNPJ Comercial')).toBeInTheDocument();
+            // Cada campo tem rótulo ligado a ele (o <label> envolve o input).
+            expect(screen.getByLabelText(/WhatsApp com DDI/)).toBeInTheDocument();
+            expect(screen.getByLabelText('E-mail geral')).toBeInTheDocument();
+            expect(screen.getByLabelText('E-mail de suporte')).toBeInTheDocument();
+            expect(screen.getByLabelText('E-mail comercial')).toBeInTheDocument();
+            expect(screen.getByLabelText('Horário de atendimento')).toBeInTheDocument();
+            expect(screen.getByLabelText('Cidade e estado')).toBeInTheDocument();
+            expect(screen.getByLabelText('CNPJ')).toBeInTheDocument();
+            expect(screen.getByLabelText('Preço por anúncio (R$)')).toBeInTheDocument();
+            expect(screen.getByLabelText('Duração (dias)')).toBeInTheDocument();
         });
     });
 
@@ -168,7 +174,7 @@ describe('ConfiguracoesManagement', () => {
         const { container } = render(<ConfiguracoesManagement />);
 
         await waitFor(() => {
-            expect(screen.getByText('Painel de Contatos e Rodapé Global')).toBeInTheDocument();
+            expect(screen.getByRole('heading', { level: 1, name: 'Configurações' })).toBeInTheDocument();
         });
 
         expect(container).toMatchSnapshot();

@@ -1,28 +1,7 @@
 .container {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    padding: 1.5rem;
-}
-
-.toolbar {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 1rem;
-}
-
-.title {
-    margin: 0;
-    color: var(--color-text);
-    font-size: 1.35rem;
-    font-weight: 700;
-}
-
-.subtitle {
-    margin: 0.35rem 0 0;
-    color: var(--color-text-muted);
-    font-size: 0.92rem;
+    gap: 24px;
 }
 
 .statusSelect {
@@ -35,153 +14,11 @@
     width: 100%;
 }
 
-
-
-.summary {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 0.5rem;
-    color: var(--color-text);
-    font-size: 0.84rem;
-}
-
-.summary span {
-    border: 1px solid var(--color-highlight);
-    border-radius: 999px;
-    padding: 0.35rem 0.65rem;
-    background: var(--color-surface);
-}
-
-.filters {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-}
-
-.search {
-    width: min(420px, 100%);
-    height: 40px;
-    border: 1px solid var(--color-highlight);
-    border-radius: 8px;
-    padding: 0 0.85rem;
-    color: var(--color-text);
-    font-size: 0.95rem;
-    outline: none;
-}
-
-.search:focus {
-    border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
-}
-
-.segmented {
-    display: inline-flex;
-    border: 1px solid var(--color-highlight);
-    border-radius: 8px;
-    overflow: hidden;
-    background: var(--color-surface);
-}
-
-.segment {
-    border: 0;
-    border-right: 1px solid var(--color-highlight);
-    background: var(--color-surface);
-    color: var(--color-text);
-    cursor: pointer;
-    font-size: 0.88rem;
-    font-weight: 600;
-    min-height: 38px;
-    padding: 0 0.85rem;
-}
-
-.segment:last-child {
-    border-right: 0;
-}
-
-.segmentActive {
-    background: var(--color-highlight);
-    color: var(--color-text);
-}
-
-.error {
-    border: 1px solid #fecaca;
-    border-radius: 8px;
-    background: #fef2f2;
-    color: #991b1b;
-    padding: 0.85rem 1rem;
-    font-size: 0.9rem;
-}
-
-.bulkActionsRow {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 1rem;
-    min-height: 40px;
-}
-
-.selectedActions {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    background: var(--color-surface);
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    border: 1px solid var(--color-highlight);
-    color: var(--color-text);
-    font-size: 0.9rem;
-}
-
-.csvActions {
-    display: flex;
-    gap: 0.75rem;
-}
-
-.actionBtn {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: var(--color-surface);
-    color: var(--color-text);
-    border: 1px solid var(--color-highlight);
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.85rem;
-    font-weight: 500;
-    transition: all 0.15s ease;
-}
-
-.actionBtn:hover {
-    background: var(--color-highlight);
-    border-color: var(--color-text-muted);
-}
-
-.dangerButton {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: var(--color-negative);
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.85rem;
-    font-weight: 600;
-    transition: all 0.15s ease;
-}
-
-.dangerButton:hover {
-    filter: brightness(1.1);
-}
-
 .tableShell {
     width: 100%;
     overflow: auto;
-    border: 1px solid var(--color-highlight);
-    border-radius: 8px;
+    border: 1px solid var(--admin-border, var(--color-highlight));
+    border-radius: 12px;
     background: var(--color-surface);
 }
 
@@ -193,20 +30,25 @@
 
 .table th,
 .table td {
-    border-bottom: 1px solid var(--color-highlight);
-    padding: 0.7rem 0.85rem;
+    border-bottom: 1px solid var(--admin-border, var(--color-highlight));
+    padding: 12px 14px;
     text-align: left;
     vertical-align: middle;
-    font-size: 0.9rem;
+    font-size: 14px;
 }
 
+/* Cabeçalho no padrão das tabelas dos painéis (components/ui/Page). */
 .table th {
     background: var(--color-panel);
-    color: var(--color-text);
-    font-size: 0.78rem;
-    font-weight: 700;
+    color: var(--color-text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .06em;
     text-transform: uppercase;
+    white-space: nowrap;
 }
+
+.table tbody tr:hover { background: var(--admin-hover); }
 
 .table tr:last-child td {
     border-bottom: 0;
@@ -222,7 +64,7 @@
 .priceCell {
     display: flex;
     align-items: center;
-    width: 120px;
+    width: 140px;
     border: 1px solid var(--color-highlight);
     border-radius: 8px;
     background: var(--color-surface);
@@ -286,7 +128,7 @@
 }
 
 .active {
-    background: rgba(46, 204, 113, 0.15);
+    background: color-mix(in srgb, var(--color-positive) 14%, transparent);
     color: var(--color-positive);
 }
 
@@ -302,26 +144,9 @@
 }
 
 @media (max-width: 760px) {
-    .container {
+
+.container {
         padding: 1rem;
-    }
-
-    .toolbar,
-    .filters {
-        align-items: stretch;
-        flex-direction: column;
-    }
-
-    .summary {
-        justify-content: flex-start;
-    }
-
-    .segmented {
-        width: 100%;
-    }
-
-    .segment {
-        flex: 1;
     }
 }
 
@@ -457,11 +282,14 @@ details[open] > .sectionTitle::before {
 }
 
 /* The same inventory is embedded in administration; dealership styles stay scoped. */
-:global([data-admin-design]) .container { padding: 24px; }
 :global([data-admin-design]) .tableShell { background: var(--color-surface); border-color: var(--admin-border); border-radius: 12px; box-shadow: var(--admin-shadow); }
-:global([data-admin-design]) .table th { padding: 12px 16px; font-weight: 600; font-size: 12px; background: var(--color-panel); color: var(--color-text-muted); text-transform: none; }
+
+:global([data-admin-design]) .table th { padding: 12px 16px; font-weight: 600; font-size: 12px; background: var(--color-panel); color: var(--color-text-muted); }
+
 :global([data-admin-design]) .table td { padding: 14px 16px; border-color: var(--admin-border); line-height: 1.45; }
-:global([data-admin-design]) .segmentActive { background: var(--admin-selected); color: var(--admin-selected-text); }
-:global([data-admin-design]) .actionBtn { border: 1px solid var(--admin-border); background: var(--color-surface); color: var(--color-text); border-radius: 8px; min-height: 40px; }
-:global([data-admin-design]) .search { background: var(--color-surface); }
-@media (max-width: 768px) { :global([data-admin-design]) .container { padding: 16px; } }
+
+.reportMotivo { margin-left: auto; font-weight: 700; color: var(--color-negative); }
+
+.obsInput { min-width: 180px; border: 1px solid var(--admin-border, var(--color-highlight)); border-radius: 8px; background: var(--color-surface); }
+
+.statusStack { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }

@@ -83,7 +83,7 @@ describe('PricingCatalog — prazo e observações', () => {
 
     it('exporta prazo e observações no CSV', async () => {
         await montar();
-        fireEvent.click(screen.getByRole('button', { name: /Baixar Planilha Base/ }));
+        fireEvent.click(screen.getByRole('button', { name: /Baixar planilha/ }));
 
         await waitFor(() => expect(baixado).toContain('prazo'));
         const [cabecalho, primeira] = baixado.split('\n');
@@ -104,7 +104,7 @@ describe('PricingCatalog — prazo e observações', () => {
         }));
 
         await montar();
-        fireEvent.click(screen.getByRole('button', { name: /Baixar Planilha Base/ }));
+        fireEvent.click(screen.getByRole('button', { name: /Baixar planilha/ }));
 
         await waitFor(() => expect(baixado).toContain('Pronta Entrega'));
     });
