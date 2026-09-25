@@ -12,7 +12,9 @@ import { UpgradeModal } from '../../../components/operator/UpgradeModal';
 import { SubscriptionControls } from './SubscriptionControls';
 import { DashboardShell, shellStyles } from '@/components/dashboard/DashboardShell';
 import { useFavoritos } from '@/lib/hooks/useFavoritos';
-import { CarFront, Heart, UserRound } from 'lucide-react';
+import { CarFront, Heart, UserRound, Wallet } from 'lucide-react';
+import { MeuPerfil } from '@/components/profile/MeuPerfil';
+import { Financeiro } from '@/components/profile/Financeiro';
 
 function PaymentBanner() {
     const searchParams = useSearchParams();
@@ -192,38 +194,59 @@ export default function ClientDashboard() {
     );
 }
 
+type AbaCliente = 'veiculos' | 'favoritos' | 'perfil' | 'financeiro';
+const ABAS_CLIENTE: AbaCliente[] = ['veiculos', 'favoritos', 'perfil', 'financeiro'];
+
 /**
  * Painel do cliente no padrão da equipe: menu lateral com Veículos, Favoritos
- * (carros monitorados, com a bolinha de ofertas novas) e Meu perfil.
+ * (carros monitorados, com a bolinha de ofertas novas) e Meu perfil. Financeiro
+ * abre pelo menu do usuário. Perfil e Financeiro abrem dentro do painel, sem
+ * perder a consulta (ela fica montada, só oculta).
  */
 function ClienteShell({ userInfo, isInvitee, onUpgradeClick }: {
     userInfo: { name?: string | null; email?: string | null; profile?: string | null; credits?: number };
     isInvitee: boolean;
     onUpgradeClick?: () => void;
 }) {
-    const router = useRouter();
-    const [aba, setAba] = useState<'veiculos' | 'favoritos'>('veiculos');
+    const [aba, setAba] = useState<AbaCliente>('veiculos');
+    // Consulta que fica montada por trás do perfil/financeiro (Veículos ou Favoritos).
+    const [abaConsulta, setAbaConsulta] = useState<'veiculos' | 'favoritos'>('veiculos');
     const role = userInfo.profile === 'gratis' ? 'gratis' : 'client';
     // Favoritos (monitoramento de modelos) é recurso dos planos pagos.
     const podeFavoritar = Boolean(userInfo.profile) && role !== 'gratis';
     const { totalNovos } = useFavoritos(podeFavoritar);
+
+    const abrir = (id: AbaCliente) => {
+        setAba(id);
+        if (id === 'veiculos' || id === 'favoritos') setAbaConsulta(id);
+    };
+
+    // /dashboard/profile e links antigos chegam com ?view=perfil (ou financeiro).
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const view = params.get('view') as AbaCliente | null;
+        if (!view || !ABAS_CLIENTE.includes(view)) return;
+        abrir(view);
+        params.delete('view');
+        const query = params.toString();
+        window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
+    }, []);
 
     const tabs = [
         { id: 'veiculos', label: 'Veículos', icon: <CarFront size={20} aria-hidden="true" /> },
         ...(podeFavoritar ? [{ id: 'favoritos', label: 'Favoritos', icon: <Heart size={20} aria-hidden="true" />, badge: aba === 'favoritos' ? 0 : totalNovos }] : []),
         { id: 'perfil', label: 'Meu perfil', icon: <UserRound size={20} aria-hidden="true" /> },
     ];
-    const abaAtual = podeFavoritar ? aba : 'veiculos';
+    const abaAtual: AbaCliente = aba === 'favoritos' && !podeFavoritar ? 'veiculos' : aba;
+    const consultaAtual = abaConsulta === 'favoritos' && !podeFavoritar ? 'veiculos' : abaConsulta;
+    const naConsulta = abaAtual === 'veiculos' || abaAtual === 'favoritos';
 
     return (
         <DashboardShell
             sectionLabel="Cliente"
             tabs={tabs}
             activeId={abaAtual}
-            onSelect={id => {
-                if (id === 'perfil') { router.push('/dashboard/profile'); return; }
-                setAba(id as 'veiculos' | 'favoritos');
-            }}
+            onSelect={id => abrir(id as AbaCliente)}
             primaryIds={tabs.map(tab => tab.id)}
             user={{
                 name: userInfo.name || 'Cliente',
@@ -231,22 +254,40 @@ function ClienteShell({ userInfo, isInvitee, onUpgradeClick }: {
                 role: userInfo.profile === 'gratis' ? 'Grátis' : 'Cliente',
                 credits: userInfo.credits,
                 onUpgradeClick,
+                onProfileClick: () => abrir('perfil'),
+                menuItems: [{ id: 'financeiro', label: 'Financeiro', icon: <Wallet size={17} aria-hidden="true" />, onClick: () => abrir('financeiro') }],
             }}
         >
-            {abaAtual === 'veiculos' && (
-                <div className={shellStyles.clienteSubscription}><SubscriptionControls /></div>
+            {abaAtual === 'perfil' && (
+                <div className={shellStyles.contentArea}>
+                    <h1 className={shellStyles.pageTitle}>Meu perfil</h1>
+                    <p className={shellStyles.pageSubtitle}>Seus dados pessoais e endereço.</p>
+                    <MeuPerfil />
+                </div>
             )}
-            {/* key: cada aba tem sua própria consulta (filtros e página não se misturam). */}
-            <VehicleConsultation
-                key={abaAtual}
-                role={role}
-                isInvitee={isInvitee}
-                showBanners={abaAtual === 'veiculos'}
-                bannerRole={role}
-                enableFavorites={podeFavoritar}
-                favoritesOnly={abaAtual === 'favoritos'}
-                onUpgradeClick={onUpgradeClick}
-            />
+            {abaAtual === 'financeiro' && (
+                <div className={shellStyles.contentArea}>
+                    <h1 className={shellStyles.pageTitle}>Financeiro</h1>
+                    <p className={shellStyles.pageSubtitle}>Extrato e histórico de pagamentos da sua assinatura.</p>
+                    <Financeiro />
+                </div>
+            )}
+            <div hidden={!naConsulta} className={shellStyles.shellContent}>
+                {consultaAtual === 'veiculos' && (
+                    <div className={shellStyles.clienteSubscription}><SubscriptionControls /></div>
+                )}
+                {/* key: cada aba tem sua própria consulta (filtros e página não se misturam). */}
+                <VehicleConsultation
+                    key={consultaAtual}
+                    role={role}
+                    isInvitee={isInvitee}
+                    showBanners={consultaAtual === 'veiculos'}
+                    bannerRole={role}
+                    enableFavorites={podeFavoritar}
+                    favoritesOnly={consultaAtual === 'favoritos'}
+                    onUpgradeClick={onUpgradeClick}
+                />
+            </div>
         </DashboardShell>
     );
 }

@@ -1,0 +1,22 @@
+.financeiro { display: flex; flex-direction: column; gap: 16px; max-width: 1080px; }
+.card { padding: 20px; border: 1px solid var(--admin-border, var(--color-highlight)); border-radius: 12px; background: var(--color-surface); display: flex; flex-direction: column; gap: 16px; }
+.cardHead { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.cardHead h2 { margin: 0; font-size: 16px; font-weight: 650; color: var(--color-text); }
+.cardHead p { margin: 2px 0 0; font-size: 13px; color: var(--color-text-muted); }
+.mes { width: 200px; }
+
+.vazio { display: flex; align-items: center; gap: 8px; margin: 0; padding: 24px 0; justify-content: center; font-size: 14px; color: var(--color-text-muted); }
+.girando { animation: girar 0.9s linear infinite; }
+@keyframes girar { to { transform: rotate(360deg); } }
+
+.tabelaWrap { overflow-x: auto; }
+.tabela { width: 100%; border-collapse: collapse; font-size: 13px; color: var(--color-text); }
+.tabela th { padding: 10px 12px; text-align: left; font-size: 12px; font-weight: 600; color: var(--color-text-muted); background: var(--color-panel); }
+.tabela td { padding: 12px; border-top: 1px solid var(--admin-border, var(--color-highlight)); }
+.tabela tfoot td { font-weight: 700; }
+.valor { text-align: right !important; white-space: nowrap; font-weight: 600; }
+.data { white-space: nowrap; color: var(--color-text-muted); }
+.tag, .status { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; background: var(--color-panel); color: var(--color-text); }
+.status[data-status='paid'] { color: var(--color-positive, #16a34a); background: color-mix(in srgb, var(--color-positive, #16a34a) 14%, transparent); }
+.status[data-status='pending'] { color: var(--color-warning, #d97706); background: color-mix(in srgb, var(--color-warning, #d97706) 14%, transparent); }
+.status[data-status='cancelled'] { color: var(--color-negative, #ef4444); background: color-mix(in srgb, var(--color-negative, #ef4444) 14%, transparent); }

@@ -44,6 +44,9 @@
 .sidebarLogout:hover { background: #3a2226; border-color: #5c2f35; color: #ff9b9b; }
 .sidebarCollapsed .sidebarLogout { justify-content: center; padding: 10px; }
 .mainContent { flex: 1; min-width: 0; overflow-y: auto; background: var(--color-bg); display: flex; flex-direction: column; }
+/* Conteúdo da aba: não cria caixa própria (o layout segue igual); some quando o perfil está aberto. */
+.shellContent { display: contents; }
+.shellContent[hidden] { display: none; }
 
 /* Área padrão de conteúdo de cada aba (a Consulta de veículos ocupa a tela toda e não usa). */
 .contentArea { width: 100%; min-width: 0; padding: 32px; max-width: 1680px; margin: 0 auto; }

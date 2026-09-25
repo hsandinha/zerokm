@@ -1441,7 +1441,9 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
 
                             {/* Total de veículos no rodapé, centralizado entre "Itens por página" e a paginação. */}
                             <span className={styles.paginationTotal}>
-                                {(totalQuantidade || 0).toLocaleString('pt-BR')} {totalQuantidade === 1 ? 'veículo disponível' : 'veículos disponíveis'}
+                                {loading && !totalQuantidade
+                                    ? 'Carregando veículos...'
+                                    : `${(totalQuantidade || 0).toLocaleString('pt-BR')} ${totalQuantidade === 1 ? 'veículo disponível' : 'veículos disponíveis'}`}
                             </span>
 
                             <div className={styles.paginationControls}>

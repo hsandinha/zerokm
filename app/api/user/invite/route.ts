@@ -40,6 +40,11 @@ export async function GET() {
 export async function POST(request: Request) {
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Por enquanto só o administrador cadastra convidados (pelo CRM). A tela do cliente saiu do perfil.
+    const perfil = (session.user as any).profile;
+    if (!['administrador', 'gerente'].includes(perfil)) {
+        return NextResponse.json({ error: 'Somente o administrador pode cadastrar convidados.' }, { status: 403 });
+    }
 
     await connectDB();
     const body = await request.json();

@@ -16,6 +16,17 @@ interface UserMenuProps {
     isDropup?: boolean;
     alignLeft?: boolean;
     onUpgradeClick?: () => void;
+    /** Abre o perfil dentro do painel (sem sair da tela). Sem isso, vai para /dashboard/profile. */
+    onProfileClick?: () => void;
+    /** Itens extras do menu, logo abaixo de Meu Perfil (ex.: Financeiro do cliente). */
+    extraItems?: UserMenuItem[];
+}
+
+export interface UserMenuItem {
+    id: string;
+    label: string;
+    icon: React.ReactNode;
+    onClick: () => void;
 }
 
 function ProfileRing({ pct }: { pct: number }) {
@@ -64,7 +75,7 @@ function ProfileRing({ pct }: { pct: number }) {
     );
 }
 
-export default function UserMenu({ name, email, role, credits, isDropup, alignLeft, onUpgradeClick, compact = false }: UserMenuProps) {
+export default function UserMenu({ name, email, role, credits, isDropup, alignLeft, onUpgradeClick, onProfileClick, extraItems = [], compact = false }: UserMenuProps) {
     const [isOpen, setIsOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const { data: session, update } = useSession();
@@ -207,15 +218,39 @@ export default function UserMenu({ name, email, role, credits, isDropup, alignLe
 
             {isOpen && (
                 <div className={`${styles.dropdown} ${isDropup ? styles.dropdownUp : ''} ${alignLeft ? styles.dropdownLeft : ''}`}>
-                    <Link
-                        href="/dashboard/profile"
-                        className={styles.menuItem}
-                        onClick={() => setIsOpen(false)}
-                    >
-                        <span className={styles.menuItemIcon}><UserRound size={17} aria-hidden="true" /></span>
-                        Meu Perfil
-                        <ProfileRing pct={profileCompletion} />
-                    </Link>
+                    {onProfileClick ? (
+                        <button
+                            type="button"
+                            className={styles.menuItem}
+                            onClick={() => { setIsOpen(false); onProfileClick(); }}
+                        >
+                            <span className={styles.menuItemIcon}><UserRound size={17} aria-hidden="true" /></span>
+                            Meu Perfil
+                            <ProfileRing pct={profileCompletion} />
+                        </button>
+                    ) : (
+                        <Link
+                            href="/dashboard/profile"
+                            className={styles.menuItem}
+                            onClick={() => setIsOpen(false)}
+                        >
+                            <span className={styles.menuItemIcon}><UserRound size={17} aria-hidden="true" /></span>
+                            Meu Perfil
+                            <ProfileRing pct={profileCompletion} />
+                        </Link>
+                    )}
+
+                    {extraItems.map(item => (
+                        <button
+                            key={item.id}
+                            type="button"
+                            className={styles.menuItem}
+                            onClick={() => { setIsOpen(false); item.onClick(); }}
+                        >
+                            <span className={styles.menuItemIcon}>{item.icon}</span>
+                            {item.label}
+                        </button>
+                    ))}
 
                     {visibleProfiles.length > 1 && (
                         <>
