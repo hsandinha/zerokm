@@ -1,111 +1,85 @@
 'use client';
 
 import { useState } from 'react';
-import { OpenModalButton } from '@/components/lp/OpenModalButton';
 import styles from '@/app/page.module.css';
-import toggleStyles from './PlansSection.module.css';
+import { OpenModalButton } from '@/components/lp/OpenModalButton';
+import { IconCheck } from '@/components/lp/icons';
 
 export interface PlanData {
     id: string;
-    name: string;
-    desc: string;
+    /** Nome já legível ("Plano 1"), sem o resumo. */
+    title: string;
+    /** Resumo curto do plano. */
+    summary: string;
     price: number;
-    priceFormatted: string;
     annualPrice: number | null;
-    period: string;
-    highlight: boolean;
-    badge?: string;
-    cta: string;
     features: string[];
+    featured: boolean;
+    badge?: string;
 }
 
-function formatPrice(price: number) {
-    if (price === 0) return 'Grátis';
-    return `R$ ${price.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
-}
+const valor = (n: number) => n.toLocaleString('pt-BR', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 });
+const temAnual = (p: PlanData) => p.annualPrice != null && p.annualPrice > 0 && p.price > 0;
+const descontoAnual = (p: PlanData) => (temAnual(p) ? Math.round((1 - p.annualPrice! / 12 / p.price) * 100) : 0);
 
 export function PlansSection({ plans }: { plans: PlanData[] }) {
-    const hasAnnual = plans.some(p => p.annualPrice != null && p.annualPrice > 0);
     const [billing, setBilling] = useState<'monthly' | 'annual'>('monthly');
-
-    // Calculate best discount across all plans for the badge
-    const bestDiscount = plans.reduce((best, p) => {
-        if (!p.annualPrice || !p.price) return best;
-        const pct = Math.round(((p.price - p.annualPrice / 12) / p.price) * 100);
-        return pct > best ? pct : best;
-    }, 0);
+    const algumAnual = plans.some(temAnual);
+    const maiorDesconto = Math.max(0, ...plans.map(descontoAnual));
 
     return (
-        <>
-            <div className={toggleStyles.toggleWrap}>
-                <span className={billing === 'monthly' ? toggleStyles.toggleLabelActive : toggleStyles.toggleLabel}>
-                    Mensal
-                </span>
-                <button
-                    role="switch"
-                    aria-checked={billing === 'annual'}
-                    onClick={() => setBilling(b => b === 'monthly' ? 'annual' : 'monthly')}
-                    className={`${toggleStyles.toggle} ${billing === 'annual' ? toggleStyles.toggleOn : ''}`}
-                >
-                    <span className={toggleStyles.toggleThumb} />
-                </button>
-                <span className={billing === 'annual' ? toggleStyles.toggleLabelActive : toggleStyles.toggleLabel}>
-                    Anual
-                </span>
-                <span className={toggleStyles.toggleSaveBadge}>
-                    {billing === 'annual'
-                        ? `${bestDiscount > 0 ? `${bestDiscount}% off` : 'Desconto'} no plano anual`
-                        : `Economize até ${bestDiscount > 0 ? `${bestDiscount}%` : '2 meses'} no anual`}
-                </span>
-            </div>
+        <div className={styles.plansWrap}>
+            {algumAnual && (
+                <div className={styles.billing} role="group" aria-label="Forma de cobrança">
+                    <button type="button" aria-pressed={billing === 'monthly'} onClick={() => setBilling('monthly')}>Mensal</button>
+                    <button type="button" aria-pressed={billing === 'annual'} onClick={() => setBilling('annual')}>
+                        Anual{maiorDesconto > 0 && <span className={styles.billingSave}>até {maiorDesconto}% off</span>}
+                    </button>
+                </div>
+            )}
 
-            <div className={styles.plansRow}>
-                {plans.map((p) => {
-                    const showAnnual = billing === 'annual' && p.annualPrice != null && p.annualPrice > 0;
-                    const displayPrice = showAnnual
-                        ? formatPrice(p.annualPrice! / 12)
-                        : p.priceFormatted;
-                    const displayPeriod = p.period;
-                    const discountPct = showAnnual && p.price > 0
-                        ? Math.round(((p.price - p.annualPrice! / 12) / p.price) * 100)
-                        : 0;
-
+            <div className={styles.plansGrid}>
+                {plans.map(p => {
+                    const anual = billing === 'annual' && temAnual(p);
+                    const mensal = anual ? p.annualPrice! / 12 : p.price;
                     return (
-                        <div key={p.id} className={`${styles.planCard} ${p.highlight ? styles.planHighlight : ''}`}>
+                        <article key={p.id} className={`${styles.plan} ${p.featured ? styles.planFeatured : ''}`}>
                             {p.badge && <span className={styles.planBadge}>{p.badge}</span>}
-                            <h3 className={styles.planName}>{p.name}</h3>
-                            <p className={styles.planDesc}>{p.desc}</p>
+                            <div className={styles.planHead}>
+                                <h3 className={styles.planName}>{p.title}</h3>
+                                {p.summary && <p className={styles.planDesc}>{p.summary}</p>}
+                            </div>
                             <div className={styles.planPrice}>
-                                <span className={styles.planAmount}>{displayPrice}</span>
-                                {displayPeriod && <span className={styles.planPeriod}>{displayPeriod}</span>}
-                                {discountPct > 0 && (
-                                    <span className={toggleStyles.planDiscountBadge}>-{discountPct}%</span>
+                                {p.price > 0 ? (
+                                    <>
+                                        <span className={styles.planCurrency}>R$</span>
+                                        <span className={styles.planAmount}>{valor(mensal)}</span>
+                                        <span className={styles.planPeriod}>/mês</span>
+                                    </>
+                                ) : (
+                                    <span className={styles.planAmount}>Grátis</span>
                                 )}
                             </div>
-                            {showAnnual && (
-                                <p className={styles.planAnnualNote}>
-                                    *Cobrança de {formatPrice(p.annualPrice!)} no cartão
-                                </p>
-                            )}
-                            {p.features.length > 0 && (
-                                <ul className={styles.planFeatures}>
-                                    {p.features.map((f, fi) => (
-                                        <li key={fi}><span>✓</span>{f}</li>
-                                    ))}
-                                </ul>
+                            {anual && (
+                                <p className={styles.planAnnual}>R$ {valor(p.annualPrice!)} cobrados por ano · economia de {descontoAnual(p)}%</p>
                             )}
                             <OpenModalButton
                                 type="cliente"
-                                className={p.highlight ? styles.planCtaPrimary : styles.planCtaOutline}
+                                className={`${styles.btn} ${styles.btnLg} ${styles.btnBlock} ${p.featured ? styles.btnGold : styles.btnNavyOutline}`}
                                 planId={p.price > 0 ? p.id : undefined}
-                                billing={billing}
+                                billing={anual ? 'annual' : 'monthly'}
                             >
-                                {p.cta}
+                                {p.price > 0 ? `Assinar ${p.title}` : 'Começar grátis'}
                             </OpenModalButton>
-                        </div>
+                            {p.features.length > 0 && (
+                                <ul className={styles.planList}>
+                                    {p.features.map(f => <li key={f}><IconCheck />{f}</li>)}
+                                </ul>
+                            )}
+                        </article>
                     );
                 })}
             </div>
-        </>
+        </div>
     );
 }

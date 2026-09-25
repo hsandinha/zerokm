@@ -1,15 +1,17 @@
-import Link from 'next/link';
-import Image from 'next/image';
+import type { Metadata } from 'next';
 import styles from './page.module.css';
 import { OpenModalButton } from '@/components/lp/OpenModalButton';
 import { RegisterModals } from '@/components/lp/RegisterModals';
 import { LegalModals } from '@/components/lp/LegalModals';
 import { LegalButtons } from '@/components/lp/LegalButtons';
-import { ScrollReveal } from '@/components/lp/ScrollReveal';
-import LandingFAQ from '@/components/lp/FAQ';
-import TiltCard from '@/components/lp/TiltCard';
 import { PlansSection, type PlanData } from '@/components/lp/PlansSection';
 import { FloatingWhatsAppClient } from '@/components/lp/FloatingWhatsAppClient';
+import { LandingNav, BrandLockup } from '@/components/lp/LandingNav';
+import { ComissaoCalculadora } from '@/components/lp/ComissaoCalculadora';
+import {
+    IconArrowRight, IconBell, IconChat, IconChevronDown, IconFile, IconHeart, IconInbox, IconMegaphone,
+    IconPhone, IconRepeat, IconSearch, IconTable, IconTruck, IconUpload,
+} from '@/components/lp/icons';
 import connectDB from '@/lib/mongodb';
 import PlanModel from '@/models/Plan';
 import DealerVehiclePrice from '@/models/DealerVehiclePrice';
@@ -17,186 +19,134 @@ import VehicleVariation from '@/models/VehicleVariation';
 import mongoose from 'mongoose';
 import { formatBrazilPhone, normalizeBrazilWhatsAppNumber } from '@/lib/utils/leadWhatsApp';
 import { buildHomeStockPipeline, mapHomeStockSummary, EMPTY_HOME_STOCK } from '@/lib/utils/homeStock';
+import { dividirNomePlano, recursosDoPlano } from '@/lib/utils/planoTexto';
 
-export const metadata = {
-    title: 'CNV — Comércio Nacional de Veículos 0km',
-    description: 'Sistema completo para concessionárias de veículos 0km. Catálogo digital, CRM, logística integrada e relatórios em tempo real.',
+export const metadata: Metadata = {
+    title: 'CNV 0KM · Estoque 0km das concessionárias, sem intermediário',
+    description: 'Consulte preço, cor, prazo e disponibilidade do estoque 0km das concessionárias e negocie direto, sem comissão para a mesa. Teste grátis.',
+    openGraph: {
+        title: 'CNV 0KM · O estoque 0km das concessionárias, sem a mesa no meio',
+        description: 'Preço, cor, prazo e disponibilidade de carros 0km direto das concessionárias. Sem comissão para intermediários.',
+        url: 'https://www.cnv0km.com.br',
+        siteName: 'CNV 0KM',
+        locale: 'pt_BR',
+        type: 'website',
+    },
 };
 
-export const revalidate = 60; // 1 minute revalidation
+export const revalidate = 60; // o estoque da primeira dobra se atualiza a cada minuto
 
-const MARQUEE = [
-    '500+ CONCESSIONÁRIAS ATIVAS',
-    '12.000+ VEÍCULOS',
-    '27 ESTADOS',
-    'GESTÃO INTELIGENTE',
-    'CRM AVANÇADO',
-    'LOGÍSTICA INTEGRADA',
-    'CONTROLE TOTAL',
-    'PLATAFORMA NACIONAL',
-];
+/* ── Formatação dos números reais do estoque ── */
 
-const FEATURES = [
-    {
-        tag: 'MARGEM',
-        title: 'Aumento da Margem de Lucro',
-        desc: 'Elimine comissões para intermediários e retenha 100% do seu lucro em cada venda.',
-    },
-    {
-        tag: 'CONEXÃO',
-        title: 'Conexão Direta e Transparente',
-        desc: 'Estabeleça parcerias diretas com concessionárias e tenha acesso a um estoque ilimitado de veículos 0km.',
-    },
-    {
-        tag: 'ECONOMIA',
-        title: 'Economia Significativa',
-        desc: 'Economize até R$ 240 mil por ano em comissões, reinvestindo esse valor no seu negócio.',
-    },
-    {
-        tag: 'AGILIDADE',
-        title: 'Otimização de Tempo',
-        desc: 'Agilize o processo de compra e venda, focando no que realmente importa: seus clientes.',
-    },
-];
+const PALAVRAS_CURTAS = new Set(['AUT', 'MEC', 'CAB', 'DE', 'DA', 'DO', 'COM']);
 
-const STEPS = [
-    { num: '01', tag: 'CADASTRO', title: 'Crie sua conta', desc: 'Cadastro em minutos, sem burocracia. Escolha seu plano e acesse imediatamente.' },
-    { num: '02', tag: 'CATÁLOGO', title: 'Acompanhe o catálogo', desc: 'Veículos adicionados individualmente ou importados em massa via CSV.' },
-    { num: '03', tag: 'OPERAÇÃO', title: 'Gerencie em tempo real', desc: 'Acompanhe leads, clientes e logística pelo dashboard de qualquer dispositivo.' },
-    { num: '04', tag: 'CRESCIMENTO', title: 'Escale seu negócio', desc: 'Use os dados da plataforma para tomar decisões estratégicas e expandir para todo o Brasil.' },
-];
-
-const STATS = [
-    { num: '500+', label: 'Lojistas satisfeitos' },
-    { num: 'R$80M+', label: 'Economizados em comissões' },
-    { num: '27', label: 'Estados atendidos' },
-    { num: '98%', label: 'Taxa de satisfação' },
-];
-
-const TESTIMONIALS = [
-    {
-        stars: 5,
-        text: 'Agora compro direto das concessionárias e fico com 100% do meu lucro. Acabou a dependência das mesas. A CNV mudou completamente o modelo do meu negócio.',
-        name: 'Carlos Mendes',
-        role: 'Proprietário — Auto Premium',
-        city: 'São Paulo, SP',
-    },
-    {
-        stars: 5,
-        text: 'Antes pagava em média R$1.500 de comissão para mesas por venda. Hoje economizo R$15 mil por mês — R$180 mil por ano. O que eu pagava em comissão virou carro no meu estoque.',
-        name: 'Ricardo Almeida',
-        role: 'Gerente Comercial — Mega Veículos',
-        city: 'Rio de Janeiro, RJ',
-    },
-    {
-        stars: 5,
-        text: 'Triplicamos as vendas sem pagar um centavo de comissão. O melhor investimento que já fiz pra minha loja. O controle de logística entre estados é excepcional.',
-        name: 'Fernando Silva',
-        role: 'CEO — Silva Motors',
-        city: 'Belo Horizonte, MG',
-    },
-    {
-        stars: 5,
-        text: 'Acabou a dependência das mesas. Agora consigo mais resultados e ainda dou desconto para meus clientes — porque não pago mais comissão para intermediários. Liberdade total.',
-        name: 'Mariana Costa',
-        role: 'Diretora — Top Car Veículos',
-        city: 'Curitiba, PR',
-    },
-    {
-        stars: 5,
-        text: 'Economizei mais de R$200 mil no primeiro ano. A plataforma se pagou em menos de uma semana. Resultado surpreendente, suporte impecável.',
-        name: 'Paula Souza',
-        role: 'Sócia — Premium Auto Center',
-        city: 'Porto Alegre, RS',
-    },
-    {
-        stars: 5,
-        text: 'Finalmente uma plataforma que pensa no lojista. Dashboard intuitivo, suporte excepcional e resultados reais desde o primeiro mês. Recomendo de olhos fechados.',
-        name: 'Amanda Oliveira',
-        role: 'Proprietária — Elite Motors',
-        city: 'Brasília, DF',
-    },
-];
-
-// Plans are loaded from DB at runtime
-
-const FAQ_ITEMS = [
-    { q: 'O plano Grátis tem limitações de tempo?', a: 'Sim. O acesso grátis permite testar a plataforma por 10 minutos. Depois desse período, é necessário escolher um plano e pagar via PIX ou cartão de crédito para continuar.' },
-    { q: 'Posso importar meu estoque via planilha?', a: 'Sim! Os planos pagos incluem importação em massa via CSV. Disponibilizamos um modelo com todos os campos necessários. Suba centenas de veículos em minutos.' },
-    { q: 'Como funciona a logística integrada?', a: 'Cadastre transportadoras, registre transferências entre estados, acompanhe status em tempo real e gere relatórios de frete — tudo em um único painel.' },
-    { q: 'Existe suporte em português?', a: 'Sim, 100% em português. Atendemos via WhatsApp, e-mail e chat interno. Clientes nos planos pagos têm resposta prioritária com tempo de atendimento garantido.' },
-    { q: 'Posso cancelar a qualquer momento?', a: 'Sim. Sem fidelidade ou multa por cancelamento. Cancele pelo próprio painel quando quiser, sem precisar entrar em contato com o suporte.' },
-    { q: 'A plataforma funciona no celular?', a: 'Sim. Design responsivo para smartphones, tablets e computadores. Acesse de qualquer lugar, de manhã cedo até a última venda do dia.' },
-];
-
-function formatStockValue(val: number): string {
-    if (val >= 1_000_000_000) return `R$ ${(val / 1_000_000_000).toFixed(1).replace('.', ',')}B`;
-    if (val >= 1_000_000) return `R$ ${Math.round(val / 1_000_000)}M`;
-    if (val >= 1_000) return `R$ ${Math.round(val / 1_000)}k`;
-    return `R$ ${val.toLocaleString('pt-BR')}`;
+/** "HILUX SR AWD AUT." vira "Hilux SR AWD Aut.": siglas curtas e códigos continuam em maiúsculas. */
+function nomeModelo(nome: string) {
+    return nome.trim().split(/\s+/).map(palavra => palavra.split('-').map(parte => {
+        const letras = parte.replace(/[^A-Za-zÀ-ÿ]/g, '').toUpperCase();
+        if (/\d/.test(parte) || (letras.length <= 3 && !PALAVRAS_CURTAS.has(letras))) return parte.toUpperCase();
+        const minusculo = parte.toLocaleLowerCase('pt-BR');
+        return minusculo.charAt(0).toLocaleUpperCase('pt-BR') + minusculo.slice(1);
+    }).join('-')).join(' ');
 }
 
-function formatVehiclePrice(val: number): string {
-    if (val >= 1_000_000) return `R$ ${(val / 1_000_000).toFixed(1).replace('.', ',')}M`;
-    if (val >= 1_000) return `R$ ${Math.round(val / 1_000)}k`;
-    return `R$ ${val.toLocaleString('pt-BR')}`;
+function valorEstoque(valor: number) {
+    if (valor >= 1_000_000_000) return `R$ ${(valor / 1_000_000_000).toFixed(1).replace('.', ',')} bi`;
+    if (valor >= 1_000_000) return `R$ ${Math.round(valor / 1_000_000)} mi`;
+    return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 }
 
-function formatPrice(price: number) {
-    if (price === 0) return 'Grátis';
-    return `R$ ${price.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+function precoCurto(valor: number) {
+    if (valor >= 1_000_000) return `R$ ${(valor / 1_000_000).toFixed(1).replace('.', ',')} mi`;
+    if (valor >= 1_000) return `R$ ${Math.round(valor / 1_000)} mil`;
+    return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 }
+
+/** "mais de 15 mil carros em 15 estados", sem arredondar para cima. */
+function resumoEstoque(veiculos: number, estados: number) {
+    const carros = veiculos >= 1000 ? `mais de ${Math.floor(veiculos / 1000)} mil carros` : `${veiculos.toLocaleString('pt-BR')} carros`;
+    if (estados > 1) return `${carros} em ${estados} estados`;
+    return carros;
+}
+
+const precoPlano = (n: number) => n.toLocaleString('pt-BR', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 });
+
+/* ── Conteúdo fixo ── */
+
+const COMPARACAO = [
+    { tema: 'Comissão por carro', mesa: 'Paga em toda compra', cnv: 'Zero', zero: true },
+    { tema: 'Com quem você negocia', mesa: 'Um intermediário', cnv: 'A concessionária' },
+    { tema: 'O que você enxerga', mesa: 'O que a mesa oferece', cnv: 'O estoque de todas as lojas cadastradas' },
+    { tema: 'Preço que chega a você', mesa: 'Com a parte da mesa', cnv: 'O da concessionária' },
+];
+
+const RECURSOS = [
+    { icone: <IconTable />, titulo: 'Estoque de várias concessionárias num lugar só', texto: 'Preço, cor, prazo e quantidade publicados e atualizados pelas próprias concessionárias.' },
+    { icone: <IconHeart />, titulo: 'Favoritos com aviso de oferta', texto: 'Monitore o carro que o seu cliente quer e veja no menu quando entrar oferta nova.' },
+    { icone: <IconFile />, titulo: 'Sua margem no orçamento', texto: 'Defina a margem uma vez e gere o orçamento em PDF pronto para enviar ao cliente.' },
+    { icone: <IconTruck />, titulo: 'Frete até a sua loja', texto: 'Valor de transporte por estado para comparar o custo final antes de fechar.' },
+    { icone: <IconRepeat />, titulo: 'Repasse de seminovos', texto: 'Usados que as concessionárias recebem na troca, oferecidos direto para lojistas.' },
+    { icone: <IconPhone />, titulo: 'No computador e no celular', texto: 'A consulta funciona na loja, no pátio ou atendendo o cliente pelo WhatsApp.' },
+];
+
+const CONCESSIONARIA = [
+    { icone: <IconUpload />, titulo: 'Estoque pela planilha ou pelo painel', texto: 'Preço, prazo e quantidade de cada versão, em minutos.' },
+    { icone: <IconRepeat size={20} />, titulo: 'Repasse de seminovos', texto: 'Os usados da troca oferecidos para lojistas, com busca pela FIPE.' },
+    { icone: <IconMegaphone />, titulo: 'Banner em destaque', texto: 'Anuncie uma oferta no topo da consulta dos lojistas.' },
+    { icone: <IconInbox />, titulo: 'Contatos no seu CRM', texto: 'Cada lojista interessado entra no funil de leads da sua loja.' },
+];
+
+const DUVIDAS = [
+    { q: 'A CNV cobra comissão sobre as vendas?', a: 'Não. Você paga só o plano. A negociação é direta entre a sua loja e a concessionária, sem porcentagem para a CNV nem para intermediários.' },
+    { q: 'Como funciona o teste grátis?', a: 'Você cria a conta e usa a consulta completa por 10 minutos. Para continuar, escolhe um plano e paga por PIX, boleto ou cartão.' },
+    { q: 'De onde vêm os preços e o estoque?', a: 'Das próprias concessionárias, que publicam e atualizam preço, prazo e quantidade no painel da CNV.' },
+    { q: 'Posso cancelar quando quiser?', a: 'Sim. Não há fidelidade nem multa. A cobrança recorrente no cartão é cancelada pelo próprio painel e o acesso segue até o fim do período pago.' },
+    { q: 'A consulta funciona no celular?', a: 'Sim. A consulta, os favoritos e o orçamento funcionam no computador, no tablet e no celular.' },
+    { q: 'Sou concessionária. Como entro na plataforma?', a: 'Faça o cadastro da concessionária. A equipe da CNV confere os dados, vincula as marcas e libera o painel para você publicar o estoque.' },
+];
 
 export default async function LandingPage() {
-    // Fetch active plans from DB, sorted by price ascending
+    // Planos ativos do lojista, do mais barato ao mais caro. Os de concessionária
+    // (repasse) não são vendidos aqui.
     let PLANS: PlanData[] = [];
-
     try {
         await connectDB();
-        // Planos de concessionária (repasse) não são vendidos na landing do lojista.
         const dbPlans = await PlanModel.find({ active: true, publico: { $ne: 'concessionaria' } }).sort({ price: 1 }).lean();
-        PLANS = dbPlans.map((p, i) => {
-            const annualPrice = ((p as any).annualPrice as number | null | undefined) ?? null;
-            const features = ((p as any).features as string[] | undefined) ?? [];
-            const popular = ((p as any).popular as boolean | undefined) ?? false;
-            const period = p.price === 0 ? '' : p.type === 'monthly' ? '/mês' : p.credits ? ` / ${p.credits} créditos` : '';
+        const popularId = dbPlans.find(p => (p as any).popular)?._id?.toString();
+        const maisCaroId = dbPlans.length > 1 ? dbPlans[dbPlans.length - 1]._id?.toString() : undefined;
+        const destaqueId = popularId ?? maisCaroId;
+        PLANS = dbPlans.map(p => {
+            const id = (p._id as any).toString();
+            const { titulo, resumo } = dividirNomePlano(p.name);
             return {
-                id: (p._id as any).toString(),
-                name: p.name,
-                desc: p.description || (p.price === 0 ? 'Para explorar a plataforma' : p.type === 'monthly' ? 'Acesso mensal completo à plataforma' : `Pacote de ${p.credits ?? 0} créditos`),
+                id,
+                title: titulo,
+                summary: resumo,
                 price: p.price,
-                priceFormatted: formatPrice(p.price),
-                annualPrice,
-                period,
-                highlight: popular,
-                badge: popular ? 'Mais popular' : undefined,
-                cta: p.price === 0 ? 'Começar grátis' : 'Assinar agora',
-                features,
+                annualPrice: ((p as any).annualPrice as number | null | undefined) ?? null,
+                features: recursosDoPlano((p as any).features as string[] | undefined, p.description),
+                featured: id === destaqueId,
+                badge: id === destaqueId ? (popularId ? 'Mais popular' : 'Mais completo') : undefined,
             };
         });
     } catch {
-        // Fallback if DB is unreachable
-        PLANS = [{
-            id: 'gratis', name: 'Grátis', desc: 'Para explorar a plataforma',
-            price: 0, priceFormatted: 'Grátis', annualPrice: null,
-            period: '', highlight: false,
-            cta: 'Começar grátis',
-            features: [],
-        }];
+        PLANS = [];
     }
+    const planoDeEntrada = PLANS.find(p => p.price > 0);
 
-    // Painel "Ao vivo": estoque real, mesma fonte que o cliente vê no catálogo.
-    let dashData = { ...EMPTY_HOME_STOCK };
+    // Estoque real: mesma fonte que o cliente vê na consulta.
+    let estoque = { ...EMPTY_HOME_STOCK };
     try {
         await connectDB();
         const [resumo, variacoesAtivas] = await Promise.all([
             DealerVehiclePrice.aggregate(buildHomeStockPipeline()),
             VehicleVariation.countDocuments({ ativo: true }),
         ]);
-        dashData = mapHomeStockSummary(resumo, variacoesAtivas);
+        estoque = mapHomeStockSummary(resumo, variacoesAtivas);
     } catch {
-        // keep zeros — UI handles empty gracefully
+        // Sem banco: a página mostra o texto sem números.
     }
+    const temEstoque = estoque.totalVehicles > 0;
 
     let contactConfig = {
         whatsapp: '11926384826',
@@ -231,409 +181,324 @@ export default async function LandingPage() {
     const whatsappNumber = normalizeBrazilWhatsAppNumber(contactConfig.whatsapp);
     const whatsappUrl = whatsappNumber ? `https://wa.me/${whatsappNumber}` : null;
 
-    const marqueeItems = [...MARQUEE, ...MARQUEE];
-
     return (
-        <div className={styles.page}>
+        <div className={styles.page} id="topo">
+            <LandingNav />
 
-            {/* ── NAV ── */}
-            <nav className={styles.nav}>
-                <div className={styles.navInner}>
-                    <Image src="/images/logo.png" alt="CNV — Comércio Nacional de Veículos 0km" width={150} height={50} priority />
-                    <div className={styles.navLinks}>
-                        <a href="#recursos" className={styles.navLink}>Recursos</a>
-                        <a href="#como-funciona" className={styles.navLink}>Como funciona</a>
-                        <a href="#planos" className={styles.navLink}>Planos</a>
-                        <a href="#faq" className={styles.navLink}>FAQ</a>
-                    </div>
-                    <div className={styles.navActions}>
-                        <Link href="/login" className={styles.btnOutline}>Entrar</Link>
-                        <OpenModalButton type="cliente" className={styles.btnPrimary}>Começar grátis</OpenModalButton>
-                    </div>
-                </div>
-            </nav>
+            <main>
+                {/* ── PRIMEIRA DOBRA ── */}
+                <section className={styles.hero} aria-labelledby="titulo-principal">
+                    <div className={styles.container}>
+                        <div className={styles.heroGrid}>
+                            <div className={styles.heroCopy}>
+                                <span className={styles.pill}><span className={styles.pillDot} aria-hidden="true" />0% de comissão para intermediários</span>
+                                <h1 id="titulo-principal" className={styles.heroTitle}>O estoque 0km das concessionárias, sem a mesa no meio.</h1>
+                                <p className={styles.heroSub}>
+                                    Consulte preço, cor, prazo e disponibilidade {temEstoque ? `de ${resumoEstoque(estoque.totalVehicles, estoque.totalStates)}` : 'do estoque das concessionárias'} e
+                                    negocie direto com quem vende. A margem fica inteira com a sua loja.
+                                </p>
+                                <div className={styles.heroCtas}>
+                                    <OpenModalButton type="cliente" className={`${styles.btn} ${styles.btnLg} ${styles.btnPrimary}`}>
+                                        Testar grátis por 10 minutos <IconArrowRight />
+                                    </OpenModalButton>
+                                    <a href="#como-funciona" className={`${styles.btn} ${styles.btnLg} ${styles.btnOutline}`}>Ver como funciona</a>
+                                </div>
+                                <p className={styles.heroNote}>
+                                    Sem cartão para testar{planoDeEntrada ? ` · Planos a partir de R$ ${precoPlano(planoDeEntrada.price)}/mês` : ''} · Sem fidelidade
+                                </p>
+                            </div>
 
-            {/* ── HERO ── */}
-            <section className={styles.hero}>
-                <video className={styles.heroBg} src="/video.mp4" autoPlay muted loop playsInline />
-                {/* 3D Orbit rings — between video and overlay */}
-                <div className={styles.heroOrbitWrap} aria-hidden="true">
-                    <div className={`${styles.heroOrbit} ${styles.heroOrbit1}`} />
-                    <div className={`${styles.heroOrbit} ${styles.heroOrbit2}`} />
-                    <div className={`${styles.heroOrbit} ${styles.heroOrbit3}`} />
-                    <div className={styles.heroParticle} />
-                    <div className={styles.heroParticle} />
-                    <div className={styles.heroParticle} />
-                    <div className={styles.heroParticle} />
-                    <div className={styles.heroParticle} />
-                    <div className={styles.heroParticle} />
-                </div>
-                <div className={styles.heroOverlay} />
-                <div className={styles.heroInner}>
-                    {/* Left */}
-                    <div className={styles.heroLeft}>
-                        <span className={styles.heroBadge}>
-                            <span className={styles.heroBadgeDot} />
-                            0% de comissão para intermediários
-                        </span>
-                        <h1 className={styles.heroTitle}>
-                            Pare de pagar<br />
-                            comissão para<br />
-                            <span className={styles.heroAccent}>mesas</span>
-                        </h1>
-                        <p className={styles.heroSub}>
-                            Conectamos lojistas de carros 0km diretamente com as concessionárias.
-                            Sem intermediários. Sem comissões.
-                        </p>
-                        <div className={styles.heroCtas}>
-                            <OpenModalButton type="cliente" className={styles.heroCtaPrimary}>
-                                Criar conta grátis
-                                <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-                                    <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                                </svg>
-                            </OpenModalButton>
-                            <a href="#planos" className={styles.heroCtaSecondary}>Ver planos</a>
-                        </div>
-                        <div className={styles.heroTrust}>
-                            <span className={styles.heroStars}>★★★★★</span>
-                            <span className={styles.heroTrustText}><strong>4.9/5</strong> · 500+ lojistas satisfeitos</span>
-                        </div>
-                    </div>
-
-                    {/* Right — Dashboard preview (3D tilt on hover) */}
-                    <div className={styles.heroRight}>
-                        <TiltCard className={styles.dashCard} intensity={10}>
-                            <div className={styles.dashHeader}>
-                                <span className={styles.dashTitle}>CNV Platform</span>
-                                <span className={styles.dashLive}>
-                                    <span className={styles.dashDot} />
-                                    Ao vivo
-                                </span>
-                            </div>
-                            <div className={styles.dashMetrics}>
-                                <div className={styles.dashMetric}>
-                                    <span className={styles.dashMetricNum}>{dashData.totalVehicles.toLocaleString('pt-BR')}</span>
-                                    <span className={styles.dashMetricLabel}>Veículos</span>
-                                </div>
-                                <div className={styles.dashMetricSep} />
-                                <div className={styles.dashMetric}>
-                                    <span className={styles.dashMetricNum}>{formatStockValue(dashData.totalValue)}</span>
-                                    <span className={styles.dashMetricLabel}>Estoque</span>
-                                </div>
-                                <div className={styles.dashMetricSep} />
-                                <div className={styles.dashMetric}>
-                                    <span className={styles.dashMetricNum}>{dashData.totalStates || '—'}</span>
-                                    <span className={styles.dashMetricLabel}>Estados</span>
-                                </div>
-                            </div>
-                            <div className={styles.dashProgressRow}>
-                                <span className={styles.dashProgressLabel}>Catálogo precificado</span>
-                                <div className={styles.dashProgressTrack}>
-                                    <div className={styles.dashProgressFill} style={{ width: `${dashData.pricedPct}%` }} />
-                                </div>
-                                <span className={styles.dashProgressPct}>{dashData.pricedPct}%</span>
-                            </div>
-                            <div className={styles.dashVehicleList}>
-                                {dashData.topModels.length > 0 ? dashData.topModels.map((v, i) => (
-                                    <div key={i} className={styles.dashVehicleRow}>
-                                        <span className={styles.dashVehicleName}>{v.name}</span>
-                                        <span className={styles.dashVehicleUf}>{v.estado}</span>
-                                        <span className={styles.dashVehiclePrice}>{formatVehiclePrice(v.avgPrice)}</span>
-                                        <span className={`${styles.dashVehicleStatus} ${styles.dashStatusOk}`}>
-                                            ● {v.count} un.
-                                        </span>
+                            {/* Recorte da consulta com o estoque de hoje */}
+                            <div className={styles.product}>
+                                <div className={styles.productCard}>
+                                    <div className={styles.productBar}>
+                                        <span className={styles.productTrail}>Cliente › <strong>Veículos</strong></span>
+                                        <span className={styles.productLive}><span className={styles.liveDot} aria-hidden="true" />Estoque de hoje</span>
                                     </div>
-                                )) : (
-                                    <div className={styles.dashVehicleRow}>
-                                        <span className={styles.dashVehicleName} style={{ opacity: 0.4 }}>Sem dados</span>
-                                    </div>
-                                )}
-                            </div>
-                        </TiltCard>
-                    </div>
-                </div>
-            </section>
-
-            {/* ── MARQUEE ── */}
-            <div className={styles.marqueeWrap}>
-                <div className={styles.marqueeTrack}>
-                    {marqueeItems.map((item, i) => (
-                        <span key={i} className={styles.marqueeItem}>
-                            {item}
-                            <span className={styles.marqueeDot}>·</span>
-                        </span>
-                    ))}
-                </div>
-            </div>
-
-            {/* ── VIDEO ── */}
-            <section className={styles.videoSection}>
-                <div className={styles.sectionInner}>
-                    <ScrollReveal>
-                        <span className={styles.sectionLabel}>Veja em ação</span>
-                        <h2 className={styles.sectionTitle}>A plataforma funcionando<br />na prática</h2>
-                        <p className={styles.sectionSub}>Demonstração rápida de como a CNV conecta lojistas diretamente às concessionárias — sem intermediários, sem comissões.</p>
-                    </ScrollReveal>
-                    <ScrollReveal delay={150}>
-                        <div className={styles.videoWrapper}>
-                            <div className={styles.videoPhoneFrame}>
-                                <iframe
-                                    src="https://www.youtube.com/embed/cx0w8ICjMI4?rel=0&modestbranding=1&playsinline=1"
-                                    title="CNV em ação"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                    allowFullScreen
-                                    className={styles.videoEmbed}
-                                />
-                            </div>
-                        </div>
-                    </ScrollReveal>
-                </div>
-            </section>
-
-            {/* ── FEATURES ── */}
-            <section id="recursos" className={styles.features}>
-                <div className={styles.sectionInner}>
-                    <ScrollReveal>
-                        <span className={styles.sectionLabel}>Por que usar a CNV</span>
-                        <h2 className={styles.sectionTitle}>O fim das comissões para mesas</h2>
-                        <p className={styles.sectionSub}>Conectamos lojistas diretamente com concessionárias. 0% de comissão para intermediários, 100% do lucro para você.</p>
-                    </ScrollReveal>
-                    <ScrollReveal delay={150}>
-                        <div className={styles.featuresGrid}>
-                            {FEATURES.map((f, i) => (
-                                <TiltCard key={i} className={styles.featureCard}>
-                                    <span className={styles.featureTag}>{f.tag}</span>
-                                    <h3 className={styles.featureTitle}>{f.title}</h3>
-                                    <p className={styles.featureDesc}>{f.desc}</p>
-                                </TiltCard>
-                            ))}
-                        </div>
-                    </ScrollReveal>
-                </div>
-            </section>
-
-            {/* ── HOW IT WORKS ── */}
-            <section id="como-funciona" className={styles.howItWorks}>
-                <div className={styles.sectionInner}>
-                    <ScrollReveal>
-                        <span className={styles.sectionLabel}>Como funciona</span>
-                        <h2 className={styles.sectionTitle}>Simples de começar,<br />poderoso para crescer</h2>
-                        <p className={styles.sectionSub}>Em menos de 24 horas sua concessionária já está operando na plataforma.</p>
-                    </ScrollReveal>
-                    <ScrollReveal delay={150}>
-                        <div className={styles.stepsGrid}>
-                            {STEPS.map((s, i) => (
-                                <div key={i} className={styles.stepCard}>
-                                    <span className={styles.stepNum}>{s.num}</span>
-                                    <span className={styles.stepTag}>{s.tag}</span>
-                                    <h3 className={styles.stepTitle}>{s.title}</h3>
-                                    <p className={styles.stepDesc}>{s.desc}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </ScrollReveal>
-                    <ScrollReveal delay={200}>
-                        <div className={styles.stepsCtaRow}>
-                            <OpenModalButton type="cliente" className={styles.heroCtaPrimary}>
-                                Começe agora
-                                <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-                                    <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                                </svg>
-                            </OpenModalButton>
-                        </div>
-                    </ScrollReveal>
-                </div>
-            </section>
-
-            {/* ── PARA QUEM É ── */}
-            <section className={styles.audienceSection}>
-                <div className={styles.sectionInner}>
-                    <ScrollReveal>
-                        <span className={styles.sectionLabel}>Para quem é</span>
-                        <h2 className={styles.sectionTitle}>Dois lados, um só negócio</h2>
-                        <p className={styles.sectionSub}>A CNV conecta os dois lados do mercado — eliminando intermediários e criando negócios diretos.</p>
-                    </ScrollReveal>
-                    <ScrollReveal delay={150}>
-                        <div className={styles.audienceGrid}>
-                            {/* Lojistas */}
-                            <div className={styles.audienceCard}>
-                                <span className={styles.audienceTag}>🚗 &nbsp;PARA LOJISTAS</span>
-                                <h3 className={styles.audienceCardTitle}>Tenha acesso ao estoque de mais de 500 concessionárias</h3>
-                                <p className={styles.audienceCardDesc}>Compre direto, sem mesa, sem comissão. Todo lucro fica com você.</p>
-                                <ul className={styles.audienceList}>
-                                    <li>✓ Mais de 12.000 veículos 0km disponíveis</li>
-                                    <li>✓ 0% de comissão para intermediários</li>
-                                    <li>✓ Economize até R$ 240 mil/ano</li>
-                                    <li>✓ Conexão direta e transparente</li>
-                                </ul>
-                                <OpenModalButton type="cliente" className={styles.audienceCtaOutline}>Começar como lojista →</OpenModalButton>
-                            </div>
-                            {/* Concessionárias */}
-                            <div className={`${styles.audienceCard} ${styles.audienceCardHighlight}`}>
-                                <span className={`${styles.audienceTag} ${styles.audienceTagHighlight}`}>🏢 &nbsp;PARA CONCESSIONÁRIAS</span>
-                                <h3 className={styles.audienceCardTitle}>Venda seus carros para o Brasil todo</h3>
-                                <p className={styles.audienceCardDesc}>Cadastre seu estoque e alcance compradores em todos os 27 estados. Sua vitrine digital 24h no ar.</p>
-                                <ul className={styles.audienceList}>
-                                    <li>✓ Alcance nacional em um clique</li>
-                                    <li>✓ Catálogo digital completo com fotos</li>
-                                    <li>✓ Gestão de leads e CRM integrado</li>
-                                    <li>✓ Logística e transferência integrada</li>
-                                </ul>
-                                <OpenModalButton type="concessionaria" className={styles.audienceCtaPrimary}>Cadastrar minha concessionária →</OpenModalButton>
-                            </div>
-                        </div>
-                    </ScrollReveal>
-                </div>
-            </section>
-
-            {/* ── STATS ── */}
-            <section className={styles.statsSection}>
-                <ScrollReveal>
-                    <div className={styles.statsInner}>
-                        {STATS.map((s, i) => (
-                            <div key={i} className={styles.statBlock}>
-                                <span className={styles.statNum}>{s.num}</span>
-                                <span className={styles.statLabel}>{s.label}</span>
-                            </div>
-                        ))}
-                    </div>
-                </ScrollReveal>
-            </section>
-
-            {/* ── TESTIMONIALS ── */}
-            <section className={styles.testimonials}>
-                <div className={styles.sectionInner}>
-                    <ScrollReveal>
-                        <span className={styles.sectionLabel}>Depoimentos</span>
-                        <h2 className={styles.sectionTitle}>Quem usa, recomenda</h2>
-                        <p className={styles.sectionSub}>Lojistas de todo o Brasil já economizaram mais de R$80 milhões em comissões com a CNV.</p>
-                    </ScrollReveal>
-                    <ScrollReveal delay={150}>
-                        <div className={styles.testimonialsGrid}>
-                            {TESTIMONIALS.map((t, i) => (
-                                <div key={i} className={styles.testimonialCard}>
-                                    <div className={styles.testimonialStars}>{'★'.repeat(t.stars)}</div>
-                                    <p className={styles.testimonialText}>&ldquo;{t.text}&rdquo;</p>
-                                    <div className={styles.testimonialAuthor}>
-                                        <div className={styles.testimonialAvatar}>{t.name[0]}</div>
-                                        <div>
-                                            <div className={styles.testimonialName}>{t.name}</div>
-                                            <div className={styles.testimonialMeta}>{t.role} · {t.city}</div>
+                                    <div className={styles.productTools} aria-hidden="true">
+                                        <div className={styles.productSearch}><IconSearch />Buscar modelo, versão ou cor</div>
+                                        <div className={styles.chips}>
+                                            <span className={`${styles.chip} ${styles.chipOn}`}>{estoque.topModels[0]?.brand ? nomeModelo(estoque.topModels[0].brand) : 'Marca'}</span>
+                                            <span className={styles.chip}>Todas as cores</span>
+                                            <span className={styles.chip}>Todos os estados</span>
                                         </div>
                                     </div>
+                                    {estoque.topModels.length > 0 ? (
+                                        <div role="table" aria-label="Modelos com mais unidades no estoque">
+                                            <div role="row" className={styles.productHead}>
+                                                <span role="columnheader">Veículo</span>
+                                                <span role="columnheader">UF</span>
+                                                <span role="columnheader" className={styles.num}>Preço médio</span>
+                                                <span role="columnheader" className={styles.num}>Unidades</span>
+                                            </div>
+                                            {estoque.topModels.map(m => (
+                                                <div role="row" key={m.name} className={styles.productRow}>
+                                                    <span role="cell" className={styles.productName}>
+                                                        <strong>{nomeModelo(m.name)}</strong>
+                                                        <span>{m.brand ? nomeModelo(m.brand) : `Estoque em ${m.estado}`}</span>
+                                                    </span>
+                                                    <span role="cell" className={styles.productUf}>{m.estado}</span>
+                                                    <span role="cell" className={`${styles.num} ${styles.productPrice}`}>{precoCurto(m.avgPrice)}</span>
+                                                    <span role="cell" className={`${styles.num} ${styles.productUnits}`}>{m.count.toLocaleString('pt-BR')}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className={styles.productEmpty}>O estoque completo aparece no teste grátis.</p>
+                                    )}
                                 </div>
+                                <div className={styles.productFloat}>
+                                    <span className={styles.floatIcon}><IconBell /></span>
+                                    <span className={styles.floatText}>
+                                        <strong>Favoritos</strong>
+                                        <span>Você recebe o aviso quando chega oferta nova do carro que monitora.</span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {temEstoque && (
+                            <ul className={`${styles.stats} ${styles.plainList}`} aria-label="Estoque publicado hoje">
+                                <li className={styles.stat}>
+                                    <span className={styles.statNum}>{estoque.totalVehicles.toLocaleString('pt-BR')}</span>
+                                    <span className={styles.statLabel}>veículos 0km disponíveis hoje</span>
+                                </li>
+                                <li className={styles.stat}>
+                                    <span className={styles.statNum}>{valorEstoque(estoque.totalValue)}</span>
+                                    <span className={styles.statLabel}>em estoque com preço publicado</span>
+                                </li>
+                                <li className={styles.stat}>
+                                    <span className={styles.statNum}>{estoque.totalStates}</span>
+                                    <span className={styles.statLabel}>{estoque.totalStates === 1 ? 'estado com concessionárias' : 'estados com concessionárias'}</span>
+                                </li>
+                                <li className={styles.stat}>
+                                    <span className={`${styles.statNum} ${styles.statAccent}`}>0%</span>
+                                    <span className={styles.statLabel}>de comissão para intermediários</span>
+                                </li>
+                            </ul>
+                        )}
+                    </div>
+                </section>
+
+                {/* ── A CONTA DA MESA ── */}
+                <section id="conta" className={`${styles.section} ${styles.sectionSoft}`} aria-labelledby="titulo-conta">
+                    <div className={`${styles.container} ${styles.contaGrid}`}>
+                        <div className={styles.stack}>
+                            <span className={styles.eyebrow}>A conta da mesa</span>
+                            <h2 id="titulo-conta" className={styles.h2}>Cada carro comprado pela mesa leva um pedaço da sua margem.</h2>
+                            <p className={styles.lead}>Na CNV você vê o estoque que as próprias concessionárias publicam e fala direto com elas. Nenhum intermediário entre o preço de fábrica e o seu cliente.</p>
+                            <div className={styles.compare} role="table" aria-label="Comparação entre comprar pela mesa e pela CNV">
+                                <div role="row" className={`${styles.compareRow} ${styles.compareHead}`}>
+                                    <span role="columnheader"><span className={styles.srOnly}>Tema</span></span>
+                                    <span role="columnheader">Com a mesa</span>
+                                    <span role="columnheader">Com a CNV</span>
+                                </div>
+                                {COMPARACAO.map(c => (
+                                    <div role="row" key={c.tema} className={styles.compareRow}>
+                                        <span role="rowheader" className={styles.compareLabel}>{c.tema}</span>
+                                        <span role="cell" className={styles.compareMesa}>{c.mesa}</span>
+                                        <span role="cell" className={c.zero ? styles.compareZero : styles.compareCnv}>{c.cnv}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <ComissaoCalculadora
+                            precoPlanoMensal={planoDeEntrada?.price ?? 0}
+                            nomePlano={planoDeEntrada?.title ?? 'Plano'}
+                        />
+                    </div>
+                </section>
+
+                {/* ── COMO FUNCIONA ── */}
+                <section id="como-funciona" className={styles.section} aria-labelledby="titulo-como">
+                    <div className={styles.container}>
+                        <div className={styles.sectionHead}>
+                            <div className={styles.stackTight}>
+                                <span className={styles.eyebrow}>Como funciona</span>
+                                <h2 id="titulo-como" className={styles.h2}>Do filtro ao fechamento em três passos.</h2>
+                            </div>
+                            <p>O teste grátis libera a consulta completa por 10 minutos. Depois, é só escolher o plano.</p>
+                        </div>
+                        <ol className={`${styles.stepsGrid} ${styles.plainList}`}>
+                            <li className={styles.step}>
+                                <span className={styles.stepNum}>01</span>
+                                <div className={styles.stepBody}>
+                                    <h3 className={styles.stepTitle}>Encontre o carro</h3>
+                                    <p className={styles.stepText}>Filtre por marca, modelo, versão, cor e estado. Você vê o que cada concessionária tem de verdade.</p>
+                                </div>
+                                <div className={`${styles.stepDemo} ${styles.demoChips}`} aria-hidden="true">
+                                    <span className={styles.demoChip}>Marca</span>
+                                    <span className={styles.demoChip}>Modelo</span>
+                                    <span className={styles.demoChip}>Versão</span>
+                                    <span className={styles.demoChip}>Cor</span>
+                                    <span className={`${styles.demoChip} ${styles.demoChipOn}`}>Estado</span>
+                                </div>
+                            </li>
+                            <li className={styles.step}>
+                                <span className={styles.stepNum}>02</span>
+                                <div className={styles.stepBody}>
+                                    <h3 className={styles.stepTitle}>Compare as ofertas</h3>
+                                    <p className={styles.stepText}>Preço, prazo de entrega e frete até a sua cidade lado a lado, para achar a melhor compra.</p>
+                                </div>
+                                <div className={`${styles.stepDemo} ${styles.demoRows}`} aria-hidden="true">
+                                    <div className={styles.demoRow}><span>Preço</span><strong>Da concessionária</strong></div>
+                                    <div className={styles.demoRow}><span>Prazo</span><strong>Pronta entrega ou dias</strong></div>
+                                    <div className={styles.demoRow}><span>Frete</span><strong>Por estado</strong></div>
+                                </div>
+                            </li>
+                            <li className={styles.step}>
+                                <span className={styles.stepNum}>03</span>
+                                <div className={styles.stepBody}>
+                                    <h3 className={styles.stepTitle}>Negocie direto</h3>
+                                    <p className={styles.stepText}>Chame a concessionária pelo contato dela e mande ao seu cliente o orçamento em PDF com a sua margem.</p>
+                                </div>
+                                <div className={`${styles.stepDemo} ${styles.demoLines}`} aria-hidden="true">
+                                    <span className={styles.demoLine}><span className={styles.demoIconPositive}><IconChat /></span>Contato direto da concessionária</span>
+                                    <span className={styles.demoLine}><span className={styles.demoIconGold}><IconFile size={18} /></span>Orçamento em PDF para o cliente</span>
+                                </div>
+                            </li>
+                        </ol>
+                    </div>
+                </section>
+
+                {/* ── RECURSOS ── */}
+                <section id="recursos" className={`${styles.section} ${styles.sectionSoft}`} aria-labelledby="titulo-recursos">
+                    <div className={styles.container}>
+                        <div className={`${styles.stackTight} ${styles.sectionHeadNarrow}`}>
+                            <span className={styles.eyebrow}>Recursos</span>
+                            <h2 id="titulo-recursos" className={styles.h2}>Feito para a rotina de quem compra e revende 0km.</h2>
+                        </div>
+                        <ul className={`${styles.featuresGrid} ${styles.plainList}`}>
+                            {RECURSOS.map(r => (
+                                <li key={r.titulo} className={styles.feature}>
+                                    <span className={styles.featureIcon}>{r.icone}</span>
+                                    <h3 className={styles.featureTitle}>{r.titulo}</h3>
+                                    <p className={styles.featureText}>{r.texto}</p>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </section>
+
+                {/* ── PARA CONCESSIONÁRIAS ── */}
+                <section id="concessionarias" className={`${styles.section} ${styles.sectionDark}`} aria-labelledby="titulo-concessionarias">
+                    <div className={`${styles.container} ${styles.dealerGrid}`}>
+                        <div className={styles.stack}>
+                            <span className={`${styles.eyebrow} ${styles.eyebrowOnDark}`}>Para concessionárias</span>
+                            <h2 id="titulo-concessionarias" className={`${styles.h2} ${styles.h2OnDark}`}>Sua vitrine para lojistas do Brasil inteiro.</h2>
+                            <p className={`${styles.lead} ${styles.leadOnDark}`}>Publique o estoque uma vez e seja encontrado por lojistas de outros estados, sem pagar comissão por venda.</p>
+                            <div className={styles.dealerCtas}>
+                                <OpenModalButton type="concessionaria" className={`${styles.btn} ${styles.btnLg} ${styles.btnGold}`}>Cadastrar concessionária</OpenModalButton>
+                                {whatsappUrl && (
+                                    <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className={`${styles.btn} ${styles.btnLg} ${styles.btnOnDark}`}>Falar com o comercial</a>
+                                )}
+                            </div>
+                        </div>
+                        <ul className={styles.dealerList}>
+                            {CONCESSIONARIA.map(c => (
+                                <li key={c.titulo} className={styles.dealerItem}>
+                                    <span className={styles.dealerIcon}>{c.icone}</span>
+                                    <span className={styles.dealerText}><strong>{c.titulo}</strong><span>{c.texto}</span></span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </section>
+
+                {/* ── PLANOS ── */}
+                {PLANS.length > 0 && (
+                    <section id="planos" className={styles.section} aria-labelledby="titulo-planos">
+                        <div className={styles.container}>
+                            <div className={`${styles.stackTight} ${styles.sectionHeadCenter}`}>
+                                <span className={styles.eyebrow}>Planos</span>
+                                <h2 id="titulo-planos" className={styles.h2}>Um plano paga o acesso. A comissão fica com você.</h2>
+                                <p className={styles.lead}>Teste grátis por 10 minutos antes de assinar.</p>
+                            </div>
+                            <PlansSection plans={PLANS} />
+                            <p className={styles.plansNote}>Sem fidelidade · Cancele pelo próprio painel · PIX, boleto ou cartão pelo Mercado Pago</p>
+                        </div>
+                    </section>
+                )}
+
+                {/* ── DÚVIDAS ── */}
+                <section id="duvidas" className={`${styles.section} ${styles.sectionSoft}`} aria-labelledby="titulo-duvidas">
+                    <div className={`${styles.container} ${styles.faqGrid}`}>
+                        <div className={styles.stackTight}>
+                            <span className={styles.eyebrow}>Dúvidas</span>
+                            <h2 id="titulo-duvidas" className={styles.h2}>Perguntas frequentes</h2>
+                            {whatsappUrl && (
+                                <p className={styles.lead}>
+                                    Não achou a resposta?{' '}
+                                    <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className={styles.faqLink}>Fale com a gente no WhatsApp</a>.
+                                </p>
+                            )}
+                        </div>
+                        <div className={styles.faqList}>
+                            {DUVIDAS.map((d, i) => (
+                                <details key={d.q} className={styles.faqItem} open={i === 0}>
+                                    <summary className={styles.faqQ}>{d.q}<IconChevronDown /></summary>
+                                    <p className={styles.faqA}>{d.a}</p>
+                                </details>
                             ))}
                         </div>
-                    </ScrollReveal>
-                </div>
-            </section>
-
-            {/* ── PLANS ── */}
-            <section id="planos" className={styles.plans}>
-                <div className={styles.sectionInner}>
-                    <ScrollReveal>
-                        <span className={styles.sectionLabel}>Planos</span>
-                        <h2 className={styles.sectionTitle}>Escolha o plano ideal</h2>
-                        <p className={styles.sectionSub}>Comece grátis e escale conforme crescer. Sem fidelidade, cancele quando quiser.</p>
-                    </ScrollReveal>
-                    <ScrollReveal delay={150}>
-                        <PlansSection plans={PLANS} />
-                    </ScrollReveal>
-                    <p className={styles.planNote}>✓ Sem fidelidade &nbsp;·&nbsp; ✓ Cancele quando quiser &nbsp;·&nbsp; ✓ Suporte em português</p>
-                </div>
-            </section>
-
-            {/* ── FAQ ── */}
-            <section id="faq" className={styles.faqSection}>
-                <div className={styles.sectionInner}>
-                    <ScrollReveal>
-                        <span className={styles.sectionLabel}>FAQ</span>
-                        <h2 className={styles.sectionTitle}>Perguntas frequentes</h2>
-                        <p className={styles.sectionSub}>Dúvidas sobre a plataforma? Encontre sua resposta aqui.</p>
-                    </ScrollReveal>
-                    <ScrollReveal delay={150}>
-                        <LandingFAQ items={FAQ_ITEMS} />
-                        {whatsappUrl && (
-                            <p className={styles.faqContact}>
-                                Não encontrou sua resposta?{' '}
-                                <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className={styles.faqLink}>Fale conosco</a>
-                            </p>
-                        )}
-                    </ScrollReveal>
-                </div>
-            </section>
-
-            {/* ── CTA FINAL ── */}
-            <section className={styles.ctaBanner}>
-                <div className={styles.ctaInner}>
-                    <span className={styles.sectionLabel}>Pronto para começar?</span>
-                    <h2 className={styles.ctaTitle}>Pronto para parar de<br />pagar comissões?</h2>
-                    <p className={styles.ctaSub}>Junte-se a mais de 500 lojistas que já deixaram as mesas para trás. Cadastro gratuito, sem cartão de crédito.</p>
-                    <div className={styles.ctaActions}>
-                        <OpenModalButton type="cliente" className={styles.heroCtaPrimary}>
-                            Criar conta grátis
-                            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-                                <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                        </OpenModalButton>
-                        {whatsappUrl && (
-                            <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className={styles.heroCtaSecondary}>Falar com vendas</a>
-                        )}
                     </div>
-                    <div className={styles.ctaTrust}>
-                        <span className={styles.ctaTrustItem}>🔒 SSL &amp; LGPD</span>
-                        <span className={styles.ctaTrustItem}>🕐 Suporte 24/7</span>
-                        <span className={styles.ctaTrustItem}>✓ Sem fidelidade</span>
-                        <span className={styles.ctaTrustItem}>💳 Cancele quando quiser</span>
-                    </div>
-                </div>
-            </section>
+                </section>
 
-            {/* ── FOOTER ── */}
-            <footer className={styles.footer}>
-                <div className={styles.footerInner}>
-                    <div className={styles.footerTop}>
-                        <div className={styles.footerBrand}>
-                            <Image src="/images/logo.png" alt="CNV — Comércio Nacional de Veículos 0km" width={140} height={47} />
-                            <p className={styles.footerTagline}>Comércio Nacional de Veículos 0km.<br />A plataforma que conecta concessionárias ao Brasil.</p>
+                {/* ── CHAMADA FINAL ── */}
+                <section className={styles.cta} aria-labelledby="titulo-final">
+                    <div className={`${styles.container} ${styles.ctaBand}`}>
+                        <div className={styles.ctaCopy}>
+                            <h2 id="titulo-final" className={`${styles.h2} ${styles.h2OnDark}`}>Pare de dividir a sua margem com a mesa.</h2>
+                            <p className={`${styles.lead} ${styles.leadOnDark}`}>Veja o estoque completo agora. O teste é grátis e não pede cartão.</p>
                         </div>
-                        <div className={styles.footerCols}>
-                            <div className={styles.footerCol}>
-                                <h4 className={styles.footerColTitle}>Plataforma</h4>
-                                <OpenModalButton type="cliente" className={styles.footerLink}>Criar conta</OpenModalButton>
-                                <Link href="/login" className={styles.footerLink}>Entrar</Link>
-                                <a href="#planos" className={styles.footerLink}>Planos</a>
-                                <a href="#recursos" className={styles.footerLink}>Recursos</a>
-                            </div>
-                            <div className={styles.footerCol}>
-                                <h4 className={styles.footerColTitle}>Suporte</h4>
-                                <a href="#faq" className={styles.footerLink}>FAQ</a>
-                                {contactConfig.email_support && <a href={`mailto:${contactConfig.email_support}`} className={styles.footerLink}>Suporte</a>}
-                                {contactConfig.email_sales && <a href={`mailto:${contactConfig.email_sales}`} className={styles.footerLink}>Vendas</a>}
-                            </div>
-                            <div className={styles.footerCol}>
-                                <h4 className={styles.footerColTitle}>Contato</h4>
-                                {whatsappUrl && (
-                                    <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className={styles.footerLink}>
-                                        {formatBrazilPhone(contactConfig.whatsapp)}
-                                    </a>
-                                )}
-                                {contactConfig.email_general && <a href={`mailto:${contactConfig.email_general}`} className={styles.footerLink}>{contactConfig.email_general}</a>}
-                                {contactConfig.address && <span className={styles.footerContactInfo}>{contactConfig.address}</span>}
-                                {contactConfig.business_hours && <span className={styles.footerContactInfo}>{contactConfig.business_hours}</span>}
-                                {contactConfig.cnpj && <span className={styles.footerContactInfo} style={{ whiteSpace: 'nowrap' }}>CNPJ: {contactConfig.cnpj}</span>}
-                            </div>
+                        <div className={styles.ctaActions}>
+                            <OpenModalButton type="cliente" className={`${styles.btn} ${styles.btnLg} ${styles.btnGold} ${styles.btnBlock}`}>Testar grátis por 10 minutos</OpenModalButton>
+                            {whatsappUrl && (
+                                <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className={`${styles.btn} ${styles.btnLg} ${styles.btnOnDark} ${styles.btnBlock}`}>Falar no WhatsApp</a>
+                            )}
+                        </div>
+                    </div>
+                </section>
+            </main>
+
+            {/* ── RODAPÉ ── */}
+            <footer className={styles.footer}>
+                <div className={styles.container}>
+                    <div className={styles.footerGrid}>
+                        <div className={styles.footerBrand}>
+                            <BrandLockup />
+                            <p className={styles.footerBrandText}>Comércio Nacional de Veículos 0km. Lojistas e concessionárias negociando direto, sem intermediário.</p>
+                        </div>
+                        <div className={styles.footerCol}>
+                            <span className={styles.footerColTitle}>Plataforma</span>
+                            <OpenModalButton type="cliente" className={styles.footerLink}>Testar grátis</OpenModalButton>
+                            <a href="/login" className={styles.footerLink}>Entrar</a>
+                            <a href="#planos" className={styles.footerLink}>Planos</a>
+                            <OpenModalButton type="concessionaria" className={styles.footerLink}>Cadastrar concessionária</OpenModalButton>
+                        </div>
+                        <div className={styles.footerCol}>
+                            <span className={styles.footerColTitle}>Atendimento</span>
+                            {whatsappUrl && (
+                                <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className={styles.footerLink}>{formatBrazilPhone(contactConfig.whatsapp)}</a>
+                            )}
+                            {contactConfig.email_general && <a href={`mailto:${contactConfig.email_general}`} className={styles.footerLink}>{contactConfig.email_general}</a>}
+                            {contactConfig.business_hours && <span className={styles.footerText}>{contactConfig.business_hours}</span>}
+                        </div>
+                        <div className={styles.footerCol}>
+                            <span className={styles.footerColTitle}>Empresa</span>
+                            {contactConfig.address && <span className={styles.footerText}>{contactConfig.address}</span>}
+                            {contactConfig.cnpj && <span className={styles.footerText}>CNPJ {contactConfig.cnpj}</span>}
+                            {contactConfig.email_sales && <a href={`mailto:${contactConfig.email_sales}`} className={styles.footerLink}>Comercial</a>}
+                            {contactConfig.email_support && <a href={`mailto:${contactConfig.email_support}`} className={styles.footerLink}>Suporte</a>}
                         </div>
                     </div>
                     <div className={styles.footerBottom}>
-                        <p className={styles.footerCopy}>© {new Date().getFullYear()} CNV — Comércio Nacional de Veículos 0km. Todos os direitos reservados.</p>
+                        <span>© {new Date().getFullYear()} CNV · Comércio Nacional de Veículos 0km · Desenvolvido por Hebert Sandinha</span>
                         <LegalButtons />
-                    </div>
-                    <div className={styles.footerDev}>
-                        Desenvolvido por <span className={styles.footerDevName}>Hebert Sandinha</span>
                     </div>
                 </div>
             </footer>
+
             <RegisterModals />
             <LegalModals />
             {whatsappNumber && <FloatingWhatsAppClient whatsappNumber={whatsappNumber} />}
