@@ -6,6 +6,7 @@ import { useSession, signIn } from 'next-auth/react';
 import { signInWithEmailAndPassword, updatePassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import styles from './login.module.css';
+import { BriefcaseBusiness, Building2, Handshake, ShieldCheck, TriangleAlert, UserRound } from 'lucide-react';
 import { LoginForm } from '@/components/login/LoginForm';
 import { Logo } from '@/components/Logo';
 
@@ -315,9 +316,9 @@ function LoginContent() {
                             showContactAdmin={showContactAdmin}
                             onContactAdmin={handleContactAdmin}
                         />
-                        <p style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.875rem', color: '#6b7280' }}>
+                        <p className={styles.signupNote}>
                             Não tem conta?{' '}
-                            <a href="/cadastro/cliente" style={{ color: '#3b82f6', fontWeight: 600, textDecoration: 'none' }}>Criar conta gratís</a>
+                            <a href="/cadastro/cliente" className={styles.signupLink}>Criar conta grátis</a>
                         </p>
                         <p className={styles.securityNote}>Acesso seguro • CNV</p>
                     </div>
@@ -328,7 +329,7 @@ function LoginContent() {
             {showProfileModal && (
                 <div className={styles.modalOverlay}>
                     <div className={styles.modalContent}>
-                        <h3 className={styles.modalTitle}>Selecione o Perfil</h3>
+                        <h3 className={styles.modalTitle}>Escolha o perfil</h3>
                         <p className={styles.modalSubtitle}>Como você deseja acessar o sistema?</p>
 
                         <div className={styles.profileList}>
@@ -340,12 +341,12 @@ function LoginContent() {
                                         className={styles.profileButton}
                                         onClick={() => handleProfileSelect(profile)}
                                     >
-                                        <span className={styles.profileIcon}>
-                                            {(profile === 'administrador' || profile === 'gerente') && '🛡️'}
-                                            {profile === 'operador' && '👨‍💼'}
-                                            {profile === 'vendedor' && '💼'}
-                                            {profile === 'concessionaria' && '🏢'}
-                                            {profile === 'cliente' && '👤'}
+                                        <span className={styles.profileIcon} aria-hidden="true">
+                                            {(profile === 'administrador' || profile === 'gerente') && <ShieldCheck size={20} />}
+                                            {profile === 'operador' && <BriefcaseBusiness size={20} />}
+                                            {profile === 'vendedor' && <Handshake size={20} />}
+                                            {profile === 'concessionaria' && <Building2 size={20} />}
+                                            {profile === 'cliente' && <UserRound size={20} />}
                                         </span>
                                         <span className={styles.profileName}>
                                             {profile === 'gerente' ? 'Administrador' : profile.charAt(0).toUpperCase() + profile.slice(1)}
@@ -372,48 +373,34 @@ function LoginContent() {
             {showPasswordModal && (
                 <div className={styles.modalOverlay}>
                     <div className={styles.modalContent}>
-                        <h3 className={styles.modalTitle}>Definir Nova Senha</h3>
+                        <h3 className={styles.modalTitle}>Defina uma nova senha</h3>
                         <p className={styles.modalSubtitle}>
                             Para sua segurança, você precisa definir uma nova senha no primeiro acesso.
                         </p>
 
                         <form onSubmit={handlePasswordChange}>
-                            <div style={{ marginBottom: '1rem' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500, color: '#374151' }}>
-                                    Nova Senha
-                                </label>
+                            <div className={styles.modalField}>
+                                <label htmlFor="nova-senha">Nova senha</label>
                                 <input
+                                    id="nova-senha"
                                     type="password"
                                     value={newPassword}
                                     onChange={(e) => setNewPassword(e.target.value)}
-                                    style={{
-                                        width: '100%',
-                                        padding: '0.75rem',
-                                        border: '1px solid #d1d5db',
-                                        borderRadius: '0.5rem',
-                                        fontSize: '1rem'
-                                    }}
+                                    className={styles.modalInput}
                                     required
                                     minLength={6}
                                     placeholder="Mínimo 6 caracteres"
                                 />
                             </div>
 
-                            <div style={{ marginBottom: '1.5rem' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500, color: '#374151' }}>
-                                    Confirmar Nova Senha
-                                </label>
+                            <div className={styles.modalField}>
+                                <label htmlFor="confirmar-senha">Confirme a nova senha</label>
                                 <input
+                                    id="confirmar-senha"
                                     type="password"
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
-                                    style={{
-                                        width: '100%',
-                                        padding: '0.75rem',
-                                        border: '1px solid #d1d5db',
-                                        borderRadius: '0.5rem',
-                                        fontSize: '1rem'
-                                    }}
+                                    className={styles.modalInput}
                                     required
                                     minLength={6}
                                     placeholder="Repita a nova senha"
@@ -421,36 +408,17 @@ function LoginContent() {
                             </div>
 
                             {passwordError && (
-                                <div style={{
-                                    color: '#dc2626',
-                                    fontSize: '0.875rem',
-                                    marginBottom: '1rem',
-                                    textAlign: 'center',
-                                    backgroundColor: '#fee2e2',
-                                    padding: '0.5rem',
-                                    borderRadius: '0.375rem'
-                                }}>
+                                <div className={styles.modalError} role="alert">
                                     {passwordError}
                                 </div>
                             )}
 
                             <button
                                 type="submit"
-                                style={{
-                                    width: '100%',
-                                    padding: '0.75rem',
-                                    backgroundColor: '#3b82f6',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '0.5rem',
-                                    fontSize: '1rem',
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                    transition: 'background-color 0.2s'
-                                }}
+                                className={styles.modalSubmit}
                                 disabled={isLoading}
                             >
-                                {isLoading ? 'Atualizando...' : 'Atualizar Senha'}
+                                {isLoading ? 'Atualizando...' : 'Salvar nova senha'}
                             </button>
                         </form>
                     </div>
@@ -460,8 +428,8 @@ function LoginContent() {
             {showSessionModal && (
                 <div className={styles.overlay}>
                     <div className={styles.modal}>
-                        <div className={styles.modalIcon}>⚠️</div>
-                        <h3 className={styles.modalTitle}>Sessão Ativa Detectada</h3>
+                        <div className={styles.modalIcon}><TriangleAlert size={22} aria-hidden="true" /></div>
+                        <h3 className={styles.modalTitle}>Sessão ativa em outro lugar</h3>
                         <p className={styles.modalDescription}>
                             Você já tem uma sessão aberta em outro dispositivo ou navegador.
                             <br /><br />

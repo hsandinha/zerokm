@@ -1,11 +1,16 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
+import { Inter } from "next/font/google";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import { ThemeProvider } from "@/lib/contexts/ThemeContext";
 import "./globals.css";
 
+// Inter servida pelo próprio site (sem depender da fonte instalada no aparelho).
+// A variável alimenta a --font-sans do globals.css em todas as páginas.
+const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-inter" });
+
 export const metadata: Metadata = {
-  title: "CNV — Comércio Nacional de Veículos 0km",
+  title: "CNV · Comércio Nacional de Veículos 0km",
   description: "Plataforma completa para concessionárias e compradores de veículos zero quilômetro. Gestão de estoque, CRM, logística e vendas.",
   verification: {
     other: {
@@ -26,7 +31,7 @@ export default function LoginLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
+    <html lang="pt-BR" className={inter.variable} suppressHydrationWarning>
       <head>
         <style dangerouslySetInnerHTML={{
           __html: `

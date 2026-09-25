@@ -14,47 +14,46 @@
 .label {
     font-size: 0.82rem;
     font-weight: 600;
-    letter-spacing: 0.01em;
-    color: #ffffff;
+    letter-spacing: 0.02em;
+    color: rgba(240, 244, 248, 0.6);
 }
 
 .input {
     width: 100%;
     padding: 0.8rem 0.95rem;
-    border: 1px solid #cbd5e1;
-    border-radius: 0.65rem;
-    font-size: 0.96rem;
-    transition: all 0.18s ease;
-    background: #f8fafc;
-    color: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    font-size: 0.95rem;
+    transition: border-color 0.2s, background 0.2s;
+    background: rgba(255, 255, 255, 0.04);
+    color: #f0f4f8;
 }
 
 .input:focus {
     outline: none;
-    border-color: #f97316;
-    background: #fff;
-    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.16);
+    border-color: rgba(246, 183, 60, 0.5);
+    background: rgba(246, 183, 60, 0.04);
 }
 
 .input::placeholder {
-    color: #94a3b8;
+    color: rgba(240, 244, 248, 0.25);
 }
 
 .select {
     width: 100%;
     padding: 0.75rem 1rem;
-    border: 1px solid #d1d5db;
-    border-radius: 0.5rem;
-    font-size: 1rem;
-    background: white;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    font-size: 0.95rem;
+    background: rgba(255, 255, 255, 0.04);
+    color: #f0f4f8;
     cursor: pointer;
     transition: all 0.2s;
 }
 
 .select:focus {
     outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    border-color: rgba(246, 183, 60, 0.5);
 }
 
 .passwordContainer {
@@ -70,8 +69,10 @@
     border: none;
     cursor: pointer;
     font-size: 1.15rem;
-    color: rgba(255, 255, 255, 0.92);
+    color: rgba(240, 244, 248, 0.6);
     padding: 0;
+    display: flex;
+    align-items: center;
 }
 
 .options {
@@ -86,20 +87,20 @@
     align-items: center;
     gap: 0.5rem;
     cursor: pointer;
-    color: rgba(255, 255, 255, 0.95);
+    color: rgba(240, 244, 248, 0.7);
 }
 
 .checkbox input {
     margin: 0;
     width: 15px;
     height: 15px;
-    accent-color: #f97316;
+    accent-color: #f6b73c;
 }
 
 .forgotPassword {
     background: none;
     border: none;
-    color: rgba(255, 255, 255, 0.95);
+    color: rgba(240, 244, 248, 0.7);
     cursor: pointer;
     font-size: 0.875rem;
     text-decoration: none;
@@ -107,20 +108,21 @@
 }
 
 .forgotPassword:hover {
-    color: #fed7aa;
+    color: #f6b73c;
     text-decoration: underline;
 }
 
 .submitButton {
     width: 100%;
     padding: 0.875rem 1rem;
-    background: linear-gradient(135deg, #ea580c, #fb923c);
-    color: white;
+    background: #f6b73c;
+    color: #07101a;
     border: none;
-    border-radius: 0.65rem;
-    font-size: 1rem;
-    font-weight: 600;
-    letter-spacing: 0.035em;
+    border-radius: 11px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    box-shadow: 0 4px 20px rgba(246, 183, 60, 0.3);
     cursor: pointer;
     transition: all 0.18s ease;
     display: flex;
@@ -130,27 +132,27 @@
 }
 
 .submitButton:hover:not(:disabled) {
-    background: linear-gradient(135deg, #c2410c, #f97316);
+    background: #fbbf24;
     transform: translateY(-1px);
-    box-shadow: 0 10px 20px rgba(234, 88, 12, 0.32);
+    box-shadow: 0 8px 28px rgba(246, 183, 60, 0.4);
 }
 
 .submitButton:disabled {
-    background: #9ca3af;
+    opacity: 0.6;
     cursor: not-allowed;
     transform: none;
     box-shadow: none;
 }
 
 .loading {
-    background: #9ca3af;
+    opacity: 0.8;
 }
 
 .spinner {
     width: 1rem;
     height: 1rem;
-    border: 2px solid rgba(255, 255, 255, 0.4);
-    border-top: 2px solid #ffffff;
+    border: 2px solid rgba(7, 16, 26, 0.25);
+    border-top: 2px solid #07101a;
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
@@ -178,23 +180,23 @@
 }
 
 .feedbackError {
-    color: #b91c1c;
-    background: #fee2e2;
-    border-color: #fecaca;
+    color: #fca5a5;
+    background: rgba(248, 113, 113, 0.1);
+    border-color: rgba(248, 113, 113, 0.25);
 }
 
 .feedbackSuccess {
-    color: #166534;
-    background: #dcfce7;
-    border-color: #bbf7d0;
+    color: #86efac;
+    background: rgba(74, 222, 128, 0.1);
+    border-color: rgba(74, 222, 128, 0.25);
 }
 
 .contactAdminButton {
     width: 100%;
     padding: 0.75rem;
-    background-color: #334155;
-    color: #fff;
-    border: none;
+    background-color: transparent;
+    color: rgba(240, 244, 248, 0.8);
+    border: 1.5px solid rgba(255, 255, 255, 0.14);
     border-radius: 0.65rem;
     cursor: pointer;
     font-size: 0.85rem;
@@ -203,7 +205,7 @@
 }
 
 .contactAdminButton:hover {
-    background-color: #1f2937;
+    border-color: rgba(255, 255, 255, 0.3);
 }
 
 .resetHeader {
@@ -212,7 +214,7 @@
 
 .resetTitle {
     margin: 0 0 0.45rem;
-    color: #ffffff;
+    color: #f0f4f8;
     font-size: 1.25rem;
     font-weight: 700;
     letter-spacing: -0.01em;
@@ -220,7 +222,7 @@
 
 .resetSubtitle {
     margin: 0;
-    color: rgba(255, 255, 255, 0.9);
+    color: rgba(240, 244, 248, 0.6);
     font-size: 0.9rem;
     line-height: 1.4;
 }
@@ -229,7 +231,7 @@
     width: 100%;
     padding: 0.65rem;
     background: transparent;
-    color: rgba(255, 255, 255, 0.92);
+    color: rgba(240, 244, 248, 0.7);
     border: none;
     margin-top: 0.1rem;
     cursor: pointer;
@@ -301,12 +303,12 @@
     content: '';
     flex: 1;
     height: 1px;
-    background: #e5e7eb;
+    background: rgba(255, 255, 255, 0.08);
 }
 
 .separator span {
     padding: 0 1rem;
-    color: #6b7280;
+    color: rgba(240, 244, 248, 0.45);
     font-size: 0.875rem;
     font-weight: 400;
 }

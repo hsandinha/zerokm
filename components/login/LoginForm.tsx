@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { sendPasswordResetEmail } from 'firebase/auth'; // Importação necessária
 import { auth } from '@/lib/firebase'; // Certifique-se que o caminho está correto
 import styles from './LoginForm.module.css';
+import { Eye, EyeOff } from 'lucide-react';
 
 interface LoginFormProps {
     onLogin: (email: string, password: string) => void;
@@ -175,8 +176,9 @@ export function LoginForm({ onLogin, isLoading, error, showContactAdmin, onConta
                                 type="button"
                                 className={styles.passwordToggle}
                                 onClick={() => setShowPassword(!showPassword)}
+                                aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
                             >
-                                {showPassword ? '👁️' : '👁️‍🗨️'}
+                                {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
                             </button>
                         </div>
                     </div>
@@ -206,7 +208,7 @@ export function LoginForm({ onLogin, isLoading, error, showContactAdmin, onConta
                                 Entrando...
                             </>
                         ) : (
-                            'ENTRAR'
+                            'Entrar'
                         )}
                     </button>
                 </form>

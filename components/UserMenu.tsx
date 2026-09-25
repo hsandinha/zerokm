@@ -35,7 +35,7 @@ function ProfileRing({ pct }: { pct: number }) {
     const circ = 2 * Math.PI * r;
     const offset = circ * (1 - pct / 100);
     const color =
-        pct < 40 ? 'var(--color-negative)' : pct < 100 ? '#f59e0b' : 'var(--color-positive)';
+        pct < 40 ? 'var(--color-negative)' : pct < 100 ? 'var(--color-warning)' : 'var(--color-positive)';
     const cx = size / 2;
     const cy = size / 2;
     return (
