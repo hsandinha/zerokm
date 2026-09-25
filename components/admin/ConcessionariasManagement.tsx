@@ -5,15 +5,16 @@ import { MaskedInput } from '../../components/operator/MaskedInput';
 import { ConcessionariaService } from '../../lib/services/concessionariaService';
 import styles from './ConcessionariasManagement.module.css';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
-import { AlertTriangle, Building2, CarFront, ChevronDown, Link2, Pencil, Plus, RefreshCw, Search, Trash2, UserRoundX } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Building2, CarFront, ChevronDown, Link2, Pencil, Plus, RefreshCw, Search, Trash2, UserRoundX } from 'lucide-react';
 import {
     Avatar, Button, EmptyState, IconAction, Page, PageHeader, Panel, PanelFooter, PanelToolbar, PrimaryCell, RowActions,
     SearchField, Segmented, ShowingCount, SkeletonRows, SortHeader, StatCard, StatGrid, StatusBadge, TwoLine, nextSort, pageStyles,
     type BadgeTone, type SortDirection,
 } from '@/components/ui/Page';
 import { InlineNotice, useFeedback } from '@/components/ui/Feedback';
+import { PlanoRepasseCard } from '@/components/dealership/PlanoRepasseCard';
 
-type Segmento = 'todas' | 'ativas' | 'desatualizadas' | 'inativas';
+type Segmento = 'todas' | 'ativas' | 'repasse' | 'sem-repasse' | 'desatualizadas' | 'inativas';
 type ColunaVeiculo = 'modelo' | 'ano' | 'cor' | 'combustivel' | 'cidade' | 'nomeContato';
 
 // Interfaces para Concessionária
@@ -49,6 +50,15 @@ interface ClienteData {
     atualizadoEm?: string | null;
     totalVeiculos?: number;
     ultimaAtualizacao?: string | null;
+    /** Plano que libera a loja a anunciar repasse. Ver lib/utils/planoRepasse.ts. */
+    planoRepasse?: {
+        ativo: boolean;
+        status: string;
+        planName: string | null;
+        billingType: 'monthly' | 'annual' | null;
+        expiresAt: string | null;
+        activationMethod: string | null;
+    } | null;
 }
 
 interface MarcaData {
@@ -115,6 +125,10 @@ export function ConcessionariasManagement({ perfil = 'admin' }: { perfil?: Perfi
     const podeEditarMarcas = perfil !== 'vendedor';
     const podeTrocarOperador = perfil === 'admin';
     const podeAssociarVeiculos = perfil === 'admin';
+    // A rota PATCH do plano só aceita administrador — o gerente e o vendedor
+    // enxergam a situação, mas não ativam nem desativam.
+    const podeGerirRepasse = perfil === 'admin';
+    const [clienteDoPlano, setClienteDoPlano] = useState<ClienteData | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [segmento, setSegmento] = useState<Segmento>('todas');
     const { confirm, notify, feedback } = useFeedback();
@@ -619,8 +633,29 @@ export function ConcessionariasManagement({ perfil = 'admin' }: { perfil?: Perfi
             return vehicleSort.direction === 'asc' ? comparison : -comparison;
         });
 
+    /**
+     * Situação do repasse em uma linha. Distingue três estados que a loja
+     * sente de forma diferente: nunca assinou, assinou e venceu (fila de
+     * renovação) e está em dia.
+     */
+    const situacaoRepasse = (plano: ClienteData['planoRepasse']): { tone: BadgeTone; label: string; detalhe: string | null } => {
+        if (plano?.ativo) {
+            return {
+                tone: 'positive',
+                label: 'Ativo',
+                detalhe: plano.expiresAt ? `até ${formatDate(plano.expiresAt)}` : null,
+            };
+        }
+        if (plano?.expiresAt) {
+            return { tone: 'negative', label: 'Vencido', detalhe: `em ${formatDate(plano.expiresAt)}` };
+        }
+        return { tone: 'neutral', label: 'Sem plano', detalhe: null };
+    };
+
     const noSegmento = (c: ClienteData) => {
         if (segmento === 'ativas') return c.ativo !== false;
+        if (segmento === 'repasse') return Boolean(c.planoRepasse?.ativo);
+        if (segmento === 'sem-repasse') return c.ativo !== false && !c.planoRepasse?.ativo;
         if (segmento === 'inativas') return c.ativo === false;
         if (segmento === 'desatualizadas') {
             const dias = diasSemAtualizar(c.ultimaAtualizacao);
@@ -635,6 +670,10 @@ export function ConcessionariasManagement({ perfil = 'admin' }: { perfil?: Perfi
     const desatualizadas = ativas.filter(c => { const d = diasSemAtualizar(c.ultimaAtualizacao); return d === null || d > 30; }).length;
     const totalVeiculos = clientes.reduce((soma, c) => soma + (c.totalVeiculos || 0), 0);
     const semOperador = ativas.filter(c => !getOperadorIdForCliente(c)).length;
+    const comRepasse = clientes.filter(c => c.planoRepasse?.ativo).length;
+    // Já teve plano e deixou vencer: é a fila de renovação, não o mesmo que
+    // "nunca assinou".
+    const repasseVencido = clientes.filter(c => !c.planoRepasse?.ativo && c.planoRepasse?.expiresAt).length;
     const carregando = loadingClientes && clientes.length === 0;
 
     return (
@@ -657,6 +696,13 @@ export function ConcessionariasManagement({ perfil = 'admin' }: { perfil?: Perfi
                 />
                 <StatCard label="Veículos no estoque" icon={<CarFront size={18} />} value={carregando ? '-' : totalVeiculos.toLocaleString('pt-BR')} caption="Somando todas as lojas" />
                 <StatCard
+                    label="Repasse ativo"
+                    icon={<BadgeCheck size={18} />}
+                    value={carregando ? '-' : comRepasse}
+                    caption={repasseVencido ? `${repasseVencido} com plano vencido` : 'Lojas que podem anunciar repasse'}
+                    tone={repasseVencido > 0 ? 'warning' : 'default'}
+                />
+                <StatCard
                     label="Sem operador"
                     icon={<UserRoundX size={18} />}
                     value={carregando ? '-' : semOperador}
@@ -674,6 +720,8 @@ export function ConcessionariasManagement({ perfil = 'admin' }: { perfil?: Perfi
                         options={[
                             { value: 'todas', label: 'Todas', count: clientes.length },
                             { value: 'ativas', label: 'Ativas', count: ativas.length },
+                            { value: 'repasse', label: 'Com repasse', count: comRepasse },
+                            { value: 'sem-repasse', label: 'Sem repasse', count: ativas.length - comRepasse },
                             { value: 'desatualizadas', label: 'Estoque desatualizado', count: desatualizadas },
                             { value: 'inativas', label: 'Inativas', count: clientes.length - ativas.length },
                         ]}
@@ -690,6 +738,7 @@ export function ConcessionariasManagement({ perfil = 'admin' }: { perfil?: Perfi
                                 <th>Concessionária</th>
                                 <th>Marcas</th>
                                 <th>Estoque</th>
+                                <th>Repasse</th>
                                 <th>Contato principal</th>
                                 <th>Operador responsável</th>
                                 <th>Endereço</th>
@@ -697,7 +746,7 @@ export function ConcessionariasManagement({ perfil = 'admin' }: { perfil?: Perfi
                             </tr>
                         </thead>
                         <tbody>
-                            {carregando && <SkeletonRows rows={5} columns={7} />}
+                            {carregando && <SkeletonRows rows={5} columns={8} />}
                             {!carregando && visiveis.map((cliente) => {
                                 const selectedIds = getSelectedBrandIds(cliente);
                                 const selectedNames = getSelectedBrandNames(cliente);
@@ -705,6 +754,7 @@ export function ConcessionariasManagement({ perfil = 'admin' }: { perfil?: Perfi
                                 const filteredMarcas = marcas.filter(m => m.nome.toLowerCase().includes(brandSearch.toLowerCase()));
                                 const semaforo = atualizacao(cliente.ultimaAtualizacao);
                                 const veiculos = cliente.totalVeiculos || 0;
+                                const repasse = situacaoRepasse(cliente.planoRepasse);
                                 return (
                                     <tr key={cliente.id} data-inactive={cliente.ativo === false}>
                                         <td className={pageStyles.colMain}>
@@ -780,6 +830,30 @@ export function ConcessionariasManagement({ perfil = 'admin' }: { perfil?: Perfi
                                                 top={<strong>{veiculos.toLocaleString('pt-BR')} {veiculos === 1 ? 'veículo' : 'veículos'}</strong>}
                                                 bottom={<StatusBadge tone={semaforo.tone}>{semaforo.label}</StatusBadge>}
                                             />
+                                        </td>
+                                        <td>
+                                            {podeGerirRepasse ? (
+                                                <button
+                                                    type="button"
+                                                    className={styles.repasseButton}
+                                                    onClick={() => setClienteDoPlano(cliente)}
+                                                    title={`Plano de repasse de ${cliente.nome}`}
+                                                >
+                                                    <TwoLine
+                                                        nowrap
+                                                        top={<StatusBadge tone={repasse.tone}>{repasse.label}</StatusBadge>}
+                                                        bottom={repasse.detalhe
+                                                            ? <span className={pageStyles.subLine}>{repasse.detalhe}</span>
+                                                            : <span className={pageStyles.subLine}>Clique para ativar</span>}
+                                                    />
+                                                </button>
+                                            ) : (
+                                                <TwoLine
+                                                    nowrap
+                                                    top={<StatusBadge tone={repasse.tone}>{repasse.label}</StatusBadge>}
+                                                    bottom={repasse.detalhe ? <span className={pageStyles.subLine}>{repasse.detalhe}</span> : undefined}
+                                                />
+                                            )}
                                         </td>
                                         <td>
                                             <TwoLine
@@ -1221,6 +1295,22 @@ export function ConcessionariasManagement({ perfil = 'admin' }: { perfil?: Perfi
                             </div>
                         </div>
                     )}
+                </AdminModal>
+            )}
+            {clienteDoPlano && (
+                <AdminModal
+                    size="md"
+                    title={`Plano de repasse — ${clienteDoPlano.nome}`}
+                    subtitle="Com o plano em dia, os repasses desta loja aparecem para os lojistas."
+                    onClose={() => setClienteDoPlano(null)}
+                >
+                    {/* O mesmo cartão da tela de Estoque, em modo equipe: ativar
+                        manualmente, dar cortesia ou desativar. Repetir essa
+                        lógica aqui só criaria duas regras para divergirem. */}
+                    <PlanoRepasseCard
+                        concessionariaId={clienteDoPlano.id}
+                        onChange={() => { void fetchClientes(); }}
+                    />
                 </AdminModal>
             )}
             {feedback}

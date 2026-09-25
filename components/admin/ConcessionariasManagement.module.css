@@ -32,3 +32,26 @@
 
 /* Endereço na tabela: quebra em até duas linhas em vez de esticar a coluna. */
 .addressCell { min-width: 170px; max-width: 220px; white-space: normal; font-size: 13px; color: var(--color-text-muted); }
+
+/* Célula do plano de repasse: parece texto, funciona como botão. Um IconAction
+   ao lado do selo obrigaria a mirar num alvo pequeno numa tabela de 971 linhas
+   — aqui a própria situação é o que se clica. */
+.repasseButton {
+    display: block;
+    width: 100%;
+    padding: 2px 6px;
+    margin: -2px -6px;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.repasseButton:hover,
+.repasseButton:focus-visible {
+    background: var(--color-highlight);
+}

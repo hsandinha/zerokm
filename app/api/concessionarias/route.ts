@@ -6,6 +6,7 @@ import VehicleVariation from '@/models/VehicleVariation';
 import User from '@/models/User';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
+import { serializePlanoRepasse } from '@/lib/utils/planoRepasse';
 
 const formatErrorMessage = (error: unknown) => {
     if (error instanceof Error) return error.message;
@@ -101,7 +102,11 @@ const serializeConcessionaria = (doc: any) => {
         ativo: doc.ativo,
         dataCadastro: doc.dataCadastro ? new Date(doc.dataCadastro).toISOString() : null,
         criadoEm: doc.createdAt ? new Date(doc.createdAt).toISOString() : null,
-        atualizadoEm: doc.updatedAt ? new Date(doc.updatedAt).toISOString() : null
+        atualizadoEm: doc.updatedAt ? new Date(doc.updatedAt).toISOString() : null,
+        // Quem assinou o repasse. Sem isto a listagem não tem como mostrar a
+        // situação do plano, e o controle fica só na tela de Estoque, uma loja
+        // por vez.
+        planoRepasse: serializePlanoRepasse(doc.planoRepasse)
     };
 };
 
