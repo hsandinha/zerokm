@@ -71,6 +71,9 @@ export default function AdministrativoDashboard() {
         { id: 'banners', label: 'Banners', icon: <Images size={20} aria-hidden="true" /> },
     ];
 
+    // Telas que já montam a própria página (components/ui/Page) ou ocupam a tela toda.
+    const SEM_MOLDURA = new Set(['veiculos', 'usuarios', 'concessionarias']);
+
     const renderContent = () => {
         switch (activeTab) {
             case 'veiculos': return <VehicleConsultation role={effectiveRole} showBanners />;
@@ -100,7 +103,7 @@ export default function AdministrativoDashboard() {
                 user={{ name: userInfo.name ?? 'Administrativo', email: userInfo.email, role: 'Administrativo' }}
             >
                 {/* A Consulta de veículos ocupa a tela toda, como no admin. */}
-                {activeTab === 'veiculos' ? renderContent() : <div className={shellStyles.contentArea}>{renderContent()}</div>}
+                {SEM_MOLDURA.has(activeTab) ? renderContent() : <div className={shellStyles.contentArea}>{renderContent()}</div>}
             </DashboardShell>
         </ConfigContext.Provider>
     );

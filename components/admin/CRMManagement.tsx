@@ -3,6 +3,13 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import styles from './CRMManagement.module.css';
 import { AdminModal, modalStyles } from './AdminModal';
+import { CalendarPlus, ContactRound, Eye, IdCard, MessageCircle, Plus, Search, UserCheck, Users } from 'lucide-react';
+import {
+    Avatar, Button, EmptyState, IconAction, Page, PageHeader, Panel, PanelFooter, PanelToolbar, PrimaryCell, RowActions,
+    SearchField, Segmented, ShowingCount, SkeletonRows, SortHeader, StatCard, StatGrid, StatusBadge, TwoLine, pageStyles,
+    type BadgeTone,
+} from '@/components/ui/Page';
+import { InlineNotice, useFeedback } from '@/components/ui/Feedback';
 import { ClienteFinanceiro } from './ClienteFinanceiro';
 import { getUserAccessStatus, updateUserProfiles, toggleUserStatus, deleteUser } from '@/app/dashboard/admin/users/actions';
 import { toggleProfileSelection, DIRETIVO_PROFILES, OPERACIONAL_PROFILES, CLIENT_PROFILES } from '@/lib/utils/userProfiles';
@@ -74,10 +81,10 @@ const STATUS_LABELS: Record<CRMClient['status'], string> = {
     no_plan: 'Sem plano',
 };
 
-const STATUS_COLORS: Record<CRMClient['status'], string> = {
-    active: '#10b981',
-    expired: '#ef4444',
-    no_plan: '#f59e0b',
+const STATUS_TONE: Record<CRMClient['status'], BadgeTone> = {
+    active: 'positive',
+    expired: 'negative',
+    no_plan: 'warning',
 };
 
 interface CRMManagementProps {
@@ -119,7 +126,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
 
     // Charge state
     const [chargingId, setChargingId] = useState<string | null>(null);
-    const [chargeResult, setChargeResult] = useState<{ clientId: string; ok: boolean; msg: string } | null>(null);
+    const { confirm, notify, feedback } = useFeedback();
 
     // Invite management
     const [inviteModal, setInviteModal] = useState<{ client: CRMClient } | null>(null);
@@ -443,9 +450,13 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
     };
 
     const handleChargeCard = async (client: CRMClient) => {
-        if (!confirm(`Confirmar cobrança no cartão •••• de ${client.displayName}?\n\nIsso irá renovar o plano atual.`)) return;
+        const ok = await confirm({
+            title: 'Cobrar no cartão',
+            description: <>Cobra agora o cartão salvo de <strong>{client.displayName || client.email}</strong> e renova o plano atual.</>,
+            confirmLabel: 'Cobrar e renovar',
+        });
+        if (!ok) return;
         setChargingId(client.id);
-        setChargeResult(null);
         try {
             const res = await fetch('/api/admin/crm/charge', {
                 method: 'POST',
@@ -454,14 +465,14 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
             });
             const data = await res.json();
             if (data.ok) {
-                setChargeResult({ clientId: client.id, ok: true, msg: 'Cobrança aprovada! Plano renovado.' });
+                notify('Cobrança aprovada. Plano renovado.', 'positive');
                 reloadClients();
                 if (selectedClient?.id === client.id) setSelectedClient(null);
             } else {
-                setChargeResult({ clientId: client.id, ok: false, msg: data.error || 'Cobrança recusada.' });
+                notify(data.error || 'Cobrança recusada pelo cartão.');
             }
         } catch {
-            setChargeResult({ clientId: client.id, ok: false, msg: 'Erro de conexão.' });
+            notify('Falha de conexão ao cobrar o cartão.');
         } finally {
             setChargingId(null);
         }
@@ -506,7 +517,9 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
     };
 
     const handleCancelInviteCRM = async (id: string) => {
-        if (!inviteModal || !confirm('Remover este convidado?')) return;
+        if (!inviteModal) return;
+        const ok = await confirm({ title: 'Remover convidado', description: 'O convidado perde o acesso e deixa de ser cobrado na próxima fatura.', confirmLabel: 'Remover convidado', danger: true });
+        if (!ok) return;
         try {
             await fetch(`/api/admin/crm/invites?id=${id}`, { method: 'DELETE' });
             loadInvitesForClient(inviteModal.client.email);
@@ -626,7 +639,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
 
     const getPaymentInfo = (client: CRMClient): PaymentInfo | null => {
         if (client.status !== 'active' && client.status !== 'expired') return null;
-        if (client.activationMethod === 'cortesia') return { kind: 'courtesy', label: '🎁 Cortesia' };
+        if (client.activationMethod === 'cortesia') return { kind: 'courtesy', label: 'Cortesia' };
         if (client.paymentMethod === 'pix' || client.activationMethod === 'pix') return { kind: 'pix', label: 'PIX' };
         if (client.paymentMethod === 'boleto' || client.activationMethod === 'boleto') return { kind: 'boleto', label: 'Boleto' };
         if (client.paymentMethod === 'card' || client.activationMethod === 'card') return { kind: 'card', label: 'Cartão' };
@@ -652,7 +665,10 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
     const alternarStatusAcesso = async (client: CRMClient) => {
         if (!client.firebaseUid || !acesso) return;
         const novo = !acesso.disabled;
-        if (!confirm(`${novo ? 'Desativar' : 'Ativar'} o acesso de ${client.displayName || client.email}?`)) return;
+        const ok = await confirm(novo
+            ? { title: 'Desativar acesso', description: <><strong>{client.displayName || client.email}</strong> perde o acesso na hora. A assinatura e os dados continuam salvos.</>, confirmLabel: 'Desativar acesso', danger: true }
+            : { title: 'Ativar acesso', description: <><strong>{client.displayName || client.email}</strong> volta a entrar na plataforma.</>, confirmLabel: 'Ativar acesso' });
+        if (!ok) return;
         setAcessoLoading(true);
         const r = await toggleUserStatus(client.firebaseUid, novo);
         if (r.success) {
@@ -679,7 +695,13 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
 
     const excluirUsuario = async (client: CRMClient) => {
         if (!client.firebaseUid) return;
-        if (!confirm(`ATENÇÃO: excluir permanentemente ${client.displayName || client.email}?\n\nRemove login, perfil e histórico de assinatura. Não pode ser desfeito.`)) return;
+        const ok = await confirm({
+            title: 'Excluir cliente',
+            description: <>Apaga o login, o perfil e o histórico de assinatura de <strong>{client.displayName || client.email}</strong>. Não dá para desfazer.</>,
+            confirmLabel: 'Excluir cliente',
+            danger: true,
+        });
+        if (!ok) return;
         setAcessoLoading(true);
         const r = await deleteUser(client.firebaseUid);
         if (r.success) {
@@ -729,9 +751,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                     return ordem[c.status];
                 }
                 case 'payment':
-                    // O rótulo começa com emoji em alguns casos ("🎁 Cortesia"),
-                    // e emoji ordena depois de qualquer letra. Compara pelo texto.
-                    return getPaymentInfo(c)?.label.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase() ?? '';
+                    return getPaymentInfo(c)?.label.toLowerCase() ?? '';
                 case 'vendedor':
                     return (vendedores.find(v => v.id === c.vendedorId)?.displayName ?? '').toLowerCase();
                 default:
@@ -760,11 +780,6 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
         // entrar. Nas demais, A→Z / menor→maior é o esperado.
         else { setSortKey(key); setSortAsc(key !== 'createdAt'); }
     };
-
-    const sortIcon = (key: SortKey) => sortKey === key ? (sortAsc ? ' ▲' : ' ▼') : '';
-
-    const ariaSort = (key: SortKey): 'ascending' | 'descending' | 'none' =>
-        sortKey === key ? (sortAsc ? 'ascending' : 'descending') : 'none';
 
     const formatDate = (iso: string | null) => {
         if (!iso) return '—';
@@ -814,236 +829,180 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
         return `mailto:${email}?subject=${subject}&body=${body}`;
     };
 
-    if (loading) return <div className={styles.loading}>Carregando CRM...</div>;
-    if (error) return <div className={styles.error}>{error}</div>;
+    const abrirCadastro = () => {
+        setCreateModal(true);
+        setCreateForm({
+            nome: '', email: '', telefone: '', cpf: '',
+            address: { street: '', number: '', complement: '', neighborhood: '', city: '', state: '', zipCode: '' }
+        });
+        setCreateFeedback(null);
+        setCreatedPassword(null);
+    };
+
+    const PAYMENT_TONE: Record<PaymentInfo['kind'], BadgeTone> = { courtesy: 'accent', pix: 'info', boleto: 'info', card: 'info', unlinked: 'neutral' };
+    const trintaDias = Date.now() - 30 * 86_400_000;
+    const novos30 = clients.filter(c => new Date(c.createdAt).getTime() >= trintaDias).length;
+    const completos = clients.filter(c => (c.profileCompletion ?? 0) >= 100).length;
+    const pctBase = (n: number) => (summary.total ? (n / summary.total) * 100 : 0);
+    const ordenacao = { column: sortKey, direction: sortAsc ? 'asc' as const : 'desc' as const };
+    const ORDEM_TEXTO: Record<SortKey, string> = {
+        createdAt: 'data de cadastro', displayName: 'nome', daysUntilExpiry: 'vencimento', status: 'situação', payment: 'forma de pagamento', vendedor: 'responsável',
+    };
 
     return (
-        <div className={styles.container}>
-            <div className={styles.pageHeader}>
-                <div>
-                    <h2 className={styles.title}>CRM de Clientes</h2>
-                    <p className={styles.subtitle}>Gerencie clientes ativos, expirados e leads sem plano.</p>
-                </div>
-                <button
-                    className={styles.primaryHeaderBtn}
-                    onClick={() => {
-                        setCreateModal(true);
-                        setCreateForm({
-                            nome: '', email: '', telefone: '', cpf: '',
-                            address: { street: '', number: '', complement: '', neighborhood: '', city: '', state: '', zipCode: '' }
-                        });
-                        setCreateFeedback(null);
-                        setCreatedPassword(null);
-                    }}
-                >
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                    Cadastrar novo cliente
-                </button>
-            </div>
+        <Page wide>
+            <PageHeader
+                title="Clientes"
+                count={loading ? null : summary.total}
+                description="Lojistas e revendas com acesso à consulta, plano e situação da assinatura."
+                actions={<Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={abrirCadastro}>Novo cliente</Button>}
+            />
 
-            {/* Summary cards */}
-            <div className={styles.summaryGrid}>
-                {([
-                    { tab: 'all' as FilterTab, cls: styles.cardTotal, valor: summary.total, label: 'Total de clientes' },
-                    { tab: 'active' as FilterTab, cls: styles.cardActive, valor: summary.active, label: 'Plano ativo' },
-                    { tab: 'expired' as FilterTab, cls: styles.cardExpired, valor: summary.expired, label: 'Expirados' },
-                    { tab: 'no_plan' as FilterTab, cls: styles.cardNoPlan, valor: summary.no_plan, label: 'Leads sem plano' },
-                    { tab: 'cortesia' as FilterTab, cls: styles.cardCortesia, valor: summary.cortesia, label: 'Cortesia ativa' },
-                ]).map(card => (
-                    <button
-                        key={card.tab}
-                        type="button"
-                        className={`${styles.summaryCard} ${card.cls} ${filterTab === card.tab ? styles.summaryCardActive : ''}`}
-                        onClick={() => setFilterTab(card.tab)}
-                        aria-pressed={filterTab === card.tab}
-                    >
-                        <span className={styles.summaryValue}>{card.valor}</span>
-                        <span className={styles.summaryLabel}><span className={styles.summaryDot} aria-hidden="true" />{card.label}</span>
-                    </button>
-                ))}
-            </div>
+            <StatGrid>
+                <StatCard label="Total na base" icon={<Users size={18} />} value={loading ? '-' : summary.total} caption="Clientes cadastrados" />
+                <StatCard label="Assinantes ativos" icon={<UserCheck size={18} />} value={loading ? '-' : summary.active} progress={pctBase(summary.active)} caption={`${Math.round(pctBase(summary.active))}% da base`} />
+                <StatCard label="Novos em 30 dias" icon={<CalendarPlus size={18} />} value={loading ? '-' : novos30} caption="Entraram no último mês" />
+                <StatCard label="Cadastro completo" icon={<IdCard size={18} />} value={loading ? '-' : completos} progress={pctBase(completos)} caption="Com CPF, telefone e endereço" />
+            </StatGrid>
 
-            {/* Filters */}
-            <div className={styles.toolbar}>
-                <div className={styles.tabs}>
-                    {(['all', 'active', 'expired', 'no_plan', 'cortesia'] as FilterTab[]).map(tab => (
-                        <button
-                            key={tab}
-                            className={`${styles.tab} ${filterTab === tab ? styles.tabActive : ''} ${tab === 'cortesia' ? styles.tabCortesia : ''}`}
-                            onClick={() => setFilterTab(tab)}
-                        >
-                            {tab === 'all' ? 'Todos'
-                                : tab === 'active' ? 'Ativos'
-                                : tab === 'expired' ? 'Expirados'
-                                : tab === 'no_plan' ? 'Sem plano'
-                                : 'Cortesia'}
-                        </button>
-                    ))}
-                </div>
-                <input
-                    className={styles.searchInput}
-                    type="text"
-                    placeholder="Buscar por nome, email ou telefone..."
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                />
-            </div>
+            <Panel>
+                <PanelToolbar>
+                    <Segmented<FilterTab>
+                        label="Filtrar por situação"
+                        value={filterTab}
+                        onChange={setFilterTab}
+                        options={[
+                            { value: 'all', label: 'Todos', count: summary.total },
+                            { value: 'active', label: 'Ativos', count: summary.active },
+                            { value: 'expired', label: 'Expirados', count: summary.expired },
+                            { value: 'no_plan', label: 'Sem plano', count: summary.no_plan },
+                            { value: 'cortesia', label: 'Cortesia', count: summary.cortesia },
+                        ]}
+                    />
+                    <SearchField value={search} onChange={setSearch} placeholder="Nome, e-mail ou telefone" />
+                </PanelToolbar>
 
-            {/* Client grid */}
-            <div className={styles.resultsSection}>
-                <div className={styles.clientGridHeader} role="row">
-                    <button className={styles.gridSort} onClick={() => handleSort('displayName')} aria-sort={ariaSort('displayName')}>
-                        Cliente{sortIcon('displayName')}
-                    </button>
-                    <button className={styles.gridSort} onClick={() => handleSort('createdAt')} aria-sort={ariaSort('createdAt')}>
-                        Cadastro{sortIcon('createdAt')}
-                    </button>
-                    <button className={styles.gridSort} onClick={() => handleSort('daysUntilExpiry')} aria-sort={ariaSort('daysUntilExpiry')}>
-                        Assinatura{sortIcon('daysUntilExpiry')}
-                    </button>
-                    <button className={styles.gridSort} onClick={() => handleSort('payment')} aria-sort={ariaSort('payment')}>
-                        Financeiro{sortIcon('payment')}
-                    </button>
-                    <button className={styles.gridSort} onClick={() => handleSort('vendedor')} aria-sort={ariaSort('vendedor')}>
-                        Responsável{sortIcon('vendedor')}
-                    </button>
-                    {/* Ação é botão, não tem dado para ordenar. */}
-                    <span className={styles.gridHeaderLabel}>Ação</span>
-                </div>
+                {error && <div className={pageStyles.panelNotice}><InlineNotice>{error}</InlineNotice></div>}
 
-                <div className={styles.clientGridList}>
-                    {filtered.length === 0 && (
-                        <div className={styles.emptyStateCell}>Nenhum cliente encontrado.</div>
-                    )}
-
-                    {filtered.map(client => {
-                        const isExpiringSoon = client.status === 'active' && client.daysUntilExpiry !== null && client.daysUntilExpiry <= 7;
-                        const rowClass = client.status === 'expired' ? styles.rowExpired
-                            : client.status === 'no_plan' ? styles.rowNoPlan
-                                : isExpiringSoon ? styles.rowWarn : '';
-                        const payment = getPaymentInfo(client);
-                        const profileCompletion = client.profileCompletion ?? 0;
-
-                        return (
-                            <article
-                                key={client.id}
-                                className={`${styles.clientGridRow} ${rowClass}`}
-                                tabIndex={0}
-                                onClick={() => openClientModal(client)}
-                                onKeyDown={event => {
-                                    if (event.target !== event.currentTarget) return;
-                                    if (event.key === 'Enter' || event.key === ' ') {
-                                        event.preventDefault();
-                                        openClientModal(client);
-                                    }
-                                }}
-                                aria-label={`Abrir detalhes de ${client.displayName || client.email}`}
-                            >
-                                <div className={styles.gridIdentity}>
-                                    <div className={styles.clientNameRow}>
-                                        <span className={styles.nameText}>{client.displayName || '(sem nome)'}</span>
-                                        {(client.status === 'expired' || client.status === 'no_plan') && (
-                                            <span className={styles.alertDot} title={client.status === 'expired' ? 'Plano expirado' : 'Sem plano'}>●</span>
-                                        )}
-                                        {isExpiringSoon && <span className={styles.warnDot} title={`Expira em ${client.daysUntilExpiry} dia(s)`}>●</span>}
-                                    </div>
-                                    <span className={styles.clientEmail}>{client.email}</span>
-                                    <div className={styles.clientMetaRow}>
-                                        {client.phoneNumber && <span className={styles.phone}>{client.phoneNumber}</span>}
-                                        {whatsappLink(client.phoneNumber, client.displayName, client.status) && (
-                                            <a
-                                                href={whatsappLink(client.phoneNumber, client.displayName, client.status)!}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className={`${styles.actionBtn} ${styles.btnWhatsapp} ${styles.whatsappAction}`}
-                                                title="Abrir conversa no WhatsApp"
-                                                onClick={event => event.stopPropagation()}
-                                            >
-                                                <svg viewBox="0 0 32 32" width="12" height="12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                                                    <circle cx="16" cy="16" r="16" fill="#25D366" />
-                                                    <path d="M22.9 9.1A9.7 9.7 0 0 0 16 6.4a9.7 9.7 0 0 0-8.4 14.6L6.4 25.6l4.7-1.2a9.7 9.7 0 0 0 4.9 1.3 9.7 9.7 0 0 0 9.7-9.7 9.7 9.7 0 0 0-2.8-6.9zm-6.9 14.9a8 8 0 0 1-4.1-1.1l-.3-.2-3 .8.8-2.9-.2-.3a8 8 0 0 1-1.2-4.3 8 8 0 0 1 8-8 8 8 0 0 1 5.7 2.4 8 8 0 0 1 2.3 5.7 8 8 0 0 1-8 7.9zm4.4-6c-.2-.1-1.4-.7-1.6-.8-.2-.1-.4-.1-.5.1-.2.2-.6.8-.8 1-.1.1-.3.1-.5 0a6.4 6.4 0 0 1-1.9-1.2 7.1 7.1 0 0 1-1.3-1.6c-.1-.2 0-.4.1-.5l.4-.4.2-.4v-.4l-.8-1.8c-.2-.5-.4-.4-.5-.4h-.5c-.2 0-.4.1-.6.3a2.6 2.6 0 0 0-.8 1.9c0 1.1.8 2.2.9 2.4.1.1 1.5 2.4 3.8 3.3.5.2.9.3 1.2.4.5.1 1 .1 1.4 0 .4-.1 1.3-.5 1.5-1.1.2-.5.2-1 .1-1.1-.1-.1-.3-.2-.5-.3z" fill="#fff" />
-                                                </svg>
-                                            </a>
-                                        )}
-                                        <div className={styles.profileMeta} title={`Perfil ${profileCompletion}% completo`}>
-                                            <span className={styles.profileTrack}><span className={styles.profileFill} style={{ width: `${profileCompletion}%` }} /></span>
-                                            <span>{profileCompletion}%</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className={styles.gridCreated}>
-                                    <span className={styles.mobileLabel}>Cadastro</span>
-                                    <strong className={styles.createdDate}>{formatDate(client.createdAt)}</strong>
-                                    <span className={styles.createdAgo}>{tempoDesde(client.createdAt)}</span>
-                                </div>
-
-                                <div className={styles.gridSubscription}>
-                                    <span className={styles.mobileLabel}>Assinatura</span>
-                                    <div className={styles.subscriptionHeading}>
-                                        <span className={styles.statusBadge} style={{ background: STATUS_COLORS[client.status] + '22', color: STATUS_COLORS[client.status], border: `1px solid ${STATUS_COLORS[client.status]}` }}>
-                                            {STATUS_LABELS[client.status]}
-                                        </span>
-                                        {client.billingType === 'annual' && <span className={styles.billingBadge}>Anual</span>}
-                                    </div>
-                                    {/* Sem plano, a etiqueta acima já diz tudo: repetir
-                                        "Nenhum plano atribuído" e "Sem data de expiração"
-                                        enchia a linha de texto sem informação. */}
-                                    {client.planName && <strong className={styles.planName}>{client.planName}</strong>}
-                                    {(client.planType === 'credits' || client.expiresAt) && (
-                                        <span className={`${styles.accessMeta} ${client.status === 'expired' ? styles.accessExpired : isExpiringSoon ? styles.accessWarning : ''}`}>
-                                            {client.planType === 'credits'
-                                                ? `${client.credits} créditos disponíveis`
-                                                : `${client.status === 'expired' ? 'Expirou' : 'Expira'} em ${formatDate(client.expiresAt)}${client.daysUntilExpiry !== null ? ` · ${client.daysUntilExpiry >= 0 ? `${client.daysUntilExpiry}d restantes` : `${Math.abs(client.daysUntilExpiry)}d atrás`}` : ''}`}
-                                        </span>
-                                    )}
-                                </div>
-
-                                <div className={styles.gridPayment}>
-                                    <span className={styles.mobileLabel}>Financeiro</span>
-                                    {payment ? (
-                                        <>
-                                            <span className={styles.paymentBadge} data-payment={payment.kind}>{payment.label}</span>
-                                            <span className={styles.paymentMeta}>{client.billingType === 'annual' ? 'Recorrência anual' : 'Recorrência mensal'}</span>
-                                        </>
-                                    ) : (
-                                        <span className={styles.muted}>Sem pagamento</span>
-                                    )}
-                                </div>
-
-                                <div className={styles.gridSeller} onClick={event => event.stopPropagation()}>
-                                    <label className={styles.mobileLabel} htmlFor={`seller-${client.id}`}>Responsável</label>
-                                    <select
-                                        id={`seller-${client.id}`}
-                                        className={styles.sellerSelect}
-                                        value={client.vendedorId || ''}
-                                        onChange={event => handleAssignVendedor(client.id, event.target.value)}
-                                        disabled={assigningVendedor === client.id}
-                                        aria-label={`Responsável por ${client.displayName || client.email}`}
+                <div className={pageStyles.tableWrap}>
+                    <table className={pageStyles.table}>
+                        <thead>
+                            <tr>
+                                <SortHeader label="Cliente" column="displayName" sort={ordenacao} onSort={handleSort} />
+                                <SortHeader label="Assinatura" column="daysUntilExpiry" sort={ordenacao} onSort={handleSort} />
+                                <SortHeader label="Financeiro" column="payment" sort={ordenacao} onSort={handleSort} />
+                                <SortHeader label="Responsável" column="vendedor" sort={ordenacao} onSort={handleSort} />
+                                <SortHeader label="Cadastro" column="createdAt" sort={ordenacao} onSort={handleSort} />
+                                <th className={pageStyles.shrink}><span className={pageStyles.srOnly}>Ações</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {loading && <SkeletonRows rows={6} columns={6} />}
+                            {!loading && filtered.map(client => {
+                                const isExpiringSoon = client.status === 'active' && client.daysUntilExpiry !== null && client.daysUntilExpiry <= 7;
+                                const payment = getPaymentInfo(client);
+                                const profileCompletion = client.profileCompletion ?? 0;
+                                const wa = whatsappLink(client.phoneNumber, client.displayName, client.status);
+                                const statusLabel = isExpiringSoon
+                                    ? (client.daysUntilExpiry! <= 0 ? 'Vence hoje' : `Vence em ${client.daysUntilExpiry} ${client.daysUntilExpiry === 1 ? 'dia' : 'dias'}`)
+                                    : client.activationMethod === 'cortesia' && client.status === 'active' ? 'Cortesia'
+                                        : client.profileType === 'gratis' && client.status !== 'active' ? 'Teste grátis'
+                                            : STATUS_LABELS[client.status];
+                                const statusTone: BadgeTone = isExpiringSoon ? 'negative'
+                                    : client.profileType === 'gratis' && client.status !== 'active' ? 'warning'
+                                        : STATUS_TONE[client.status];
+                                const vencimento = client.planType === 'credits'
+                                    ? `${client.credits} ${client.credits === 1 ? 'crédito disponível' : 'créditos disponíveis'}`
+                                    : client.expiresAt
+                                        ? `${client.status === 'expired' ? 'Expirou em' : 'Até'} ${formatDate(client.expiresAt)}`
+                                        : null;
+                                return (
+                                    <tr
+                                        key={client.id}
+                                        className={pageStyles.clickableRow}
+                                        tabIndex={0}
+                                        onClick={() => openClientModal(client)}
+                                        onKeyDown={event => {
+                                            if (event.target !== event.currentTarget) return;
+                                            if (event.key === 'Enter' || event.key === ' ') {
+                                                event.preventDefault();
+                                                openClientModal(client);
+                                            }
+                                        }}
+                                        aria-label={`Abrir detalhes de ${client.displayName || client.email}`}
                                     >
-                                        <option value="">Sem vendedor</option>
-                                        {vendedores.map(vendedor => (
-                                            <option key={vendedor.id} value={vendedor.id}>{vendedor.displayName}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div className={styles.gridActions} onClick={event => event.stopPropagation()}>
-                                    <button className={styles.detailsButton} onClick={() => openClientModal(client)}>
-                                        Ver detalhes <span aria-hidden="true">→</span>
-                                    </button>
-                                    {chargeResult?.clientId === client.id && (
-                                        <div className={chargeResult.ok ? styles.chargeOk : styles.chargeErr}>{chargeResult.msg}</div>
-                                    )}
-                                </div>
-                            </article>
-                        );
-                    })}
+                                        <td className={pageStyles.colMain}>
+                                            <PrimaryCell
+                                                leading={<Avatar name={client.displayName || client.email || '?'} />}
+                                                title={client.displayName || 'Sem nome'}
+                                                subtitle={<>
+                                                    {client.email}
+                                                    <span className={pageStyles.subLine}>
+                                                        {client.phoneNumber ? `${client.phoneNumber} · ` : ''}Cadastro {profileCompletion}% completo
+                                                    </span>
+                                                </>}
+                                            />
+                                        </td>
+                                        <td>
+                                            <TwoLine
+                                                top={<span className={pageStyles.badgeList}>
+                                                    <StatusBadge tone={statusTone}>{statusLabel}</StatusBadge>
+                                                    {client.billingType === 'annual' && <StatusBadge dot={false}>Anual</StatusBadge>}
+                                                </span>}
+                                                bottom={client.planName ? <>{client.planName}{vencimento ? ` · ${vencimento}` : ''}</> : vencimento ?? undefined}
+                                            />
+                                        </td>
+                                        <td>
+                                            {payment
+                                                ? <TwoLine top={<StatusBadge tone={PAYMENT_TONE[payment.kind]} dot={false}>{payment.label}</StatusBadge>} bottom={client.billingType === 'annual' ? 'Recorrência anual' : 'Recorrência mensal'} />
+                                                : <span className={pageStyles.muted}>Sem pagamento</span>}
+                                        </td>
+                                        <td onClick={event => event.stopPropagation()}>
+                                            <select
+                                                className={styles.sellerSelect}
+                                                value={client.vendedorId || ''}
+                                                onChange={event => handleAssignVendedor(client.id, event.target.value)}
+                                                disabled={assigningVendedor === client.id}
+                                                aria-label={`Responsável por ${client.displayName || client.email}`}
+                                            >
+                                                <option value="">Sem vendedor</option>
+                                                {vendedores.map(vendedor => (
+                                                    <option key={vendedor.id} value={vendedor.id}>{vendedor.displayName}</option>
+                                                ))}
+                                            </select>
+                                        </td>
+                                        <td><TwoLine nowrap top={formatDate(client.createdAt)} bottom={tempoDesde(client.createdAt)} /></td>
+                                        <td onClick={event => event.stopPropagation()}>
+                                            <RowActions>
+                                                {wa && (
+                                                    <IconAction label="Conversar no WhatsApp" href={wa}>
+                                                        <MessageCircle size={17} aria-hidden="true" />
+                                                    </IconAction>
+                                                )}
+                                                <IconAction label="Ver detalhes" onClick={() => openClientModal(client)}>
+                                                    <Eye size={17} aria-hidden="true" />
+                                                </IconAction>
+                                            </RowActions>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
                 </div>
-            </div>
+
+                {!loading && filtered.length === 0 && (
+                    clients.length === 0
+                        ? <EmptyState icon={<ContactRound size={20} />} title="Nenhum cliente ainda" description="Os lojistas aparecem aqui assim que se cadastram no site. Você também pode cadastrar um manualmente." action={<Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={abrirCadastro}>Novo cliente</Button>} />
+                        : <EmptyState icon={<Search size={20} />} title="Nenhum cliente encontrado" description="Ajuste a busca ou o filtro de situação." />
+                )}
+
+                {!loading && clients.length > 0 && (
+                    <PanelFooter aside={`Ordenado por ${ORDEM_TEXTO[sortKey]}`}>
+                        <ShowingCount shown={filtered.length} total={clients.length} singular="cliente" plural="clientes" />
+                    </PanelFooter>
+                )}
+            </Panel>
 
             {/* Client Detail Modal */}
             {selectedClient && (
@@ -1054,9 +1013,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                     leading={<div className={styles.clientModalAvatar}>{(selectedClient.displayName || selectedClient.email)[0].toUpperCase()}</div>}
                     title={selectedClient.displayName || '(sem nome)'}
                     titleAside={
-                        <span className={styles.statusBadge} style={{ background: STATUS_COLORS[selectedClient.status] + '22', color: STATUS_COLORS[selectedClient.status], border: `1px solid ${STATUS_COLORS[selectedClient.status]}` }}>
-                            {STATUS_LABELS[selectedClient.status]}
-                        </span>
+                        <StatusBadge tone={STATUS_TONE[selectedClient.status]}>{STATUS_LABELS[selectedClient.status]}</StatusBadge>
                     }
                     subtitle={<>
                         <span>{selectedClient.email}{selectedClient.phoneNumber ? ` · ${selectedClient.phoneNumber}` : ''}</span>
@@ -1202,14 +1159,14 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                     <div className={styles.clientSection}>
                                         <div className={styles.clientSectionHeader}>
                                             <span className={styles.clientSectionTitle}>Perfil Preenchido</span>
-                                            <span style={{ fontWeight: 700, fontSize: '0.85rem', color: selectedClient.profileCompletion < 40 ? 'var(--color-negative)' : selectedClient.profileCompletion < 100 ? '#f59e0b' : 'var(--color-positive)' }}>
+                                            <span style={{ fontWeight: 700, fontSize: '0.85rem', color: selectedClient.profileCompletion < 40 ? 'var(--color-negative)' : selectedClient.profileCompletion < 100 ? 'var(--color-warning)' : 'var(--color-positive)' }}>
                                                 {selectedClient.profileCompletion}%
                                             </span>
                                         </div>
                                         <div className={styles.completionBarWrap}>
                                             <div className={styles.completionBarFill} style={{
                                                 width: `${selectedClient.profileCompletion}%`,
-                                                background: selectedClient.profileCompletion < 40 ? 'var(--color-negative)' : selectedClient.profileCompletion < 100 ? '#f59e0b' : 'var(--color-positive)',
+                                                background: selectedClient.profileCompletion < 40 ? 'var(--color-negative)' : selectedClient.profileCompletion < 100 ? 'var(--color-warning)' : 'var(--color-positive)',
                                             }} />
                                         </div>
                                     </div>
@@ -1257,25 +1214,23 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                                         ? `${selectedClient.planName} (${selectedClient.planType === 'monthly' ? (selectedClient.billingType === 'annual' ? 'anual' : 'mensal') : 'créditos'})`
                                                         : '—'}
                                                     {selectedClient.billingType === 'annual' && selectedClient.planType === 'monthly' && (
-                                                        <span className={styles.cortesiaBadge} style={{ background: 'rgba(16,185,129,0.12)', color: '#10b981', borderColor: 'rgba(16,185,129,0.3)' }}>Anual</span>
+                                                        <StatusBadge tone="positive" dot={false}>Anual</StatusBadge>
                                                     )}
                                                     {selectedClient.activationMethod === 'cortesia' && (
-                                                        <span className={styles.cortesiaBadge}>🎁 Cortesia</span>
+                                                        <StatusBadge tone="accent" dot={false}>Cortesia</StatusBadge>
                                                     )}
                                                     {selectedClient.activationMethod === 'boleto' && (
-                                                        <span className={styles.cortesiaBadge} style={{ background: 'rgba(100,116,139,0.12)', color: '#94a3b8', borderColor: 'rgba(100,116,139,0.3)' }}>Boleto</span>
+                                                        <StatusBadge dot={false}>Boleto</StatusBadge>
                                                     )}
                                                 </span>
                                             </div>
                                             <div className={styles.clientFormField}>
                                                 <label className={styles.clientFormLabel}>Status</label>
-                                                <span className={styles.statusBadge} style={{ background: STATUS_COLORS[selectedClient.status] + '22', color: STATUS_COLORS[selectedClient.status], border: `1px solid ${STATUS_COLORS[selectedClient.status]}`, width: 'fit-content' }}>
-                                                    {STATUS_LABELS[selectedClient.status]}
-                                                </span>
+                                                <StatusBadge tone={STATUS_TONE[selectedClient.status]}>{STATUS_LABELS[selectedClient.status]}</StatusBadge>
                                             </div>
                                             <div className={styles.clientFormField}>
                                                 <label className={styles.clientFormLabel}>Expira em</label>
-                                                <span className={styles.clientFormValue} style={{ color: selectedClient.status === 'expired' ? 'var(--color-negative)' : (selectedClient.daysUntilExpiry !== null && selectedClient.daysUntilExpiry <= 7) ? '#f59e0b' : 'inherit' }}>
+                                                <span className={styles.clientFormValue} style={{ color: selectedClient.status === 'expired' ? 'var(--color-negative)' : (selectedClient.daysUntilExpiry !== null && selectedClient.daysUntilExpiry <= 7) ? 'var(--color-warning)' : 'inherit' }}>
                                                     {formatDate(selectedClient.expiresAt)}
                                                     {selectedClient.daysUntilExpiry !== null && (
                                                         <span className={styles.daysHint}>
@@ -1315,16 +1270,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                         <div className={styles.clientSection}>
                                             <div className={styles.clientSectionHeader}>
                                                 <span className={styles.clientSectionTitle}>Teste Grátis (24h)</span>
-                                                <span style={{
-                                                    fontSize: '0.75rem',
-                                                    fontWeight: 600,
-                                                    padding: '2px 8px',
-                                                    borderRadius: '4px',
-                                                    background: selectedClient.freeTrialExpired ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)',
-                                                    color: selectedClient.freeTrialExpired ? '#ef4444' : '#10b981',
-                                                }}>
-                                                    {selectedClient.freeTrialExpired ? '⏰ Expirado' : '✅ Ativo'}
-                                                </span>
+                                                {selectedClient.freeTrialExpired ? <StatusBadge tone="negative">Expirado</StatusBadge> : <StatusBadge tone="positive">Ativo</StatusBadge>}
                                             </div>
                                             <div className={styles.clientFormGrid}>
                                                 <div className={styles.clientFormField}>
@@ -1425,15 +1371,8 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                                 </button>
                                             )}
                                             {renewTrialResult && selectedClient && (
-                                                <div style={{
-                                                    fontSize: '0.8rem',
-                                                    padding: '6px 10px',
-                                                    borderRadius: '6px',
-                                                    background: renewTrialResult.ok ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-                                                    color: renewTrialResult.ok ? '#10b981' : '#ef4444',
-                                                    gridColumn: '1 / -1',
-                                                }}>
-                                                    {renewTrialResult.msg}
+                                                <div className={styles.fullRow}>
+                                                    <InlineNotice tone={renewTrialResult.ok ? 'positive' : 'negative'}>{renewTrialResult.msg}</InlineNotice>
                                                 </div>
                                             )}
                                         </div>
@@ -1471,7 +1410,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                         </div>
 
                                         {acessoMsg && (
-                                            <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', fontWeight: 600, color: acessoMsg.ok ? '#16a34a' : '#dc2626' }}>{acessoMsg.texto}</p>
+                                            <div className={styles.noticeGap}><InlineNotice tone={acessoMsg.ok ? 'positive' : 'negative'}>{acessoMsg.texto}</InlineNotice></div>
                                         )}
 
                                         {acessoLoading && !acesso ? (
@@ -1479,9 +1418,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                         ) : acesso ? (
                                             <>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                                                    <span className={styles.statusBadge} style={{ background: acesso.disabled ? '#dc262622' : '#16a34a22', color: acesso.disabled ? '#dc2626' : '#16a34a', border: `1px solid ${acesso.disabled ? '#dc2626' : '#16a34a'}` }}>
-                                                        {acesso.disabled ? 'Login desativado' : 'Login ativo'}
-                                                    </span>
+                                                    <StatusBadge tone={acesso.disabled ? 'negative' : 'positive'}>{acesso.disabled ? 'Login desativado' : 'Login ativo'}</StatusBadge>
                                                     <button className={styles.textBtn} disabled={acessoLoading} onClick={() => alternarStatusAcesso(selectedClient)}>
                                                         {acesso.disabled ? 'Reativar acesso' : 'Desativar acesso'}
                                                     </button>
@@ -1498,9 +1435,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                                     pagamento). Aqui só informam o estado atual. */}
                                                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
                                                     {CLIENT_PROFILES.filter(p => acesso.profiles.includes(p)).map(perfil => (
-                                                        <span key={perfil} className={styles.statusBadge} style={{ background: '#f43f5e22', color: '#f43f5e', border: '1px solid #f43f5e' }}>
-                                                            {perfil} · via assinatura
-                                                        </span>
+                                                        <StatusBadge key={perfil} tone="info" dot={false}>{perfil === 'gratis' ? 'Teste grátis' : 'Cliente'} · via assinatura</StatusBadge>
                                                     ))}
                                                 </div>
                                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
@@ -1520,7 +1455,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                                 </button>
 
                                                 <div className={styles.clientSectionHeader} style={{ marginTop: '1.5rem' }}>
-                                                    <span className={styles.clientSectionTitle} style={{ color: '#dc2626' }}>Zona de risco</span>
+                                                    <span className={`${styles.clientSectionTitle} ${styles.dangerTitle}`}>Zona de risco</span>
                                                 </div>
                                                 <button
                                                     className={`${styles.textBtn} ${styles.textBtnDanger}`}
@@ -1749,14 +1684,10 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                         )}
 
                         {tempPassword && (
-                            <div style={{ background: '#064e3b', border: '1px solid #10b981', borderRadius: '8px', padding: '12px 16px', marginBottom: '1rem' }}>
-                                <p style={{ color: '#6ee7b7', fontWeight: 700, marginBottom: '4px' }}>✓ Usuário criado com sucesso!</p>
-                                <p style={{ color: '#a7f3d0', fontSize: '0.85rem', marginBottom: '8px' }}>
-                                    Compartilhe a senha temporária com o convidado:
-                                </p>
-                                <div style={{ background: '#022c22', borderRadius: '6px', padding: '8px 14px', fontFamily: 'monospace', fontSize: '1.1rem', color: '#fff', letterSpacing: '0.1em', textAlign: 'center' }}>
-                                    {tempPassword}
-                                </div>
+                            <div className={styles.passwordBox} role="status">
+                                <strong>Convidado criado.</strong>
+                                <span>Envie a senha temporária para o primeiro acesso:</span>
+                                <code className={styles.passwordValue}>{tempPassword}</code>
                             </div>
                         )}
 
@@ -1817,13 +1748,9 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                                     ) : (inv.telefone || '—')}
                                                 </td>
                                                 <td className={styles.tableCell}>
-                                                    <span className={styles.statusBadge} style={{
-                                                        background: inv.status === 'accepted' ? '#10b98122' : inv.status === 'pending' ? '#f59e0b22' : '#ef444422',
-                                                        color: inv.status === 'accepted' ? '#10b981' : inv.status === 'pending' ? '#f59e0b' : '#ef4444',
-                                                        border: `1px solid ${inv.status === 'accepted' ? '#10b981' : inv.status === 'pending' ? '#f59e0b' : '#ef4444'}`,
-                                                    }}>
+                                                    <StatusBadge tone={inv.status === 'accepted' ? 'positive' : inv.status === 'pending' ? 'warning' : 'negative'}>
                                                         {inv.status === 'accepted' ? 'Ativo' : inv.status === 'pending' ? 'Pendente' : 'Cancelado'}
-                                                    </span>
+                                                    </StatusBadge>
                                                 </td>
                                                 <td className={styles.tableCell}>
                                                     <div className={styles.actions}>
@@ -2065,6 +1992,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                         )}
                 </AdminModal>
             )}
-        </div>
+            {feedback}
+        </Page>
     );
 }

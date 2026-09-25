@@ -106,7 +106,8 @@
 /* Botões de rodapé */
 .primary,
 .secondary,
-.danger {
+.danger,
+.dangerSolid {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -119,17 +120,26 @@
     cursor: pointer;
 }
 
-.primary { color: var(--admin-on-accent, #102333); background: var(--color-accent); border: 1px solid transparent; }
-.primary:hover:not(:disabled) { filter: brightness(0.96); }
+/* Botão principal: azul-marinho no claro, amarelo no escuro (token --color-primary). */
+.primary { color: var(--color-surface); background: var(--color-primary); border: 1px solid transparent; }
+.primary:hover:not(:disabled) { filter: brightness(1.12); }
 .secondary { color: var(--color-text); background: var(--color-surface); border: 1px solid var(--admin-border, var(--color-highlight)); font-weight: 500; }
 .secondary:hover:not(:disabled) { background: var(--admin-hover, var(--color-panel)); }
 .danger { color: var(--color-negative); background: transparent; border: 1px solid currentColor; font-weight: 500; }
-.primary:disabled, .secondary:disabled, .danger:disabled { opacity: 0.55; cursor: not-allowed; }
+.dangerSolid { color: #fff; background: var(--color-negative); border: 1px solid transparent; }
+:global([data-admin-design='dark']) .dangerSolid { color: var(--color-bg); }
+.dangerSolid:hover:not(:disabled) { filter: brightness(1.08); }
+.primary:disabled, .secondary:disabled, .danger:disabled, .dangerSolid:disabled { opacity: 0.55; cursor: not-allowed; }
 
 /* Campos e grupos de escolha */
 .stack { display: flex; flex-direction: column; gap: 16px; }
 .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .span2 { grid-column: 1 / -1; }
+/* Linha de campos que quebra sozinha (2 ou 3 por linha, 1 no celular). */
+.row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+.fieldError { font-size: 12px; font-weight: 500; color: var(--color-negative); }
+/* MaskedInput em modo plain: rótulo e campo empilhados como os demais. */
+.maskedField > div { display: flex; flex-direction: column; gap: 6px; }
 
 .field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: var(--color-text); }
 .field :where(input:not([type='checkbox']):not([type='radio']), select, textarea) {
@@ -143,8 +153,10 @@
     border: 1px solid var(--admin-border, var(--color-highlight));
     border-radius: 8px;
 }
-.field textarea { padding: 10px 12px; min-height: 84px; }
+.field textarea { padding: 10px 12px; min-height: 84px; resize: vertical; font-family: inherit; }
 .hint { font-size: 12px; font-weight: 400; color: var(--color-text-muted); }
+.flush { margin: 0; }
+.hintPositive { font-size: 12.5px; font-weight: 600; color: var(--color-positive); }
 
 .group { margin: 0; padding: 0; border: 0; min-width: 0; }
 .groupLabel { display: block; margin-bottom: 8px; padding: 0; font-size: 13px; font-weight: 600; color: var(--color-text); }

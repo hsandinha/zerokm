@@ -5,8 +5,14 @@ import { AdminUser, listAllUsers, updateUserProfiles, toggleUserStatus, createUs
 import { UserProfile } from '@/lib/types/auth';
 import { toggleProfileSelection } from '@/lib/utils/userProfiles';
 import { ConcessionariaService, Concessionaria } from '@/lib/services/concessionariaService';
-import styles from './UsersTable.module.css';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
+import { ContactRound, Pencil, Plus, Search, Trash2, UserCheck, UserX, Users } from 'lucide-react';
+import {
+    Avatar, Button, EmptyState, IconAction, Page, PageHeader, Panel, PanelFooter, PanelToolbar, PrimaryCell, RowActions,
+    SearchField, Segmented, ShowingCount, SkeletonRows, SortHeader, StatCard, StatGrid, StatusBadge, TwoLine, nextSort, pageStyles,
+    type BadgeTone, type SortDirection,
+} from '@/components/ui/Page';
+import { useFeedback } from '@/components/ui/Feedback';
 
 const PROFILE_GROUPS: Array<{ key: string; label: string; hint: string; type: 'radio' | 'checkbox'; profiles: Array<{ value: UserProfile; label: string }> }> = [
     { key: 'diretivo', label: 'Diretivo', hint: 'escolha um', type: 'radio', profiles: [{ value: 'administrador', label: 'Administrador' }, { value: 'gerente', label: 'Gerente' }, { value: 'marketing', label: 'Marketing' }] },
@@ -57,6 +63,43 @@ interface CrmEntry {
     daysUntilExpiry: number | null;
 }
 
+const NOME_PERFIL: Partial<Record<UserProfile, string>> = {
+    administrador: 'Administrador', admin: 'Administrador', gerente: 'Gerente', marketing: 'Marketing',
+    operador: 'Operador', operator: 'Operador', vendedor: 'Vendedor', administrativo: 'Administrativo',
+    concessionaria: 'Concessionária', dealership: 'Concessionária', cliente: 'Cliente', gratis: 'Teste grátis',
+};
+
+const TOM_PERFIL: Partial<Record<UserProfile, BadgeTone>> = {
+    administrador: 'accent', admin: 'accent', gerente: 'accent',
+    concessionaria: 'info', dealership: 'info', cliente: 'positive', gratis: 'warning',
+};
+
+const ehCliente = (u: AdminUser) => !!u.allowedProfiles?.some(p => p === 'cliente' || p === 'gratis');
+
+type Coluna = 'usuario' | 'perfis' | 'status' | 'acesso' | 'criado';
+type Segmento = 'todos' | 'equipe' | 'clientes' | 'inativos';
+
+function dataCurta(valor?: string | null) {
+    if (!valor) return '';
+    const d = new Date(valor);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }).replace('.', '');
+}
+
+function tempoRelativo(valor?: string | null) {
+    if (!valor) return '';
+    const d = new Date(valor).getTime();
+    if (Number.isNaN(d)) return '';
+    const dias = Math.floor((Date.now() - d) / 86_400_000);
+    if (dias <= 0) return 'hoje';
+    if (dias === 1) return 'ontem';
+    if (dias < 30) return `há ${dias} dias`;
+    const meses = Math.floor(dias / 30);
+    if (meses < 12) return meses === 1 ? 'há 1 mês' : `há ${meses} meses`;
+    const anos = Math.floor(meses / 12);
+    return anos === 1 ? 'há 1 ano' : `há ${anos} anos`;
+}
+
 interface UsersTableProps {
     onViewInCRM?: (email: string) => void;
     restrictedProfiles?: UserProfile[];
@@ -70,8 +113,10 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableP
     const [selectedProfiles, setSelectedProfiles] = useState<UserProfile[]>([]);
     const [dealerships, setDealerships] = useState<Concessionaria[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const [sortColumn, setSortColumn] = useState<'usuario' | 'perfis' | 'status' | 'criado' | null>(null);
-    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+    const [sort, setSort] = useState<{ column: Coluna | null; direction: SortDirection }>({ column: null, direction: 'asc' });
+    const [segmento, setSegmento] = useState<Segmento>('todos');
+    const [saving, setSaving] = useState(false);
+    const { confirm, notify, feedback } = useFeedback();
 
     // Add User Modal State
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -150,13 +195,13 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableP
                     dealershipId: '',
                 });
                 fetchUsers();
-                alert('Usuário criado com sucesso!');
+                notify('Usuário criado. Ele já pode entrar com o e-mail e a senha inicial.', 'positive');
             } else {
-                alert('Erro ao criar usuário: ' + result.error);
+                notify(`Não foi possível criar o usuário: ${result.error}`);
             }
         } catch (error) {
             console.error('Error creating user:', error);
-            alert('Erro inesperado ao criar usuário');
+            notify('Falha de conexão ao criar o usuário. Tente de novo.');
         } finally {
             setIsCreating(false);
         }
@@ -175,43 +220,56 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableP
     };
 
     const handleToggleStatus = async (user: AdminUser) => {
-        if (!confirm(`Tem certeza que deseja ${user.disabled ? 'ativar' : 'desativar'} este usuário?`)) return;
+        const nome = user.displayName || user.email;
+        const ok = await confirm(user.disabled
+            ? { title: 'Ativar acesso', description: <><strong>{nome}</strong> volta a entrar na plataforma com os perfis que já tinha.</>, confirmLabel: 'Ativar acesso' }
+            : { title: 'Desativar acesso', description: <><strong>{nome}</strong> perde o acesso na hora. Os dados continuam salvos e dá para ativar de novo.</>, confirmLabel: 'Desativar acesso', danger: true });
+        if (!ok) return;
 
         const result = await toggleUserStatus(user.uid, !user.disabled);
         if (result.success) {
+            notify(user.disabled ? 'Acesso ativado.' : 'Acesso desativado.', 'positive');
             fetchUsers();
         } else {
-            alert('Erro ao atualizar status');
+            notify('Não foi possível alterar o acesso. Tente de novo.');
         }
     };
 
     const handleDeleteUser = async (user: AdminUser) => {
-        if (!confirm(`ATENÇÃO: Tem certeza que deseja EXCLUIR permanentemente o usuário "${user.displayName || user.email}"?\n\nEsta ação não pode ser desfeita!`)) return;
+        const ok = await confirm({
+            title: 'Excluir usuário',
+            description: <>O acesso de <strong>{user.displayName || user.email}</strong> é apagado de vez e não dá para desfazer. Se for só suspender, use Desativar.</>,
+            confirmLabel: 'Excluir usuário',
+            danger: true,
+        });
+        if (!ok) return;
 
         const result = await deleteUser(user.uid);
         if (result.success) {
-            alert('Usuário excluído com sucesso!');
+            notify('Usuário excluído.', 'positive');
             fetchUsers();
         } else {
-            alert('Erro ao excluir usuário: ' + result.error);
+            notify(`Não foi possível excluir o usuário: ${result.error}`);
         }
     };
 
     const handleSaveProfiles = async () => {
         if (!editingUser) return;
-
+        setSaving(true);
         const result = await updateUserProfiles(
             editingUser.uid,
             selectedProfiles,
             undefined,
             selectedProfiles.includes('concessionaria') ? selectedDealershipId : undefined
         );
+        setSaving(false);
 
         if (result.success) {
             setEditingUser(null);
+            notify('Acessos atualizados.', 'positive');
             fetchUsers();
         } else {
-            alert('Erro ao salvar perfis');
+            notify('Não foi possível salvar os acessos. Tente de novo.');
         }
     };
 
@@ -219,181 +277,191 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableP
         setSelectedProfiles(toggleProfileSelection(selectedProfiles, profile));
     };
 
-    const getProfileBadgeClass = (profile: string) => {
-        switch (profile) {
-            case 'administrador': return styles.badgeAdmin;
-            case 'gerente': return styles.badgeManager;
-            case 'operador': return styles.badgeOperator;
-            case 'concessionaria': return styles.badgeDealership;
-            case 'cliente': return styles.badgeClient;
-            default: return styles.badgeOperator;
-        }
-    };
+    const handleSort = (column: Coluna) => setSort(atual => nextSort(atual, column));
 
-    const handleSort = (col: 'usuario' | 'perfis' | 'status' | 'criado') => {
-        if (sortColumn === col) {
-            setSortDirection(d => d === 'asc' ? 'desc' : 'asc');
-        } else {
-            setSortColumn(col);
-            setSortDirection('asc');
-        }
-    };
-
-    const sortIcon = (col: 'usuario' | 'perfis' | 'status' | 'criado') => {
-        if (sortColumn !== col) return <span className={styles.sortIcon}>↕</span>;
-        return <span className={styles.sortIconActive}>{sortDirection === 'asc' ? '↑' : '↓'}</span>;
-    };
-
-    const term = searchTerm.toLowerCase();
+    const term = searchTerm.trim().toLowerCase();
+    const noSegmento = (u: AdminUser) =>
+        segmento === 'todos' ? true
+            : segmento === 'inativos' ? u.disabled
+                : segmento === 'clientes' ? ehCliente(u)
+                    : !ehCliente(u);
     const filteredAndSorted = [...users]
+        .filter(noSegmento)
         .filter(u => {
             if (!term) return true;
             const name = (u.displayName || '').toLowerCase();
             const email = (u.email || '').toLowerCase();
-            const perfis = (u.allowedProfiles || []).join(' ').toLowerCase();
+            const perfis = (u.allowedProfiles || []).map(p => `${p} ${NOME_PERFIL[p] ?? ''}`).join(' ').toLowerCase();
             const status = (u.disabled ? 'inativo' : 'ativo');
-            const criado = new Date(u.creationTime || '').toLocaleDateString();
-            return name.includes(term) || email.includes(term) || perfis.includes(term) || status.includes(term) || criado.includes(term);
+            return name.includes(term) || email.includes(term) || perfis.includes(term) || status.includes(term);
         })
         .sort((a, b) => {
-            if (!sortColumn) return 0;
+            if (!sort.column) return 0;
             let valA = '';
             let valB = '';
-            if (sortColumn === 'usuario') {
+            if (sort.column === 'usuario') {
                 valA = (a.displayName || a.email || '').toLowerCase();
                 valB = (b.displayName || b.email || '').toLowerCase();
-            } else if (sortColumn === 'perfis') {
+            } else if (sort.column === 'perfis') {
                 valA = (a.allowedProfiles || []).join(',').toLowerCase();
                 valB = (b.allowedProfiles || []).join(',').toLowerCase();
-            } else if (sortColumn === 'status') {
+            } else if (sort.column === 'status') {
                 valA = a.disabled ? 'inativo' : 'ativo';
                 valB = b.disabled ? 'inativo' : 'ativo';
-            } else if (sortColumn === 'criado') {
-                valA = a.creationTime || '';
-                valB = b.creationTime || '';
+            } else {
+                const campo = sort.column === 'acesso' ? 'lastSignInTime' : 'creationTime';
+                valA = String(new Date(a[campo] || 0).getTime()).padStart(15, '0');
+                valB = String(new Date(b[campo] || 0).getTime()).padStart(15, '0');
             }
             const cmp = valA < valB ? -1 : valA > valB ? 1 : 0;
-            return sortDirection === 'asc' ? cmp : -cmp;
+            return sort.direction === 'asc' ? cmp : -cmp;
         });
 
-    if (loading) return <div>Carregando usuários...</div>;
+    const ativos = users.filter(u => !u.disabled).length;
+    const equipe = users.filter(u => !ehCliente(u)).length;
+    const clientes = users.length - equipe;
+    const inativos = users.length - ativos;
+    const trintaDias = Date.now() - 30 * 86_400_000;
+    const acessaram = users.filter(u => u.lastSignInTime && new Date(u.lastSignInTime).getTime() >= trintaDias).length;
+    const pct = (n: number) => (users.length ? (n / users.length) * 100 : 0);
+
+    const assinatura = (user: AdminUser) => {
+        if (!ehCliente(user)) return null;
+        const sub = crmDataMap.get(user.email || '');
+        if (!sub) return null;
+        const partes: string[] = [sub.status === 'active' ? 'Assinatura ativa' : sub.status === 'expired' ? 'Assinatura expirada' : 'Sem plano'];
+        if (sub.planName) partes.push(sub.planName);
+        if (sub.status === 'active' && sub.expiresAt) {
+            partes.push(`até ${new Date(sub.expiresAt).toLocaleDateString('pt-BR')}`);
+            if (sub.daysUntilExpiry !== null && sub.daysUntilExpiry <= 7) partes.push(sub.daysUntilExpiry <= 0 ? 'vence hoje' : `vence em ${sub.daysUntilExpiry} ${sub.daysUntilExpiry === 1 ? 'dia' : 'dias'}`);
+        } else if (sub.status === 'expired' && sub.daysUntilExpiry !== null) {
+            partes.push(`há ${Math.abs(sub.daysUntilExpiry)} dias`);
+        }
+        return partes.join(' · ');
+    };
+
+    const convites = (user: AdminUser) => {
+        const linhas: string[] = [];
+        if (user.invitedBy) linhas.push(`Convidado por ${user.invitedBy.name} (${user.invitedBy.email})`);
+        if (user.invitedUsers?.length) linhas.push(`Convidou ${user.invitedUsers.length}: ${user.invitedUsers.map(iu => `${iu.name} (${iu.email})`).join(', ')}`);
+        return linhas;
+    };
 
     return (
-        <div className={styles.tableContainer}>
-            <div className={styles.headerActions}>
-                <input
-                    type="text"
-                    className={styles.searchInput}
-                    placeholder="Buscar em todas as colunas..."
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                />
-                <button
-                    className={styles.addButton}
-                    onClick={() => setIsAddModalOpen(true)}
-                >
-                    <span>+</span> Adicionar Usuário
-                </button>
-            </div>
+        <Page>
+            <PageHeader
+                title="Equipe"
+                count={loading ? null : users.length}
+                description="Quem acessa a plataforma e com quais perfis. Assinaturas de clientes ficam no CRM."
+                actions={<Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={() => setIsAddModalOpen(true)}>Novo usuário</Button>}
+            />
 
-            <table className={styles.table}>
-                <thead>
-                    <tr>
-                        <th className={styles.sortable} onClick={() => handleSort('usuario')}>Usuário {sortIcon('usuario')}</th>
-                        <th className={styles.sortable} onClick={() => handleSort('perfis')}>Perfis de Acesso {sortIcon('perfis')}</th>
-                        <th className={styles.sortable} onClick={() => handleSort('status')}>Status {sortIcon('status')}</th>
-                        <th className={styles.sortable} onClick={() => handleSort('criado')}>Criado em {sortIcon('criado')}</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {filteredAndSorted.map(user => (
-                        <tr key={user.uid}>
-                            <td>
-                                <div className={styles.userInfo}>
-                                    <span className={styles.userName}>{user.displayName || 'Sem nome'}</span>
-                                    <span className={styles.userEmail}>{user.email}</span>
-                                    {user.invitedBy && (
-                                        <div style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: '#4338ca', display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#e0e7ff', padding: '2px 6px', borderRadius: '4px', alignSelf: 'flex-start' }}>
-                                            <span>🔗 Convidado por: {user.invitedBy.name} ({user.invitedBy.email})</span>
-                                        </div>
-                                    )}
-                                    {user.invitedUsers && user.invitedUsers.length > 0 && (
-                                        <div style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: '#047857', display: 'flex', flexDirection: 'column', gap: '2px', background: '#d1fae5', padding: '4px 6px', borderRadius: '4px', alignSelf: 'flex-start' }}>
-                                            <span style={{ fontWeight: 600 }}>👥 Convidou ({user.invitedUsers.length}):</span>
-                                            {user.invitedUsers.map(iu => (
-                                                <span key={iu.email} style={{ paddingLeft: '4px' }}>- {iu.name} ({iu.email})</span>
-                                            ))}
-                                        </div>
-                                    )}
-                                    {(user.allowedProfiles?.includes('cliente') || user.allowedProfiles?.includes('gratis')) && (() => {
-                                        const sub = crmDataMap.get(user.email || '');
-                                        if (!sub) return null;
-                                        const color = sub.status === 'active' ? '#10b981' : sub.status === 'expired' ? '#ef4444' : '#f59e0b';
-                                        const label = sub.status === 'active' ? 'Ativo' : sub.status === 'expired' ? 'Expirado' : 'Sem plano';
-                                        let detail = sub.planName ? ` • ${sub.planName}` : '';
-                                        if (sub.status === 'active' && sub.expiresAt) {
-                                            const expDate = new Date(sub.expiresAt).toLocaleDateString('pt-BR');
-                                            detail += ` • até ${expDate}`;
-                                            if (sub.daysUntilExpiry !== null && sub.daysUntilExpiry <= 7) detail += ` (⚠️ ${sub.daysUntilExpiry}d)`;
-                                        } else if (sub.status === 'expired' && sub.daysUntilExpiry !== null) {
-                                            detail += ` há ${Math.abs(sub.daysUntilExpiry)}d`;
-                                        }
-                                        return (
-                                            <span className={styles.subscriptionBadge} style={{ color }}>
-                                                ● {label}{detail}
-                                            </span>
-                                        );
-                                    })()}
-                                </div>
-                            </td>
-                            <td>
-                                {user.allowedProfiles && user.allowedProfiles.length > 0 ? (
-                                    user.allowedProfiles.map(p => (
-                                        <span key={p} className={`${styles.badge} ${getProfileBadgeClass(p)}`}>
-                                            {p}
-                                        </span>
-                                    ))
-                                ) : (
-                                    <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>Nenhum perfil</span>
-                                )}
-                            </td>
-                            <td>
-                                <span className={user.disabled ? styles.statusDisabled : styles.statusActive}>
-                                    {user.disabled ? 'Inativo' : 'Ativo'}
-                                </span>
-                            </td>
-                            <td>{new Date(user.creationTime || '').toLocaleDateString()}</td>
-                            <td>
-                                <div className={styles.actions}>
-                                    <button className={`${styles.button} ${styles.btnEdit}`} onClick={() => handleEdit(user)}>
-                                        Editar Perfis
-                                    </button>
-                                    <button className={`${styles.button} ${styles.btnToggle}`} onClick={() => handleToggleStatus(user)}>
-                                        {user.disabled ? 'Ativar' : 'Desativar'}
-                                    </button>
-                                    {onViewInCRM && (user.allowedProfiles?.includes('cliente') || user.allowedProfiles?.includes('gratis')) && (
-                                        <button
-                                            className={`${styles.button} ${styles.btnCRM}`}
-                                            onClick={() => onViewInCRM(user.email || '')}
-                                            title="Ver detalhes no CRM"
-                                        >
-                                            🎯 CRM
-                                        </button>
-                                    )}
-                                    <button className={`${styles.button} ${styles.btnDelete}`} onClick={() => handleDeleteUser(user)}>
-                                        Excluir
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+            <StatGrid>
+                <StatCard label="Total de acessos" icon={<Users size={18} />} value={loading ? '-' : users.length} caption="Equipe, concessionárias e clientes" />
+                <StatCard label="Ativos" icon={<UserCheck size={18} />} value={loading ? '-' : ativos} progress={pct(ativos)} caption={`${Math.round(pct(ativos))}% da base`} />
+                <StatCard label="Equipe interna" icon={<ContactRound size={18} />} value={loading ? '-' : equipe} caption="Sem perfil de cliente" />
+                <StatCard label="Entraram em 30 dias" icon={<UserCheck size={18} />} value={loading ? '-' : acessaram} progress={pct(acessaram)} caption="Último acesso no último mês" />
+            </StatGrid>
+
+            <Panel>
+                <PanelToolbar>
+                    <Segmented<Segmento>
+                        label="Filtrar usuários"
+                        value={segmento}
+                        onChange={setSegmento}
+                        options={[
+                            { value: 'todos', label: 'Todos', count: users.length },
+                            { value: 'equipe', label: 'Equipe', count: equipe },
+                            { value: 'clientes', label: 'Clientes', count: clientes },
+                            { value: 'inativos', label: 'Inativos', count: inativos },
+                        ]}
+                    />
+                    <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Nome, e-mail ou perfil" />
+                </PanelToolbar>
+
+                <div className={pageStyles.tableWrap}>
+                    <table className={pageStyles.table}>
+                        <thead>
+                            <tr>
+                                <SortHeader label="Usuário" column="usuario" sort={sort} onSort={handleSort} />
+                                <SortHeader label="Perfis de acesso" column="perfis" sort={sort} onSort={handleSort} />
+                                <SortHeader label="Situação" column="status" sort={sort} onSort={handleSort} />
+                                <SortHeader label="Último acesso" column="acesso" sort={sort} onSort={handleSort} />
+                                <SortHeader label="Criado em" column="criado" sort={sort} onSort={handleSort} />
+                                <th className={pageStyles.shrink}><span className={pageStyles.srOnly}>Ações</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {loading && <SkeletonRows rows={5} columns={6} />}
+                            {!loading && filteredAndSorted.map(user => {
+                                const extras = convites(user);
+                                const sub = assinatura(user);
+                                return (
+                                    <tr key={user.uid} data-inactive={user.disabled}>
+                                        <td className={pageStyles.colMain}>
+                                            <PrimaryCell
+                                                leading={<Avatar name={user.displayName || user.email || '?'} src={user.photoURL} />}
+                                                title={user.displayName || 'Sem nome'}
+                                                subtitle={<>
+                                                    {user.email}
+                                                    {extras.map(linha => <span key={linha} className={pageStyles.subLine}>{linha}</span>)}
+                                                </>}
+                                            />
+                                        </td>
+                                        <td>
+                                            {user.allowedProfiles?.length
+                                                ? <span className={pageStyles.badgeList}>{user.allowedProfiles.map(p => <StatusBadge key={p} tone={TOM_PERFIL[p] ?? 'neutral'} dot={false}>{NOME_PERFIL[p] ?? p}</StatusBadge>)}</span>
+                                                : <span className={pageStyles.muted}>Nenhum perfil</span>}
+                                        </td>
+                                        <td>
+                                            <TwoLine
+                                                top={user.disabled ? <StatusBadge tone="negative">Inativo</StatusBadge> : <StatusBadge tone="positive">Ativo</StatusBadge>}
+                                                bottom={sub ?? undefined}
+                                            />
+                                        </td>
+                                        <td>{user.lastSignInTime ? <TwoLine nowrap top={dataCurta(user.lastSignInTime)} bottom={tempoRelativo(user.lastSignInTime)} /> : <span className={pageStyles.muted}>Nunca entrou</span>}</td>
+                                        <td><TwoLine nowrap top={dataCurta(user.creationTime)} bottom={tempoRelativo(user.creationTime)} /></td>
+                                        <td>
+                                            <RowActions>
+                                                {onViewInCRM && ehCliente(user) && (
+                                                    <IconAction label="Ver no CRM" onClick={() => onViewInCRM(user.email || '')}>
+                                                        <ContactRound size={17} aria-hidden="true" />
+                                                    </IconAction>
+                                                )}
+                                                <IconAction label="Editar acessos" onClick={() => handleEdit(user)}>
+                                                    <Pencil size={17} aria-hidden="true" />
+                                                </IconAction>
+                                                <IconAction label={user.disabled ? 'Ativar acesso' : 'Desativar acesso'} onClick={() => handleToggleStatus(user)}>
+                                                    {user.disabled ? <UserCheck size={17} aria-hidden="true" /> : <UserX size={17} aria-hidden="true" />}
+                                                </IconAction>
+                                                <IconAction label="Excluir usuário" tone="danger" onClick={() => handleDeleteUser(user)}>
+                                                    <Trash2 size={17} aria-hidden="true" />
+                                                </IconAction>
+                                            </RowActions>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+
+                {!loading && filteredAndSorted.length === 0 && (
+                    users.length === 0
+                        ? <EmptyState icon={<Users size={20} />} title="Nenhum usuário cadastrado" description="Crie o primeiro acesso da equipe." action={<Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={() => setIsAddModalOpen(true)}>Novo usuário</Button>} />
+                        : <EmptyState icon={<Search size={20} />} title="Nenhum usuário encontrado" description="Ajuste a busca ou o filtro." />
+                )}
+
+                {!loading && users.length > 0 && (
+                    <PanelFooter aside={sort.column ? 'Ordenado pela coluna escolhida' : 'Na ordem de cadastro'}>
+                        <ShowingCount shown={filteredAndSorted.length} total={users.length} singular="usuário" plural="usuários" />
+                    </PanelFooter>
+                )}
+            </Panel>
 
             {isAddModalOpen && (
                 <AdminModal
-                    title="Adicionar usuário"
+                    title="Novo usuário"
                     subtitle="Cria o acesso e define o que a pessoa pode usar na plataforma."
                     onClose={() => setIsAddModalOpen(false)}
                     busy={isCreating}
@@ -431,15 +499,16 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableP
                     title="Editar acessos"
                     subtitle={editingUser.email}
                     onClose={() => setEditingUser(null)}
+                    busy={saving}
                     footer={<>
-                        <button type="button" className={modalStyles.secondary} onClick={() => setEditingUser(null)}>Cancelar</button>
-                        <button type="button" className={modalStyles.primary} onClick={handleSaveProfiles}>Salvar alterações</button>
+                        <button type="button" className={modalStyles.secondary} onClick={() => setEditingUser(null)} disabled={saving}>Cancelar</button>
+                        <button type="button" className={modalStyles.primary} onClick={handleSaveProfiles} disabled={saving}>{saving ? 'Salvando...' : 'Salvar alterações'}</button>
                     </>}
                 >
                     <div className={modalStyles.stack}>
                         <ProfileChoices name="edit" selected={selectedProfiles} restricted={restrictedProfiles} onToggle={toggleProfile} />
                         {(selectedProfiles.includes('cliente') || selectedProfiles.includes('gratis')) && (
-                            <p className={modalStyles.hint} style={{ margin: 0 }}>
+                            <p className={`${modalStyles.hint} ${modalStyles.flush}`}>
                                 Este usuário também tem perfil de {selectedProfiles.includes('cliente') ? 'cliente' : 'teste grátis'}. Esse acesso é controlado pela assinatura, no CRM.
                             </p>
                         )}
@@ -449,6 +518,7 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableP
                     </div>
                 </AdminModal>
             )}
-        </div >
+            {feedback}
+        </Page>
     );
 }

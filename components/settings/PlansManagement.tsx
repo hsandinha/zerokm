@@ -1,9 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Building2, CalendarRange, CreditCard, Eye, EyeOff, Pencil, Plus, Search, Store, Trash2 } from 'lucide-react';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
+import {
+    Button, EmptyState, IconAction, Page, PageHeader, Panel, PanelFooter, PanelToolbar, PrimaryCell, RowActions,
+    SearchField, Segmented, ShowingCount, SkeletonRows, StatCard, StatGrid, StatusBadge, TwoLine, pageStyles,
+} from '@/components/ui/Page';
+import { InlineNotice, useFeedback } from '@/components/ui/Feedback';
 
 type Publico = 'cliente' | 'concessionaria';
+type FiltroPublico = 'todos' | Publico;
+
+const moeda = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 interface Plan {
     id?: string;
@@ -74,6 +83,16 @@ function parseAmount(raw: string): number | null {
     return Number.isFinite(n) ? n : null;
 }
 
+/** Segunda linha da coluna Cobrança: anual, convidado ou uso do plano. */
+function cobrancaDetalhe(plan: Plan) {
+    if (plan.publico === 'concessionaria') return plan.annualPrice ? `Anual ${moeda(plan.annualPrice)} · anúncio de repasse` : 'Anúncio de repasse';
+    const partes: string[] = [];
+    if (plan.type === 'monthly') partes.push(plan.annualPrice ? `Anual ${moeda(plan.annualPrice)}` : 'Sem plano anual');
+    else partes.push('Pacote avulso');
+    if (plan.invitePrice > 0) partes.push(`+ ${moeda(plan.invitePrice)} por convidado`);
+    return partes.join(' · ');
+}
+
 export function PlansManagement() {
     const [plans, setPlans] = useState<Plan[]>([]);
     const [loading, setLoading] = useState(true);
@@ -82,12 +101,20 @@ export function PlansManagement() {
     const [form, setForm] = useState<PlanForm>(emptyForm);
     const [saving, setSaving] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
+    const [filtro, setFiltro] = useState<FiltroPublico>('todos');
+    const [busca, setBusca] = useState('');
+    const { confirm, notify, feedback } = useFeedback();
 
     const fetchPlans = async () => {
         setLoading(true);
         try {
             const res = await fetch('/api/admin/plans');
-            const data = await res.json();
+            const data = await res.json().catch(() => null);
+            if (!res.ok || !Array.isArray(data)) {
+                setPlans([]);
+                notify('Não foi possível carregar os planos.');
+                return;
+            }
             setPlans(data);
         } finally {
             setLoading(false);
@@ -179,10 +206,17 @@ export function PlansManagement() {
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm('Excluir este plano permanentemente?')) return;
-        const res = await fetch(`/api/admin/plans/${id}`, { method: 'DELETE' });
-        if (!res.ok) alert('Não foi possível excluir o plano.');
+    const handleDelete = async (plan: Plan) => {
+        const ok = await confirm({
+            title: 'Excluir plano',
+            description: <>O plano <strong>{plan.name}</strong> sai do checkout e do painel. Assinaturas já feitas não são canceladas. Para só esconder, desative o plano.</>,
+            confirmLabel: 'Excluir plano',
+            danger: true,
+        });
+        if (!ok) return;
+        const res = await fetch(`/api/admin/plans/${plan.id}`, { method: 'DELETE' });
+        if (!res.ok) notify('Não foi possível excluir o plano. Tente de novo.');
+        else notify('Plano excluído.', 'positive');
         fetchPlans();
     };
 
@@ -192,147 +226,134 @@ export function PlansManagement() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ active: !plan.active })
         });
-        if (!res.ok) alert('Não foi possível alterar o status do plano.');
+        if (!res.ok) notify('Não foi possível alterar a situação do plano.');
+        else notify(plan.active ? 'Plano desativado: saiu do checkout.' : 'Plano ativado: já aparece no checkout.', 'positive');
         fetchPlans();
     };
 
-    return (
-        <div style={{ maxWidth: '900px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '1.5rem' }}>
-                <div>
-                    <h2 style={{ margin: 0, fontSize: '28px', fontWeight: 650 }}>Gerenciamento de Planos</h2>
-                    <p style={{ margin: '4px 0 0', color: 'var(--admin-muted, #6b7280)', fontSize: '0.875rem' }}>
-                        Planos do lojista (mensal ou créditos) e planos da concessionária para anunciar repasse
-                    </p>
-                </div>
-                <button
-                    onClick={openCreate}
-                    style={{
-                        background: 'var(--admin-accent, #2563eb)', color: 'var(--admin-on-accent, white)', border: 'none',
-                        borderRadius: '8px', padding: '0.6rem 1.25rem',
-                        fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem',
-                        flexShrink: 0
-                    }}
-                >
-                    + Novo Plano
-                </button>
-            </div>
+    const doPublico = (p: Plan): Publico => (p.publico === 'concessionaria' ? 'concessionaria' : 'cliente');
+    const termo = busca.trim().toLocaleLowerCase('pt-BR');
+    const visiveis = plans
+        .filter(p => filtro === 'todos' || doPublico(p) === filtro)
+        .filter(p => !termo || `${p.name} ${p.description ?? ''}`.toLocaleLowerCase('pt-BR').includes(termo))
+        .sort((a, b) => Number(b.active) - Number(a.active) || a.price - b.price);
 
-            {loading ? (
-                <p style={{ color: 'var(--admin-muted, #9ca3af)' }}>Carregando...</p>
-            ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {plans.length === 0 && (
-                        <p style={{ color: 'var(--admin-muted, #9ca3af)', fontStyle: 'italic', padding: '1rem 0' }}>
-                            Nenhum plano cadastrado. Clique em "Novo Plano" para criar o primeiro.
-                        </p>
-                    )}
-                    {plans.map(plan => (
-                        <div
-                            key={plan.id}
-                            style={{
-                                border: '1px solid var(--admin-border, #e5e7eb)',
-                                borderRadius: '12px',
-                                padding: '1rem 1.25rem',
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                flexWrap: 'wrap', gap: '16px',
-                                alignItems: 'center',
-                                background: plan.active ? 'var(--color-surface)' : 'var(--admin-panel, #f9fafb)',
-                                opacity: plan.active ? 1 : 0.65
-                            }}
-                        >
-                            <div>
-                                <div style={{ fontWeight: 700, fontSize: '1rem' }}>{plan.name}</div>
-                                {plan.description && (
-                                    <div style={{ fontSize: '0.8rem', color: 'var(--admin-muted, #6b7280)', marginTop: '2px' }}>
-                                        {plan.description}
-                                    </div>
-                                )}
-                                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-                                    <span style={{
-                                        background: plan.publico === 'concessionaria' ? '#ede9fe' : 'var(--admin-panel, #f3f4f6)',
-                                        color: plan.publico === 'concessionaria' ? '#5b21b6' : 'var(--admin-text, #374151)',
-                                        borderRadius: '999px', padding: '2px 10px',
-                                        fontSize: '0.75rem', fontWeight: 700
-                                    }}>
-                                        {plan.publico === 'concessionaria' ? 'Concessionária · repasse' : 'Lojista'}
-                                    </span>
-                                    <span style={{
-                                        background: plan.type === 'monthly' ? '#dbeafe' : '#fef9c3',
-                                        color: plan.type === 'monthly' ? '#1e40af' : '#854d0e',
-                                        borderRadius: '999px', padding: '2px 10px',
-                                        fontSize: '0.75rem', fontWeight: 700
-                                    }}>
-                                        {plan.type === 'monthly' ? 'Mensal' : `${plan.credits} créditos`}
-                                    </span>
-                                    <span style={{ fontWeight: 700, color: 'var(--admin-text, #374151)' }}>
-                                        R$ {plan.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                    </span>
-                                    {plan.invitePrice > 0 && (
-                                        <span style={{ fontSize: '0.75rem', color: 'var(--admin-muted, #6b7280)' }}>
-                                            + R$ {plan.invitePrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/convidado
-                                        </span>
-                                    )}
-                                    {plan.annualPrice && (
-                                        <span style={{ fontSize: '0.75rem', color: 'var(--admin-muted, #6b7280)' }}>
-                                            | Anual: R$ {plan.annualPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                        </span>
-                                    )}
-                                    {plan.features?.length > 0 && (
-                                        <span style={{ fontSize: '0.72rem', color: 'var(--admin-muted, #9ca3af)' }}>
-                                            {plan.features.length} recurso(s)
-                                        </span>
-                                    )}
-                                    {plan.popular && (
-                                        <span style={{
-                                            background: '#fef9c3', color: '#854d0e',
-                                            borderRadius: '999px', padding: '2px 10px',
-                                            fontSize: '0.72rem', fontWeight: 700
-                                        }}>
-                                            Mais popular
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0, marginLeft: '1rem' }}>
-                                <button
-                                    onClick={() => handleToggle(plan)}
-                                    style={{
-                                        background: plan.active ? '#d1fae5' : '#fee2e2',
-                                        color: plan.active ? '#065f46' : '#991b1b',
-                                        border: 'none', borderRadius: '6px',
-                                        padding: '4px 12px', fontSize: '0.75rem',
-                                        fontWeight: 700, cursor: 'pointer'
-                                    }}
-                                >
-                                    {plan.active ? 'Ativo' : 'Inativo'}
-                                </button>
-                                <button
-                                    onClick={() => openEdit(plan)}
-                                    style={{
-                                        background: 'var(--admin-panel, #f3f4f6)', color: 'var(--admin-text, #374151)',
-                                        border: '1px solid var(--admin-border, #e5e7eb)', borderRadius: '6px',
-                                        padding: '4px 12px', fontSize: '0.75rem', cursor: 'pointer'
-                                    }}
-                                >
-                                    Editar
-                                </button>
-                                <button
-                                    onClick={() => handleDelete(plan.id!)}
-                                    style={{
-                                        background: '#fee2e2', color: '#dc2626',
-                                        border: '1px solid #fecaca', borderRadius: '6px',
-                                        padding: '4px 12px', fontSize: '0.75rem', cursor: 'pointer'
-                                    }}
-                                >
-                                    Excluir
-                                </button>
-                            </div>
-                        </div>
-                    ))}
+    const ativos = plans.filter(p => p.active);
+    const mensaisAtivos = ativos.filter(p => p.type === 'monthly');
+    const comAnual = mensaisAtivos.filter(p => p.annualPrice);
+    const lojista = plans.filter(p => doPublico(p) === 'cliente').length;
+    const concessionaria = plans.length - lojista;
+
+    return (
+        <Page>
+            <PageHeader
+                title="Planos"
+                count={loading ? null : plans.length}
+                description="Planos do lojista (mensal ou créditos) e planos da concessionária para anunciar repasse."
+                actions={<Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={openCreate}>Novo plano</Button>}
+            />
+
+            <StatGrid>
+                <StatCard label="Planos ativos" icon={<CreditCard size={18} />} value={loading ? '-' : ativos.length} caption="Visíveis no checkout" />
+                <StatCard label="Do lojista" icon={<Store size={18} />} value={loading ? '-' : plans.filter(p => p.active && doPublico(p) === 'cliente').length} caption="Ativos para acesso à vitrine" />
+                <StatCard label="Da concessionária" icon={<Building2 size={18} />} value={loading ? '-' : plans.filter(p => p.active && doPublico(p) === 'concessionaria').length} caption="Ativos para anunciar repasse" />
+                <StatCard
+                    label="Com opção anual"
+                    icon={<CalendarRange size={18} />}
+                    value={loading ? '-' : `${comAnual.length} de ${mensaisAtivos.length}`}
+                    progress={mensaisAtivos.length ? (comAnual.length / mensaisAtivos.length) * 100 : 0}
+                    caption="Entre os planos mensais ativos"
+                />
+            </StatGrid>
+
+            <Panel>
+                <PanelToolbar>
+                    <Segmented<FiltroPublico>
+                        label="Filtrar por público"
+                        value={filtro}
+                        onChange={setFiltro}
+                        options={[
+                            { value: 'todos', label: 'Todos', count: plans.length },
+                            { value: 'cliente', label: 'Lojista', count: lojista },
+                            { value: 'concessionaria', label: 'Concessionária', count: concessionaria },
+                        ]}
+                    />
+                    <SearchField value={busca} onChange={setBusca} placeholder="Buscar plano" />
+                </PanelToolbar>
+
+                <div className={pageStyles.tableWrap}>
+                    <table className={pageStyles.table}>
+                        <thead>
+                            <tr>
+                                <th>Plano</th>
+                                <th>Público</th>
+                                <th>Cobrança</th>
+                                <th className={pageStyles.num}>Preço</th>
+                                <th>Recursos</th>
+                                <th>Situação</th>
+                                <th className={pageStyles.shrink}><span className={pageStyles.srOnly}>Ações</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {loading && <SkeletonRows rows={3} columns={7} />}
+                            {!loading && visiveis.map(plan => (
+                                <tr key={plan.id} data-inactive={!plan.active}>
+                                    <td>
+                                        <PrimaryCell
+                                            title={<>{plan.name}{plan.popular && <> <StatusBadge tone="accent" dot={false}>Mais popular</StatusBadge></>}</>}
+                                            subtitle={plan.description || undefined}
+                                        />
+                                    </td>
+                                    <td>
+                                        {doPublico(plan) === 'concessionaria'
+                                            ? <StatusBadge tone="info" dot={false}>Concessionária</StatusBadge>
+                                            : <StatusBadge dot={false}>Lojista</StatusBadge>}
+                                    </td>
+                                    <td>
+                                        <TwoLine
+                                            top={plan.type === 'monthly' ? 'Mensal' : `${plan.credits ?? 0} ${plan.credits === 1 ? 'crédito' : 'créditos'}`}
+                                            bottom={cobrancaDetalhe(plan)}
+                                        />
+                                    </td>
+                                    <td className={pageStyles.num}><strong>{moeda(plan.price)}</strong></td>
+                                    <td>{plan.features?.length ? `${plan.features.length} ${plan.features.length === 1 ? 'recurso' : 'recursos'}` : <span className={pageStyles.muted}>Nenhum</span>}</td>
+                                    <td>{plan.active ? <StatusBadge tone="positive">Ativo</StatusBadge> : <StatusBadge>Inativo</StatusBadge>}</td>
+                                    <td>
+                                        <RowActions>
+                                            <IconAction label={plan.active ? 'Desativar plano' : 'Ativar plano'} onClick={() => handleToggle(plan)}>
+                                                {plan.active ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}
+                                            </IconAction>
+                                            <IconAction label="Editar plano" onClick={() => openEdit(plan)}>
+                                                <Pencil size={17} aria-hidden="true" />
+                                            </IconAction>
+                                            <IconAction label="Excluir plano" tone="danger" onClick={() => handleDelete(plan)}>
+                                                <Trash2 size={17} aria-hidden="true" />
+                                            </IconAction>
+                                        </RowActions>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
-            )}
+
+                {!loading && visiveis.length === 0 && (
+                    plans.length === 0
+                        ? <EmptyState
+                            icon={<CreditCard size={20} />}
+                            title="Nenhum plano cadastrado"
+                            description="Crie o primeiro plano para o lojista ou para a concessionária. Ele aparece no checkout assim que estiver ativo."
+                            action={<Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={openCreate}>Novo plano</Button>}
+                        />
+                        : <EmptyState icon={<Search size={20} />} title="Nenhum plano encontrado" description="Ajuste a busca ou o filtro de público." />
+                )}
+
+                {!loading && plans.length > 0 && (
+                    <PanelFooter aside="Ativos primeiro, depois por preço">
+                        <ShowingCount shown={visiveis.length} total={plans.length} singular="plano" plural="planos" />
+                    </PanelFooter>
+                )}
+            </Panel>
 
             {showModal && (
                 <AdminModal
@@ -440,7 +461,7 @@ export function PlansManagement() {
                                     const saving = mensal - monthlyEquiv;
                                     const pct = Math.round((saving / mensal) * 100);
                                     return (
-                                        <span style={{ fontSize: '0.8rem', color: 'var(--color-positive)', fontWeight: 700 }}>
+                                        <span className={modalStyles.hintPositive}>
                                             {pct > 0 ? `${pct}% de desconto` : 'Desconto'} · equivale a R$ {monthlyEquiv.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mês
                                         </span>
                                     );
@@ -457,7 +478,6 @@ export function PlansManagement() {
                                 value={form.featuresText}
                                 onChange={e => setForm(f => ({ ...f, featuresText: e.target.value }))}
                                 placeholder={`Um recurso por linha. Ex:\nVisualização completa do estoque\nDados completos da concessionária\nNegociação direta sem intermediários`}
-                                style={{ resize: 'vertical', fontFamily: 'inherit' }}
                             />
                             <span className={modalStyles.hint}>
                                 {form.publico === 'concessionaria'
@@ -500,19 +520,11 @@ export function PlansManagement() {
                                 Plano ativo (visível para usuários)
                             </label>
                         </div>
-                        {formError && (
-                            <p role="alert" style={{
-                                margin: 0, padding: '0.65rem 0.875rem', borderRadius: '8px',
-                                background: 'color-mix(in srgb, var(--color-negative) 10%, transparent)',
-                                border: '1px solid color-mix(in srgb, var(--color-negative) 30%, transparent)',
-                                color: 'var(--color-negative)', fontSize: '0.85rem', fontWeight: 600
-                            }}>
-                                {formError}
-                            </p>
-                        )}
+                        {formError && <InlineNotice>{formError}</InlineNotice>}
                     </div>
                 </AdminModal>
             )}
-        </div>
+            {feedback}
+        </Page>
     );
 }

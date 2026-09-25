@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
 import styles from './Page.module.css';
 
 export { styles as pageStyles };
@@ -197,9 +197,9 @@ export function PrimaryCell({ title, subtitle, leading }: { title: ReactNode; su
     );
 }
 
-export function TwoLine({ top, bottom }: { top: ReactNode; bottom?: ReactNode }) {
+export function TwoLine({ top, bottom, nowrap }: { top: ReactNode; bottom?: ReactNode; /** Datas e valores: não quebra linha. */ nowrap?: boolean }) {
     return (
-        <div className={styles.twoLine}>
+        <div className={`${styles.twoLine} ${nowrap ? styles.nowrap : ''}`}>
             <span>{top}</span>
             {bottom && <span className={styles.muted}>{bottom}</span>}
         </div>
@@ -278,6 +278,36 @@ export function FilterSelect<T extends string>({ label, value, options, onChange
             <ChevronDown size={14} aria-hidden="true" className={styles.filterChevron} />
         </label>
     );
+}
+
+export type SortDirection = 'asc' | 'desc';
+
+/** Cabeçalho de coluna ordenável: clique alterna crescente e decrescente. */
+export function SortHeader<K extends string>({ label, column, sort, onSort, align }: {
+    label: string;
+    column: K;
+    sort: { column: K | null; direction: SortDirection };
+    onSort: (column: K) => void;
+    align?: 'right';
+}) {
+    const ativo = sort.column === column;
+    return (
+        <th className={align === 'right' ? styles.num : undefined} aria-sort={ativo ? (sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
+            <button type="button" className={styles.sortButton} onClick={() => onSort(column)} data-active={ativo}>
+                {label}
+                {ativo
+                    ? (sort.direction === 'asc' ? <ArrowUp size={13} aria-hidden="true" /> : <ArrowDown size={13} aria-hidden="true" />)
+                    : <ArrowUpDown size={13} aria-hidden="true" />}
+            </button>
+        </th>
+    );
+}
+
+/** Estado de ordenação pronto para SortHeader. */
+export function nextSort<K extends string>(sort: { column: K | null; direction: SortDirection }, column: K) {
+    return sort.column === column
+        ? { column, direction: (sort.direction === 'asc' ? 'desc' : 'asc') as SortDirection }
+        : { column, direction: 'asc' as SortDirection };
 }
 
 /** Linhas fantasmas enquanto a lista carrega (evita tela piscando "0 itens"). */

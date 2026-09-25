@@ -12,6 +12,8 @@ interface MaskedInputProps {
     label?: string;
     name?: string;
     required?: boolean;
+    /** Sem estilo próprio: herda o campo do modal (modalStyles.field). */
+    plain?: boolean;
     maxLength?: number;
 }
 
@@ -24,6 +26,7 @@ export function MaskedInput({
     label,
     name,
     required = false,
+    plain = false,
     maxLength
 }: MaskedInputProps) {
     const [displayValue, setDisplayValue] = useState('');
@@ -209,15 +212,16 @@ export function MaskedInput({
     };
 
     return (
-        <div className={styles.container}>
+        <div className={plain ? undefined : styles.container}>
             {label && (
-                <label htmlFor={name} className={styles.label}>
+                <label htmlFor={name} className={plain ? undefined : styles.label}>
                     {label}{required && '*'}
                 </label>
             )}
-            <div className={styles.inputWrapper}>
+            <div className={plain ? undefined : styles.inputWrapper}>
                 <input
                     type="text"
+                    id={name}
                     name={name}
                     value={displayValue}
                     onChange={handleInputChange}
@@ -226,7 +230,7 @@ export function MaskedInput({
                     placeholder={placeholder}
                     required={required}
                     maxLength={maxLength}
-                    className={styles.input}
+                    className={plain ? undefined : styles.input}
                     autoComplete="off"
                 />
             </div>

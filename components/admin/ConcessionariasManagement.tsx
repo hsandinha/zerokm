@@ -5,6 +5,16 @@ import { MaskedInput } from '../../components/operator/MaskedInput';
 import { ConcessionariaService } from '../../lib/services/concessionariaService';
 import styles from './ConcessionariasManagement.module.css';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
+import { AlertTriangle, Building2, CarFront, ChevronDown, Link2, Pencil, Plus, RefreshCw, Search, Trash2, UserRoundX } from 'lucide-react';
+import {
+    Avatar, Button, EmptyState, IconAction, Page, PageHeader, Panel, PanelFooter, PanelToolbar, PrimaryCell, RowActions,
+    SearchField, Segmented, ShowingCount, SkeletonRows, SortHeader, StatCard, StatGrid, StatusBadge, TwoLine, nextSort, pageStyles,
+    type BadgeTone, type SortDirection,
+} from '@/components/ui/Page';
+import { InlineNotice, useFeedback } from '@/components/ui/Feedback';
+
+type Segmento = 'todas' | 'ativas' | 'desatualizadas' | 'inativas';
+type ColunaVeiculo = 'modelo' | 'ano' | 'cor' | 'combustivel' | 'cidade' | 'nomeContato';
 
 // Interfaces para Concessionária
 interface ClienteData {
@@ -96,6 +106,8 @@ const createEmptyClienteForm = (): ClienteFormData => ({
 
 export function ConcessionariasManagement() {
     const [searchTerm, setSearchTerm] = useState('');
+    const [segmento, setSegmento] = useState<Segmento>('todas');
+    const { confirm, notify, feedback } = useFeedback();
     const [showForm, setShowForm] = useState(false);
     const [clientes, setClientes] = useState<ClienteData[]>([]);
     const [filteredClientes, setFilteredClientes] = useState<ClienteData[]>([]);
@@ -114,12 +126,13 @@ export function ConcessionariasManagement() {
     const [loadingVehicles, setLoadingVehicles] = useState(false);
     const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
     const [vehicleFilter, setVehicleFilter] = useState('');
-    const [sortColumn, setSortColumn] = useState<string | null>(null);
-    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+    const [vehicleSort, setVehicleSort] = useState<{ column: ColunaVeiculo | null; direction: SortDirection }>({ column: null, direction: 'asc' });
     const [operadores, setOperadores] = useState<{_id: string, displayName: string, email: string}[]>([]);
     const [marcas, setMarcas] = useState<MarcaData[]>([]);
     const [openBrandMenuId, setOpenBrandMenuId] = useState<string | null>(null);
     const [brandSearch, setBrandSearch] = useState('');
+    // O menu de marcas fica fixo na tela: dentro da tabela (overflow) ele seria cortado nas últimas linhas.
+    const [brandMenuPos, setBrandMenuPos] = useState<{ top: number; left: number } | null>(null);
 
     // Marcas selecionadas de uma concessionária (com fallback ao formato antigo de marca única).
     const getSelectedBrandIds = (cliente: ClienteData): string[] => {
@@ -163,7 +176,7 @@ export function ConcessionariasManagement() {
         } catch (error) {
             console.error('Erro ao atualizar marcas:', error);
             applyBrandsLocally(cliente.id, current); // reverte
-            alert('Erro ao atualizar as marcas da concessionária.');
+            notify('Não foi possível atualizar as marcas. A seleção anterior foi mantida.');
         }
     };
 
@@ -183,25 +196,22 @@ export function ConcessionariasManagement() {
         return '';
     };
 
-    const getStatusColor = (dateString?: string | null) => {
-        if (!dateString) return 'red';
+    /** Dias desde a última atualização do estoque (null = nunca enviou). */
+    const diasSemAtualizar = (dateString?: string | null) => {
+        if (!dateString) return null;
         const date = new Date(dateString);
-        const now = new Date();
-        const diffTime = Math.abs(now.getTime() - date.getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-        if (diffDays <= 15) return 'green';
-        if (diffDays <= 30) return 'yellow';
-        return 'red';
+        if (Number.isNaN(date.getTime())) return null;
+        return Math.max(0, Math.floor((Date.now() - date.getTime()) / 86_400_000));
     };
 
-    const getDaysSinceUpdate = (dateString?: string | null) => {
-        if (!dateString) return 'Sem dados';
-        const date = new Date(dateString);
-        const now = new Date();
-        const diffTime = Math.abs(now.getTime() - date.getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        return `${diffDays} dias`;
+    /** Semáforo do estoque: até 15 dias em dia, até 30 atenção, depois desatualizado. */
+    const atualizacao = (dateString?: string | null): { tone: BadgeTone; label: string } => {
+        const dias = diasSemAtualizar(dateString);
+        if (dias === null) return { tone: 'negative', label: 'Sem envio' };
+        const label = dias === 0 ? 'Hoje' : dias === 1 ? 'Ontem' : `Há ${dias} dias`;
+        if (dias <= 15) return { tone: 'positive', label };
+        if (dias <= 30) return { tone: 'warning', label };
+        return { tone: 'negative', label };
     };
 
     const resetForm = () => {
@@ -230,20 +240,12 @@ export function ConcessionariasManagement() {
         }
     };
 
-    const handleSort = (column: string) => {
-        if (sortColumn === column) {
-            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-        } else {
-            setSortColumn(column);
-            setSortDirection('asc');
-        }
-    };
+    const handleSortVehicles = (column: ColunaVeiculo) => setVehicleSort(atual => nextSort(atual, column));
 
     const handleOpenAssociateModal = (cliente: ClienteData) => {
         setSelectedConcessionariaForAssociate(cliente);
         setVehicleFilter('');
-        setSortColumn(null);
-        setSortDirection('asc');
+        setVehicleSort({ column: null, direction: 'asc' });
         setShowAssociateModal(true);
         setSelectedVehicles([]);
         fetchVehiclesWithoutConcessionaria();
@@ -278,15 +280,16 @@ export function ConcessionariasManagement() {
             });
 
             if (response.ok) {
-                alert(`${selectedVehicles.length} veículo(s) associado(s) com sucesso!`);
+                const n = selectedVehicles.length;
+                notify(`${n} ${n === 1 ? 'veículo associado' : 'veículos associados'} a ${selectedConcessionariaForAssociate.nome}.`, 'positive');
                 handleCloseAssociateModal();
                 fetchClientes();
             } else {
-                alert('Erro ao associar veículos');
+                notify('Não foi possível associar os veículos. Tente de novo.');
             }
         } catch (error) {
             console.error('Erro ao associar veículos:', error);
-            alert('Erro ao associar veículos');
+            notify('Falha de conexão ao associar os veículos.');
         }
     };
 
@@ -375,11 +378,20 @@ export function ConcessionariasManagement() {
                 setBrandSearch('');
             }
         };
+        const fecharAoRolar = (event: Event) => {
+            if ((event.target as HTMLElement | null)?.closest?.(`.${styles.brandMenu}`)) return;
+            setOpenBrandMenuId(null);
+        };
         document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        window.addEventListener('scroll', fecharAoRolar, true);
+        window.addEventListener('resize', fecharAoRolar);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            window.removeEventListener('scroll', fecharAoRolar, true);
+            window.removeEventListener('resize', fecharAoRolar);
+        };
     }, [openBrandMenuId]);
 
-    const handleClearSearch = () => setSearchTerm('');
 
     const digitsOnly = (value?: string) => (value ?? '').replace(/\D/g, '');
 
@@ -543,17 +555,32 @@ export function ConcessionariasManagement() {
         setShowForm(true);
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm('Tem certeza que deseja excluir esta concessionária?')) {
-            return;
-        }
+    const handleDelete = async (cliente: ClienteData) => {
+        const ok = await confirm({
+            title: 'Excluir concessionária',
+            description: <>A <strong>{cliente.nome}</strong> sai da lista e do vínculo com a equipe. Os veículos dela ficam sem concessionária associada. Para só pausar, edite e marque como inativa.</>,
+            confirmLabel: 'Excluir concessionária',
+            danger: true,
+        });
+        if (!ok) return;
 
         try {
-            await ConcessionariaService.deleteConcessionaria(id);
+            await ConcessionariaService.deleteConcessionaria(cliente.id);
+            notify('Concessionária excluída.', 'positive');
             await fetchClientes();
         } catch (error) {
             console.error('Erro ao excluir concessionária:', error);
-            alert('Erro ao excluir concessionária. Tente novamente.');
+            notify('Não foi possível excluir a concessionária. Tente de novo.');
+        }
+    };
+
+    const handleChangeOperador = async (cliente: ClienteData, operadorId: string) => {
+        try {
+            await ConcessionariaService.updateConcessionaria(cliente.id, { operadorId });
+            await fetchClientes();
+        } catch (err) {
+            console.error('Erro ao atualizar operador:', err);
+            notify('Não foi possível trocar o operador responsável.');
         }
     };
 
@@ -570,226 +597,238 @@ export function ConcessionariasManagement() {
         resetForm();
     };
 
+    const veiculosFiltrados = vehiclesWithoutConcessionaria
+        .filter(vehicle => {
+            if (!vehicleFilter) return true;
+            const termo = vehicleFilter.toLowerCase();
+            return vehicle.modelo?.toLowerCase().includes(termo) || vehicle.nomeContato?.toLowerCase().includes(termo);
+        })
+        .sort((a, b) => {
+            if (!vehicleSort.column) return 0;
+            const comparison = String(a[vehicleSort.column] ?? '').localeCompare(String(b[vehicleSort.column] ?? ''), 'pt-BR', { numeric: true });
+            return vehicleSort.direction === 'asc' ? comparison : -comparison;
+        });
+
+    const noSegmento = (c: ClienteData) => {
+        if (segmento === 'ativas') return c.ativo !== false;
+        if (segmento === 'inativas') return c.ativo === false;
+        if (segmento === 'desatualizadas') {
+            const dias = diasSemAtualizar(c.ultimaAtualizacao);
+            return c.ativo !== false && (dias === null || dias > 30);
+        }
+        return true;
+    };
+    const visiveis = filteredClientes.filter(noSegmento);
+
+    const ativas = clientes.filter(c => c.ativo !== false);
+    const emDia = ativas.filter(c => { const d = diasSemAtualizar(c.ultimaAtualizacao); return d !== null && d <= 15; }).length;
+    const desatualizadas = ativas.filter(c => { const d = diasSemAtualizar(c.ultimaAtualizacao); return d === null || d > 30; }).length;
+    const totalVeiculos = clientes.reduce((soma, c) => soma + (c.totalVeiculos || 0), 0);
+    const semOperador = ativas.filter(c => !getOperadorIdForCliente(c)).length;
+    const carregando = loadingClientes && clientes.length === 0;
+
     return (
-        <div className={styles.container}>
-            <div className={styles.header}>
-                <h2>Gestão de Concessionárias</h2>
-                <div className={styles.headerActions}>
-                    <button
-                        type="button"
-                        className={styles.addButton}
-                        onClick={openCreateForm}
-                    >
-                        + Nova concessionária
-                    </button>
-                </div>
-            </div>
+        <Page wide>
+            <PageHeader
+                title="Concessionárias"
+                count={carregando ? null : clientes.length}
+                description="Lojas parceiras, marcas representadas, estoque enviado e operador responsável."
+                actions={<Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={openCreateForm}>Nova concessionária</Button>}
+            />
 
-            <div className={styles.searchSection}>
-                <div className={styles.searchContainer}>
-                    <input
-                        type="text"
-                        placeholder="Buscar por nome, razão social, marca, responsável, CNPJ ou cidade..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className={styles.searchInput}
+            <StatGrid>
+                <StatCard label="Ativas" icon={<Building2 size={18} />} value={carregando ? '-' : ativas.length} caption={clientes.length - ativas.length === 1 ? '1 inativa' : `${clientes.length - ativas.length} inativas`} />
+                <StatCard
+                    label="Estoque em dia"
+                    icon={<RefreshCw size={18} />}
+                    value={carregando ? '-' : `${emDia} de ${ativas.length}`}
+                    progress={ativas.length ? (emDia / ativas.length) * 100 : 0}
+                    caption="Atualizado nos últimos 15 dias"
+                />
+                <StatCard label="Veículos no estoque" icon={<CarFront size={18} />} value={carregando ? '-' : totalVeiculos.toLocaleString('pt-BR')} caption="Somando todas as lojas" />
+                <StatCard
+                    label="Sem operador"
+                    icon={<UserRoundX size={18} />}
+                    value={carregando ? '-' : semOperador}
+                    tone={semOperador > 0 ? 'warning' : 'default'}
+                    caption="Ativas sem responsável na equipe"
+                />
+            </StatGrid>
+
+            <Panel>
+                <PanelToolbar>
+                    <Segmented<Segmento>
+                        label="Filtrar concessionárias"
+                        value={segmento}
+                        onChange={setSegmento}
+                        options={[
+                            { value: 'todas', label: 'Todas', count: clientes.length },
+                            { value: 'ativas', label: 'Ativas', count: ativas.length },
+                            { value: 'desatualizadas', label: 'Estoque desatualizado', count: desatualizadas },
+                            { value: 'inativas', label: 'Inativas', count: clientes.length - ativas.length },
+                        ]}
                     />
-                    {searchTerm && (
-                        <button className={styles.clearButton} onClick={handleClearSearch}>
-                            ✕
-                        </button>
-                    )}
-                </div>
-            </div>
+                    <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Nome, marca, CNPJ, cidade ou responsável" />
+                </PanelToolbar>
 
-            <div className={styles.resultsSection}>
-                <div className={styles.resultsHeader}>
-                    <h3>Resultados ({filteredClientes.length})</h3>
-                    <span className={styles.resultsMeta}>
-                        {clientes.length > 0
-                            ? `Exibindo ${filteredClientes.length} de ${clientes.length} registros`
-                            : 'Nenhuma concessionária cadastrada'}
-                    </span>
-                </div>
+                {errorMessage && <div className={pageStyles.panelNotice}><InlineNotice>{errorMessage}</InlineNotice></div>}
 
-                {errorMessage ? (
-                    <div className={styles.noResultsMessage}>{errorMessage}</div>
-                ) : loadingClientes ? (
-                    <div className={styles.noResultsMessage}>Carregando concessionárias...</div>
-                ) : (
-                    <div className={styles.tableContainer}>
-                        <table className={styles.table}>
-                            <thead>
-                                <tr>
-                                    <th className={styles.tableHeader}>NOME / RAZÃO SOCIAL</th>
-                                    <th className={styles.tableHeader}>MARCA</th>
-                                    <th className={styles.tableHeader}>VEÍCULOS</th>
-                                    <th className={styles.tableHeader}>ATUALIZAÇÃO</th>
-                                    <th className={styles.tableHeader}>CONTATO PRINCIPAL</th>
-                                    <th className={styles.tableHeader}>RESPONSÁVEL</th>
-                                    <th className={styles.tableHeader}>CNPJ</th>
-                                    <th className={styles.tableHeader}>ENDEREÇO</th>
-                                    <th className={styles.tableHeader}>STATUS</th>
-                                    <th className={styles.tableHeader}>AÇÕES</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredClientes.length === 0 ? (
-                                    <tr className={styles.tableRow}>
-                                        <td className={styles.emptyStateCell} colSpan={10}>
-                                            {searchTerm ? 'Nenhuma concessionária encontrada.' : 'Nenhuma concessionária cadastrada.'}
+                <div className={pageStyles.tableWrap}>
+                    <table className={`${pageStyles.table} ${pageStyles.tableDense}`}>
+                        <thead>
+                            <tr>
+                                <th>Concessionária</th>
+                                <th>Marcas</th>
+                                <th>Estoque</th>
+                                <th>Contato principal</th>
+                                <th>Operador responsável</th>
+                                <th>Endereço</th>
+                                <th className={pageStyles.shrink}><span className={pageStyles.srOnly}>Ações</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {carregando && <SkeletonRows rows={5} columns={7} />}
+                            {!carregando && visiveis.map((cliente) => {
+                                const selectedIds = getSelectedBrandIds(cliente);
+                                const selectedNames = getSelectedBrandNames(cliente);
+                                const isOpen = openBrandMenuId === cliente.id;
+                                const filteredMarcas = marcas.filter(m => m.nome.toLowerCase().includes(brandSearch.toLowerCase()));
+                                const semaforo = atualizacao(cliente.ultimaAtualizacao);
+                                const veiculos = cliente.totalVeiculos || 0;
+                                return (
+                                    <tr key={cliente.id} data-inactive={cliente.ativo === false}>
+                                        <td className={pageStyles.colMain}>
+                                            <PrimaryCell
+                                                leading={<Avatar name={cliente.nome || '?'} />}
+                                                title={<>{cliente.nome}{cliente.ativo === false && <> <StatusBadge dot={false}>Inativa</StatusBadge></>}</>}
+                                                subtitle={<>
+                                                    {cliente.razaoSocial}
+                                                    <span className={pageStyles.subLine}>CNPJ {formatCnpjDisplay(cliente.cnpj)} · desde {formatDate(cliente.dataCadastro ?? cliente.criadoEm)}</span>
+                                                </>}
+                                            />
                                         </td>
-                                    </tr>
-                                ) : (
-                                    filteredClientes.map((cliente) => (
-                                        <tr key={cliente.id} className={styles.tableRow}>
-                                            <td className={styles.tableCell}>
-                                                <strong>{cliente.nome}</strong>
-                                                <div className={styles.tableSubtext}>{cliente.razaoSocial}</div>
-                                            </td>
-                                            <td className={styles.tableCell}>
-                                                {(() => {
-                                                    const selectedIds = getSelectedBrandIds(cliente);
-                                                    const selectedNames = getSelectedBrandNames(cliente);
-                                                    const isOpen = openBrandMenuId === cliente.id;
-                                                    const filteredMarcas = marcas.filter(m =>
-                                                        m.nome.toLowerCase().includes(brandSearch.toLowerCase())
-                                                    );
-                                                    return (
-                                                        <div className={styles.brandCell}>
-                                                            <button
-                                                                type="button"
-                                                                className={styles.brandTrigger}
-                                                                onClick={() => {
-                                                                    setOpenBrandMenuId(isOpen ? null : cliente.id);
-                                                                    setBrandSearch('');
-                                                                }}
-                                                            >
-                                                                {selectedNames.length > 0 ? (
-                                                                    <span className={styles.brandChips}>
-                                                                        {selectedNames.map(nome => (
-                                                                            <span key={nome} className={styles.brandBadge}>{nome}</span>
-                                                                        ))}
-                                                                    </span>
-                                                                ) : (
-                                                                    <span className={styles.brandPlaceholder}>— Sem marca —</span>
-                                                                )}
-                                                                <span className={styles.brandCaret}>▾</span>
-                                                            </button>
-                                                            {isOpen && (
-                                                                <div className={styles.brandMenu}>
-                                                                    <input
-                                                                        type="text"
-                                                                        className={styles.brandMenuSearch}
-                                                                        placeholder="Buscar marca..."
-                                                                        value={brandSearch}
-                                                                        onChange={(e) => setBrandSearch(e.target.value)}
-                                                                        autoFocus
-                                                                    />
-                                                                    <div className={styles.brandMenuList}>
-                                                                        {marcas.length === 0 ? (
-                                                                            <span className={styles.brandMenuEmpty}>Cadastre marcas na aba Catálogo.</span>
-                                                                        ) : filteredMarcas.length === 0 ? (
-                                                                            <span className={styles.brandMenuEmpty}>Nenhuma marca encontrada.</span>
-                                                                        ) : filteredMarcas.map(marca => (
-                                                                            <label key={marca.id} className={styles.brandMenuItem}>
-                                                                                <input
-                                                                                    type="checkbox"
-                                                                                    checked={selectedIds.includes(marca.id)}
-                                                                                    onChange={() => handleToggleBrand(cliente, marca.id)}
-                                                                                />
-                                                                                <span>{marca.nome}</span>
-                                                                            </label>
-                                                                        ))}
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })()}
-                                            </td>
-                                            <td className={styles.tableCell}>
-                                                <div className={styles.vehicleCount}>
-                                                    <div className={styles.vehicleBar} style={{ width: `${Math.min((cliente.totalVeiculos || 0) * 2, 100)}%` }}></div>
-                                                    <span>{cliente.totalVeiculos || 0}</span>
-                                                </div>
-                                            </td>
-                                            <td className={styles.tableCell}>
-                                                <div className={styles.updateStatus}>
-                                                    <div className={`${styles.trafficLight} ${styles[getStatusColor(cliente.ultimaAtualizacao)]}`}></div>
-                                                    <span>{getDaysSinceUpdate(cliente.ultimaAtualizacao)}</span>
-                                                </div>
-                                            </td>
-                                            <td className={styles.tableCell}>
-                                                <div className={styles.tableSubtextStrong}>{cliente.contato}</div>
-                                                <div className={styles.tableSubtext}>{formatPhoneDisplay(cliente.telefone)}</div>
-                                                {cliente.celular && (
-                                                    <div className={styles.tableSubtext}>{formatPhoneDisplay(cliente.celular)}</div>
-                                                )}
-                                                <div className={styles.tableSubtext}>{cliente.email}</div>
-                                            </td>
-                                            <td className={styles.tableCell}>
-                                                <select
-                                                    className={styles.inlineSelect}
-                                                    value={getOperadorIdForCliente(cliente)}
-                                                    onChange={async (e) => {
-                                                        const newOpId = e.target.value;
-                                                        try {
-                                                            await ConcessionariaService.updateConcessionaria(cliente.id, { operadorId: newOpId });
-                                                            await fetchClientes();
-                                                        } catch (err) {
-                                                            console.error('Erro ao atualizar operador:', err);
-                                                            alert('Erro ao atualizar operador');
-                                                        }
+                                        <td>
+                                            <div className={styles.brandCell}>
+                                                <button
+                                                    type="button"
+                                                    className={styles.brandTrigger}
+                                                    aria-expanded={isOpen}
+                                                    aria-label={`Marcas de ${cliente.nome}`}
+                                                    onClick={(event) => {
+                                                        const r = event.currentTarget.getBoundingClientRect();
+                                                        const top = r.bottom + 4 + 320 > window.innerHeight ? Math.max(8, r.top - 324) : r.bottom + 4;
+                                                        setBrandMenuPos({ top, left: Math.min(r.left, window.innerWidth - 272) });
+                                                        setOpenBrandMenuId(isOpen ? null : cliente.id);
+                                                        setBrandSearch('');
                                                     }}
                                                 >
-                                                    <option value="">— Sem operador —</option>
-                                                    {operadores.map(op => (
-                                                        <option key={op._id} value={op._id}>{op.displayName || op.email}</option>
-                                                    ))}
-                                                </select>
-                                            </td>
-                                            <td className={styles.tableCell}>{formatCnpjDisplay(cliente.cnpj)}</td>
-                                            <td className={styles.tableCell}>{composeEnderecoDisplay(cliente)}</td>
-                                            <td className={styles.tableCell}>
-                                                <span className={`${styles.statusBadge} ${cliente.ativo === false ? styles.statusInactive : styles.statusActive}`}>
-                                                    {cliente.ativo === false ? 'Inativa' : 'Ativa'}
-                                                </span>
-                                                <div className={styles.tableSubtext}>{formatDate(cliente.dataCadastro ?? cliente.criadoEm)}</div>
-                                            </td>
-                                            <td className={styles.tableCell}>
-                                                <div className={styles.actionButtons}>
-                                                    <button
-                                                        className={styles.editButton}
-                                                        onClick={() => handleEdit(cliente)}
-                                                        title="Editar"
-                                                    >
-                                                        ✏️
-                                                    </button>
-                                                    <button
-                                                        className={styles.associateButton}
-                                                        onClick={() => handleOpenAssociateModal(cliente)}
-                                                        title="Associar Veículos"
-                                                    >
-                                                        🔗
-                                                    </button>
-                                                    <button
-                                                        className={styles.deleteButton}
-                                                        onClick={() => handleDelete(cliente.id)}
-                                                        title="Excluir"
-                                                    >
-                                                        🗑️
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                                    {selectedNames.length > 0
+                                                        ? <span className={pageStyles.badgeList}>{selectedNames.map(nome => <StatusBadge key={nome} tone="accent" dot={false}>{nome}</StatusBadge>)}</span>
+                                                        : <span className={pageStyles.muted}>Sem marca</span>}
+                                                    <ChevronDown size={14} aria-hidden="true" className={styles.brandCaret} />
+                                                </button>
+                                                {isOpen && brandMenuPos && (
+                                                    <div className={styles.brandMenu} style={{ top: brandMenuPos.top, left: brandMenuPos.left }}>
+                                                        <input
+                                                            type="text"
+                                                            className={styles.brandMenuSearch}
+                                                            placeholder="Buscar marca"
+                                                            aria-label="Buscar marca"
+                                                            value={brandSearch}
+                                                            onChange={(e) => setBrandSearch(e.target.value)}
+                                                            autoFocus
+                                                        />
+                                                        <div className={styles.brandMenuList}>
+                                                            {marcas.length === 0 ? (
+                                                                <span className={styles.brandMenuEmpty}>Nenhuma marca disponível.</span>
+                                                            ) : filteredMarcas.length === 0 ? (
+                                                                <span className={styles.brandMenuEmpty}>Nenhuma marca encontrada.</span>
+                                                            ) : filteredMarcas.map(marca => (
+                                                                <label key={marca.id} className={styles.brandMenuItem}>
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={selectedIds.includes(marca.id)}
+                                                                        onChange={() => handleToggleBrand(cliente, marca.id)}
+                                                                    />
+                                                                    <span>{marca.nome}</span>
+                                                                </label>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <TwoLine
+                                                nowrap
+                                                top={<strong>{veiculos.toLocaleString('pt-BR')} {veiculos === 1 ? 'veículo' : 'veículos'}</strong>}
+                                                bottom={<StatusBadge tone={semaforo.tone}>{semaforo.label}</StatusBadge>}
+                                            />
+                                        </td>
+                                        <td>
+                                            <TwoLine
+                                                top={cliente.contato || <span className={pageStyles.muted}>Sem contato</span>}
+                                                bottom={<>
+                                                    {[cliente.telefone, cliente.celular].filter(Boolean).length > 0 && (
+                                                        <span className={`${pageStyles.subLine} ${pageStyles.nowrap}`}>{[cliente.telefone, cliente.celular].filter(Boolean).map(tel => formatPhoneDisplay(tel)).join(' · ')}</span>
+                                                    )}
+                                                    {cliente.email && <span className={pageStyles.subLine}>{cliente.email}</span>}
+                                                </>}
+                                            />
+                                        </td>
+                                        <td>
+                                            <select
+                                                className={styles.inlineSelect}
+                                                aria-label={`Operador responsável por ${cliente.nome}`}
+                                                value={getOperadorIdForCliente(cliente)}
+                                                onChange={(e) => handleChangeOperador(cliente, e.target.value)}
+                                            >
+                                                <option value="">Sem operador</option>
+                                                {operadores.map(op => (
+                                                    <option key={op._id} value={op._id}>{op.displayName || op.email}</option>
+                                                ))}
+                                            </select>
+                                        </td>
+                                        <td className={styles.addressCell}>{composeEnderecoDisplay(cliente)}</td>
+                                        <td>
+                                            <RowActions>
+                                                <IconAction label="Editar concessionária" onClick={() => handleEdit(cliente)}>
+                                                    <Pencil size={17} aria-hidden="true" />
+                                                </IconAction>
+                                                <IconAction label="Associar veículos" onClick={() => handleOpenAssociateModal(cliente)}>
+                                                    <Link2 size={17} aria-hidden="true" />
+                                                </IconAction>
+                                                <IconAction label="Excluir concessionária" tone="danger" onClick={() => handleDelete(cliente)}>
+                                                    <Trash2 size={17} aria-hidden="true" />
+                                                </IconAction>
+                                            </RowActions>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+
+                {!carregando && visiveis.length === 0 && (
+                    clientes.length === 0
+                        ? <EmptyState
+                            icon={<Building2 size={20} />}
+                            title="Nenhuma concessionária cadastrada"
+                            description="Cadastre a primeira loja parceira para receber o estoque dela."
+                            action={<Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={openCreateForm}>Nova concessionária</Button>}
+                        />
+                        : segmento === 'desatualizadas'
+                            ? <EmptyState icon={<AlertTriangle size={20} />} title="Todo estoque em dia" description="Nenhuma concessionária ativa está há mais de 30 dias sem atualizar." />
+                            : <EmptyState icon={<Search size={20} />} title="Nenhuma concessionária encontrada" description="Ajuste a busca ou o filtro." />
                 )}
-            </div>
+
+                {!carregando && clientes.length > 0 && (
+                    <PanelFooter aside="Estoque: verde até 15 dias, amarelo até 30, vermelho acima">
+                        <ShowingCount shown={visiveis.length} total={clientes.length} singular="concessionária" plural="concessionárias" />
+                    </PanelFooter>
+                )}
+            </Panel>
 
             {showForm && (
                 <AdminModal
@@ -808,37 +847,36 @@ export function ConcessionariasManagement() {
                         </button>
                     </>}
                 >
-                    <div className={styles.form}>
-                        <div className={styles.formRow}>
-                            <div className={styles.formGroup}>
-                                <label>Nome Fantasia</label>
+                    <div className={modalStyles.stack}>
+                        <div className={modalStyles.row}>
+                            <label className={modalStyles.field}>
+                                Nome Fantasia
                                 <input
                                     type="text"
                                     value={formData.nome}
                                     onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                                    className={styles.formInput}
                                 />
-                            </div>
-                            <div className={styles.formGroup}>
-                                <label>Razão Social</label>
+                            </label>
+                            <label className={modalStyles.field}>
+                                Razão Social
                                 <input
                                     type="text"
                                     value={formData.razaoSocial}
                                     onChange={(e) => setFormData({ ...formData, razaoSocial: e.target.value })}
-                                    className={styles.formInput}
                                 />
-                            </div>
-                            <div className={styles.formGroup}>
-                                <label>Marcas representadas</label>
-                                <div className={styles.formHelper}>
-                                    As marcas são definidas direto na lista, na coluna <strong>MARCA</strong> (seleção múltipla).
-                                </div>
+                            </label>
+                            <div className={modalStyles.field}>
+                                Marcas representadas
+                                <span className={modalStyles.hint}>
+                                    Definidas direto na lista, na coluna <strong>Marcas</strong> (seleção múltipla).
+                                </span>
                             </div>
                         </div>
 
-                        <div className={styles.formRow}>
-                            <div className={styles.formGroup}>
+                        <div className={modalStyles.row}>
+                            <div className={`${modalStyles.field} ${modalStyles.maskedField}`}>
                                 <MaskedInput
+                                    plain
                                     name="cnpj"
                                     label="CNPJ"
                                     value={formData.cnpj}
@@ -847,21 +885,21 @@ export function ConcessionariasManagement() {
                                     placeholder="00.000.000/0000-00"
                                 />
                             </div>
-                            <div className={styles.formGroup}>
-                                <label>Inscrição Estadual</label>
+                            <label className={modalStyles.field}>
+                                Inscrição Estadual
                                 <input
                                     type="text"
                                     value={formData.inscricaoEstadual}
                                     onChange={(e) => setFormData({ ...formData, inscricaoEstadual: e.target.value })}
-                                    className={styles.formInput}
                                     placeholder="000.000.000.000"
                                 />
-                            </div>
+                            </label>
                         </div>
 
-                        <div className={styles.formRow}>
-                            <div className={styles.formGroup}>
+                        <div className={modalStyles.row}>
+                            <div className={`${modalStyles.field} ${modalStyles.maskedField}`}>
                                 <MaskedInput
+                                    plain
                                     name="telefone"
                                     label="Telefone"
                                     value={formData.telefone}
@@ -870,8 +908,9 @@ export function ConcessionariasManagement() {
                                     placeholder="(11)99999-9999"
                                 />
                             </div>
-                            <div className={styles.formGroup}>
+                            <div className={`${modalStyles.field} ${modalStyles.maskedField}`}>
                                 <MaskedInput
+                                    plain
                                     name="celular"
                                     label="Celular"
                                     value={formData.celular}
@@ -880,39 +919,37 @@ export function ConcessionariasManagement() {
                                     placeholder="(11)99999-9999"
                                 />
                             </div>
-                            <div className={styles.formGroup}>
-                                <label>Contato</label>
+                            <label className={modalStyles.field}>
+                                Contato
                                 <input
                                     type="text"
                                     value={formData.contato}
                                     onChange={(e) => setFormData({ ...formData, contato: e.target.value })}
-                                    className={styles.formInput}
                                 />
-                            </div>
+                            </label>
                         </div>
 
-                        <div className={styles.formRow}>
-                            <div className={styles.formGroup}>
-                                <label>E-mail</label>
+                        <div className={modalStyles.row}>
+                            <label className={modalStyles.field}>
+                                E-mail
                                 <input
                                     type="email"
                                     value={formData.email}
                                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                    className={styles.formInput}
                                     placeholder="contato@empresa.com.br"
                                 />
-                            </div>
-                            <div className={styles.formGroup}>
-                                <label>Nome do Responsável</label>
+                            </label>
+                            <label className={modalStyles.field}>
+                                Nome do Responsável
                                 <input
                                     type="text"
                                     value={formData.nomeResponsavel}
                                     onChange={(e) => setFormData({ ...formData, nomeResponsavel: e.target.value })}
-                                    className={styles.formInput}
                                 />
-                            </div>
-                            <div className={styles.formGroup}>
+                            </label>
+                            <div className={`${modalStyles.field} ${modalStyles.maskedField}`}>
                                 <MaskedInput
+                                    plain
                                     name="telefoneResponsavel"
                                     label="Telefone do Responsável"
                                     value={formData.telefoneResponsavel}
@@ -923,48 +960,46 @@ export function ConcessionariasManagement() {
                             </div>
                         </div>
 
-                        <div className={styles.formRow}>
-                            <div className={styles.formGroup}>
-                                <label>E-mail do Responsável</label>
+                        <div className={modalStyles.row}>
+                            <label className={modalStyles.field}>
+                                E-mail do Responsável
                                 <input
                                     type="email"
                                     value={formData.emailResponsavel}
                                     onChange={(e) => setFormData({ ...formData, emailResponsavel: e.target.value })}
-                                    className={styles.formInput}
                                     placeholder="responsavel@empresa.com.br"
                                 />
-                            </div>
-                            <div className={styles.formGroup}>
-                                <label>Status</label>
+                            </label>
+                            <label className={modalStyles.field}>
+                                Status
                                 <select
                                     value={formData.ativo ? 'true' : 'false'}
                                     onChange={(e) => setFormData((prev) => ({ ...prev, ativo: e.target.value === 'true' }))}
-                                    className={styles.formInput}
                                 >
                                     <option value="true">Ativa</option>
                                     <option value="false">Inativa</option>
                                 </select>
-                            </div>
+                            </label>
                         </div>
-                        <div className={styles.formRow}>
-                            <div className={styles.formGroup}>
-                                <label>Operador Responsável</label>
+                        <div className={modalStyles.row}>
+                            <label className={modalStyles.field}>
+                                Operador Responsável
                                 <select
                                     value={formData.operadorId}
                                     onChange={(e) => setFormData({ ...formData, operadorId: e.target.value })}
-                                    className={styles.formInput}
                                 >
                                     <option value="">Selecione um operador (obrigatório se gerido por um)</option>
                                     {operadores.map(op => (
                                         <option key={op._id} value={op._id}>{op.displayName || op.email}</option>
                                     ))}
                                 </select>
-                            </div>
+                            </label>
                         </div>
 
-                        <div className={styles.formRow}>
-                            <div className={styles.formGroup}>
+                        <div className={modalStyles.row}>
+                            <div className={`${modalStyles.field} ${modalStyles.maskedField}`}>
                                 <MaskedInput
+                                    plain
                                     name="cep"
                                     label="CEP"
                                     value={formData.cep}
@@ -973,73 +1008,67 @@ export function ConcessionariasManagement() {
                                     placeholder="00000-000"
                                 />
                                 {isFetchingCep && (
-                                    <small className={styles.formHelper}>Buscando CEP...</small>
+                                    <small className={modalStyles.hint}>Buscando CEP...</small>
                                 )}
                                 {cepError && (
-                                    <small className={styles.errorText}>{cepError}</small>
+                                    <small className={modalStyles.fieldError}>{cepError}</small>
                                 )}
                                 {!isFetchingCep && !cepError && formData.cep.length === 8 && (
-                                    <small className={styles.formHelper}>Endereço preenchido automaticamente. Confirme os dados.</small>
+                                    <small className={modalStyles.hint}>Endereço preenchido automaticamente. Confirme os dados.</small>
                                 )}
                             </div>
-                            <div className={styles.formGroup}>
-                                <label>Número</label>
+                            <label className={modalStyles.field}>
+                                Número
                                 <input
                                     type="text"
                                     value={formData.numero}
                                     onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
-                                    className={styles.formInput}
                                 />
-                            </div>
-                            <div className={styles.formGroup}>
-                                <label>Complemento</label>
+                            </label>
+                            <label className={modalStyles.field}>
+                                Complemento
                                 <input
                                     type="text"
                                     value={formData.complemento}
                                     onChange={(e) => setFormData({ ...formData, complemento: e.target.value })}
-                                    className={styles.formInput}
                                     placeholder="Opcional"
                                 />
-                            </div>
+                            </label>
                         </div>
 
-                        <div className={styles.formRow}>
-                            <div className={styles.formGroup}>
-                                <label>Endereço</label>
+                        <div className={modalStyles.row}>
+                            <label className={modalStyles.field}>
+                                Endereço
                                 <input
                                     type="text"
                                     value={formData.endereco}
                                     onChange={(e) => setFormData({ ...formData, endereco: e.target.value })}
-                                    className={styles.formInput}
                                 />
-                            </div>
-                            <div className={styles.formGroup}>
-                                <label>Bairro</label>
+                            </label>
+                            <label className={modalStyles.field}>
+                                Bairro
                                 <input
                                     type="text"
                                     value={formData.bairro}
                                     onChange={(e) => setFormData({ ...formData, bairro: e.target.value })}
-                                    className={styles.formInput}
                                 />
-                            </div>
+                            </label>
                         </div>
 
-                        <div className={styles.formRow}>
-                            <div className={styles.formGroup}>
-                                <label>Cidade</label>
+                        <div className={modalStyles.row}>
+                            <label className={modalStyles.field}>
+                                Cidade
                                 <input
                                     type="text"
                                     value={formData.cidade}
                                     onChange={(e) => setFormData({ ...formData, cidade: e.target.value })}
-                                    className={styles.formInput}
                                 />
-                            </div>
-                            <div className={styles.formGroup}>
-                                <label>UF</label>
+                            </label>
+                            <label className={modalStyles.field}>
+                                UF
                                 <select
                                     value={formData.uf}
                                     onChange={(e) => setFormData({ ...formData, uf: e.target.value })}
-                                    className={styles.formInput}
                                 >
 
                                     <option value="">Selecione</option>
@@ -1071,23 +1100,22 @@ export function ConcessionariasManagement() {
                                     <option value="SP">SP</option>
                                     <option value="TO">TO</option>
                                 </select>
-                            </div>
+                            </label>
                         </div>
 
-                        <div className={styles.formRow}>
-                            <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
-                                <label>Observações</label>
+                        <div className={modalStyles.row}>
+                            <label className={`${modalStyles.field} ${modalStyles.span2}`}>
+                                Observações
                                 <textarea
                                     value={formData.observacoes}
                                     onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-                                    className={styles.textArea}
                                     rows={3}
                                     placeholder="Informações adicionais, acordos comerciais ou notas internas"
                                 />
-                            </div>
+                            </label>
                         </div>
                         {formError && (
-                            <div className={styles.errorText} role="alert">{formError}</div>
+                            <InlineNotice>{formError}</InlineNotice>
                         )}
                     </div>
                 </AdminModal>
@@ -1097,7 +1125,7 @@ export function ConcessionariasManagement() {
             {showAssociateModal && selectedConcessionariaForAssociate && (
                 <AdminModal
                     title="Associar veículos"
-                    subtitle={<><strong>Concessionária:</strong> {selectedConcessionariaForAssociate.nome}</>}
+                    subtitle={<>Veículos sem loja que passam para <strong>{selectedConcessionariaForAssociate.nome}</strong>.</>}
                     onClose={handleCloseAssociateModal}
                     size="xl"
                     footer={<>
@@ -1114,121 +1142,66 @@ export function ConcessionariasManagement() {
                             className={modalStyles.primary}
                             disabled={selectedVehicles.length === 0}
                         >
-                            Associar {selectedVehicles.length > 0 && `(${selectedVehicles.length})`}
+                            {selectedVehicles.length > 0 ? `Associar ${selectedVehicles.length}` : 'Associar'}
                         </button>
                     </>}
                 >
-                    <p style={{ margin: '0 0 1rem', color: 'var(--color-text-muted)' }}>
-                        Selecione os veículos sem concessionária para associar:
-                    </p>
-
                     {loadingVehicles ? (
-                        <p>Carregando veículos...</p>
+                        <table className={pageStyles.table}><tbody><SkeletonRows rows={4} columns={6} /></tbody></table>
                     ) : vehiclesWithoutConcessionaria.length === 0 ? (
-                        <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2rem' }}>
-                            Não há veículos sem concessionária associada.
-                        </p>
+                        <EmptyState icon={<CarFront size={20} />} title="Nenhum veículo sem concessionária" description="Todos os veículos do estoque já estão associados a uma loja." />
                     ) : (
-                        <>
-                            <div className={modalStyles.field} style={{ marginBottom: '1rem' }}>
-                                <input
-                                    type="text"
-                                    aria-label="Filtrar veículos"
-                                    placeholder="Filtrar por modelo ou contato..."
-                                    value={vehicleFilter}
-                                    onChange={(e) => setVehicleFilter(e.target.value)}
-                                />
-                            </div>
-                            <div style={{ marginBottom: '1rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
-                                <button
-                                    onClick={() => setSelectedVehicles(vehiclesWithoutConcessionaria.filter(v => {
-                                        const searchTerm = vehicleFilter.toLowerCase();
-                                        return v.modelo?.toLowerCase().includes(searchTerm) || v.nomeContato?.toLowerCase().includes(searchTerm);
-                                    }).map(v => v.id))}
-                                    type="button"
-                                    className={modalStyles.secondary}
-                                >
-                                    Selecionar todos
-                                </button>
-                                <button
-                                    onClick={() => setSelectedVehicles([])}
-                                    type="button"
-                                    className={modalStyles.secondary}
-                                >
-                                    Limpar seleção
-                                </button>
-                                <span style={{ marginLeft: 'auto', fontWeight: 'bold', color: 'var(--color-text)' }}>
-                                    {selectedVehicles.length} selecionado(s)
+                        <div className={modalStyles.stack}>
+                            <div className={pageStyles.modalToolbar}>
+                                <SearchField value={vehicleFilter} onChange={setVehicleFilter} placeholder="Filtrar por modelo ou contato" />
+                                <Button onClick={() => setSelectedVehicles(veiculosFiltrados.map(v => v.id))}>Selecionar todos</Button>
+                                <Button variant="ghost" onClick={() => setSelectedVehicles([])} disabled={selectedVehicles.length === 0}>Limpar seleção</Button>
+                                <span className={pageStyles.modalToolbarCount}>
+                                    <strong>{selectedVehicles.length}</strong> {selectedVehicles.length === 1 ? 'selecionado' : 'selecionados'}
                                 </span>
                             </div>
 
-                            <table className={styles.table} style={{ fontSize: '0.9rem' }}>
-                                <thead>
-                                    <tr>
-                                        <th style={{ width: '50px' }} aria-label="Selecionado"></th>
-                                        <th onClick={() => handleSort('modelo')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                                            MODELO {sortColumn === 'modelo' && (sortDirection === 'asc' ? '↑' : '↓')}
-                                        </th>
-                                        <th onClick={() => handleSort('ano')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                                            ANO {sortColumn === 'ano' && (sortDirection === 'asc' ? '↑' : '↓')}
-                                        </th>
-                                        <th onClick={() => handleSort('cor')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                                            COR {sortColumn === 'cor' && (sortDirection === 'asc' ? '↑' : '↓')}
-                                        </th>
-                                        <th onClick={() => handleSort('combustivel')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                                            COMBUSTÍVEL {sortColumn === 'combustivel' && (sortDirection === 'asc' ? '↑' : '↓')}
-                                        </th>
-                                        <th onClick={() => handleSort('cidade')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                                            CIDADE {sortColumn === 'cidade' && (sortDirection === 'asc' ? '↑' : '↓')}
-                                        </th>
-                                        <th onClick={() => handleSort('nomeContato')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                                            CONTATO {sortColumn === 'nomeContato' && (sortDirection === 'asc' ? '↑' : '↓')}
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {vehiclesWithoutConcessionaria
-                                        .filter(vehicle => {
-                                            if (!vehicleFilter) return true;
-                                            const searchTerm = vehicleFilter.toLowerCase();
-                                            return vehicle.modelo?.toLowerCase().includes(searchTerm) ||
-                                                vehicle.nomeContato?.toLowerCase().includes(searchTerm);
-                                        })
-                                        .sort((a, b) => {
-                                            if (!sortColumn) return 0;
-                                            const aValue = a[sortColumn] || '';
-                                            const bValue = b[sortColumn] || '';
-                                            const comparison = aValue.toString().localeCompare(bValue.toString(), 'pt-BR', { numeric: true });
-                                            return sortDirection === 'asc' ? comparison : -comparison;
-                                        })
-                                        .map((vehicle) => (
-                                            <tr key={vehicle.id} className={styles.tableRow}>
-                                                <td className={styles.tableCell} style={{ textAlign: 'center' }}>
+                            <div className={pageStyles.tableWrap}>
+                                <table className={pageStyles.table}>
+                                    <thead>
+                                        <tr>
+                                            <th className={pageStyles.shrink}><span className={pageStyles.srOnly}>Selecionar</span></th>
+                                            <SortHeader label="Modelo" column="modelo" sort={vehicleSort} onSort={handleSortVehicles} />
+                                            <SortHeader label="Ano" column="ano" sort={vehicleSort} onSort={handleSortVehicles} />
+                                            <SortHeader label="Cor" column="cor" sort={vehicleSort} onSort={handleSortVehicles} />
+                                            <SortHeader label="Combustível" column="combustivel" sort={vehicleSort} onSort={handleSortVehicles} />
+                                            <SortHeader label="Cidade" column="cidade" sort={vehicleSort} onSort={handleSortVehicles} />
+                                            <SortHeader label="Contato" column="nomeContato" sort={vehicleSort} onSort={handleSortVehicles} />
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {veiculosFiltrados.map((vehicle) => (
+                                            <tr key={vehicle.id} data-selected={selectedVehicles.includes(vehicle.id)} onClick={() => handleToggleVehicle(vehicle.id)} className={pageStyles.clickableRow}>
+                                                <td>
                                                     <input
                                                         type="checkbox"
+                                                        aria-label={`Selecionar ${vehicle.modelo}`}
                                                         checked={selectedVehicles.includes(vehicle.id)}
                                                         onChange={() => handleToggleVehicle(vehicle.id)}
+                                                        onClick={(e) => e.stopPropagation()}
                                                     />
                                                 </td>
-                                                <td className={styles.tableCell}>{vehicle.modelo}</td>
-                                                <td className={styles.tableCell}>{vehicle.ano}</td>
-                                                <td className={styles.tableCell}>{vehicle.cor}</td>
-                                                <td className={styles.tableCell}>{vehicle.combustivel}</td>
-                                                <td className={styles.tableCell}>{vehicle.cidade} - {vehicle.estado}</td>
-                                                <td className={styles.tableCell}>
-                                                    <div>{vehicle.nomeContato}</div>
-                                                    {vehicle.telefone && (
-                                                        <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>{vehicle.telefone}</div>
-                                                    )}
-                                                </td>
+                                                <td><strong>{vehicle.modelo}</strong></td>
+                                                <td>{vehicle.ano}</td>
+                                                <td>{vehicle.cor}</td>
+                                                <td>{vehicle.combustivel}</td>
+                                                <td>{[vehicle.cidade, vehicle.estado].filter(Boolean).join(' - ')}</td>
+                                                <td><TwoLine top={vehicle.nomeContato} bottom={vehicle.telefone || undefined} /></td>
                                             </tr>
                                         ))}
-                                </tbody>
-                            </table>
-                        </>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     )}
                 </AdminModal>
             )}
-        </div>
+            {feedback}
+        </Page>
     );
 }

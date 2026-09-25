@@ -158,15 +158,7 @@ export default function AdminDashboard() {
             case 'visao-geral':
                 return <VisaoGeralTab userInfo={userInfo} />;
             case 'usuarios':
-                return (
-                    <div className={styles.contentArea}>
-                        <h2 className={styles.title}>Equipe</h2>
-                        <p className={styles.subtitle} style={{ marginBottom: '1.5rem' }}>
-                            Acessos e permissões da equipe interna. Clientes são geridos no CRM.
-                        </p>
-                        <UsersTable onViewInCRM={(email) => { setActiveTab('crm'); setCrmHighlightEmail(email); }} />
-                    </div>
-                );
+                return <UsersTable onViewInCRM={(email) => { setActiveTab('crm'); setCrmHighlightEmail(email); }} />;
             case 'veiculos':
                 return <VehicleConsultation role={userInfo.profile as any || 'admin'} />;
             case 'estoque-concessionarias':
@@ -182,11 +174,7 @@ export default function AdminDashboard() {
                     </div>
                 );
             case 'concessionarias':
-                return (
-                    <div className={styles.contentArea}>
-                        <ConcessionariasManagement />
-                    </div>
-                );
+                return <ConcessionariasManagement />;
             case 'transportadoras':
                 return (
                     <div className={styles.contentArea}>
@@ -200,11 +188,7 @@ export default function AdminDashboard() {
                     </div>
                 );
             case 'planos':
-                return (
-                    <div className={styles.contentArea}>
-                        <PlansManagement />
-                    </div>
-                );
+                return <PlansManagement />;
             case 'cobrancas':
                 return (
                     <div className={styles.contentArea}>

@@ -1,631 +1,11 @@
-/* ── Container ─────────────────────────────────────── */
-.container {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-}
-
-/* ── Page Header ────────────────────────────────────── */
-.pageHeader {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 0.5rem;
-}
-
-.primaryHeaderBtn {
-    background: var(--color-accent);
-    color: #fff;
-    border: none;
-    padding: 0.75rem 1.5rem;
-    border-radius: 8px;
-    font-size: 0.95rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    white-space: nowrap;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.primaryHeaderBtn:hover {
-    opacity: 0.9;
-    transform: translateY(-1px);
-    box-shadow: 0 6px 8px -1px rgba(0, 0, 0, 0.15), 0 3px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-.primaryHeaderBtn:active {
-    transform: translateY(1px);
-    box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.08);
-}
-
-
-.title {
-    font-size: 1.875rem;
-    font-weight: 700;
-    color: var(--color-text);
-    margin: 0 0 0.5rem;
-}
-
-.subtitle {
-    color: var(--color-text-muted);
-    font-size: 1rem;
-    margin: 0 0 1.5rem;
-}
-
-/* ── Summary cards ──────────────────────────────────── */
-.summaryGrid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 1rem;
-}
-
-@media (max-width: 1100px) {
-    .summaryGrid {
-        grid-template-columns: repeat(3, 1fr);
-    }
-}
-
-@media (max-width: 700px) {
-    .summaryGrid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-/* Cartões são filtros. Cor só no ponto indicador: cinco cartões brilhando
-   coloridos competiam entre si e nenhum dizia o que era mais urgente. */
-.summaryCard {
-    background: var(--color-surface);
-    border: 1px solid var(--color-highlight);
-    border-radius: 12px;
-    padding: 0.85rem 1rem;
-    cursor: pointer;
-    transition: border-color 0.15s ease, background 0.15s ease;
-    text-align: left;
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-}
-
-.summaryCard:hover {
-    border-color: var(--color-text-muted);
-}
-
-.summaryCardActive {
-    border-color: var(--color-accent);
-    background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface));
-}
-
-.summaryValue {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: var(--color-text);
-    line-height: 1;
-    font-variant-numeric: tabular-nums;
-}
-
-.summaryLabel {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.72rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--color-text-muted);
-}
-
-.summaryDot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--color-text-muted);
-    flex-shrink: 0;
-}
-
-.cardActive .summaryDot { background: #22c55e; }
-.cardExpired .summaryDot { background: #ef4444; }
-.cardNoPlan .summaryDot { background: #f59e0b; }
-.cardCortesia .summaryDot { background: #a78bfa; }
-
-/* ── Toolbar ────────────────────────────────────────── */
-.toolbar {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    flex-wrap: wrap;
-}
-
-.tabs {
-    display: flex;
-    gap: 0;
-    background: var(--color-surface);
-    border: 1px solid var(--color-highlight);
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.tab {
-    height: 38px;
-    padding: 0 1rem;
-    border: none;
-    border-right: 1px solid var(--color-highlight);
-    background: transparent;
-    color: var(--color-text-muted);
-    font-size: 0.82rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
-    white-space: nowrap;
-}
-
-.tab:last-child {
-    border-right: none;
-}
-
-.tab:hover {
-    background: var(--color-highlight);
-    color: var(--color-text);
-}
-
-/* Ativo marcado por contraste de fundo, não por preenchimento âmbar: a cor
-   forte fazia o filtro parecer o elemento mais importante da tela. */
-.tabActive {
-    background: var(--color-highlight);
-    color: var(--color-accent) !important;
-    font-weight: 700;
-}
-
-.tabCortesia.tabActive {
-    color: #a78bfa !important;
-}
-
-.searchInput {
-    flex: 1;
-    min-width: 220px;
-    max-width: 380px;
-    height: 38px;
-    padding: 0 0.9rem;
-    border: 1px solid var(--color-highlight);
-    border-radius: 8px;
-    font-size: 0.875rem;
-    background: var(--color-bg);
-    color: var(--color-text);
-    outline: none;
-    transition: border-color 0.15s;
-}
-
-.searchInput::placeholder {
-    color: var(--color-text-muted);
-}
-
-.searchInput:focus {
-    border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
-}
-
-/* ── Table section ──────────────────────────────────── */
-.resultsSection {
-    background: var(--color-surface);
-    border: 1px solid var(--color-highlight);
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-}
-
-.clientGridHeader,
-.clientGridRow {
-    display: grid;
-    /* Cliente · Cadastro · Assinatura · Financeiro · Responsável · Ação */
-    grid-template-columns:
-        minmax(210px, 1.35fr)
-        minmax(96px, 0.5fr)
-        minmax(210px, 1.15fr)
-        minmax(126px, 0.65fr)
-        minmax(140px, 0.75fr)
-        minmax(120px, 0.5fr);
-    column-gap: 1rem;
-}
-
-.clientGridHeader {
-    align-items: center;
-    padding: 0.75rem 1.25rem;
-    border-bottom: 1px solid var(--color-highlight);
-    background: color-mix(in srgb, var(--color-bg) 72%, transparent);
-}
-
-.gridSort,
-.gridHeaderLabel {
-    min-width: 0;
-    padding: 0;
-    border: none;
-    background: transparent;
-    color: var(--color-text-muted);
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-align: left;
-    text-transform: uppercase;
-}
-
-.gridSort {
-    cursor: pointer;
-}
-
-.gridSort:hover {
-    color: var(--color-accent);
-}
-
-.clientGridList {
-    display: flex;
-    flex-direction: column;
-}
-
-.clientGridRow {
-    align-items: center;
-    min-width: 0;
-    padding: 0.7rem 1.25rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    cursor: pointer;
-    transition: background 0.15s ease, box-shadow 0.15s ease;
-}
-
-.clientGridRow:last-child {
-    border-bottom: none;
-}
-
-.clientGridRow:hover {
-    background: rgba(255, 255, 255, 0.035);
-}
-
-.clientGridRow:focus-visible {
-    position: relative;
-    z-index: 1;
-    outline: 2px solid var(--color-accent);
-    outline-offset: -2px;
-}
-
-.gridIdentity,
-.gridCreated,
-.gridSubscription,
-.gridPayment,
-.gridSeller,
-.gridActions {
-    min-width: 0;
-}
-
-.gridCreated {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.createdDate {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--color-text);
-    white-space: nowrap;
-}
-
-.createdAgo {
-    font-size: 0.72rem;
-    color: var(--color-text-muted);
-    white-space: nowrap;
-}
-
-.gridIdentity,
-.gridSubscription,
-.gridPayment {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-}
-
-.clientNameRow,
-.clientMetaRow,
-.subscriptionHeading {
-    display: flex;
-    align-items: center;
-    min-width: 0;
-}
-
-.clientNameRow {
-    gap: 0.45rem;
-}
-
-.clientEmail {
-    overflow: hidden;
-    color: var(--color-text-muted);
-    font-size: 0.78rem;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.clientMetaRow {
-    gap: 0.45rem;
-    min-height: 22px;
-}
-
-.whatsappAction {
-    width: 22px;
-    height: 22px;
-    flex: 0 0 22px;
-    background: rgba(37, 211, 102, 0.1);
-    border-color: transparent;
-}
-
-.profileMeta {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    margin-left: auto;
-    color: var(--color-text-muted);
-    font-size: 0.68rem;
-    font-weight: 700;
-    white-space: nowrap;
-}
-
-.profileTrack {
-    width: 42px;
-    height: 5px;
-    overflow: hidden;
-    border-radius: 999px;
-    background: var(--color-highlight);
-}
-
-.profileFill {
-    display: block;
-    height: 100%;
-    border-radius: inherit;
-    background: linear-gradient(90deg, #f59e0b, var(--color-positive, #2ecc71));
-}
-
-.subscriptionHeading {
-    gap: 0.4rem;
-}
-
-.planName {
-    overflow: hidden;
-    color: var(--color-text);
-    font-size: 0.84rem;
-    font-weight: 650;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.accessMeta,
-.paymentMeta {
-    overflow: hidden;
-    color: var(--color-text-muted);
-    font-size: 0.72rem;
-    line-height: 1.35;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.accessWarning {
-    color: #f59e0b;
-}
-
-.accessExpired {
-    color: var(--color-negative, #e74c3c);
-}
-
-.billingBadge,
-.paymentBadge {
-    display: inline-flex;
-    align-items: center;
-    width: fit-content;
-    border: 1px solid transparent;
-    border-radius: 999px;
-    font-size: 0.68rem;
-    font-weight: 700;
-    line-height: 1;
-    white-space: nowrap;
-}
-
-.billingBadge {
-    padding: 0.2rem 0.45rem;
-    border-color: rgba(16, 185, 129, 0.3);
-    background: rgba(16, 185, 129, 0.12);
-    color: #10b981;
-}
-
-.paymentBadge {
-    padding: 0.35rem 0.55rem;
-}
-
-.paymentBadge[data-payment='courtesy'] {
-    border-color: rgba(139, 92, 246, 0.35);
-    background: rgba(139, 92, 246, 0.15);
-    color: #a78bfa;
-}
-
-.paymentBadge[data-payment='pix'] {
-    border-color: rgba(16, 185, 129, 0.3);
-    background: rgba(16, 185, 129, 0.12);
-    color: #10b981;
-}
-
-.paymentBadge[data-payment='boleto'] {
-    border-color: rgba(148, 163, 184, 0.3);
-    background: rgba(100, 116, 139, 0.12);
-    color: #94a3b8;
-}
-
-.paymentBadge[data-payment='card'] {
-    border-color: rgba(59, 130, 246, 0.3);
-    background: rgba(59, 130, 246, 0.12);
-    color: #60a5fa;
-}
-
-.paymentBadge[data-payment='unlinked'] {
-    border-color: rgba(245, 158, 11, 0.3);
-    background: rgba(245, 158, 11, 0.12);
-    color: #f59e0b;
-}
-
 .sellerSelect {
-    width: 100%;
-    min-height: 34px;
-    padding: 0.4rem 1.75rem 0.4rem 0.6rem;
-    overflow: hidden;
-    border: 1px solid var(--color-highlight);
-    border-radius: 8px;
-    background: var(--color-bg);
-    color: var(--color-text);
-    cursor: pointer;
-    font-size: 0.75rem;
-    text-overflow: ellipsis;
-}
-
-.sellerSelect {
-    background: transparent;
-    border-color: transparent;
-    height: 32px;
-    transition: border-color 0.15s, background 0.15s;
-}
-
-.sellerSelect:hover {
-    border-color: var(--color-highlight);
-    background: var(--color-bg);
-}
-
-.sellerSelect:focus {
-    border-color: var(--color-accent);
-    background: var(--color-bg);
-    outline: none;
+    width: 100%; min-width: 160px; min-height: 36px !important;
+    font-size: 13.5px !important; color: var(--color-text); cursor: pointer;
 }
 
 .sellerSelect:disabled {
     cursor: wait;
     opacity: 0.65;
-}
-
-.gridActions {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.35rem;
-}
-
-.detailsButton {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.35rem;
-    min-height: 32px;
-    padding: 0.35rem 0.7rem;
-    border: 1px solid transparent;
-    border-radius: 8px;
-    background: transparent;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    font-size: 0.75rem;
-    font-weight: 700;
-    transition: background 0.15s, border-color 0.15s;
-    white-space: nowrap;
-}
-
-.detailsButton:hover {
-    border-color: var(--color-highlight);
-    background: var(--color-bg);
-    color: var(--color-text);
-}
-
-.mobileLabel {
-    display: none;
-}
-
-@media (max-width: 1180px) {
-    .clientGridHeader,
-    .clientGridRow {
-        /* Cliente · Cadastro · Assinatura · Responsável · Ação */
-        grid-template-columns:
-            minmax(200px, 1.3fr)
-            minmax(92px, 0.45fr)
-            minmax(200px, 1.15fr)
-            minmax(138px, 0.7fr)
-            minmax(116px, 0.5fr);
-    }
-
-    /* Financeiro é a 4ª coluna desde que Cadastro entrou — antes era a 3ª, e o
-       índice desatualizado esconderia a coluna errada. */
-    .gridPayment,
-    .clientGridHeader > :nth-child(4) {
-        display: none;
-    }
-}
-
-@media (max-width: 820px) {
-    .clientGridHeader {
-        display: none;
-    }
-
-    .clientGridRow {
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        gap: 0.9rem 1rem;
-        padding: 1rem;
-    }
-
-    .gridIdentity,
-    .gridActions {
-        grid-column: 1 / -1;
-    }
-
-    .gridIdentity {
-        padding-bottom: 0.9rem;
-        border-bottom: 1px solid var(--color-highlight);
-    }
-
-    .gridPayment {
-        display: flex;
-    }
-
-    .mobileLabel {
-        display: block;
-        margin-bottom: 0.05rem;
-        color: var(--color-text-muted);
-        font-size: 0.65rem;
-        font-weight: 700;
-        letter-spacing: 0.07em;
-        text-transform: uppercase;
-    }
-
-    .gridSeller {
-        display: flex;
-        flex-direction: column;
-        gap: 0.35rem;
-    }
-
-    .gridActions {
-        align-items: stretch;
-    }
-}
-
-@media (max-width: 560px) {
-    .clientGridRow {
-        grid-template-columns: minmax(0, 1fr);
-    }
-
-    .gridIdentity,
-    .gridActions {
-        grid-column: auto;
-    }
-
-    .profileMeta {
-        margin-left: 0;
-    }
-
-    .detailsButton {
-        width: 100%;
-    }
-}
-
-.tableContainer {
-    overflow-x: auto;
 }
 
 .table {
@@ -652,22 +32,13 @@
     text-overflow: ellipsis;
 }
 
-.sortable {
-    cursor: pointer;
-    user-select: none;
-}
-
-.sortable:hover {
-    color: var(--color-accent);
-}
-
 .tableRow {
     transition: background 0.2s ease;
     cursor: pointer;
 }
 
 .tableRow:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--admin-hover);
 }
 
 .tableCell {
@@ -676,95 +47,11 @@
     vertical-align: middle;
     overflow: hidden;
     text-overflow: ellipsis;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid var(--admin-border);
 }
 
 .tableRow:last-child .tableCell {
     border-bottom: none;
-}
-
-.rowExpired {
-    background: rgba(231, 76, 60, 0.06);
-}
-
-.rowExpired:hover {
-    background: rgba(231, 76, 60, 0.12);
-}
-
-.rowNoPlan {
-    background: rgba(241, 196, 15, 0.04);
-}
-
-.rowNoPlan:hover {
-    background: rgba(241, 196, 15, 0.09);
-}
-
-.rowWarn {
-    background: rgba(241, 196, 15, 0.06);
-}
-
-/* ── Cell contents ──────────────────────────────────── */
-.clientName {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.nameText {
-    font-weight: 500;
-    color: var(--color-text);
-    font-size: 0.85rem;
-    word-break: break-word;
-    letter-spacing: 0.01em;
-}
-
-.alertDot {
-    color: var(--color-negative, #e74c3c);
-    font-size: 0.6rem;
-}
-
-.warnDot {
-    font-size: 0.8rem;
-}
-
-.contactInfo {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.phone {
-    font-size: 0.75rem;
-    color: var(--color-text-muted);
-}
-
-.statusBadge {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.15rem 0.5rem;
-    border-radius: 999px;
-    font-size: 0.68rem;
-    font-weight: 600;
-}
-
-.muted {
-    color: var(--color-text-muted);
-}
-
-.cortesiaBadge {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    padding: 1px 7px;
-    border-radius: 999px;
-    font-size: 0.66rem;
-    font-weight: 700;
-    background: rgba(139, 92, 246, 0.15);
-    color: #a78bfa;
-    border: 1px solid rgba(139, 92, 246, 0.35);
-    white-space: nowrap;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
 }
 
 .daysHint {
@@ -775,7 +62,7 @@
 
 .credits {
     display: inline-block;
-    background: rgba(37, 99, 235, 0.18);
+    background: color-mix(in srgb, var(--color-accent) 16%, transparent);
     color: var(--color-accent);
     padding: 1px 9px;
     border-radius: 999px;
@@ -819,13 +106,13 @@
 }
 
 .textBtnDanger {
-    color: #ef4444;
-    border-color: rgba(239, 68, 68, 0.4);
+    color: var(--color-negative);
+    border-color: color-mix(in srgb, var(--color-negative) 40%, transparent);
 }
 
 .textBtnDanger:hover:not(:disabled) {
-    background: rgba(239, 68, 68, 0.08);
-    border-color: #ef4444;
+    background: color-mix(in srgb, var(--color-negative) 8%, transparent);
+    border-color: var(--color-negative);
 }
 
 .actionBtn {
@@ -841,174 +128,6 @@
     background: transparent;
     transition: all 0.2s ease;
     cursor: pointer;
-}
-
-.btnWhatsapp:hover {
-    background: rgba(46, 204, 113, 0.15);
-    border-color: var(--color-positive, #2ecc71);
-}
-
-.btnEmail:hover {
-    background: var(--color-highlight);
-    border-color: var(--color-accent);
-}
-
-.btnPlan:hover {
-    background: rgba(37, 99, 235, 0.15);
-    border-color: var(--color-accent);
-}
-
-.btnProfile:hover {
-    background: rgba(139, 92, 246, 0.15);
-    border-color: #8b5cf6;
-}
-
-.btnCharge {
-    background: rgba(231, 76, 60, 0.1);
-    border-color: rgba(231, 76, 60, 0.5);
-}
-
-.btnCharge:hover {
-    background: rgba(231, 76, 60, 0.22);
-    border-color: var(--color-negative, #e74c3c);
-}
-
-.btnCharge:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-/* ── Profile completion mini bar ───────────────────── */
-.completionCell {
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
-    white-space: nowrap;
-}
-
-.completionPct {
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: var(--color-text-muted);
-    min-width: 28px;
-}
-
-.emptyStateCell {
-    text-align: center;
-    padding: 3rem;
-    color: var(--color-text-muted);
-    font-style: italic;
-}
-
-.loading,
-.error {
-    padding: 3rem;
-    text-align: center;
-    color: var(--color-text-muted);
-    font-style: italic;
-}
-
-.error {
-    color: var(--color-negative, #e74c3c);
-}
-
-/* ── Detail overlay ─────────────────────────────────── */
-.overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.55);
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
-}
-
-.detailPanel {
-    background: var(--color-surface);
-    border: 1px solid var(--color-highlight);
-    border-radius: 16px;
-    padding: 2rem;
-    max-width: 500px;
-    width: 100%;
-    position: relative;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-}
-
-.closeBtn {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    background: var(--color-highlight);
-    border: 1px solid var(--color-highlight);
-    color: var(--color-text-muted);
-    cursor: pointer;
-    border-radius: 6px;
-    width: 30px;
-    height: 30px;
-    font-size: 0.875rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.15s;
-}
-
-.closeBtn:hover {
-    background: var(--color-bg);
-    color: var(--color-text);
-}
-
-.detailHeader {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-}
-
-.detailAvatar {
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    background: var(--color-accent);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.3rem;
-    font-weight: 700;
-    flex-shrink: 0;
-}
-
-.detailName {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--color-text);
-    margin: 0 0 6px;
-}
-
-.detailGrid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-    background: var(--color-bg);
-    border: 1px solid var(--color-highlight);
-    border-radius: 10px;
-    padding: 1rem;
-}
-
-.detailItem {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.detailLabel {
-    font-size: 0.72rem;
-    color: var(--color-text-muted);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
 }
 
 .detailActions {
@@ -1035,27 +154,27 @@
 }
 
 .btnWhatsappLg {
-    background: rgba(46, 204, 113, 0.2);
-    color: var(--color-positive, #2ecc71);
-    border: 1px solid rgba(46, 204, 113, 0.4);
+    background: color-mix(in srgb, var(--color-positive) 14%, transparent);
+    color: var(--color-positive);
+    border: 1px solid color-mix(in srgb, var(--color-positive) 40%, transparent);
 }
 
 .btnEmailLg {
-    background: rgba(37, 99, 235, 0.2);
+    background: color-mix(in srgb, var(--color-accent) 16%, transparent);
     color: var(--color-accent);
-    border: 1px solid rgba(37, 99, 235, 0.4);
+    border: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent);
 }
 
 .btnPlanLg {
-    background: rgba(37, 99, 235, 0.2);
+    background: color-mix(in srgb, var(--color-accent) 16%, transparent);
     color: var(--color-accent);
-    border: 1px solid rgba(37, 99, 235, 0.4);
+    border: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent);
 }
 
 .btnChargeLg {
-    background: rgba(231, 76, 60, 0.15);
-    color: var(--color-negative, #e74c3c);
-    border: 1px solid rgba(231, 76, 60, 0.4);
+    background: color-mix(in srgb, var(--color-negative) 12%, transparent);
+    color: var(--color-negative);
+    border: 1px solid color-mix(in srgb, var(--color-negative) 40%, transparent);
 }
 
 .btnChargeLg:disabled {
@@ -1064,9 +183,9 @@
 }
 
 .btnProfileLg {
-    background: rgba(139, 92, 246, 0.15);
-    color: #8b5cf6;
-    border: 1px solid rgba(139, 92, 246, 0.4);
+    background: var(--color-panel);
+    color: var(--color-text);
+    border: 1px solid var(--admin-border);
     text-decoration: none;
 }
 
@@ -1086,44 +205,6 @@
     border-color: var(--color-accent);
 }
 
-.chargeOk {
-    margin-top: 4px;
-    font-size: 0.75rem;
-    color: var(--color-positive, #2ecc71);
-}
-
-.chargeErr {
-    margin-top: 4px;
-    font-size: 0.75rem;
-    color: var(--color-negative, #e74c3c);
-}
-
-/* ── Client detail modal (redesigned) ───────────────── */
-.clientModal {
-    background: var(--color-surface);
-    border: 1px solid var(--color-highlight);
-    border-radius: 16px;
-    max-width: 760px;
-    width: 100%;
-    position: relative;
-    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
-    max-height: 90vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-/* Cabeçalho sem gradiente nem avatar colorido: a cor agora significa estado
-   (ativo, expirado, sem plano), não decoração. */
-.clientModalHeader {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.9rem;
-    padding: 1.1rem 1.35rem;
-    border-bottom: 1px solid var(--color-highlight);
-    flex-shrink: 0;
-}
-
 .clientModalAvatar {
     width: 42px;
     height: 42px;
@@ -1136,14 +217,6 @@
     font-size: 1.05rem;
     font-weight: 700;
     flex-shrink: 0;
-}
-
-.clientModalTitleRow {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    flex-wrap: wrap;
-    min-width: 0;
 }
 
 /* Plano, vencimento e forma de pagamento sempre visíveis. */
@@ -1203,6 +276,7 @@
 }
 
 .clientModalBody::-webkit-scrollbar { width: 6px; }
+
 .clientModalBody::-webkit-scrollbar-thumb { background: var(--admin-border, var(--color-highlight)); border-radius: 3px; }
 
 /* Seções de leitura: sem caixas cinza, só título, grade e divisória. */
@@ -1281,6 +355,7 @@
 }
 
 .successBox strong { display: block; color: var(--color-positive); font-size: 14px; }
+
 .successBox p { margin: 6px 0; }
 
 .passwordBox {
@@ -1298,6 +373,7 @@
 @media (max-width: 640px) {
     .clientFormGrid { grid-template-columns: minmax(0, 1fr); }
     .headerFacts { gap: 16px; }
+
 }
 
 .clientActionsGrid {
@@ -1324,7 +400,7 @@
 .renewalTip {
     background: var(--color-bg);
     border: 1px solid var(--color-highlight);
-    border-left: 3px solid #f59e0b;
+    border-left: 3px solid var(--color-warning);
     border-radius: 8px;
     padding: 0.75rem 0.9rem;
     font-size: 0.82rem;
@@ -1338,25 +414,38 @@
 }
 
 .renewalTip {
-    border-left-color: #ef4444;
+    border-left-color: var(--color-negative);
 }
 
-
-/* Shared administration design; other profiles keep their existing presentation. */
-:global([data-admin-design]) .primaryHeaderBtn { background: var(--color-accent); color: var(--admin-on-accent); border: 1px solid transparent; border-radius: 8px; min-height: 40px; padding: 10px 16px; font-size: 14px; font-weight: 600; box-shadow: none; }
 :global([data-admin-design]) .detailBtn,
-:global([data-admin-design]) .detailsButton,
 :global([data-admin-design]) .textBtn { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--admin-border); border-radius: 8px; box-shadow: none; font-weight: 500; }
-:global([data-admin-design]) .detailPanel,
-:global([data-admin-design]) .summaryCard,
-:global([data-admin-design]) .tableContainer { background: var(--color-surface); border: 1px solid var(--admin-border); border-radius: 12px; box-shadow: var(--admin-shadow); }
-:global([data-admin-design]) .searchInput { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--admin-border); border-radius: 8px; min-height: 40px; }
-:global([data-admin-design]) .title { font-size: 28px; font-weight: 650; letter-spacing: -.035em; }
-:global([data-admin-design]) .summaryCardActive,
-:global([data-admin-design]) .tabActive { color: var(--admin-selected-text) !important; background: var(--admin-selected); border-color: var(--color-accent); }
+
 :global([data-admin-design]) .table th { background: var(--color-panel); color: var(--color-text-muted); font-size: 12px; font-weight: 600; text-transform: none; padding: 12px 16px; border: 0; border-bottom: 1px solid var(--admin-border); }
+
 :global([data-admin-design]) .table td { padding: 14px 16px; border: 0; border-bottom: 1px solid var(--admin-border); font-size: 14px; line-height: 1.45; }
+
 :global([data-admin-design]) .tableHeader { background: var(--color-panel); color: var(--color-text-muted); text-transform: none; font-size: 12px; font-weight: 600; }
-@media (max-width: 768px) {
-:global([data-admin-design]) .title { font-size: 23px; }
+
+.fullRow { grid-column: 1 / -1; }
+
+.noticeGap { margin-bottom: 12px; }
+
+.dangerTitle { color: var(--color-negative); }
+
+.passwordBox {
+    display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; padding: 14px 16px; border-radius: 10px;
+    background: color-mix(in srgb, var(--color-positive) 9%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-positive) 30%, transparent);
+    color: var(--color-text); font-size: 14px;
+}
+
+.passwordBox strong { color: var(--color-positive); }
+
+.passwordBox span { color: var(--color-text-muted); font-size: 13px; }
+
+.passwordValue {
+    margin-top: 4px; padding: 10px 14px; border-radius: 8px; text-align: center;
+    background: var(--color-surface); border: 1px solid var(--admin-border);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 18px; letter-spacing: .12em; color: var(--color-text);
+    user-select: all;
 }
