@@ -1,5 +1,7 @@
 export interface HomeTopModel {
     name: string;
+    /** Marca da variação (ex.: TOYOTA), para a linha da home mostrar embaixo do modelo. */
+    brand?: string;
     estado: string;
     avgPrice: number;
     count: number;
@@ -66,6 +68,7 @@ export function buildHomeStockPipeline(): any[] {
                     {
                         $group: {
                             _id: { modelo: '$variation.modelo', uf: { $toUpper: '$conc.uf' } },
+                            marca: { $first: '$variation.marca' },
                             unidades: { $sum: { $ifNull: ['$quantidade', 0] } },
                             somaPreco: { $sum: '$preco' },
                             anuncios: { $sum: 1 },
@@ -74,6 +77,7 @@ export function buildHomeStockPipeline(): any[] {
                     {
                         $group: {
                             _id: '$_id.modelo',
+                            marca: { $first: '$marca' },
                             unidades: { $sum: '$unidades' },
                             somaPreco: { $sum: '$somaPreco' },
                             anuncios: { $sum: '$anuncios' },
@@ -110,6 +114,7 @@ export function mapHomeStockSummary(resultado: any[], variacoesAtivas: number): 
             );
             return {
                 name: m._id as string,
+                brand: m.marca ? String(m.marca) : undefined,
                 estado: (ufTop?.uf ?? '').toString().slice(0, 2),
                 avgPrice: m.anuncios > 0 ? m.somaPreco / m.anuncios : 0,
                 count: m.unidades as number,

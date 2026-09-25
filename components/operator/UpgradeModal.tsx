@@ -9,6 +9,7 @@ import { MaskedInput } from '@/components/operator/MaskedInput';
 import { CardPaymentForm, type CardFormData } from '@/components/operator/CardPaymentForm';
 import { getUserProfile, updateUserProfile, UserProfileData } from '@/app/dashboard/profile/actions';
 import { validateCPF } from '@/lib/utils/cpf';
+import { dividirNomePlano, itensDoPlano } from '@/lib/utils/planoTexto';
 
 interface Plan {
     id: string;
@@ -74,29 +75,6 @@ function getMpErrorMessage(statusDetail?: string, serverError?: string): string 
         return serverError;
     }
     return 'A cobrança foi recusada pelo banco. Tente novamente ou use outro cartão.';
-}
-
-/** Texto cadastrado todo em maiúsculas vira frase normal, mantendo siglas como 0KM. */
-function textoLegivel(texto: string) {
-    const limpo = texto.replace(/\s+([,.)])/g, '$1').replace(/\(\s+/g, '(').replace(/\s{2,}/g, ' ').trim();
-    if (/[a-zà-ú]/.test(limpo)) return limpo;
-    const frase = limpo.toLocaleLowerCase('pt-BR');
-    return (frase.charAt(0).toLocaleUpperCase('pt-BR') + frase.slice(1)).replace(/\b0km\b/gi, '0KM');
-}
-
-/** "PLANO PLUS - ACESSO TOTAL AO SISTEMA" vira título "Plano Plus" e resumo "Acesso total ao sistema". */
-function dividirNomePlano(nome: string) {
-    const [titulo, ...resto] = nome.split(/\s+-\s+/);
-    const tituloLegivel = /[a-zà-ú]/.test(titulo)
-        ? titulo.trim()
-        : titulo.trim().toLocaleLowerCase('pt-BR').replace(/(^|\s)(\S)/g, (_, esp: string, letra: string) => esp + letra.toLocaleUpperCase('pt-BR'));
-    return { titulo: tituloLegivel, resumo: resto.length ? textoLegivel(resto.join(' - ')) : '' };
-}
-
-/** A descrição do plano vira lista: cada trecho separado por "+" ou " - " é um item. */
-function itensDoPlano(descricao?: string) {
-    if (!descricao) return [];
-    return descricao.split(/\s+[+]\s+|\s+-\s+|\n+/).map(textoLegivel).filter(Boolean);
 }
 
 export function UpgradeModal({ onClose, initialPlanId, initialBilling, locked = false, paidOnly = false, pixOnly = false, title, subtitle, showLogout = false }: UpgradeModalProps) {
