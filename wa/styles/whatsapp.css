@@ -315,12 +315,23 @@
   --color-brand-700: var(--admin-selected-text);
   --color-brand-800: var(--admin-selected-text);
 }
+/* Botão principal igual ao do painel: azul-marinho no claro, amarelo no escuro. */
 [data-admin-design] .wa-scope .btn-primary,
 [data-admin-design] .wa-scope .btn-dark {
-  background: var(--color-accent);
-  color: #102333;
+  background: var(--color-primary);
+  color: var(--color-surface);
   border-radius: 8px;
 }
+[data-admin-design] .wa-scope .btn-primary:hover:not(:disabled),
+[data-admin-design] .wa-scope .btn-dark:hover:not(:disabled) {
+  background: var(--color-primary);
+  filter: brightness(1.12);
+}
+[data-admin-design] .wa-scope .btn-ghost { border-radius: 8px; border-color: var(--admin-border); }
+
+/* Componentes da zerokm dentro do módulo (confirmação, aviso): sem caixa
+   própria e fora do preflight escopado. */
+.wa-scope .zk-ui { display: contents; }
 [data-admin-design] .wa-scope .pill-active {
   background: var(--admin-selected);
   color: var(--admin-selected-text);

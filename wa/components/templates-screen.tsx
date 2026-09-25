@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
 import { AlertTriangle, Loader2, Plus, Send, Trash2 } from "lucide-react";
+import { useFeedback } from "@/components/ui/Feedback";
 
 type Template = {
   id: string;
@@ -38,6 +39,7 @@ function variablesOf(text: string): number[] {
 }
 
 export function TemplatesScreen() {
+  const { confirm: confirmar, notify, feedback } = useFeedback();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -118,13 +120,13 @@ export function TemplatesScreen() {
   }
 
   async function remove(templateName: string) {
-    if (!confirm(`Excluir o template "${templateName}" na Meta? Isso não pode ser desfeito.`)) return;
+    if (!(await confirmar({ title: `Excluir o template "${templateName}"?`, description: "Ele é apagado na Meta e não pode ser recuperado.", confirmLabel: "Excluir template", danger: true }))) return;
     const res = await fetch(`/api/wa/templates?name=${encodeURIComponent(templateName)}`, {
       method: "DELETE",
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      alert(data.error ?? "Falha ao excluir");
+      notify(data.error ?? "Falha ao excluir o template.");
       return;
     }
     await load();
@@ -358,6 +360,7 @@ export function TemplatesScreen() {
           </div>
         )}
       </section>
+      <div className="zk-ui">{feedback}</div>
     </div>
   );
 }

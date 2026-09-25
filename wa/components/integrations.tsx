@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { EVENT_TYPES, type EventType } from "@wa/lib/events";
 import { dateTime, formatNumber, timeAgo } from "@wa/lib/stages";
+import { useFeedback } from "@/components/ui/Feedback";
 
 type ApiKey = {
   id: string;
@@ -60,6 +61,7 @@ type Endpoint = {
 };
 
 export function Integrations() {
+  const { confirm: confirmar, feedback } = useFeedback();
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [endpoints, setEndpoints] = useState<Endpoint[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -125,7 +127,7 @@ export function Integrations() {
   }
 
   async function revogar(k: ApiKey) {
-    if (!confirm(`Revogar a chave "${k.name}"? Ela para de funcionar na hora.`)) return;
+    if (!(await confirmar({ title: `Revogar a chave "${k.name}"?`, description: "Ela para de funcionar na hora para quem estiver usando.", confirmLabel: "Revogar chave", danger: true }))) return;
     await fetch(`/api/wa/integrations/keys/${k.id}`, { method: "DELETE" });
     await load();
   }
@@ -157,7 +159,7 @@ export function Integrations() {
   }
 
   async function apagar(e: Endpoint) {
-    if (!confirm(`Remover o webhook ${e.url}?`)) return;
+    if (!(await confirmar({ title: "Remover este webhook?", description: `Os eventos deixam de ser enviados para ${e.url}.`, confirmLabel: "Remover webhook", danger: true }))) return;
     await fetch(`/api/wa/integrations/webhooks/${e.id}`, { method: "DELETE" });
     await load();
   }
@@ -422,6 +424,7 @@ export function Integrations() {
           </ul>
         )}
       </div>
+      <div className="zk-ui">{feedback}</div>
     </section>
   );
 }

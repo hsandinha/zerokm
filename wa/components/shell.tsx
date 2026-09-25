@@ -17,6 +17,7 @@ import {
   LayoutDashboard,
   LayoutTemplate,
   ChevronLeft,
+  ChevronRight,
   LogOut,
   Megaphone,
   MoreHorizontal,
@@ -376,7 +377,20 @@ export function Shell({ children }: { children: React.ReactNode }) {
               <BrandMark className="h-8 w-8 text-ink-900" />
               <span className="brand-kicker">CNV</span>
             </Link>
-            <h2 className="hidden shrink-0 text-base font-bold md:block">{current?.label ?? ""}</h2>
+            {/* Mesmo caminho do topo das outras telas do painel: Administração › WhatsApp › tela. */}
+            <nav aria-label="Você está em" className="hidden min-w-0 shrink-0 items-center gap-1.5 text-sm text-muted md:flex">
+              <Link href="/dashboard/admin" className="whitespace-nowrap transition hover:text-ink-900">Administração</Link>
+              <ChevronRight size={14} className="shrink-0 opacity-60" aria-hidden="true" />
+              {current ? (
+                <>
+                  <Link href="/dashboard/admin/whatsapp/visao-geral" className="whitespace-nowrap transition hover:text-ink-900">WhatsApp</Link>
+                  <ChevronRight size={14} className="shrink-0 opacity-60" aria-hidden="true" />
+                  <span aria-current="page" className="truncate font-semibold text-ink-900">{current.label}</span>
+                </>
+              ) : (
+                <span aria-current="page" className="font-semibold text-ink-900">WhatsApp</span>
+              )}
+            </nav>
 
             <form onSubmit={onSearch} className="ml-auto hidden w-full max-w-md sm:block">
               <label className="relative block">

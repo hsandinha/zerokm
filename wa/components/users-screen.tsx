@@ -21,6 +21,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { dateTime, timeAgo } from "@wa/lib/stages";
+import { useFeedback } from "@/components/ui/Feedback";
 
 type PanelUser = {
   email: string;
@@ -39,6 +40,7 @@ const ROLE_HINT: Record<"admin" | "operador", string> = {
 };
 
 export function UsersScreen() {
+  const { confirm: confirmar, feedback } = useFeedback();
   const [users, setUsers] = useState<PanelUser[] | null>(null);
   const [bootstrap, setBootstrap] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -104,7 +106,7 @@ export function UsersScreen() {
   }
 
   async function remover(u: PanelUser) {
-    if (!confirm(`Remover o acesso de ${u.email} ao painel? A conta na CNV continua existindo.`)) {
+    if (!(await confirmar({ title: "Remover o acesso ao painel?", description: `${u.email} deixa de entrar no módulo WhatsApp. A conta na CNV continua existindo.`, confirmLabel: "Remover acesso", danger: true }))) {
       return;
     }
     setErro(null);
@@ -243,6 +245,7 @@ export function UsersScreen() {
         Remover daqui tira só a permissão de operar o painel — a conta na CNV continua valendo para
         o site. As travas impedem remover ou rebaixar o último administrador.
       </p>
+      <div className="zk-ui">{feedback}</div>
     </div>
   );
 }

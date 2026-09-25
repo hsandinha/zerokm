@@ -19,6 +19,7 @@ import { PARAM_LABEL, type ParamMapItem, type ParamType } from "@wa/lib/campaign
 import { REENVIO_LABEL, metaErrorInfo } from "@wa/lib/meta-errors";
 import { formatPhoneBr } from "@wa/lib/phone";
 import { dateTime, formatNumber, percent } from "@wa/lib/stages";
+import { useFeedback } from "@/components/ui/Feedback";
 
 type Campaign = {
   id: string;
@@ -100,6 +101,7 @@ function ErroMeta({ erro }: { erro: string }) {
 }
 
 export function CampaignDetail({ id, statusInicial }: { id: string; statusInicial?: string }) {
+  const { confirm: confirmar, feedback } = useFeedback();
   const [data, setData] = useState<Payload | null>(null);
   const [filtro, setFiltro] = useState(statusInicial ?? "todos");
   const [erro, setErro] = useState<string | null>(null);
@@ -123,7 +125,7 @@ export function CampaignDetail({ id, statusInicial }: { id: string; statusInicia
   }, [load]);
 
   async function acao(action: "iniciar" | "pausar" | "retomar" | "cancelar") {
-    if (action === "cancelar" && !confirm("Cancelar a campanha? O que não saiu não sai mais.")) {
+    if (action === "cancelar" && !(await confirmar({ title: "Cancelar a campanha?", description: "As mensagens que ainda não saíram não serão mais enviadas.", confirmLabel: "Cancelar campanha", cancelLabel: "Voltar", danger: true }))) {
       return;
     }
     setAgindo(true);
@@ -399,6 +401,7 @@ export function CampaignDetail({ id, statusInicial }: { id: string; statusInicia
           </p>
         )}
       </div>
+      <div className="zk-ui">{feedback}</div>
     </div>
   );
 }

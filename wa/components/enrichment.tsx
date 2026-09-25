@@ -47,6 +47,7 @@ import { formatCnpj, formatCpf, formatDocument, isValidCnpj, isValidCpf, matches
 import { formatPhoneBr } from "@wa/lib/phone";
 import { dateTime, initials, timeAgo } from "@wa/lib/stages";
 import type { CnpjState, CpfState, LookupMeta, PartnerContactRow, PartnerState } from "@wa/lib/enrichment";
+import { useFeedback } from "@/components/ui/Feedback";
 
 type Participation = {
   cnpj: string;
@@ -212,6 +213,7 @@ function parseCpfLine(line: string): CpfEntry | null {
 }
 
 export function Enrichment() {
+  const { confirm: confirmar, feedback } = useFeedback();
   const [mode, setMode] = useState<"cnpj" | "cpf">("cnpj");
   const [input, setInput] = useState("");
   const [cpfInput, setCpfInput] = useState("");
@@ -441,9 +443,11 @@ export function Enrichment() {
     const body = await res.json().catch(() => ({}));
     // Consultado há pouco: só segue se a pessoa confirmar o gasto.
     if (res.status === 409 && body.kind === "repeat") {
-      const ok = window.confirm(
-        `Este CNPJ já foi pesquisado ${body.refreshedAt ? `em ${new Date(body.refreshedAt).toLocaleString("pt-BR")}` : "há pouco"}.\n\nConsultar de novo gasta uma nova consulta na Procob. Continuar?`,
-      );
+      const ok = await confirmar({
+        title: "Consultar este CNPJ de novo?",
+        description: `Ele já foi pesquisado ${body.refreshedAt ? `em ${new Date(body.refreshedAt).toLocaleString("pt-BR")}` : "há pouco"}. Uma nova consulta gasta crédito na Procob.`,
+        confirmLabel: "Consultar de novo",
+      });
       upsertResult(cnpj, (r) => ({ ...(r ?? placeholder(cnpj)), loading: false }));
       if (!ok) {
         await loadCached(cnpj);
@@ -683,9 +687,11 @@ export function Enrichment() {
     });
     const body = await res.json().catch(() => ({}));
     if (res.status === 409 && body.kind === "repeat") {
-      const ok = window.confirm(
-        `Este CPF já foi pesquisado ${body.refreshedAt ? `em ${new Date(body.refreshedAt).toLocaleString("pt-BR")}` : "há pouco"}.\n\nConsultar de novo gasta uma nova consulta na Procob. Continuar?`,
-      );
+      const ok = await confirmar({
+        title: "Consultar este CPF de novo?",
+        description: `Ele já foi pesquisado ${body.refreshedAt ? `em ${new Date(body.refreshedAt).toLocaleString("pt-BR")}` : "há pouco"}. Uma nova consulta gasta crédito na Procob.`,
+        confirmLabel: "Consultar de novo",
+      });
       upsertCpf(cpf, (r) => ({ ...(r ?? cpfPlaceholder(cpf)), loading: false }));
       if (!ok) {
         await loadCachedCpf(cpf);
@@ -1274,6 +1280,7 @@ export function Enrichment() {
           })}
         </div>
       </div>
+      <div className="zk-ui">{feedback}</div>
     </div>
   );
 }

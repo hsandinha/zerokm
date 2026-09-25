@@ -14,6 +14,7 @@ import {
 } from "@wa/lib/campaign-status";
 import { describeWindow } from "@wa/lib/send-window";
 import { dateTime, formatNumber, percent } from "@wa/lib/stages";
+import { useFeedback } from "@/components/ui/Feedback";
 
 type Campaign = {
   id: string;
@@ -50,6 +51,7 @@ const SOURCE_LABEL: Record<string, string> = {
 const POLL_MS = 8000;
 
 export function Campaigns() {
+  const { confirm: confirmar, feedback } = useFeedback();
   const [campaigns, setCampaigns] = useState<Campaign[] | null>(null);
   const [agindo, setAgindo] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -72,7 +74,7 @@ export function Campaigns() {
   }, [load]);
 
   async function acao(c: Campaign, action: "iniciar" | "pausar" | "retomar" | "cancelar") {
-    if (action === "cancelar" && !confirm(`Cancelar "${c.name}"? O que não saiu não sai mais.`)) {
+    if (action === "cancelar" && !(await confirmar({ title: `Cancelar "${c.name}"?`, description: "As mensagens que ainda não saíram não serão mais enviadas.", confirmLabel: "Cancelar campanha", cancelLabel: "Voltar", danger: true }))) {
       return;
     }
     setAgindo(c.id);
@@ -253,6 +255,7 @@ export function Campaigns() {
           })}
         </div>
       )}
+      <div className="zk-ui">{feedback}</div>
     </div>
   );
 }

@@ -4,9 +4,12 @@
  * página. Na zerokm isso reescreveria o painel inteiro, que não usa Tailwind —
  * por isso cada seletor daqui vive dentro de `.wa-scope`.
  *
- * A especificidade é deliberada: `.wa-scope :where(x)` vale (0,1,0), o que
+ * A especificidade é deliberada: `.wa-scope :where(x):not(:where(.zk-ui, .zk-ui *))` vale (0,1,0), o que
  * ganha do CSS global da zerokm (`th, td`, `a`, `table` — seletores de
  * elemento) e perde dos utilitários do Tailwind, exatamente como no original.
+ *
+ * Nada daqui vale dentro de `.zk-ui`: é onde o módulo mostra componentes da
+ * zerokm (confirmação e aviso do painel), que trazem o próprio estilo.
  *
  * GERADO a partir de node_modules/tailwindcss/preflight.css. Ao subir o
  * Tailwind de versão, vale regerar em vez de editar à mão.
@@ -18,7 +21,7 @@
   3. Reset all borders.
 */
 .wa-scope,
-.wa-scope :where(*),
+.wa-scope :where(*):not(:where(.zk-ui, .zk-ui *)),
 .wa-scope :where(::after),
 .wa-scope :where(::before),
 .wa-scope :where(::backdrop),
@@ -51,7 +54,7 @@
   2. Correct the inheritance of border color in Firefox. (https://bugzilla.mozilla.org/show_bug.cgi?id=190655)
   3. Reset the default border style to a 1px solid border.
 */
-.wa-scope :where(hr) {
+.wa-scope :where(hr):not(:where(.zk-ui, .zk-ui *)) {
   height: 0; /* 1 */
   color: inherit; /* 2 */
   border-top-width: 1px; /* 3 */
@@ -60,7 +63,7 @@
 /*
   Add the correct text decoration in Chrome, Edge, and Safari.
 */
-.wa-scope :where(abbr:where([title])) {
+.wa-scope :where(abbr:where([title])):not(:where(.zk-ui, .zk-ui *)) {
   -webkit-text-decoration: underline dotted;
   text-decoration: underline dotted;
 }
@@ -68,12 +71,12 @@
 /*
   Remove the default font size and weight for headings.
 */
-.wa-scope :where(h1),
-.wa-scope :where(h2),
-.wa-scope :where(h3),
-.wa-scope :where(h4),
-.wa-scope :where(h5),
-.wa-scope :where(h6) {
+.wa-scope :where(h1):not(:where(.zk-ui, .zk-ui *)),
+.wa-scope :where(h2):not(:where(.zk-ui, .zk-ui *)),
+.wa-scope :where(h3):not(:where(.zk-ui, .zk-ui *)),
+.wa-scope :where(h4):not(:where(.zk-ui, .zk-ui *)),
+.wa-scope :where(h5):not(:where(.zk-ui, .zk-ui *)),
+.wa-scope :where(h6):not(:where(.zk-ui, .zk-ui *)) {
   font-size: inherit;
   font-weight: inherit;
 }
@@ -81,7 +84,7 @@
 /*
   Reset links to optimize for opt-in styling instead of opt-out.
 */
-.wa-scope :where(a) {
+.wa-scope :where(a):not(:where(.zk-ui, .zk-ui *)) {
   color: inherit;
   -webkit-text-decoration: inherit;
   text-decoration: inherit;
@@ -90,8 +93,8 @@
 /*
   Add the correct font weight in Edge and Safari.
 */
-.wa-scope :where(b),
-.wa-scope :where(strong) {
+.wa-scope :where(b):not(:where(.zk-ui, .zk-ui *)),
+.wa-scope :where(strong):not(:where(.zk-ui, .zk-ui *)) {
   font-weight: bolder;
 }
 
@@ -101,10 +104,10 @@
   3. Use the user's configured `mono` font-variation-settings by default.
   4. Correct the odd `em` font sizing in all browsers.
 */
-.wa-scope :where(code),
-.wa-scope :where(kbd),
-.wa-scope :where(samp),
-.wa-scope :where(pre) {
+.wa-scope :where(code):not(:where(.zk-ui, .zk-ui *)),
+.wa-scope :where(kbd):not(:where(.zk-ui, .zk-ui *)),
+.wa-scope :where(samp):not(:where(.zk-ui, .zk-ui *)),
+.wa-scope :where(pre):not(:where(.zk-ui, .zk-ui *)) {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; /* 1 */ /* 2 */ /* 3 */
   font-size: 1em; /* 4 */
 }
@@ -112,24 +115,24 @@
 /*
   Add the correct font size in all browsers.
 */
-.wa-scope :where(small) {
+.wa-scope :where(small):not(:where(.zk-ui, .zk-ui *)) {
   font-size: 80%;
 }
 
 /*
   Prevent `sub` and `sup` elements from affecting the line height in all browsers.
 */
-.wa-scope :where(sub),
-.wa-scope :where(sup) {
+.wa-scope :where(sub):not(:where(.zk-ui, .zk-ui *)),
+.wa-scope :where(sup):not(:where(.zk-ui, .zk-ui *)) {
   font-size: 75%;
   line-height: 0;
   position: relative;
   vertical-align: baseline;
 }
-.wa-scope :where(sub) {
+.wa-scope :where(sub):not(:where(.zk-ui, .zk-ui *)) {
   bottom: -0.25em;
 }
-.wa-scope :where(sup) {
+.wa-scope :where(sup):not(:where(.zk-ui, .zk-ui *)) {
   top: -0.5em;
 }
 
@@ -138,7 +141,7 @@
   2. Correct table border color inheritance in all Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=935729, https://bugs.webkit.org/show_bug.cgi?id=195016)
   3. Remove gaps between table borders by default.
 */
-.wa-scope :where(table) {
+.wa-scope :where(table):not(:where(.zk-ui, .zk-ui *)) {
   text-indent: 0; /* 1 */
   border-color: inherit; /* 2 */
   border-collapse: collapse; /* 3 */
@@ -147,30 +150,30 @@
 /*
   Use the modern Firefox focus style for all focusable elements.
 */
-.wa-scope :where(:-moz-focusring:where(:not(iframe))) {
+.wa-scope :where(:-moz-focusring:where(:not(iframe))):not(:where(.zk-ui, .zk-ui *)) {
   outline: auto;
 }
 
 /*
   Add the correct vertical alignment in Chrome and Firefox.
 */
-.wa-scope :where(progress) {
+.wa-scope :where(progress):not(:where(.zk-ui, .zk-ui *)) {
   vertical-align: baseline;
 }
 
 /*
   Add the correct display in Chrome and Safari.
 */
-.wa-scope :where(summary) {
+.wa-scope :where(summary):not(:where(.zk-ui, .zk-ui *)) {
   display: list-item;
 }
 
 /*
   Make lists unstyled by default.
 */
-.wa-scope :where(ol),
-.wa-scope :where(ul),
-.wa-scope :where(menu) {
+.wa-scope :where(ol):not(:where(.zk-ui, .zk-ui *)),
+.wa-scope :where(ul):not(:where(.zk-ui, .zk-ui *)),
+.wa-scope :where(menu):not(:where(.zk-ui, .zk-ui *)) {
   list-style: none;
 }
 
@@ -179,14 +182,14 @@
   2. Add `vertical-align: middle` to align replaced elements more sensibly by default. (https://github.com/jensimmons/cssremedy/issues/14#issuecomment-634934210)
       This can trigger a poorly considered lint error in some tools but is included by design.
 */
-.wa-scope :where(img),
-.wa-scope :where(svg),
-.wa-scope :where(video),
-.wa-scope :where(canvas),
-.wa-scope :where(audio),
-.wa-scope :where(iframe),
-.wa-scope :where(embed),
-.wa-scope :where(object) {
+.wa-scope :where(img):not(:where(.zk-ui, .zk-ui *)),
+.wa-scope :where(svg):not(:where(.zk-ui, .zk-ui *)),
+.wa-scope :where(video):not(:where(.zk-ui, .zk-ui *)),
+.wa-scope :where(canvas):not(:where(.zk-ui, .zk-ui *)),
+.wa-scope :where(audio):not(:where(.zk-ui, .zk-ui *)),
+.wa-scope :where(iframe):not(:where(.zk-ui, .zk-ui *)),
+.wa-scope :where(embed):not(:where(.zk-ui, .zk-ui *)),
+.wa-scope :where(object):not(:where(.zk-ui, .zk-ui *)) {
   display: block; /* 1 */
   vertical-align: middle; /* 2 */
 }
@@ -194,8 +197,8 @@
 /*
   Constrain images and videos to the parent width and preserve their intrinsic aspect ratio. (https://github.com/mozdevs/cssremedy/issues/14)
 */
-.wa-scope :where(img),
-.wa-scope :where(video) {
+.wa-scope :where(img):not(:where(.zk-ui, .zk-ui *)),
+.wa-scope :where(video):not(:where(.zk-ui, .zk-ui *)) {
   max-width: 100%;
   height: auto;
 }
@@ -206,11 +209,11 @@
   3. Remove background color in all browsers.
   4. Ensure consistent opacity for disabled states in all browsers.
 */
-.wa-scope :where(button),
-.wa-scope :where(input),
-.wa-scope :where(select),
-.wa-scope :where(optgroup),
-.wa-scope :where(textarea),
+.wa-scope :where(button):not(:where(.zk-ui, .zk-ui *)),
+.wa-scope :where(input):not(:where(.zk-ui, .zk-ui *)),
+.wa-scope :where(select):not(:where(.zk-ui, .zk-ui *)),
+.wa-scope :where(optgroup):not(:where(.zk-ui, .zk-ui *)),
+.wa-scope :where(textarea):not(:where(.zk-ui, .zk-ui *)),
 .wa-scope :where(::file-selector-button) {
   font: inherit; /* 1 */
   font-feature-settings: inherit; /* 1 */
@@ -225,14 +228,14 @@
 /*
   Restore default font weight.
 */
-.wa-scope :where(:where(select:is([multiple], [size])) optgroup) {
+.wa-scope :where(:where(select:is([multiple], [size])) optgroup):not(:where(.zk-ui, .zk-ui *)) {
   font-weight: bolder;
 }
 
 /*
   Restore indentation.
 */
-.wa-scope :where(:where(select:is([multiple], [size])) optgroup option) {
+.wa-scope :where(:where(select:is([multiple], [size])) optgroup option):not(:where(.zk-ui, .zk-ui *)) {
   padding-inline-start: 20px;
 }
 
@@ -265,7 +268,7 @@
 /*
   Prevent resizing textareas horizontally by default.
 */
-.wa-scope :where(textarea) {
+.wa-scope :where(textarea):not(:where(.zk-ui, .zk-ui *)) {
   resize: vertical;
 }
 
@@ -320,15 +323,15 @@
 /*
   Remove the additional `:invalid` styles in Firefox. (https://github.com/mozilla/gecko-dev/blob/2f9eacd9d3d995c937b4251a5557d95d494c9be1/layout/style/res/forms.css#L728-L737)
 */
-.wa-scope :where(:-moz-ui-invalid) {
+.wa-scope :where(:-moz-ui-invalid):not(:where(.zk-ui, .zk-ui *)) {
   box-shadow: none;
 }
 
 /*
   Correct the inability to style the border radius in iOS Safari.
 */
-.wa-scope :where(button),
-.wa-scope :where(input:where([type='button'], [type='reset'], [type='submit'])),
+.wa-scope :where(button):not(:where(.zk-ui, .zk-ui *)),
+.wa-scope :where(input:where([type='button'], [type='reset'], [type='submit'])):not(:where(.zk-ui, .zk-ui *)),
 .wa-scope :where(::file-selector-button) {
   appearance: button;
 }
@@ -344,6 +347,6 @@
 /*
   Make elements with the HTML hidden attribute stay hidden by default.
 */
-.wa-scope :where([hidden]:where(:not([hidden='until-found']))) {
+.wa-scope :where([hidden]:where(:not([hidden='until-found']))):not(:where(.zk-ui, .zk-ui *)) {
   display: none !important;
 }
