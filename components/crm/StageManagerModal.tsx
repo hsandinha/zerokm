@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Stage } from './types';
 import { MdAdd, MdDelete } from 'react-icons/md';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
+import { useFeedback } from '@/components/ui/Feedback';
 import crm from './crmModals.module.css';
 import { LEAD_STAGE_TYPE_LABELS, LEAD_STAGE_TYPES } from '@/lib/utils/crmFunnel';
 
@@ -16,6 +17,7 @@ interface Props {
 export default function StageManagerModal({ stages, onClose, onRefresh }: Props) {
   const [newStageName, setNewStageName] = useState('');
   const [loading, setLoading] = useState(false);
+  const { confirm, feedback } = useFeedback();
   const [error, setError] = useState('');
 
   const call = async (fn: () => Promise<Response>) => {
@@ -57,7 +59,9 @@ export default function StageManagerModal({ stages, onClose, onRefresh }: Props)
     }));
 
   const handleDeleteStage = async (id: string) => {
-    if (!confirm('Excluir esta fase? A ação não pode ser desfeita.')) return;
+    const fase = stages.find(st => st.id === id);
+    const ok = await confirm({ title: 'Excluir fase', description: <>A fase <strong>{fase?.name}</strong> sai do funil. Não dá para desfazer.</>, confirmLabel: 'Excluir fase', danger: true });
+    if (!ok) return;
     await call(() => fetch(`/api/crm/stages/${id}`, { method: 'DELETE' }));
   };
 
@@ -131,6 +135,7 @@ export default function StageManagerModal({ stages, onClose, onRefresh }: Props)
           </div>
         </form>
       </div>
+      {feedback}
     </AdminModal>
   );
 }

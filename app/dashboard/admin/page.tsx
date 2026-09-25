@@ -18,7 +18,7 @@ import { CatalogVariationsManagement } from '../../../components/admin/CatalogVa
 import { AdminDealershipVehicles } from '../../../components/admin/AdminDealershipVehicles';
 import KanbanBoard from '../../../components/crm/KanbanBoard';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
-import styles from './admin.module.css';
+import { Page, pageStyles } from '@/components/ui/Page';
 import { LayoutDashboard, Users, CarFront, Warehouse, BookOpen, Building2, Truck, Settings2, CreditCard, Receipt, ContactRound, Funnel, Plug, Images, MessageCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -27,9 +27,9 @@ const VehicleConsultation = dynamic<any>(
         import('../../../components/operator/VehicleConsultation').then((mod) => ({ default: mod.VehicleConsultation })),
     {
         loading: () => (
-            <div className={styles.contentArea}>
-                <p className={styles.subtitle}>Carregando consulta de veículos...</p>
-            </div>
+            <Page wide>
+                <p className={pageStyles.muted}>Carregando consulta de veículos...</p>
+            </Page>
         ),
         ssr: false
     }
@@ -178,11 +178,7 @@ export default function AdminDashboard() {
             case 'crm':
                 return <CRMManagement highlightEmail={crmHighlightEmail} />;
             case 'funil':
-                return (
-                    <div className={styles.contentArea} style={{ padding: '0', background: 'transparent' }}>
-                        <KanbanBoard />
-                    </div>
-                );
+                return <KanbanBoard />;
             case 'integracoes':
                 return <IntegrationsPanel />;
             case 'banners':

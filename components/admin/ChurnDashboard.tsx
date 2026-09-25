@@ -1,116 +1,89 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import styles from './ChurnDashboard.module.css';
-import { CircleCheck, TriangleAlert, CircleAlert, Gift } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { CircleAlert, CircleCheck, Gift, TriangleAlert } from 'lucide-react';
+import { Panel, PanelFooter, SkeletonRows, StatCard, StatGrid, pageStyles } from '@/components/ui/Page';
 
+type Ranking = { nome: string; receitaGerida: number; verde: number; amarelo: number; vermelho: number; cortesia?: number };
+type Churn = {
+    globalValues: {
+        receitaCativa: number; totalAtivos: number;
+        receitaRisco: number; totalRisco: number;
+        receitaPerdida: number; totalBloqueados: number;
+        totalCortesia?: number; totalInvitees?: number;
+    };
+    operatorRanking: Ranking[];
+};
+
+const moeda = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v || 0);
+const clientes = (n: number) => `${n} ${n === 1 ? 'cliente' : 'clientes'}`;
+const lojas = (n: number) => `${n} ${n === 1 ? 'loja' : 'lojas'}`;
+
+/** Saúde das assinaturas: receita ativa, a vencer, inadimplente e carteira por responsável. */
 export function ChurnDashboard() {
-    const [metrics, setMetrics] = useState<any>(null);
+    const [metrics, setMetrics] = useState<Churn | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         fetch('/api/admin/metrics/churn')
             .then(res => res.json())
-            .then(data => {
-                if (!data.error) {
-                    setMetrics(data);
-                }
-            })
+            .then(data => { if (!data.error) setMetrics(data); })
             .catch(console.error)
             .finally(() => setLoading(false));
     }, []);
 
-    if (loading) return <p className={styles.loading}>Carregando cockpit financeiro...</p>;
-    if (!metrics) return null;
-
-    const { globalValues, operatorRanking } = metrics;
-
-    const formatCurrency = (val: number) => {
-        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-    };
+    if (!loading && !metrics) return null;
+    const g = metrics?.globalValues;
+    const ranking = metrics?.operatorRanking ?? [];
 
     return (
-        <div className={styles.churnContainer}>
-            <div className={styles.header}>
-                <h2>Saúde das assinaturas</h2>
-                <p>Monitoramento financeiro de assinaturas em tempo real</p>
-            </div>
+        <>
+            <StatGrid>
+                <StatCard label="Receita ativa" icon={<CircleCheck size={18} />} tone="positive" value={g ? moeda(g.receitaCativa) : '-'} caption={g ? `${clientes(g.totalAtivos)} pagantes` : 'Carregando'} />
+                <StatCard label="A vencer em 5 dias" icon={<TriangleAlert size={18} />} tone="warning" value={g ? moeda(g.receitaRisco) : '-'} caption={g ? `${clientes(g.totalRisco)} no radar` : 'Carregando'} />
+                <StatCard label="Inadimplente" icon={<CircleAlert size={18} />} tone="negative" value={g ? moeda(g.receitaPerdida) : '-'} caption={g ? `${clientes(g.totalBloqueados)} bloqueados` : 'Carregando'} />
+                <StatCard
+                    label="Cortesias e convidados"
+                    icon={<Gift size={18} />}
+                    value={g ? (g.totalCortesia ?? 0) + (g.totalInvitees ?? 0) : '-'}
+                    caption={g ? `${g.totalCortesia ?? 0} cortesia · ${g.totalInvitees ?? 0} convidados, fora da receita` : 'Carregando'}
+                />
+            </StatGrid>
 
-            <div className={styles.globalKPIs}>
-                <div className={`${styles.kpiCard} ${styles.kpiGreen}`}>
-                    <div className={styles.kpiIcon}><CircleCheck size={22} aria-hidden="true" /></div>
-                    <div className={styles.kpiInfo}>
-                        <h4>Receita ativa</h4>
-                        <h2>{formatCurrency(globalValues.receitaCativa)}</h2>
-                        <span>{globalValues.totalAtivos} Clientes Pagantes Ativos</span>
-                    </div>
+            <Panel>
+                <div className={pageStyles.panelHead}>
+                    <h2 className={pageStyles.panelTitle}>Carteira por responsável</h2>
+                    <p className={pageStyles.panelDescription}>Receita sob gestão e situação das lojas de cada operador ou vendedor.</p>
                 </div>
-
-                <div className={`${styles.kpiCard} ${styles.kpiYellow}`}>
-                    <div className={styles.kpiIcon}><TriangleAlert size={22} aria-hidden="true" /></div>
-                    <div className={styles.kpiInfo}>
-                        <h4>Receita a vencer</h4>
-                        <h2>{formatCurrency(globalValues.receitaRisco)}</h2>
-                        <span>{globalValues.totalRisco} Clientes no Radar (5 dias)</span>
-                    </div>
-                </div>
-
-                <div className={`${styles.kpiCard} ${styles.kpiRed}`}>
-                    <div className={styles.kpiIcon}><CircleAlert size={22} aria-hidden="true" /></div>
-                    <div className={styles.kpiInfo}>
-                        <h4>Receita inadimplente</h4>
-                        <h2>{formatCurrency(globalValues.receitaPerdida)}</h2>
-                        <span>{globalValues.totalBloqueados} Clientes Inadimplentes</span>
-                    </div>
-                </div>
-
-                <div className={`${styles.kpiCard} ${styles.kpiPurple}`}>
-                    <div className={styles.kpiIcon}><Gift size={22} aria-hidden="true" /></div>
-                    <div className={styles.kpiInfo}>
-                        <h4>Cortesias e convidados</h4>
-                        <h2>{(globalValues.totalCortesia ?? 0) + (globalValues.totalInvitees ?? 0)}</h2>
-                        <span>
-                            {globalValues.totalCortesia ?? 0} cortesia · {globalValues.totalInvitees ?? 0} convidados
-                            {' '}— não contabilizados na receita
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            <div className={styles.rankingSection}>
-                <h3>Carteira por responsável</h3>
-                <div className={styles.tableWrapper}>
-                    <table className={styles.rankingTable}>
+                <div className={pageStyles.tableWrap}>
+                    <table className={pageStyles.table}>
                         <thead>
                             <tr>
-                                <th>Operador / Vendedor</th>
-                                <th>Receita Sob Gestão</th>
-                                <th className={styles.cellGreen}>Planos Saudáveis</th>
-                                <th className={styles.cellYellow}>Planos em Risco (Ação)</th>
-                                <th className={styles.cellRed}>Planos Inadimplentes</th>
-                                <th className={styles.cellPurple}>Cortesias</th>
+                                <th>Responsável</th>
+                                <th className={pageStyles.num}>Receita sob gestão</th>
+                                <th className={pageStyles.num}>Em dia</th>
+                                <th className={pageStyles.num}>Em risco</th>
+                                <th className={pageStyles.num}>Inadimplentes</th>
+                                <th className={pageStyles.num}>Cortesias</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {operatorRanking.length === 0 && (
-                                <tr>
-                                    <td colSpan={6} style={{ textAlign: 'center', padding: '1rem' }}>Sem dados de operadores.</td>
-                                </tr>
-                            )}
-                            {operatorRanking.map((op: any, i: number) => (
-                                <tr key={i}>
+                            {loading && <SkeletonRows rows={3} columns={6} />}
+                            {!loading && ranking.map(op => (
+                                <tr key={op.nome}>
                                     <td><strong>{op.nome}</strong></td>
-                                    <td>{formatCurrency(op.receitaGerida)}</td>
-                                    <td className={styles.cellGreen}><strong>{op.verde}</strong> lojas</td>
-                                    <td className={styles.cellYellow}><strong>{op.amarelo}</strong> lojas</td>
-                                    <td className={styles.cellRed}><strong>{op.vermelho}</strong> lojas</td>
-                                    <td className={styles.cellPurple}><strong>{op.cortesia ?? 0}</strong> lojas</td>
+                                    <td className={pageStyles.num}><strong>{moeda(op.receitaGerida)}</strong></td>
+                                    <td className={pageStyles.num}><span className={pageStyles.textPositive}>{lojas(op.verde)}</span></td>
+                                    <td className={pageStyles.num}><span className={op.amarelo ? pageStyles.textWarning : pageStyles.muted}>{lojas(op.amarelo)}</span></td>
+                                    <td className={pageStyles.num}><span className={op.vermelho ? pageStyles.textNegative : pageStyles.muted}>{lojas(op.vermelho)}</span></td>
+                                    <td className={pageStyles.num}><span className={pageStyles.muted}>{lojas(op.cortesia ?? 0)}</span></td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 </div>
-            </div>
-        </div>
+                {!loading && ranking.length === 0 && <PanelFooter>Nenhum responsável com carteira ainda.</PanelFooter>}
+            </Panel>
+        </>
     );
 }

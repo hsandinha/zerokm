@@ -3,9 +3,11 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { CalendarDays, Clock, GripVertical, Mail, Pencil, Phone, UserRound } from 'lucide-react';
 import { Lead, formatDate, formatCurrencyBRL } from './types';
 import { lostReasonLabel } from '@/lib/utils/crmFunnel';
-import { FiPhone, FiMail, FiEdit, FiUser, FiCalendar, FiGrid, FiClock, FiDollarSign } from 'react-icons/fi';
+import { StatusBadge } from '@/components/ui/Page';
+import styles from './Kanban.module.css';
 
 interface Props {
   lead: Lead;
@@ -13,122 +15,66 @@ interface Props {
   onOpen?: (leadId: string) => void;
 }
 
-const iconButton: React.CSSProperties = {
-  background: 'var(--admin-panel, #f9fafb)', border: '1px solid #F3F4F6', borderRadius: '4px', cursor: 'pointer',
-  color: 'var(--admin-muted, #9ca3af)', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-};
-
-const chip = (background: string, color: string): React.CSSProperties => ({
-  fontSize: '0.625rem', padding: '2px 8px', background, color, borderRadius: '4px', fontWeight: 600,
-});
-
 export default function LeadCard({ lead, isDragging, onOpen }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: lead.id });
-
-  const style = { transform: CSS.Transform.toString(transform), transition };
   const stop = (e: React.MouseEvent) => e.stopPropagation();
+  const tarefaAtrasada = (lead.pendingTasks ?? 0) > 0 && !!lead.nextTaskAt && new Date(lead.nextTaskAt) < new Date();
 
   return (
-    <div
+    <article
       ref={setNodeRef}
-      style={{
-        ...style,
-        background: 'var(--color-surface)',
-        borderRadius: '12px',
-        border: '1px solid var(--admin-border, #e5e7eb)',
-        transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
-        opacity: isDragging ? 0.5 : 1,
-        transform: isDragging ? `${style.transform} scale(1.02)` : style.transform,
-        boxShadow: isDragging ? '0 10px 15px -3px rgba(0, 0, 0, 0.1)' : '0 1px 2px rgba(0, 0, 0, 0.05)',
-        display: 'flex',
-        flexDirection: 'row',
-        overflow: 'hidden'
-      }}
+      className={styles.card}
+      data-dragging={Boolean(isDragging)}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
     >
-      {/* Só a alça arrasta: assim os botões e o clique de abrir o lead continuam funcionando. */}
-      <div
-        {...attributes}
-        {...listeners}
-        style={{ width: '24px', background: 'var(--admin-panel, #f9fafb)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid var(--admin-border, #e5e7eb)', color: 'var(--admin-border, #d1d5db)', cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
-        title="Arraste para mover de fase"
-      >
-        <FiGrid size={14} />
+      {/* Só a alça arrasta: os botões e o clique de abrir continuam funcionando. */}
+      <div {...attributes} {...listeners} className={styles.handle} title="Arraste para mudar de fase" aria-label={`Mover ${lead.name}`}>
+        <GripVertical size={14} aria-hidden="true" />
       </div>
 
-      <div
-        style={{ flex: 1, padding: '16px', cursor: onOpen ? 'pointer' : 'default' }}
-        onClick={() => onOpen?.(lead.id)}
-      >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
-            <span style={{ fontWeight: 700, color: 'var(--admin-text, #111827)', fontSize: '0.875rem', textTransform: 'uppercase' }}>
-              {lead.name.length > 20 ? lead.name.substring(0, 20) + '...' : lead.name}
-            </span>
-            <span style={{ fontSize: '0.75rem', color: 'var(--admin-muted, #6b7280)' }}>
-              {lead.phone} • {lead.email ? (lead.email.length > 15 ? lead.email.substring(0, 15) + '...' : lead.email) : 'S/ email'}
-            </span>
-          </div>
+      <div className={styles.cardBody} onClick={() => onOpen?.(lead.id)}>
+        <div>
+          <div className={styles.cardName} title={lead.name}>{lead.name}</div>
+          <div className={styles.cardContact}>{[lead.phone, lead.email].filter(Boolean).join(' · ') || 'Sem contato'}</div>
+        </div>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '16px' }}>
-            {lead.tags.length > 0 ? (
-              lead.tags.map(tag => (
-                <span key={tag} style={chip('#EFF6FF', '#3B82F6')}>{tag}</span>
-              ))
-            ) : (
-              <span style={chip('var(--admin-panel, #f3f4f6)', '#4B5563')}>{lead.source || 'Orgânico'}</span>
-            )}
-            {lead.lostReason && (
-              <span style={chip('#FEF2F2', '#DC2626')}>{lostReasonLabel(lead.lostReason)}</span>
-            )}
-            {typeof lead.proposalValue === 'number' && lead.proposalValue > 0 && (
-              <span style={{ ...chip('#ECFDF5', '#059669'), display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
-                <FiDollarSign size={10} />{formatCurrencyBRL(lead.proposalValue)}
-              </span>
-            )}
-            {(lead.pendingTasks ?? 0) > 0 && lead.nextTaskAt && (
-              new Date(lead.nextTaskAt) < new Date() ? (
-                <span style={{ ...chip('#FEF2F2', '#DC2626'), display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                  <FiClock size={10} />Tarefa atrasada
-                </span>
-              ) : (
-                <span style={{ ...chip('#FFFBEB', '#B45309'), display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                  <FiClock size={10} />{formatDate(lead.nextTaskAt)}
-                </span>
-              )
-            )}
-          </div>
+        <div className={styles.chips}>
+          {lead.tags.length > 0
+            ? lead.tags.map(tag => <StatusBadge key={tag} tone="info" dot={false}>{tag}</StatusBadge>)
+            : <StatusBadge dot={false}>{lead.source || 'Orgânico'}</StatusBadge>}
+          {lead.lostReason && <StatusBadge tone="negative" dot={false}>{lostReasonLabel(lead.lostReason)}</StatusBadge>}
+          {typeof lead.proposalValue === 'number' && lead.proposalValue > 0 && (
+            <StatusBadge tone="positive" dot={false}>{formatCurrencyBRL(lead.proposalValue)}</StatusBadge>
+          )}
+          {(lead.pendingTasks ?? 0) > 0 && lead.nextTaskAt && (
+            tarefaAtrasada
+              ? <StatusBadge tone="negative" dot={false}><Clock size={11} aria-hidden="true" /> Tarefa atrasada</StatusBadge>
+              : <StatusBadge tone="warning" dot={false}><Clock size={11} aria-hidden="true" /> {formatDate(lead.nextTaskAt)}</StatusBadge>
+          )}
+        </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', fontSize: '0.75rem', color: 'var(--admin-muted, #6b7280)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', minWidth: 0 }}>
-                <FiUser size={12} />
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {lead.ownerName || 'Sem responsável'}
-                </span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                <FiCalendar size={12} />
-                <span>{formatDate(lead.createdAt)}</span>
-            </div>
-          </div>
+        <div className={styles.cardMeta}>
+          <span><UserRound size={12} aria-hidden="true" />{lead.ownerName || 'Sem responsável'}</span>
+          <span><CalendarDays size={12} aria-hidden="true" />{formatDate(lead.createdAt)}</span>
+        </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', alignItems: 'center', paddingTop: '12px', borderTop: '1px dashed #E5E7EB' }}>
-              <a href={`tel:${lead.phone}`} onClick={stop} style={{ ...iconButton, textDecoration: 'none' }} title="Ligar"><FiPhone size={14} /></a>
-              <a
-                href={lead.email ? `mailto:${lead.email}` : undefined}
-                onClick={lead.email ? stop : (e) => e.preventDefault()}
-                style={{ ...iconButton, textDecoration: 'none', opacity: lead.email ? 1 : 0.4 }}
-                title={lead.email ? 'Enviar e-mail' : 'Lead sem e-mail'}
-              >
-                <FiMail size={14} />
-              </a>
-              <button
-                onClick={(e) => { stop(e); onOpen?.(lead.id); }}
-                style={iconButton}
-                title="Abrir lead"
-              >
-                <FiEdit size={14} />
-              </button>
-          </div>
+        <div className={styles.cardActions}>
+          <a href={`tel:${lead.phone}`} onClick={stop} className={styles.cardAction} title="Ligar" aria-label={`Ligar para ${lead.name}`}><Phone size={15} aria-hidden="true" /></a>
+          <a
+            href={lead.email ? `mailto:${lead.email}` : undefined}
+            onClick={lead.email ? stop : (e) => { e.preventDefault(); e.stopPropagation(); }}
+            className={styles.cardAction}
+            aria-disabled={!lead.email}
+            title={lead.email ? 'Enviar e-mail' : 'Lead sem e-mail'}
+            aria-label={lead.email ? `Enviar e-mail para ${lead.name}` : 'Lead sem e-mail'}
+          >
+            <Mail size={15} aria-hidden="true" />
+          </a>
+          <button type="button" onClick={(e) => { stop(e); onOpen?.(lead.id); }} className={styles.cardAction} title="Abrir lead" aria-label={`Abrir ${lead.name}`}>
+            <Pencil size={15} aria-hidden="true" />
+          </button>
+        </div>
       </div>
-    </div>
+    </article>
   );
 }

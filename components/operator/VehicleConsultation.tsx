@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useFeedback } from '@/components/ui/Feedback';
 import { useSession } from 'next-auth/react';
 import { useConfig } from '../../lib/contexts/ConfigContext';
 import { useVehicleDatabase } from '../../lib/hooks/useVehicleDatabase';
@@ -168,6 +169,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
     // sobe para o topo e Exportar/Margem vão para a linha da busca.
     const comCabecalho = role === 'client' || role === 'gratis';
     const favoritos = useFavoritos(favoritesEnabled);
+    const { confirm, notify, feedback } = useFeedback();
     const { data: session } = useSession();
     const isClientReadOnly = true; // All edits moved to Pricing Catalog
     const { margem, fixedMargin, marginMode, setMargem, setMarginConfig } = useConfig();
@@ -197,7 +199,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
             ? `${newMargem}%`
             : `R$ ${newFixedMargin.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 
-        alert(`Margem de ${margemLabel} salva. Os preços exibidos serão recalculados automaticamente.`);
+        notify(`Margem de ${margemLabel} salva. Os preços já aparecem recalculados.`, 'positive');
 
         setShowMargemModal(false);
     };
@@ -383,7 +385,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
             }
         } catch (error) {
             console.error('Erro ao exportar:', error);
-            alert('Erro ao exportar dados.');
+            notify('Não foi possível exportar a planilha. Tente de novo.');
         } finally {
             setIsExporting(false);
         }
@@ -565,7 +567,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
             });
         } catch (error) {
             console.error('Erro ao atualizar opcionais:', error);
-            alert('Erro ao atualizar opcionais');
+            notify('Não foi possível salvar os opcionais.');
         }
     };
 
@@ -596,7 +598,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
             });
         } catch (error) {
             console.error(`Erro ao atualizar ${field}:`, error);
-            alert(`Erro ao atualizar ${field}`);
+            notify(`Não foi possível salvar o campo ${field}.`);
         }
     };
 
@@ -616,7 +618,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
             });
         } catch (error) {
             console.error('Erro ao atualizar preço de compra:', error);
-            alert('Erro ao atualizar preço de compra');
+            notify('Não foi possível salvar o preço de compra.');
         }
     };
 
@@ -1013,7 +1015,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
 
     const handleWhatsAppClick = (vehicle: Vehicle) => {
         if (!vehicle.telefone) {
-            alert('Telefone não disponível para este veículo.');
+            notify('Este veículo não tem telefone de contato cadastrado.');
             return;
         }
 
@@ -1032,18 +1034,15 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
 
     // Função para excluir veículo
     const handleDeleteVehicle = async (vehicle: Vehicle) => {
-        if (window.confirm(`Tem certeza que deseja excluir o veículo ${vehicle.modelo}?`)) {
-            try {
-                const success = await deleteVehicle(vehicle.id!);
-                if (success) {
-                    alert('Veículo excluído com sucesso!');
-                } else {
-                    alert('Erro ao excluir veículo.');
-                }
-            } catch (error) {
-                console.error('Erro ao excluir veículo:', error);
-                alert('Erro ao excluir veículo.');
-            }
+        const ok = await confirm({ title: 'Excluir veículo', description: <>O veículo <strong>{vehicle.modelo}</strong> sai do estoque e da consulta de todos os perfis.</>, confirmLabel: 'Excluir veículo', danger: true });
+        if (!ok) return;
+        try {
+            const success = await deleteVehicle(vehicle.id!);
+            if (success) notify('Veículo excluído.', 'positive');
+            else notify('Não foi possível excluir o veículo.');
+        } catch (error) {
+            console.error('Erro ao excluir veículo:', error);
+            notify('Não foi possível excluir o veículo.');
         }
     };
 
@@ -1124,21 +1123,24 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
     const handleBulkDelete = async () => {
         if (selectedIds.length === 0) return;
 
-        if (confirm(`Tem certeza que deseja excluir ${selectedIds.length} veículos selecionados?`)) {
-            const success = await deleteVehicles(selectedIds);
-            if (success) {
-                alert('Veículos excluídos com sucesso!');
-                setSelectedIds([]);
-            } else {
-                alert('Erro ao excluir alguns veículos.');
-            }
+        const n = selectedIds.length;
+        const ok = await confirm({ title: `Excluir ${n} ${n === 1 ? 'veículo' : 'veículos'}`, description: 'Os veículos selecionados saem do estoque e da consulta de todos os perfis.', confirmLabel: `Excluir ${n}`, danger: true });
+        if (!ok) return;
+        const success = await deleteVehicles(selectedIds);
+        if (success) {
+            notify(`${n} ${n === 1 ? 'veículo excluído' : 'veículos excluídos'}.`, 'positive');
+            setSelectedIds([]);
+        } else {
+            notify('Alguns veículos não foram excluídos. Confira a lista.');
         }
     };
 
     const handleBulkUpdateDate = async () => {
         if (selectedIds.length === 0) return;
 
-        if (confirm(`Deseja atualizar a data de ${selectedIds.length} veículos para hoje?`)) {
+        const n = selectedIds.length;
+        const confirmado = await confirm({ title: 'Atualizar data para hoje', description: `A data de atualização de ${n} ${n === 1 ? 'veículo' : 'veículos'} passa a ser hoje.`, confirmLabel: 'Atualizar data' });
+        if (confirmado) {
             try {
                 const res = await fetch('/api/vehicles', {
                     method: 'PATCH',
@@ -1148,7 +1150,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
 
                 if (res.ok) {
                     const data = await res.json();
-                    alert(`Data de atualização atualizada para ${data.modifiedCount} veículos!`);
+                    notify(`Data atualizada em ${data.modifiedCount} ${data.modifiedCount === 1 ? 'veículo' : 'veículos'}.`, 'positive');
                     setSelectedIds([]);
                     // Recarregar lista para refletir mudanças
                     const effectiveSearch = searchTerm && searchTerm.length < 3 ? '' : searchTerm;
@@ -1160,11 +1162,11 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                         sortConfig: sortConfig.key ? sortConfig : undefined
                     });
                 } else {
-                    alert('Erro ao atualizar data dos veículos.');
+                    notify('Não foi possível atualizar a data dos veículos.');
                 }
             } catch (error) {
                 console.error('Erro ao atualizar data:', error);
-                alert('Erro ao atualizar data dos veículos.');
+                notify('Não foi possível atualizar a data dos veículos.');
             }
         }
     };
@@ -1304,7 +1306,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                 <AddVehicleModal
                     isOpen={showVehicleForm}
                     onClose={handleCloseVehicleForm}
-                    onVehicleAdded={refreshVehicles}
+                    onVehicleAdded={() => { notify('Veículo salvo.', 'positive'); refreshVehicles(); }}
                     editingVehicle={editingVehicle ?? undefined}
                     isEditing={Boolean(editingVehicle)}
                     role={role}
@@ -1765,6 +1767,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                 </AdminModal>
             )}
             {showUpgradeModal && <UpgradeModal onClose={() => setShowUpgradeModal(false)} paidOnly />}
+            {feedback}
         </div>
     );
 }

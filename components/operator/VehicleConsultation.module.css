@@ -138,7 +138,7 @@
 }
 
 .closeButton:hover {
-    background: #dc2626;
+    background: var(--color-negative);
     transform: scale(1.05);
 }
 
@@ -169,7 +169,7 @@
 
 .searchInput:focus {
     border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.05);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
 
 .filterToggle {
@@ -268,7 +268,7 @@
 .filterInput:focus {
     outline: none;
     border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
 
 .filterActions {
@@ -558,7 +558,7 @@
 .formInput:focus {
     outline: none;
     border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
 
 .formActions {
@@ -630,7 +630,7 @@
 
 .viewButton:hover {
     color: var(--color-text);
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--admin-hover);
 }
 
 .viewButton.active {
@@ -710,23 +710,23 @@
 }
 
 .statusAvailable {
-    background: rgba(46, 204, 113, 0.15);
+    background: color-mix(in srgb, var(--color-positive) 14%, transparent);
     color: var(--color-positive);
 }
 
 .statusReserved {
-    background: rgba(241, 196, 15, 0.15);
+    background: color-mix(in srgb, var(--color-warning) 14%, transparent);
     color: var(--color-warning);
 }
 
 .statusSold {
-    background: rgba(231, 76, 60, 0.15);
+    background: color-mix(in srgb, var(--color-negative) 12%, transparent);
     color: var(--color-negative);
 }
 
 .statusBlue {
-    background: rgba(59, 130, 246, 0.15);
-    color: #2563eb;
+    background: color-mix(in srgb, var(--color-text) 8%, transparent);
+    color: var(--color-text);
 }
 
 .statusDefault {
@@ -735,12 +735,12 @@
 }
 
 .statusActive {
-    background: rgba(46, 204, 113, 0.15);
+    background: color-mix(in srgb, var(--color-positive) 14%, transparent);
     color: var(--color-positive);
 }
 
 .statusInactive {
-    background: rgba(231, 76, 60, 0.15);
+    background: color-mix(in srgb, var(--color-negative) 12%, transparent);
     color: var(--color-negative);
 }
 
@@ -877,15 +877,15 @@
 }
 
 .cardActions .editButton {
-    color: #3b82f6;
+    color: var(--color-text);
 }
 
 .cardActions .deleteButton {
-    color: #ef4444;
+    color: var(--color-negative);
 }
 
 .cardActions .whatsappButton {
-    color: #22c55e;
+    color: var(--color-positive);
 }
 
 .itemsPerPage {
@@ -1022,7 +1022,7 @@
     font-weight: 800;
     letter-spacing: 0.05em;
     background: var(--color-accent);
-    color: #111;
+    color: var(--admin-on-accent, #102333);
     vertical-align: middle;
 }
 
@@ -1083,7 +1083,7 @@
 
 .modelSearchInput:focus {
     border-color: var(--color-accent);
-    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
 
 
@@ -1164,17 +1164,17 @@
 
 /* Improved Status Colors */
 .status.disponivel {
-    background: rgba(46, 204, 113, 0.15);
+    background: color-mix(in srgb, var(--color-positive) 14%, transparent);
     color: var(--color-positive);
 }
 
 .status.vendido {
-    background: rgba(231, 76, 60, 0.15);
+    background: color-mix(in srgb, var(--color-negative) 12%, transparent);
     color: var(--color-negative);
 }
 
 .status.reservado {
-    background: rgba(241, 196, 15, 0.15);
+    background: color-mix(in srgb, var(--color-warning) 14%, transparent);
     color: var(--color-warning);
 }
 
@@ -1289,7 +1289,7 @@
     .modelItem.active {
         background: var(--color-accent);
         border-color: var(--color-accent);
-        color: #10141c;
+        color: var(--admin-on-accent, #102333);
     }
 
     /* --- Busca e filtros --- */
@@ -1554,7 +1554,8 @@
 }
 
 /* Administration consultation: keep the complete model search alongside results. */
-:global([data-admin-design]) .container { min-height: 0; height: 100%; }
+/* Ocupa só o espaço abaixo do topo com o caminho da tela, sem rolagem extra da página. */
+:global([data-admin-design]) .container { min-height: 0; height: auto; flex: 1 1 0; }
 :global([data-admin-design]) .header { min-height: 80px; padding: 20px 28px; box-shadow: none; gap: 16px; }
 :global([data-admin-design]) .header h2 { font-size: 26px; font-weight: 650; }
 :global([data-admin-design]) .headerActions { flex-wrap: wrap; }
@@ -1564,7 +1565,8 @@
 :global([data-admin-design]) .sidebarTitle { display: block; font-size: 14px; font-weight: 650; margin: 24px 20px 12px; }
 :global([data-admin-design]) .tipoSegmento { gap: 8px; padding: 0 16px; }
 :global([data-admin-design]) .tipoSegmentoItem { min-height: 42px; background: var(--color-surface); color: var(--color-text); font-weight: 500; line-height: 1.4; }
-:global([data-admin-design]) .tipoSegmentoActive { background: var(--color-accent); color: var(--admin-on-accent); border-color: var(--color-accent); font-weight: 600; }
+/* Seleção principal no padrão dos painéis: azul-marinho no claro, amarelo no escuro. */
+:global([data-admin-design]) .tipoSegmentoActive { background: var(--color-primary); color: var(--color-surface); border-color: var(--color-primary); font-weight: 600; }
 :global([data-admin-design]) .sidebarHeader { padding: 16px; border-bottom: 0; }
 :global([data-admin-design]) .modelSearchInput { min-height: 42px; background: var(--color-surface); }
 :global([data-admin-design]) .modelList { padding: 0 12px 16px; scrollbar-width: thin; scrollbar-color: var(--admin-border) transparent; }
@@ -1582,10 +1584,10 @@
 :global([data-admin-design]) .tableCell { border: 0; border-bottom: 1px solid var(--admin-border); padding: 14px 16px; line-height: 1.45; font-size: 13px; font-weight: 400; }
 :global([data-admin-design]) .tableRow:nth-child(even) { background: transparent; }
 :global([data-admin-design]) .tableRow:hover { background: var(--admin-hover); }
-:global([data-admin-design]) .addButton { background: var(--color-accent); color: var(--admin-on-accent); border-radius: 8px; box-shadow: none; }
+:global([data-admin-design]) .addButton { background: var(--color-primary); color: var(--color-surface); border-radius: 10px; box-shadow: none; }
 :global([data-admin-design]) .importButton, :global([data-admin-design]) .clearButton { background: var(--color-surface); border-color: var(--admin-border); border-radius: 8px; box-shadow: none; color: var(--color-text); }
 :global([data-admin-design]) .viewToggle { background: var(--color-surface); border-radius: 8px; box-shadow: none; }
-:global([data-admin-design]) .viewButton.active { background: var(--color-accent); color: var(--admin-on-accent); box-shadow: none; }
+:global([data-admin-design]) .viewButton.active { background: var(--color-primary); color: var(--color-surface); box-shadow: none; }
 :global([data-admin-design]) .paginationControls { flex-wrap: wrap; font-size: 13px; }
 :global([data-admin-design]) .paginationContainer { gap: 12px; flex-wrap: wrap; padding-top: 16px; }
 :global([data-admin-design]) .vehicleCard { background: var(--color-surface); border: 1px solid var(--admin-border); box-shadow: var(--admin-shadow); border-radius: 12px; }

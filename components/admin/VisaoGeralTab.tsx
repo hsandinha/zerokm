@@ -1,9 +1,13 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import styles from '../../app/dashboard/admin/admin.module.css';
 import { ChurnDashboard } from './ChurnDashboard';
-import { Filter, Table2, LayoutGrid, Printer } from 'lucide-react';
+import { Building2, Printer, X } from 'lucide-react';
+import {
+    Button, EmptyState, FilterSelect, Page, PageHeader, Panel, PanelFooter, PanelToolbar, SectionCard, Segmented,
+    SkeletonRows, StatusBadge, pageStyles, type BadgeTone,
+} from '@/components/ui/Page';
+import { InlineNotice } from '@/components/ui/Feedback';
 
 type MetricItem = {
     nome: string;
@@ -51,7 +55,6 @@ export function VisaoGeralTab({ userInfo }: VisaoGeralTabProps) {
     const [loadingMetrics, setLoadingMetrics] = useState<boolean>(false);
     const [metricsError, setMetricsError] = useState<string | null>(null);
     const [filters, setFilters] = useState<FiltersState>({ ...INITIAL_FILTERS });
-    const [showFilters, setShowFilters] = useState<boolean>(false);
     const [viewMode, setViewMode] = useState<'summary' | 'detailed'>('summary');
     const [operadoresList, setOperadoresList] = useState<string[]>([]);
     const [concessionariasList, setConcessionariasList] = useState<string[]>([]);
@@ -137,265 +140,127 @@ export function VisaoGeralTab({ userInfo }: VisaoGeralTabProps) {
         setFilters(prev => ({ ...prev, [key]: value }));
     };
 
-    const handleClearFilters = () => {
-        setFilters({ ...INITIAL_FILTERS });
-    };
-
-    const handlePrint = () => {
-        window.print();
-    };
-
     const activeFiltersCount = Object.values(filters).filter(value => value !== '').length;
+    const ehAdmin = ['administrador', 'admin'].includes(userInfo.profile || '');
+    const tomDias = (dias: number): BadgeTone => (dias <= 1 ? 'positive' : dias <= 3 ? 'warning' : 'negative');
+    const detalhes = metrics.dealershipDetails ?? [];
+
+    const lista = (itens: MetricItem[], valor: (i: MetricItem) => number, rotulo: (i: MetricItem) => string, tom?: (i: MetricItem) => BadgeTone) => {
+        const max = Math.max(1, ...itens.map(valor));
+        if (loadingMetrics) return <p className={pageStyles.muted}>Carregando...</p>;
+        if (itens.length === 0) return <p className={pageStyles.muted}>Sem dados para os filtros escolhidos.</p>;
+        return (
+            <ol className={pageStyles.rankList}>
+                {itens.map(item => (
+                    <li key={item.nome} className={pageStyles.rankItem}>
+                        <span className={pageStyles.rankName} title={item.nome}>{item.nome}</span>
+                        <span className={pageStyles.rankValue}>{rotulo(item)}</span>
+                        <span className={pageStyles.rankBar} data-tone={tom?.(item)} aria-hidden="true"><span style={{ width: `${(valor(item) / max) * 100}%` }} /></span>
+                    </li>
+                ))}
+            </ol>
+        );
+    };
 
     return (
-        <div className={styles.contentArea}>
-            <div className={styles.topBarActions}>
-                <h2 className={styles.dashboardTitle}>Visão geral</h2>
-                <div className={styles.topBarButtons}>
-                    <button 
-                        className={`${styles.filterToggleButton} ${activeFiltersCount > 0 ? styles.active : ''}`}
-                        onClick={() => setShowFilters(!showFilters)}
-                    >
-                        <Filter size={18} />
-                        Filtros {activeFiltersCount > 0 && `(${activeFiltersCount})`}
-                    </button>
-                    <button className={styles.viewButton} onClick={() => setViewMode(viewMode === 'summary' ? 'detailed' : 'summary')}>
-                        {viewMode === 'summary' ? <Table2 size={16} /> : <LayoutGrid size={16} />} {viewMode === 'summary' ? 'Detalhado' : 'Resumo'}
-                    </button>
-                    <button className={styles.printButton} onClick={handlePrint}>
-                        <Printer size={16} aria-hidden="true" /> Imprimir
-                    </button>
+        <Page wide>
+            <PageHeader
+                title="Visão geral"
+                description={ehAdmin ? 'Saúde das assinaturas, estoque por operador e concessionárias que não atualizam o estoque.' : 'Estoque por operador e concessionárias que não atualizam o estoque.'}
+                actions={<Button icon={<Printer size={16} aria-hidden="true" />} onClick={() => window.print()}>Imprimir</Button>}
+            />
+
+            {ehAdmin && <ChurnDashboard />}
+
+            <Panel>
+                <div className={pageStyles.panelHead}>
+                    <h2 className={pageStyles.panelTitle}>Estoque das concessionárias</h2>
+                    <p className={pageStyles.panelDescription}>Quem cadastra, onde está o estoque e há quantos dias cada loja não atualiza.</p>
                 </div>
-            </div>
-
-            {!showFilters && activeFiltersCount > 0 && (() => {
-                const activeFilters = Object.entries(filters).filter(([_, value]) => value !== '');
-                return (
-                    <div className={styles.activeFiltersBar}>
-                        <span className={styles.activeFiltersLabel}>Filtros ativos:</span>
-                        {activeFilters.map(([key, value]) => {
-                            const filterLabels: Record<string, string> = {
-                                operador: 'Operador',
-                                concessionaria: 'Concessionária',
-                                responsavel: 'Responsável',
-                                diasDesde: 'Dias sem Atualização'
-                            };
-
-                            const label = filterLabels[key] || key;
-                            let displayValue = value;
-
-                            if (key === 'diasDesde') {
-                                const diasLabels: Record<string, string> = {
-                                    '0-1': '0-1 (Verde)',
-                                    '2-3': '2-3 (Amarelo)',
-                                    '4+': '4+ (Vermelho)',
-                                    '7+': '7+ (Crítico)',
-                                    '15+': '15+ (Urgente)'
-                                };
-                                displayValue = diasLabels[value] || value;
-                            }
-
-                            return (
-                                <span key={key} className={styles.activeFilterTag}>
-                                    {label}: {displayValue}
-                                    <button
-                                        onClick={() => handleFilterChange(key as keyof FiltersState, '')}
-                                        className={styles.removeFilterButton}
-                                    >
-                                        ×
-                                    </button>
-                                </span>
-                            );
-                        })}
-                    </div>
-                );
-            })()}
-
-            {showFilters && (
-                <div className={styles.filtersPanel}>
-                    <div className={styles.filtersGrid}>
-                        <div>
-                            <input
-                                type="text"
-                                placeholder="Operador"
-                                value={filters.operador}
-                                onChange={(e) => handleFilterChange('operador', e.target.value)}
-                                className={styles.filterInput}
-                                list="operadores-list"
-                            />
-                            <datalist id="operadores-list">
-                                {operadoresList.map((op, idx) => (
-                                    <option key={idx} value={op} />
-                                ))}
-                            </datalist>
-                        </div>
-                        <div>
-                            <input
-                                type="text"
-                                placeholder="Concessionária"
-                                value={filters.concessionaria}
-                                onChange={(e) => handleFilterChange('concessionaria', e.target.value)}
-                                className={styles.filterInput}
-                                list="concessionarias-list"
-                            />
-                            <datalist id="concessionarias-list">
-                                {concessionariasList.map((conc, idx) => (
-                                    <option key={idx} value={conc} />
-                                ))}
-                            </datalist>
-                        </div>
-                        <div>
-                            <input
-                                type="text"
-                                placeholder="Responsável"
-                                value={filters.responsavel}
-                                onChange={(e) => handleFilterChange('responsavel', e.target.value)}
-                                className={styles.filterInput}
-                                list="responsaveis-list"
-                            />
-                            <datalist id="responsaveis-list">
-                                {responsaveisList.map((resp, idx) => (
-                                    <option key={idx} value={resp} />
-                                ))}
-                            </datalist>
-                        </div>
-                        <select
+                <PanelToolbar>
+                    <div className={pageStyles.toolbarGroup}>
+                        <FilterSelect label="Operador" value={filters.operador} onChange={v => handleFilterChange('operador', v)} options={[{ value: '', label: 'Todos os operadores' }, ...operadoresList.map(o => ({ value: o, label: o }))]} />
+                        <FilterSelect label="Concessionária" value={filters.concessionaria} onChange={v => handleFilterChange('concessionaria', v)} options={[{ value: '', label: 'Todas as concessionárias' }, ...concessionariasList.map(o => ({ value: o, label: o }))]} />
+                        <FilterSelect label="Responsável" value={filters.responsavel} onChange={v => handleFilterChange('responsavel', v)} options={[{ value: '', label: 'Todos os responsáveis' }, ...responsaveisList.map(o => ({ value: o, label: o }))]} />
+                        <FilterSelect
+                            label="Dias sem atualizar"
                             value={filters.diasDesde}
-                            onChange={(e) => handleFilterChange('diasDesde', e.target.value)}
-                            className={styles.filterInput}
-                        >
-                            <option value="">Dias sem Atualização</option>
-                            <option value="0-1">🟢 0-1 dia (Verde)</option>
-                            <option value="2-3">🟡 2-3 dias (Amarelo)</option>
-                            <option value="4+">🔴 4+ dias (Vermelho)</option>
-                            <option value="7+">⚠️ 7+ dias (Crítico)</option>
-                            <option value="15+">🚨 15+ dias (Urgente)</option>
-                        </select>
-                        <button onClick={handleClearFilters} className={styles.clearFiltersButton}>
-                            Limpar Filtros
-                        </button>
+                            onChange={v => handleFilterChange('diasDesde', v)}
+                            options={[
+                                { value: '', label: 'Qualquer atualização' },
+                                { value: '0-1', label: 'Até 1 dia' },
+                                { value: '2-3', label: '2 a 3 dias' },
+                                { value: '4+', label: '4 dias ou mais' },
+                                { value: '7+', label: '7 dias ou mais' },
+                                { value: '15+', label: '15 dias ou mais' },
+                            ]}
+                        />
+                        {activeFiltersCount > 0 && (
+                            <Button variant="ghost" icon={<X size={15} aria-hidden="true" />} onClick={() => setFilters({ ...INITIAL_FILTERS })}>Limpar filtros</Button>
+                        )}
                     </div>
-                </div>
-            )}
+                    <Segmented<'summary' | 'detailed'>
+                        label="Modo de exibição"
+                        value={viewMode}
+                        onChange={setViewMode}
+                        options={[{ value: 'summary', label: 'Resumo' }, { value: 'detailed', label: 'Por concessionária', count: detalhes.length }]}
+                    />
+                </PanelToolbar>
 
-            {metricsError && <div className={styles.errorBox}>{metricsError}</div>}
+                {metricsError && <div className={pageStyles.panelNotice}><InlineNotice>{metricsError}</InlineNotice></div>}
 
-            {loadingMetrics ? (
-                <p className={styles.subtitle}>Carregando métricas...</p>
-            ) : viewMode === 'summary' ? (
-                <>
-                    {['administrador', 'admin'].includes(userInfo.profile || '') && <ChurnDashboard />}
-                    <div className={styles.dashboardGrid}>
-                        <div className={styles.dashboardCard}>
-                        <div className={styles.cardHeader}>
-                            <div className={styles.cardTitle}>Veículos por Operador</div>
-                            <span className={styles.cardBadge}>Cadastro</span>
-                        </div>
-                        <ul className={styles.cardList}>
-                            {metrics.byOperator.length === 0 && <li className={styles.cardListItem}>Sem dados</li>}
-                            {metrics.byOperator.map((item) => (
-                                <li key={item.nome} className={styles.cardListItem}>
-                                    <span>{item.nome}</span>
-                                    <strong>{item.total}</strong>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-
-                    <div className={styles.dashboardCard}>
-                        <div className={styles.cardHeader}>
-                            <div className={styles.cardTitle}>
-                                Veículos por Concessionária
-                                <span className={styles.cardSubtitle} style={{ fontSize: '0.75rem', display: 'block', marginTop: '2px', color: 'var(--color-text-muted)' }}>
-                                    (Top 20)
-                                </span>
-                            </div>
-                            <span className={styles.cardBadge}>Estoque</span>
-                        </div>
-                        <ul className={styles.cardList}>
-                            {metrics.byConcessionaria.length === 0 && <li className={styles.cardListItem}>Sem dados</li>}
-                            {metrics.byConcessionaria.map((item) => (
-                                <li key={item.nome} className={styles.cardListItem}>
-                                    <span>{item.nome}</span>
-                                    <strong>{item.total}</strong>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-
-                    <div className={styles.dashboardCard}>
-                        <div className={styles.cardHeader}>
-                            <div className={styles.cardTitle}>Tempo sem atualização</div>
-                            <span className={styles.cardBadge}>Dias sem atualizar</span>
-                        </div>
-                        <ul className={styles.cardList}>
-                            {metrics.concessionariaStaleness.length === 0 && <li className={styles.cardListItem}>Sem dados</li>}
-                            {metrics.concessionariaStaleness.map((item) => (
-                                <li key={item.nome} className={styles.cardListItem}>
-                                    <span>{item.nome}</span>
-                                    <strong>{item.dias} dias</strong>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                </div>
-                </>
-            ) : (
-                <div className={styles.dashboardCard} style={{ gridColumn: '1 / -1', marginTop: '20px' }}>
-                    <div className={styles.cardHeader}>
-                        <div className={styles.cardTitle}>Visão Detalhada por Concessionária</div>
-                        <span className={styles.cardBadge}>{metrics.dealershipDetails?.length || 0} Registros</span>
-                    </div>
-                    <div style={{ overflowX: 'auto' }}>
-                        <table className={styles.table}>
-                            <thead>
-                                <tr>
-                                    <th className={styles.tableHeader}>Concessionária</th>
-                                    <th className={styles.tableHeader}>Responsável</th>
-                                    <th className={styles.tableHeader}>Operador</th>
-                                    <th className={styles.tableHeader} style={{ textAlign: 'center' }}>Total Veículos</th>
-                                    <th className={styles.tableHeader} style={{ textAlign: 'center' }}>Dias s/ Atualização</th>
-                                    <th className={styles.tableHeader}>Última Atualização</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {!metrics.dealershipDetails || metrics.dealershipDetails.length === 0 ? (
+                {viewMode === 'detailed' && (
+                    <>
+                        <div className={pageStyles.tableWrap}>
+                            <table className={pageStyles.table}>
+                                <thead>
                                     <tr>
-                                        <td colSpan={6} className={styles.tableCell} style={{ textAlign: 'center' }}>
-                                            Nenhum dado encontrado para os filtros selecionados.
-                                        </td>
+                                        <th>Concessionária</th>
+                                        <th>Responsável</th>
+                                        <th>Operador</th>
+                                        <th className={pageStyles.num}>Veículos</th>
+                                        <th>Sem atualizar</th>
+                                        <th>Última atualização</th>
                                     </tr>
-                                ) : (
-                                    metrics.dealershipDetails.map((detail, idx) => (
-                                        <tr key={idx} className={styles.tableRow}>
-                                            <td className={styles.tableCell} style={{ fontWeight: 500 }}>{detail.concessionaria}</td>
-                                            <td className={styles.tableCell}>{detail.responsavel || '-'}</td>
-                                            <td className={styles.tableCell}>{detail.operador || '-'}</td>
-                                            <td className={styles.tableCell} style={{ textAlign: 'center' }}>{detail.total}</td>
-                                            <td className={styles.tableCell} style={{ textAlign: 'center' }}>
-                                                <span style={{ 
-                                                    display: 'inline-block', 
-                                                    padding: '2px 8px', 
-                                                    borderRadius: '12px',
-                                                    fontSize: '0.85rem',
-                                                    fontWeight: 600,
-                                                    backgroundColor: detail.dias <= 1 ? '#e6f4ea' : detail.dias <= 3 ? '#fef7e0' : detail.dias <= 6 ? '#fce8e6' : '#fad2cf',
-                                                    color: detail.dias <= 1 ? '#137333' : detail.dias <= 3 ? '#b06000' : detail.dias <= 6 ? '#c5221f' : '#a50e0e'
-                                                }}>
-                                                    {detail.dias} {detail.dias === 1 ? 'dia' : 'dias'}
-                                                </span>
-                                            </td>
-                                            <td className={styles.tableCell} style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
-                                                {detail.lastUpdated ? new Date(detail.lastUpdated).toLocaleDateString('pt-BR') : '-'}
-                                            </td>
+                                </thead>
+                                <tbody>
+                                    {loadingMetrics && <SkeletonRows rows={6} columns={6} />}
+                                    {!loadingMetrics && detalhes.map((d, idx) => (
+                                        <tr key={`${d.concessionaria}-${idx}`}>
+                                            <td><strong>{d.concessionaria}</strong></td>
+                                            <td>{d.responsavel || <span className={pageStyles.muted}>-</span>}</td>
+                                            <td>{d.operador || <span className={pageStyles.muted}>-</span>}</td>
+                                            <td className={pageStyles.num}><strong>{d.total.toLocaleString('pt-BR')}</strong></td>
+                                            <td><StatusBadge tone={tomDias(d.dias)}>{d.dias} {d.dias === 1 ? 'dia' : 'dias'}</StatusBadge></td>
+                                            <td><span className={pageStyles.nowrap}>{d.lastUpdated ? new Date(d.lastUpdated).toLocaleDateString('pt-BR') : '-'}</span></td>
                                         </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        {!loadingMetrics && detalhes.length === 0 && <EmptyState icon={<Building2 size={20} />} title="Nenhuma concessionária encontrada" description="Ajuste ou limpe os filtros." />}
+                        {!loadingMetrics && detalhes.length > 0 && (
+                            <PanelFooter aside="Verde até 1 dia, amarelo até 3, vermelho acima">
+                                Mostrando <strong>{detalhes.length}</strong> {detalhes.length === 1 ? 'concessionária' : 'concessionárias'}
+                            </PanelFooter>
+                        )}
+                    </>
+                )}
+            </Panel>
+
+            {viewMode === 'summary' && (
+                <div className={pageStyles.cardGrid}>
+                    <SectionCard title="Veículos por operador" description="Cadastros feitos por cada operador.">
+                        {lista(metrics.byOperator, i => i.total ?? 0, i => (i.total ?? 0).toLocaleString('pt-BR'))}
+                    </SectionCard>
+                    <SectionCard title="Veículos por concessionária" description="As 20 lojas com mais veículos.">
+                        {lista(metrics.byConcessionaria, i => i.total ?? 0, i => (i.total ?? 0).toLocaleString('pt-BR'))}
+                    </SectionCard>
+                    <SectionCard title="Tempo sem atualizar" description="Lojas há mais tempo sem enviar estoque.">
+                        {lista(metrics.concessionariaStaleness, i => i.dias ?? 0, i => `${i.dias ?? 0} ${i.dias === 1 ? 'dia' : 'dias'}`, i => tomDias(i.dias ?? 0))}
+                    </SectionCard>
                 </div>
             )}
-        </div>
+        </Page>
     );
 }

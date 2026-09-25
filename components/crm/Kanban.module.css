@@ -1,114 +1,94 @@
-.board {
-    padding: 32px;
-}
-
-.header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 16px;
-    margin-bottom: 32px;
-}
-
-.title {
-    font-size: 2rem;
-}
-
-.actions {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    flex-shrink: 0;
-}
-
-.statsRow {
-    display: flex;
-    gap: 16px;
-    margin-bottom: 24px;
-    overflow-x: auto;
-    padding-bottom: 8px;
-}
-
 /*
- * A faixa de colunas rola dentro da própria altura, presa à viewport.
- *
- * Antes ela crescia junto com a coluna mais cheia, e a barra horizontal ficava
- * no rodapé desse bloco — com muitos leads era preciso descer a página inteira
- * até o fim, arrastar de lado e voltar ao topo para ver o resultado.
+ * Funil de leads (kanban). Página, cabeçalho e indicadores vêm de
+ * components/ui/Page; aqui fica só o que é próprio do quadro.
+ */
+
+/* ── Filtros de período ── */
+.dateRange { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--color-text-muted); }
+.dateRange input { min-height: 40px !important; border-radius: 10px !important; font-size: 14px; }
+
+/* ── Quadro ──
+ * A faixa de colunas rola dentro da própria altura, presa à viewport: com
+ * muitos leads não é preciso descer a página toda para achar a barra lateral.
  */
 .columns {
-    -webkit-overflow-scrolling: touch;
-    max-height: calc(100vh - 240px);
-    overflow-y: hidden;
-    overscroll-behavior-x: contain;
-    scrollbar-width: auto;
-    scrollbar-color: #9CA3AF #E5E7EB;
+    display: flex; gap: 16px; overflow-x: auto; overflow-y: hidden; padding: 4px 2px 12px;
+    max-height: calc(100vh - 260px); min-height: 420px;
+    -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain;
+    scrollbar-width: thin; scrollbar-color: var(--color-highlight) transparent;
 }
-
-.columns::-webkit-scrollbar {
-    height: 12px;
-}
-
-.columns::-webkit-scrollbar-track {
-    background: #E5E7EB;
-    border-radius: 6px;
-}
-
-.columns::-webkit-scrollbar-thumb {
-    background: #9CA3AF;
-    border-radius: 6px;
-}
-
-.columns::-webkit-scrollbar-thumb:hover {
-    background: #6B7280;
-}
+.columns::-webkit-scrollbar { height: 10px; }
+.columns::-webkit-scrollbar-thumb { background: var(--color-highlight); border-radius: 6px; }
 
 .column {
-    width: 320px;
-    max-height: 100%;
+    display: flex; flex-direction: column; flex: none; width: 312px; max-height: 100%;
+    background: var(--color-panel); border: 1px solid var(--admin-border); border-radius: 12px; overflow: hidden;
 }
+.columnHead { display: flex; flex-direction: column; gap: 2px; padding: 14px 16px; background: var(--color-surface); border-bottom: 1px solid var(--admin-border); }
+.columnTitleRow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.columnName { display: flex; align-items: center; gap: 8px; min-width: 0; margin: 0; font-size: 14px; font-weight: 650; color: var(--color-text); }
+.columnName span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stageDot { flex: none; width: 8px; height: 8px; border-radius: 999px; background: var(--color-highlight); }
+.columnCount {
+    flex: none; min-width: 26px; padding: 1px 8px; border-radius: 999px; text-align: center;
+    background: var(--color-panel); color: var(--color-text-muted); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.columnType { padding-left: 16px; font-size: 12px; color: var(--color-text-muted); }
+.drop { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 12px; overflow-y: auto; min-height: 320px; transition: background-color 150ms; }
+.drop[data-over='true'] { background: var(--admin-selected); }
+.dropEmpty {
+    flex: 1; display: grid; place-items: center; min-height: 240px; padding: 24px; text-align: center;
+    border: 1px dashed var(--color-highlight); border-radius: 10px; color: var(--color-text-muted); font-size: 13px;
+}
+.drop[data-over='true'] .dropEmpty { border-color: var(--admin-selected-text); color: var(--admin-selected-text); }
+
+/* ── Card do lead ── */
+.card {
+    display: flex; overflow: hidden; background: var(--color-surface); border: 1px solid var(--admin-border); border-radius: 10px;
+    box-shadow: 0 1px 2px rgb(16 35 51 / 5%); transition: border-color 150ms, box-shadow 150ms;
+}
+.card:hover { border-color: var(--color-highlight); }
+.card[data-dragging='true'] { opacity: .6; box-shadow: 0 12px 28px rgb(16 35 51 / 18%); }
+.handle {
+    flex: none; display: grid; place-items: center; width: 22px; border-right: 1px solid var(--admin-border);
+    background: var(--color-panel); color: var(--color-text-muted); cursor: grab; touch-action: none;
+}
+.card[data-dragging='true'] .handle { cursor: grabbing; }
+.cardBody { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; cursor: pointer; }
+.cardName { font-size: 14px; font-weight: 650; color: var(--color-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cardContact { font-size: 12.5px; color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.cardMeta { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--color-text-muted); }
+.cardMeta span { display: inline-flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cardActions { display: flex; justify-content: flex-end; gap: 2px; padding-top: 8px; border-top: 1px dashed var(--admin-border); }
+.cardAction {
+    display: grid; place-items: center; width: 30px; height: 30px; min-height: 0 !important;
+    border: 0; border-radius: 8px; background: transparent; color: var(--color-text-muted); text-decoration: none;
+}
+.cardAction:hover { background: var(--color-panel); color: var(--color-text); }
+.cardAction[aria-disabled='true'] { opacity: .4; pointer-events: none; }
+
+/* ── Lixeira ── */
+.trashList { list-style: none; margin: 0; padding: 0; }
+.trashItem { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 20px; border-top: 1px solid var(--admin-border); }
+.trashInfo { flex: 1; min-width: 200px; display: flex; flex-direction: column; }
+.trashInfo strong { color: var(--color-text); font-weight: 600; }
+.trashInfo span { font-size: 13px; color: var(--color-text-muted); }
+
+/* ── Relatórios ── */
+.barRow { display: grid; grid-template-columns: minmax(120px, 200px) minmax(60px, 1fr) auto; align-items: center; gap: 12px; font-size: 14px; }
+.barRow + .barRow { margin-top: 10px; }
+.barLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text); font-weight: 500; }
+.barTrack { height: 10px; border-radius: 999px; background: var(--color-panel); overflow: hidden; }
+.barTrack span { display: block; height: 100%; border-radius: inherit; background: var(--color-primary); transition: width .3s ease; }
+.barTrack[data-tone='negative'] span { background: var(--color-negative); }
+.barValue { font-size: 13px; color: var(--color-text-muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+.barValue strong { color: var(--color-text); }
 
 @media (max-width: 768px) {
-    .board {
-        padding: 16px;
-    }
-
-    .header {
-        flex-direction: column;
-        margin-bottom: 20px;
-    }
-
-    .title {
-        font-size: 1.4rem;
-    }
-
-    .statsRow {
-        scrollbar-width: none;
-    }
-
-    .statsRow::-webkit-scrollbar {
-        display: none;
-    }
-
-    /* Swipe entre etapas com snap nativo */
-    .columns {
-        scroll-snap-type: x proximity;
-        scrollbar-width: none;
-    }
-
-    .columns::-webkit-scrollbar {
-        display: none;
-    }
-
-    .column {
-        width: min(84vw, 320px);
-        scroll-snap-align: start;
-    }
-}
-
-
-/* Shared administration design; other profiles keep their existing presentation. */
-:global([data-admin-design]) .title { font-size: 28px; font-weight: 650; letter-spacing: -.035em; }
-@media (max-width: 768px) {
-:global([data-admin-design]) .title { font-size: 23px; }
+    .columns { scroll-snap-type: x proximity; scrollbar-width: none; max-height: none; }
+    .columns::-webkit-scrollbar { display: none; }
+    .column { width: min(84vw, 312px); scroll-snap-align: start; }
+    .barRow { grid-template-columns: 1fr auto; }
+    .barTrack { grid-column: 1 / -1; grid-row: 2; }
 }

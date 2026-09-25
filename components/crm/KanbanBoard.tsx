@@ -25,6 +25,11 @@ import RadarCards from './RadarCards';
 import ReportsPanel from './ReportsPanel';
 import { Lead, Owner, ReportData, Stage } from './types';
 import styles from './Kanban.module.css';
+import { ArchiveRestore, Inbox, Plus, Settings2, Trash2 } from 'lucide-react';
+import {
+  Button, EmptyState, Page, PageHeader, Panel, PanelFooter, PanelToolbar, SearchField, Segmented, pageStyles,
+} from '@/components/ui/Page';
+import { InlineNotice, useFeedback } from '@/components/ui/Feedback';
 
 export type { Lead, Stage } from './types';
 
@@ -43,10 +48,6 @@ function buildQuery(filters: FilterState) {
   return params.toString();
 }
 
-const toggleButton = (active: boolean): React.CSSProperties => ({
-  padding: '8px 16px', borderRadius: '8px', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer',
-  border: '1px solid var(--admin-border, #e5e7eb)', background: active ? 'var(--admin-selected, #111827)' : 'var(--color-surface)', color: active ? 'var(--admin-selected-text, #FFFFFF)' : 'var(--admin-text, #374151)',
-});
 
 export default function KanbanBoard() {
   const [view, setView] = useState<View>('funil');
@@ -68,6 +69,7 @@ export default function KanbanBoard() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const { confirm, notify, feedback } = useFeedback();
 
   const query = buildQuery(filters);
 
@@ -158,13 +160,20 @@ export default function KanbanBoard() {
   };
 
   const excluirDefinitivo = async (lead: Lead) => {
-    if (!confirm(`Excluir "${lead.name}" definitivamente? O histórico e as tarefas vão junto.`)) return;
+    const ok = await confirm({
+      title: 'Excluir lead de vez',
+      description: <>O lead <strong>{lead.name}</strong> sai da lixeira junto com o histórico e as tarefas. Não dá para desfazer.</>,
+      confirmLabel: 'Excluir de vez',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       const res = await fetch(`/api/crm/leads/${lead.id}`, { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || 'Falha ao excluir o lead');
       }
+      notify('Lead excluído.', 'positive');
       fetchData();
     } catch (err: any) {
       setError(err.message);
@@ -212,139 +221,98 @@ export default function KanbanBoard() {
     );
   }, [leads, searchQuery]);
 
-  if (loading && stages.length === 0 && !error) {
-    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '16rem', color: 'var(--admin-text, #111827)' }}>Carregando CRM...</div>;
-  }
+  const carregando = loading && stages.length === 0 && !error;
 
   return (
-    <div className={styles.board} style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--admin-panel, #f9fafb)', color: 'var(--admin-text, #111827)', borderRadius: '8px' }}>
-      <div className={styles.header}>
-        <div>
-          <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--admin-muted, #6b7280)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Comercial</h4>
-          <h1 className={styles.title} style={{ fontWeight: 'bold', color: 'var(--admin-text, #111827)', marginBottom: '4px', marginTop: 0 }}>Pipeline de leads</h1>
-          <p style={{ fontSize: '1rem', color: 'var(--admin-muted, #6b7280)', margin: 0 }}>Acompanhe entrada, contato, follow-up, propostas e vendas em um fluxo único.</p>
-        </div>
-        <div className={styles.actions}>
-          <div style={{ display: 'flex', gap: '4px' }}>
-            <button onClick={() => setView('funil')} style={toggleButton(view === 'funil')}>Funil</button>
-            <button onClick={() => setView('relatorios')} style={toggleButton(view === 'relatorios')}>Relatórios</button>
-            <button onClick={() => setView('lixeira')} style={toggleButton(view === 'lixeira')}>
-              Lixeira{trashed.length > 0 ? ` (${trashed.length})` : ''}
-            </button>
-          </div>
-          <button
-            onClick={() => setIsStageModalOpen(true)}
-            style={{ background: 'var(--color-surface)', color: 'var(--admin-text, #374151)', padding: '10px 16px', borderRadius: '8px', fontWeight: 600, border: '1px solid var(--admin-border, #e5e7eb)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
-          >
-            Gerenciar Fases
-          </button>
-          <button
-            onClick={() => setIsAddLeadModalOpen(true)}
-            disabled={stages.length === 0}
-            style={{ background: 'var(--admin-accent, #3b82f6)', color: 'var(--admin-on-accent, #ffffff)', padding: '10px 20px', borderRadius: '8px', fontWeight: 600, border: 'none', cursor: stages.length === 0 ? 'not-allowed' : 'pointer', opacity: stages.length === 0 ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
-          >
-            Novo Lead
-          </button>
-        </div>
-      </div>
+    <Page wide>
+      <PageHeader
+        title="Leads"
+        count={carregando ? null : leads.length}
+        description="Entrada, contato, follow-up, proposta e venda em um fluxo só. Arraste o card pela alça para mudar de fase."
+        actions={<>
+          <Button icon={<Settings2 size={16} aria-hidden="true" />} onClick={() => setIsStageModalOpen(true)}>Fases</Button>
+          <Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={() => setIsAddLeadModalOpen(true)} disabled={stages.length === 0}>Novo lead</Button>
+        </>}
+      />
 
       {error && (
-        <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#B91C1C', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
-          <span>{error}</span>
-          <button onClick={() => setError('')} style={{ background: 'transparent', border: 'none', color: '#B91C1C', cursor: 'pointer', fontWeight: 700 }}>✕</button>
-        </div>
+        <InlineNotice>{error}</InlineNotice>
       )}
 
-      <FunnelFilters filters={filters} tags={tags} owners={owners} onChange={setFilters} />
-
       <RadarCards report={report} loading={loading && !report} />
+
+      <Panel className={pageStyles.panelVisible}>
+        <PanelToolbar>
+          <Segmented<View>
+            label="Visualização"
+            value={view}
+            onChange={setView}
+            options={[
+              { value: 'funil', label: 'Funil', count: filteredLeads.length },
+              { value: 'relatorios', label: 'Relatórios' },
+              { value: 'lixeira', label: 'Lixeira', count: trashed.length },
+            ]}
+          />
+          {view === 'funil' && <SearchField value={searchQuery} onChange={setSearchQuery} placeholder="Nome, contato, origem ou responsável" />}
+        </PanelToolbar>
+        <div className={pageStyles.toolbarSecondary}>
+          <FunnelFilters filters={filters} tags={tags} owners={owners} onChange={setFilters} />
+        </div>
+      </Panel>
 
       {view === 'relatorios' ? (
         <ReportsPanel report={report} loading={loading && !report} />
       ) : view === 'lixeira' ? (
-        <div style={{ background: 'var(--color-surface)', border: '1px solid var(--admin-border, #e5e7eb)', borderRadius: '12px', padding: '20px' }}>
-          <h2 style={{ margin: '0 0 4px', fontSize: '1.1rem', color: 'var(--admin-text, #111827)' }}>Lixeira</h2>
-          <p style={{ margin: '0 0 16px', color: 'var(--admin-muted, #6b7280)', fontSize: '0.875rem' }}>
-            Leads removidos do quadro. O histórico fica guardado até a exclusão definitiva.
-          </p>
+        <Panel>
+          <div className={pageStyles.panelHead}>
+            <h2 className={pageStyles.panelTitle}>Lixeira</h2>
+            <p className={pageStyles.panelDescription}>Leads tirados do quadro. O histórico fica guardado até a exclusão definitiva.</p>
+          </div>
           {trashed.length === 0 ? (
-            <p style={{ color: 'var(--admin-muted, #9ca3af)', margin: 0 }}>A lixeira está vazia.</p>
+            <EmptyState icon={<Trash2 size={20} />} title="Lixeira vazia" description="Leads removidos do quadro aparecem aqui." />
           ) : (
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <ul className={styles.trashList}>
               {trashed.map(lead => (
-                <li
-                  key={lead.id}
-                  style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', border: '1px solid var(--admin-border, #e5e7eb)', borderRadius: '10px', padding: '12px 16px' }}
-                >
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <strong style={{ color: 'var(--admin-text, #111827)' }}>{lead.name}</strong>
-                    <div style={{ color: 'var(--admin-muted, #6b7280)', fontSize: '0.85rem' }}>
-                      {lead.phone}{lead.ownerName ? ` · ${lead.ownerName}` : ''}
-                      {lead.tags.length ? ` · ${lead.tags.join(', ')}` : ''}
-                    </div>
+                <li key={lead.id} className={styles.trashItem}>
+                  <div className={styles.trashInfo}>
+                    <strong>{lead.name}</strong>
+                    <span>{[lead.phone, lead.ownerName, lead.tags.join(', ')].filter(Boolean).join(' · ')}</span>
                   </div>
-                  <button
-                    onClick={() => setLeadAtivo(lead.id, true)}
-                    style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid #3B82F6', background: 'var(--color-surface)', color: '#1D4ED8', fontWeight: 600, cursor: 'pointer' }}
-                  >
-                    Restaurar
-                  </button>
-                  <button
-                    onClick={() => excluirDefinitivo(lead)}
-                    style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#B91C1C', fontWeight: 600, cursor: 'pointer' }}
-                  >
-                    Excluir definitivamente
-                  </button>
+                  <Button icon={<ArchiveRestore size={15} aria-hidden="true" />} onClick={() => setLeadAtivo(lead.id, true)}>Restaurar</Button>
+                  <Button variant="danger" onClick={() => excluirDefinitivo(lead)}>Excluir de vez</Button>
                 </li>
               ))}
             </ul>
           )}
-        </div>
+          {trashed.length > 0 && <PanelFooter>{trashed.length} {trashed.length === 1 ? 'lead na lixeira' : 'leads na lixeira'}</PanelFooter>}
+        </Panel>
+      ) : carregando ? (
+        <Panel><EmptyState icon={<Inbox size={20} />} title="Carregando o funil" description="Buscando fases e leads." /></Panel>
       ) : stages.length === 0 ? (
-        <div style={{ background: 'var(--color-surface)', border: '1px dashed #D1D5DB', borderRadius: '12px', padding: '48px 24px', textAlign: 'center' }}>
-          <p style={{ color: 'var(--admin-muted, #6b7280)', marginTop: 0 }}>Seu funil ainda não tem fases.</p>
-          <button onClick={() => setIsStageModalOpen(true)} style={{ background: 'var(--admin-accent, #3b82f6)', color: 'var(--admin-on-accent, #ffffff)', padding: '10px 20px', borderRadius: '8px', fontWeight: 600, border: 'none', cursor: 'pointer' }}>
-            Configurar fases
-          </button>
-        </div>
+        <Panel>
+          <EmptyState
+            icon={<Settings2 size={20} />}
+            title="O funil ainda não tem fases"
+            description="Crie as fases (entrada, contato, proposta, venda) para começar a mover os leads."
+            action={<Button variant="primary" onClick={() => setIsStageModalOpen(true)}>Configurar fases</Button>}
+          />
+        </Panel>
       ) : (
-        <>
-          <div style={{ display: 'flex', alignItems: 'center', background: 'var(--color-surface)', padding: '12px 20px', borderRadius: '12px', border: '1px solid var(--admin-border, #e5e7eb)', marginBottom: '24px', gap: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-            <span style={{ color: 'var(--admin-muted, #9ca3af)', fontSize: '1.2rem' }}>🔍</span>
-            <input
-              type="text"
-              placeholder="Pesquisar por nome, contato, origem ou responsável"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '1rem', color: 'var(--admin-text, #111827)' }}
-            />
-            <div style={{ background: 'var(--admin-panel, #f3f4f6)', color: '#4B5563', padding: '6px 12px', borderRadius: '9999px', fontSize: '0.875rem', fontWeight: 600 }}>
-              {filteredLeads.length} no quadro
-            </div>
-          </div>
-
-          <div className={styles.columns} style={{ display: 'flex', flex: 1, overflowX: 'auto', paddingBottom: '16px', gap: '20px' }}>
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCorners}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-            >
-              {stages.map(stage => (
-                <KanbanColumn
-                  key={stage.id}
-                  stage={stage}
-                  leads={filteredLeads.filter(l => l.stageId === stage.id)}
-                  onOpenLead={setDetailLeadId}
-                />
-              ))}
-
-              <DragOverlay>
-                {activeLead ? <LeadCard lead={activeLead} isDragging /> : null}
-              </DragOverlay>
-            </DndContext>
-          </div>
-        </>
+        <div className={styles.columns}>
+          <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+            {stages.map(stage => (
+              <KanbanColumn
+                key={stage.id}
+                stage={stage}
+                leads={filteredLeads.filter(l => l.stageId === stage.id)}
+                onOpenLead={setDetailLeadId}
+              />
+            ))}
+            <DragOverlay>
+              {activeLead ? <LeadCard lead={activeLead} isDragging /> : null}
+            </DragOverlay>
+          </DndContext>
+        </div>
       )}
 
       {isStageModalOpen && (
@@ -375,6 +343,7 @@ export default function KanbanBoard() {
           onSaved={fetchData}
         />
       )}
-    </div>
+      {feedback}
+    </Page>
   );
 }

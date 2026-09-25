@@ -11,6 +11,7 @@ import { MaskedInput } from './MaskedInput';
 import { CurrencyInput } from './CurrencyInput';
 import { getEstados, getAllCidades, filterCidades } from '../../lib/data/estadosCidades';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
+import { InlineNotice } from '@/components/ui/Feedback';
 import styles from './AddVehicleModal.module.css';
 
 interface AddVehicleModalProps {
@@ -26,6 +27,7 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
     const { data: session } = useSession();
     const { addVehicle, updateVehicle } = useVehicleDatabase();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [erro, setErro] = useState<string | null>(null);
 
     // Estados para autocomplete
     const [marcas, setMarcas] = useState<string[]>([]);
@@ -278,6 +280,7 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
+        setErro(null);
 
         try {
             console.log('=== INICIO DO SUBMIT ===');
@@ -303,7 +306,7 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                 .map(([key, _]) => key);
 
             if (camposFaltando.length > 0) {
-                alert(`Por favor, preencha os campos obrigatórios: ${camposFaltando.join(', ')}`);
+                setErro(`Preencha os campos obrigatórios: ${camposFaltando.join(', ')}.`);
                 console.log('Campos faltando:', camposFaltando);
                 setIsSubmitting(false);
                 return;
@@ -333,16 +336,15 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
             console.log('Success flag:', success);
             if (success) {
                 console.log('Veículo salvo com sucesso! Chamando callbacks...');
-                alert('Veículo salvo com sucesso!');
                 onVehicleAdded();
                 onClose();
             } else {
                 console.error('Success retornou false');
-                alert('Erro ao salvar veículo. Tente novamente.');
+                setErro('Não foi possível salvar o veículo. Tente de novo.');
             }
         } catch (error) {
             console.error('Erro ao adicionar veículo:', error);
-            alert('Erro ao cadastrar veículo. Tente novamente.');
+            setErro('Falha de conexão ao salvar o veículo. Tente de novo.');
         } finally {
             setIsSubmitting(false);
         }
@@ -371,6 +373,7 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
             </>}
         >
             <div className={modalStyles.stack}>
+                {erro && <InlineNotice>{erro}</InlineNotice>}
                 <div className={styles.formGrid} style={{ marginBottom: 0 }}>
                     <div className={styles.formGroup}>
                         <label htmlFor="dataEntrada">Data de Entrada</label>

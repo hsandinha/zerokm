@@ -145,7 +145,7 @@ export default function DealershipDashboard() {
             case 'precos':
                 return <DealerInventory />;
             case 'crm':
-                return <div style={{ height: 'calc(100vh - 200px)' }}><KanbanBoard /></div>;
+                return <KanbanBoard />;
             case 'perfil':
                 return <PerfilTab profile={profile} loading={loadingProfile} onCadastrarVeiculo={() => setActiveTab('veiculos')} />;
             case 'anuncios':
@@ -167,7 +167,7 @@ export default function DealershipDashboard() {
             >
                 <StockReminderModal onUpdateStock={() => setActiveTab('precos')} />
                 {/* A consulta de veículos ocupa a tela toda, como no admin. */}
-                {activeTab === 'veiculos' ? renderTabContent() : <div className={shellStyles.contentArea}>{renderTabContent()}</div>}
+                {activeTab === 'veiculos' || activeTab === 'crm' ? renderTabContent() : <div className={shellStyles.contentArea}>{renderTabContent()}</div>}
             </DashboardShell>
         </ConfigContext.Provider>
     );

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
+import { useFeedback } from '@/components/ui/Feedback';
 import crm from './crmModals.module.css';
 import { FiArrowRight, FiPlusCircle, FiTrash2, FiClock } from 'react-icons/fi';
 import { lostReasonLabel } from '@/lib/utils/crmFunnel';
@@ -45,6 +46,7 @@ export default function LeadDetailModal({ leadId, onClose, onSaved }: Props) {
   const [taskBusy, setTaskBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const { confirm, feedback } = useFeedback();
 
   useEffect(() => {
     let cancelled = false;
@@ -108,7 +110,8 @@ export default function LeadDetailModal({ leadId, onClose, onSaved }: Props) {
 
   const handleMoveToTrash = async () => {
     if (!lead) return;
-    if (!confirm(`Mover "${lead.name}" para a lixeira? Ele sai do quadro, mas pode ser restaurado.`)) return;
+    const ok = await confirm({ title: 'Mover para a lixeira', description: <><strong>{lead.name}</strong> sai do quadro. Dá para restaurar pela Lixeira do funil.</>, confirmLabel: 'Mover para a lixeira' });
+    if (!ok) return;
 
     setSaving(true);
     setError('');
@@ -177,7 +180,8 @@ export default function LeadDetailModal({ leadId, onClose, onSaved }: Props) {
   };
 
   const handleDeleteTask = async (task: LeadTaskItem) => {
-    if (!confirm(`Excluir a tarefa "${task.title}"?`)) return;
+    const ok = await confirm({ title: 'Excluir tarefa', description: <>A tarefa <strong>{task.title}</strong> sai do lead.</>, confirmLabel: 'Excluir tarefa', danger: true });
+    if (!ok) return;
     setTaskBusy(true);
     setError('');
     try {
@@ -392,6 +396,7 @@ export default function LeadDetailModal({ leadId, onClose, onSaved }: Props) {
           </>
         )}
       </div>
+      {feedback}
     </AdminModal>
   );
 }

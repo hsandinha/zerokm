@@ -7,6 +7,9 @@ export { styles as modalStyles };
 
 type Size = 'sm' | 'md' | 'lg' | 'xl';
 
+/** Modais abertos, do mais antigo ao mais novo: o Esc fecha só o de cima (ex.: confirmação aberta sobre um modal). */
+const pilhaDeModais: symbol[] = [];
+
 export interface AdminModalProps {
     title: ReactNode;
     subtitle?: ReactNode;
@@ -47,9 +50,16 @@ export function AdminModal({ title, subtitle, onClose, children, footer, size = 
         const overflow = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
         panelRef.current?.focus({ preventScroll: true });
-        const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape' && !busyRef.current) closeRef.current(); };
+        const eu = Symbol('modal');
+        pilhaDeModais.push(eu);
+        const onKey = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape' || busyRef.current || pilhaDeModais[pilhaDeModais.length - 1] !== eu) return;
+            event.stopPropagation();
+            closeRef.current();
+        };
         document.addEventListener('keydown', onKey);
         return () => {
+            pilhaDeModais.splice(pilhaDeModais.indexOf(eu), 1);
             document.removeEventListener('keydown', onKey);
             document.body.style.overflow = overflow;
             previous?.focus?.({ preventScroll: true });

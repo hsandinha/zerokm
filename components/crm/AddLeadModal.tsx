@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Stage } from './types';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
+import { InlineNotice } from '@/components/ui/Feedback';
 import { MANUAL_LEAD_SOURCES } from '@/lib/utils/leadTags';
 
 interface Props {
@@ -21,12 +22,14 @@ export default function AddLeadModal({ stages, onClose, onRefresh }: Props) {
   const [source, setSource] = useState('Manual');
   const [stageId, setStageId] = useState(selectableStages.length > 0 ? selectableStages[0].id : '');
   const [loading, setLoading] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !phone.trim() || !stageId) return;
 
     setLoading(true);
+    setErro(null);
     try {
       const response = await fetch('/api/crm/leads', {
         method: 'POST',
@@ -44,12 +47,12 @@ export default function AddLeadModal({ stages, onClose, onRefresh }: Props) {
         onRefresh();
         onClose();
       } else {
-        const data = await response.json();
-        alert(data.error || 'Erro ao criar lead');
+        const data = await response.json().catch(() => ({}));
+        setErro(data.error || 'Não foi possível criar o lead.');
       }
     } catch (error) {
       console.error('Error adding lead:', error);
-      alert('Erro de conexão ao criar lead');
+      setErro('Falha de conexão ao criar o lead. Tente de novo.');
     } finally {
       setLoading(false);
     }
@@ -71,6 +74,7 @@ export default function AddLeadModal({ stages, onClose, onRefresh }: Props) {
       }
     >
       <div className={modalStyles.stack}>
+        {erro && <InlineNotice>{erro}</InlineNotice>}
         <label className={modalStyles.field}>
           Nome *
           <input
