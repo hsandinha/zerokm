@@ -104,7 +104,17 @@ const createEmptyClienteForm = (): ClienteFormData => ({
     operadorId: ''
 });
 
-export function ConcessionariasManagement() {
+/**
+ * Quem está usando a tela. Admin, gerente e administrativo gerenciam tudo; o operador
+ * edita as marcas da loja; o vendedor só consulta marcas e operador (a API de marcas
+ * também recusa o vendedor).
+ */
+type PerfilTela = 'admin' | 'operador' | 'vendedor';
+
+export function ConcessionariasManagement({ perfil = 'admin' }: { perfil?: PerfilTela } = {}) {
+    const podeEditarMarcas = perfil !== 'vendedor';
+    const podeTrocarOperador = perfil === 'admin';
+    const podeAssociarVeiculos = perfil === 'admin';
     const [searchTerm, setSearchTerm] = useState('');
     const [segmento, setSegmento] = useState<Segmento>('todas');
     const { confirm, notify, feedback } = useFeedback();
@@ -632,7 +642,7 @@ export function ConcessionariasManagement() {
             <PageHeader
                 title="Concessionárias"
                 count={carregando ? null : clientes.length}
-                description="Lojas parceiras, marcas representadas, estoque enviado e operador responsável."
+                description={perfil === 'admin' ? 'Lojas parceiras, marcas representadas, estoque enviado e operador responsável.' : 'Lojas da carteira, marcas, estoque enviado e contatos.'}
                 actions={<Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={openCreateForm}>Nova concessionária</Button>}
             />
 
@@ -709,6 +719,11 @@ export function ConcessionariasManagement() {
                                         </td>
                                         <td>
                                             <div className={styles.brandCell}>
+                                                {!podeEditarMarcas ? (
+                                                    selectedNames.length > 0
+                                                        ? <span className={pageStyles.badgeList}>{selectedNames.map(nome => <StatusBadge key={nome} tone="accent" dot={false}>{nome}</StatusBadge>)}</span>
+                                                        : <span className={pageStyles.muted}>Sem marca</span>
+                                                ) : <>
                                                 <button
                                                     type="button"
                                                     className={styles.brandTrigger}
@@ -756,6 +771,7 @@ export function ConcessionariasManagement() {
                                                         </div>
                                                     </div>
                                                 )}
+                                                </>}
                                             </div>
                                         </td>
                                         <td>
@@ -777,6 +793,9 @@ export function ConcessionariasManagement() {
                                             />
                                         </td>
                                         <td>
+                                            {!podeTrocarOperador ? (
+                                                <span>{operadores.find(op => op._id === getOperadorIdForCliente(cliente))?.displayName || cliente.nomeResponsavel || <span className={pageStyles.muted}>Sem operador</span>}</span>
+                                            ) : (
                                             <select
                                                 className={styles.inlineSelect}
                                                 aria-label={`Operador responsável por ${cliente.nome}`}
@@ -788,6 +807,7 @@ export function ConcessionariasManagement() {
                                                     <option key={op._id} value={op._id}>{op.displayName || op.email}</option>
                                                 ))}
                                             </select>
+                                            )}
                                         </td>
                                         <td className={styles.addressCell}>{composeEnderecoDisplay(cliente)}</td>
                                         <td>
@@ -795,9 +815,11 @@ export function ConcessionariasManagement() {
                                                 <IconAction label="Editar concessionária" onClick={() => handleEdit(cliente)}>
                                                     <Pencil size={17} aria-hidden="true" />
                                                 </IconAction>
-                                                <IconAction label="Associar veículos" onClick={() => handleOpenAssociateModal(cliente)}>
-                                                    <Link2 size={17} aria-hidden="true" />
-                                                </IconAction>
+                                                {podeAssociarVeiculos && (
+                                                    <IconAction label="Associar veículos" onClick={() => handleOpenAssociateModal(cliente)}>
+                                                        <Link2 size={17} aria-hidden="true" />
+                                                    </IconAction>
+                                                )}
                                                 <IconAction label="Excluir concessionária" tone="danger" onClick={() => handleDelete(cliente)}>
                                                     <Trash2 size={17} aria-hidden="true" />
                                                 </IconAction>
