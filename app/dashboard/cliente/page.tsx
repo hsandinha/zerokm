@@ -11,6 +11,7 @@ import { FreeTrialGate } from './FreeTrialGate';
 import { UpgradeModal } from '../../../components/operator/UpgradeModal';
 import { SubscriptionControls } from './SubscriptionControls';
 import { DashboardShell, shellStyles } from '@/components/dashboard/DashboardShell';
+import { Page, PageHeader } from '@/components/ui/Page';
 import { useFavoritos } from '@/lib/hooks/useFavoritos';
 import { CarFront, Heart, UserRound, Wallet } from 'lucide-react';
 import { MeuPerfil } from '@/components/profile/MeuPerfil';
@@ -248,6 +249,7 @@ function ClienteShell({ userInfo, isInvitee, onUpgradeClick }: {
             activeId={abaAtual}
             onSelect={id => abrir(id as AbaCliente)}
             primaryIds={tabs.map(tab => tab.id)}
+            trail={abaAtual === 'financeiro' ? ['Cliente', 'Financeiro'] : undefined}
             user={{
                 name: userInfo.name || 'Cliente',
                 email: userInfo.email,
@@ -259,18 +261,16 @@ function ClienteShell({ userInfo, isInvitee, onUpgradeClick }: {
             }}
         >
             {abaAtual === 'perfil' && (
-                <div className={shellStyles.contentArea}>
-                    <h1 className={shellStyles.pageTitle}>Meu perfil</h1>
-                    <p className={shellStyles.pageSubtitle}>Seus dados pessoais e endereço.</p>
+                <Page>
+                    <PageHeader title="Meu perfil" description="Seus dados pessoais e endereço." />
                     <MeuPerfil />
-                </div>
+                </Page>
             )}
             {abaAtual === 'financeiro' && (
-                <div className={shellStyles.contentArea}>
-                    <h1 className={shellStyles.pageTitle}>Financeiro</h1>
-                    <p className={shellStyles.pageSubtitle}>Extrato e histórico de pagamentos da sua assinatura.</p>
+                <Page>
+                    <PageHeader title="Financeiro" description="Extrato e histórico de pagamentos da sua assinatura." />
                     <Financeiro />
-                </div>
+                </Page>
             )}
             <div hidden={!naConsulta} className={shellStyles.shellContent}>
                 {consultaAtual === 'veiculos' && (

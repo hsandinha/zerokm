@@ -1,11 +1,12 @@
 'use client';
 import { useEffect, useState, type ReactNode } from 'react';
 import Image from 'next/image';
-import { ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ExternalLink, LogOut } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import UserMenu, { type UserMenuItem } from '@/components/UserMenu';
 import { MeuPerfil } from '@/components/profile/MeuPerfil';
 import { MobileTabBar } from '@/components/mobile/MobileTabBar';
+import { Page, PageHeader, PageTopbar, pageStyles } from '@/components/ui/Page';
 import styles from './DashboardShell.module.css';
 
 export { styles as shellStyles };
@@ -37,6 +38,11 @@ export interface DashboardShellProps {
     };
     /** Itens fixos da barra inferior no celular; os demais vão para "Mais". */
     primaryIds?: string[];
+    /**
+     * Trilha do topo além de "Seção › Aba" (ex.: ['Configurações', 'Frete']).
+     * Sem isso a trilha é o rótulo da seção seguido do nome da aba ativa.
+     */
+    trail?: string[];
     children: ReactNode;
 }
 
@@ -46,7 +52,7 @@ export interface DashboardShellProps {
  * passar o mouse, usuário no rodapé do menu e barra de abas inferior no celular.
  * O tema (claro/escuro) e os tokens vêm do layout de cada rota (AdminDesignLayout).
  */
-export function DashboardShell({ sectionLabel, tabs, activeId, onSelect, user, primaryIds, children }: DashboardShellProps) {
+export function DashboardShell({ sectionLabel, tabs, activeId, onSelect, user, primaryIds, trail, children }: DashboardShellProps) {
     const [collapsed, setCollapsed] = useState(true);
     // Perfil aberto dentro do painel: o menu lateral continua e o conteúdo da aba fica montado (só oculto).
     const [perfilAberto, setPerfilAberto] = useState(false);
@@ -63,6 +69,12 @@ export function DashboardShell({ sectionLabel, tabs, activeId, onSelect, user, p
         const query = params.toString();
         window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
     }, [user.onProfileClick]);
+    // Caminho da tela no topo, igual à intranet Ângulo: Administração › Planos.
+    const abaAtiva = tabs.find(tab => tab.id === activeId)?.label;
+    const caminho = perfilAberto
+        ? [sectionLabel, 'Meu perfil']
+        : trail ?? [sectionLabel, ...(abaAtiva ? [abaAtiva] : [])];
+
     const iconComBolinha = (tab: ShellTab) => (
         <span className={styles.iconWrap}>
             {tab.icon}
@@ -137,12 +149,20 @@ export function DashboardShell({ sectionLabel, tabs, activeId, onSelect, user, p
                 <header className={styles.mobileHeader}>
                     <Image src="/images/logo.png" alt="CNV" width={110} height={37} className={styles.mobileHeaderLogo} priority />
                 </header>
+                <PageTopbar
+                    trail={caminho}
+                    aside={(
+                        <a href="/" target="_blank" rel="noopener noreferrer" className={pageStyles.topbarLink}>
+                            Ver site
+                            <ExternalLink size={14} aria-hidden="true" />
+                        </a>
+                    )}
+                />
                 {perfilAberto && (
-                    <div className={styles.contentArea}>
-                        <h1 className={styles.pageTitle}>Meu perfil</h1>
-                        <p className={styles.pageSubtitle}>Seus dados pessoais e endereço.</p>
+                    <Page>
+                        <PageHeader title="Meu perfil" description="Seus dados pessoais e endereço." />
                         <MeuPerfil />
-                    </div>
+                    </Page>
                 )}
                 <div hidden={perfilAberto} className={styles.shellContent}>{children}</div>
             </main>
