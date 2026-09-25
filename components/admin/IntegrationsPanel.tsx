@@ -1,157 +1,131 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { MdContentCopy, MdRefresh } from 'react-icons/md';
+import React, { useEffect, useState } from 'react';
+import { Check, Copy, KeyRound, RefreshCw } from 'lucide-react';
+import { Button, Page, PageHeader, SectionCard, StatusBadge, pageStyles } from '@/components/ui/Page';
+import { useFeedback } from '@/components/ui/Feedback';
+
+const EXEMPLO_JSON = `{
+  "name": "Nome do lead",
+  "phone": "(31) 99999-9999",
+  "email": "email@exemplo.com",
+  "message": "Olá! Vim do anúncio e gostaria de criar minha conta na CNV",
+  "source": "Facebook Ads",
+  "campaign": "Campanha de lançamento",
+  "notes": "Tem interesse no carro X"
+}`;
 
 export default function IntegrationsPanel() {
     const [token, setToken] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [generating, setGenerating] = useState(false);
+    const [copiado, setCopiado] = useState<'url' | 'token' | null>(null);
+    const { confirm, notify, feedback } = useFeedback();
 
     useEffect(() => {
-        fetchToken();
-    }, []);
-
-    const fetchToken = async () => {
-        setLoading(true);
-        try {
-            const res = await fetch('/api/integrations/token');
-            const data = await res.json();
-            if (data.token) {
-                setToken(data.token);
+        const carregar = async () => {
+            try {
+                const res = await fetch('/api/integrations/token');
+                const data = await res.json();
+                if (data.token) setToken(data.token);
+            } catch (error) {
+                console.error('Erro ao buscar token:', error);
+                notify('Não foi possível carregar o token atual.');
+            } finally {
+                setLoading(false);
             }
-        } catch (error) {
-            console.error('Erro ao buscar token:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+        };
+        carregar();
+    }, [notify]);
 
     const handleGenerateToken = async () => {
-        if (token && !confirm("Gerar um novo token invalidará o token atual. Todas as suas integrações existentes (Facebook Ads, RD Station, etc) pararão de funcionar até que você as atualize com o novo token. Tem certeza?")) {
-            return;
+        if (token) {
+            const ok = await confirm({
+                title: 'Gerar novo token',
+                description: 'O token atual para de funcionar na hora. Facebook Ads, RD Station, Zapier e as demais integrações só voltam a enviar leads depois de receber o token novo.',
+                confirmLabel: 'Gerar novo token',
+                danger: true,
+            });
+            if (!ok) return;
         }
-
         setGenerating(true);
         try {
             const res = await fetch('/api/integrations/token', { method: 'POST' });
             const data = await res.json();
-            if (data.token) {
-                setToken(data.token);
-                alert('Novo token gerado com sucesso!');
-            }
+            if (!data.token) throw new Error();
+            setToken(data.token);
+            notify('Token novo gerado. Atualize as integrações com ele.', 'positive');
         } catch (error) {
             console.error('Erro ao gerar token:', error);
-            alert('Erro ao gerar token.');
+            notify('Não foi possível gerar o token. Tente de novo.');
         } finally {
             setGenerating(false);
         }
     };
 
-    const handleCopy = (text: string) => {
-        navigator.clipboard.writeText(text);
-        alert('Copiado para a área de transferência!');
+    const copiar = async (texto: string, qual: 'url' | 'token') => {
+        try {
+            await navigator.clipboard.writeText(texto);
+            setCopiado(qual);
+            setTimeout(() => setCopiado(null), 2000);
+        } catch {
+            notify('Não foi possível copiar. Selecione o texto e copie manualmente.');
+        }
     };
 
-    const webhookUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/webhooks/leads` : 'https://seu-dominio.com/api/webhooks/leads';
-
-    if (loading) {
-        return <div style={{ color: 'var(--color-text)', padding: '24px' }}>Carregando integrações...</div>;
-    }
+    const webhookUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/webhooks/leads` : '/api/webhooks/leads';
 
     return (
-        <div style={{ padding: '0', background: 'transparent', borderRadius: '12px', color: 'var(--color-text)' }}>
-            <h2 style={{ fontSize: '28px', fontWeight: 650, marginBottom: '8px' }}>Integrações (Webhooks)</h2>
-            <p style={{ color: 'var(--color-text-muted)', marginBottom: '32px' }}>
-                Conecte ferramentas externas como Facebook Ads, RD Station, ActiveCampaign ou Typeform enviando Leads automaticamente para o CRM.
-            </p>
+        <Page>
+            <PageHeader
+                title="Integrações"
+                description="Receba leads de Facebook Ads, RD Station, ActiveCampaign, Typeform, Zapier ou Make direto no funil de Leads."
+            />
 
-            <div style={{ display: 'grid', gap: '24px', gridTemplateColumns: 'minmax(0, 1fr)', maxWidth: '800px' }}>
-                <div style={{ background: 'var(--color-panel)', border: '1px solid var(--color-highlight)', borderRadius: '8px', padding: '24px' }}>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        1. URL do Webhook
-                    </h3>
-                    <p style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '12px' }}>
-                        Configure o seu sistema externo (ou Zapier/Make) para enviar uma requisição <strong>POST</strong> para esta URL:
-                    </p>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                        <input 
-                            type="text" 
-                            readOnly 
-                            value={webhookUrl} 
-                            style={{ flex: '1 1 180px', minWidth: 0, padding: '10px 16px', background: 'var(--color-panel)', border: '1px solid var(--color-highlight)', color: 'var(--color-text)', borderRadius: '6px', fontFamily: 'monospace', outline: 'none' }}
-                        />
-                        <button 
-                            onClick={() => handleCopy(webhookUrl)}
-                            style={{ padding: '0 16px', background: 'var(--color-accent)', color: 'var(--admin-on-accent, white)', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 500 }}
-                        >
-                            <MdContentCopy /> Copiar
-                        </button>
-                    </div>
+            <SectionCard title="URL do webhook" description={<>Configure a ferramenta externa para enviar um <strong>POST</strong> para este endereço.</>}>
+                <div className={pageStyles.copyRow}>
+                    <input type="text" readOnly value={webhookUrl} aria-label="URL do webhook" className={pageStyles.codeInput} onFocus={e => e.currentTarget.select()} />
+                    <Button onClick={() => copiar(webhookUrl, 'url')} icon={copiado === 'url' ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}>
+                        {copiado === 'url' ? 'Copiado' : 'Copiar'}
+                    </Button>
                 </div>
+            </SectionCard>
 
-                <div style={{ background: 'var(--color-panel)', border: '1px solid var(--color-highlight)', borderRadius: '8px', padding: '24px' }}>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        2. Token de Autenticação (Secret)
-                    </h3>
-                    <p style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '12px' }}>
-                        Envie este token no cabeçalho (Header) da requisição como <code>Authorization: Bearer SEU_TOKEN</code>, ou na URL como <code>?token=SEU_TOKEN</code>.
-                    </p>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                        <input 
-                            type="text" 
-                            readOnly 
-                            value={token || 'Nenhum token gerado ainda'} 
-                            style={{ flex: '1 1 180px', minWidth: 0, padding: '10px 16px', background: 'var(--color-panel)', border: '1px solid var(--color-highlight)', color: token ? 'var(--color-text)' : '#ef4444', borderRadius: '6px', fontFamily: 'monospace', outline: 'none' }}
-                        />
-                        {token && (
-                            <button 
-                                onClick={() => handleCopy(token)}
-                                style={{ padding: '0 16px', background: 'var(--color-accent)', color: 'var(--admin-on-accent, white)', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 500 }}
-                            >
-                                <MdContentCopy /> Copiar
-                            </button>
-                        )}
-                        <button 
-                            onClick={handleGenerateToken}
-                            disabled={generating}
-                            style={{ padding: '0 16px', background: 'transparent', color: 'var(--color-text)', border: '1px solid var(--color-highlight)', borderRadius: '6px', cursor: generating ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 500, opacity: generating ? 0.5 : 1 }}
-                        >
-                            <MdRefresh /> {token ? 'Gerar Novo' : 'Gerar Token'}
-                        </button>
-                    </div>
+            <SectionCard
+                title="Token de autenticação"
+                description={<>Envie no cabeçalho como <code className={pageStyles.code}>Authorization: Bearer SEU_TOKEN</code> ou na URL como <code className={pageStyles.code}>?token=SEU_TOKEN</code>.</>}
+                aside={loading ? null : token ? <StatusBadge tone="positive">Ativo</StatusBadge> : <StatusBadge tone="warning">Não gerado</StatusBadge>}
+            >
+                <div className={pageStyles.copyRow}>
+                    <input type="text" readOnly value={loading ? 'Carregando...' : token || 'Nenhum token gerado ainda'} aria-label="Token de autenticação" className={pageStyles.codeInput} onFocus={e => e.currentTarget.select()} />
+                    {token && (
+                        <Button onClick={() => copiar(token, 'token')} icon={copiado === 'token' ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}>
+                            {copiado === 'token' ? 'Copiado' : 'Copiar'}
+                        </Button>
+                    )}
+                    <Button
+                        variant={token ? 'secondary' : 'primary'}
+                        onClick={handleGenerateToken}
+                        disabled={generating || loading}
+                        icon={token ? <RefreshCw size={16} aria-hidden="true" /> : <KeyRound size={16} aria-hidden="true" />}
+                    >
+                        {generating ? 'Gerando...' : token ? 'Gerar novo' : 'Gerar token'}
+                    </Button>
                 </div>
+            </SectionCard>
 
-                <div style={{ background: 'var(--color-panel)', border: '1px solid var(--color-highlight)', borderRadius: '8px', padding: '24px' }}>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        3. Formato do JSON (Payload)
-                    </h3>
-                    <p style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '12px' }}>
-                        O corpo da requisição (Body) deve ser um JSON com os dados do Lead. Nome e Telefone são obrigatórios.
-                    </p>
-                    <pre style={{ background: 'var(--color-panel)', padding: '16px', borderRadius: '8px', color: 'var(--color-text)', fontFamily: 'monospace', fontSize: '0.9rem', overflowX: 'auto', maxWidth: '100%', border: '1px solid var(--color-highlight)' }}>
-{`{
-  "name": "Nome do Lead",
-  "phone": "(11) 99999-9999",
-  "email": "email@exemplo.com", // Opcional
-  "message": "Olá! Vim do anúncio e gostaria de criar minha conta no CNV", // Opcional
-  "source": "Facebook Ads", // Opcional (Origem)
-  "campaign": "Campanha Black Friday", // Opcional
-  "notes": "Lead tem interesse no carro X" // Opcional
-}`}
-                    </pre>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginTop: '12px', marginBottom: 0 }}>
-                        O campo <code>message</code> é a primeira frase enviada pelo lead. É a partir dela que a
-                        origem é etiquetada automaticamente — sem ela, o lead entra sem tag e não aparece na
-                        conversão por origem:
-                    </p>
-                    <ul style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginTop: '8px', paddingLeft: '20px' }}>
-                        <li><strong>Meta - Público Aberto</strong> — “…<em>vim do anúncio</em>…”</li>
-                        <li><strong>Meta - Público Segmentado</strong> — “…<em>que vi no anúncio</em>”</li>
-                        <li><strong>Google - LP</strong> — “…<em>vim pelo site</em>…”</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
+            <SectionCard title="Formato do envio" description="O corpo da requisição é um JSON. Nome e telefone são obrigatórios; os demais campos são opcionais.">
+                <pre className={pageStyles.codeBlock}>{EXEMPLO_JSON}</pre>
+                <p className={pageStyles.sectionText}>
+                    O campo <code className={pageStyles.code}>message</code> é a primeira frase do lead. É por ela que a origem é etiquetada; sem ela, o lead entra sem etiqueta e fica fora da conversão por origem.
+                </p>
+                <ul className={pageStyles.sectionList}>
+                    <li><strong>Meta, público aberto:</strong> contém <em>vim do anúncio</em></li>
+                    <li><strong>Meta, público segmentado:</strong> contém <em>que vi no anúncio</em></li>
+                    <li><strong>Google, landing page:</strong> contém <em>vim pelo site</em></li>
+                </ul>
+            </SectionCard>
+            {feedback}
+        </Page>
     );
 }

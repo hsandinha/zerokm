@@ -1,8 +1,15 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import styles from './ConfiguracoesManagement.module.css';
+import { Check, Eye, EyeOff, Images, Pencil, Plus, Trash2 } from 'lucide-react';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
+import {
+    Button, EmptyState, IconAction, Page, PageHeader, Pagination, Panel, PanelFooter, PanelToolbar, PrimaryCell, RowActions,
+    Segmented, SkeletonRows, StatusBadge, TwoLine, pageStyles, type BadgeTone,
+} from '@/components/ui/Page';
+import { InlineNotice, useFeedback } from '@/components/ui/Feedback';
+
+type FiltroBanner = 'all' | 'active' | 'inactive' | 'pending' | 'awaiting_payment' | 'expired';
 
 interface Banner {
     _id: string;
@@ -24,10 +31,11 @@ export function BannersManagement() {
     const [vehicles, setVehicles] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    const [feedback, setFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
+    const [formError, setFormError] = useState<string | null>(null);
+    const { confirm, notify, feedback } = useFeedback();
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const [statusFilter, setStatusFilter] = useState('all');
+    const [statusFilter, setStatusFilter] = useState<FiltroBanner>('all');
 
     const [newBanner, setNewBanner] = useState({
         title: '',
@@ -48,7 +56,7 @@ export function BannersManagement() {
     });
     const [editingId, setEditingId] = useState<string | null>(null);
     const [formOpen, setFormOpen] = useState(false);
-    const [tick, setTick] = useState(0);
+    const [, setTick] = useState(0);
 
     // Live countdown tick every second
     useEffect(() => {
@@ -77,14 +85,14 @@ export function BannersManagement() {
 
     const openNewBanner = () => {
         handleCancelEdit();
-        setFeedback(null);
+        setFormError(null);
         setFormOpen(true);
     };
 
     const closeForm = () => {
         if (isSaving) return;
         handleCancelEdit();
-        setFeedback(null);
+        setFormError(null);
         setFormOpen(false);
     };
 
@@ -94,7 +102,7 @@ export function BannersManagement() {
         carregarVeiculos();
     }, []);
 
-    const carregarBanners = async (page = 1, status = statusFilter) => {
+    const carregarBanners = async (page = 1, status: FiltroBanner = statusFilter) => {
         try {
             setIsLoading(true);
             const res = await fetch(`/api/admin/banners?page=${page}&limit=10&status=${status}`);
@@ -148,12 +156,12 @@ export function BannersManagement() {
         if (!file) return;
 
         if (!file.type.startsWith('image/')) {
-            setFeedback({ type: 'error', msg: 'Apenas arquivos de imagem (JPEG, PNG, etc) são permitidos.' });
+            setFormError('Envie um arquivo de imagem (JPEG, PNG ou WebP).');
             return;
         }
 
         if (file.size > 2 * 1024 * 1024) { // 2MB limit
-            setFeedback({ type: 'error', msg: 'A imagem deve ter no máximo 2MB.' });
+            setFormError('A imagem passa de 2 MB. Reduza o tamanho e envie de novo.');
             return;
         }
 
@@ -167,7 +175,7 @@ export function BannersManagement() {
     const handleCreateBanner = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newBanner.title || !newBanner.imageBase64) {
-            setFeedback({ type: 'error', msg: 'Título e imagem são obrigatórios.' });
+            setFormError('Informe o título e envie a imagem do banner.');
             return;
         }
 
@@ -199,16 +207,15 @@ export function BannersManagement() {
             });
 
             if (res.ok) {
-                setFeedback({ type: 'success', msg: editingId ? 'Banner atualizado com sucesso!' : 'Banner criado com sucesso!' });
+                notify(editingId ? 'Banner atualizado.' : 'Banner criado.', 'positive');
                 handleCancelEdit();
                 setFormOpen(false);
-                carregarBanners();
-                setTimeout(() => setFeedback(null), 3000);
+                carregarBanners(currentPage, statusFilter);
             } else {
-                setFeedback({ type: 'error', msg: 'Erro ao salvar banner.' });
+                setFormError('Não foi possível salvar o banner. Tente de novo.');
             }
         } catch (error) {
-            setFeedback({ type: 'error', msg: 'Erro de conexão ao salvar banner.' });
+            setFormError('Falha de conexão ao salvar o banner.');
         } finally {
             setIsSaving(false);
         }
@@ -252,15 +259,20 @@ export function BannersManagement() {
             });
 
             if (res.ok) {
-                carregarBanners();
+                notify(currentStatus ? 'Banner fora do ar.' : 'Banner no ar.', 'positive');
+                carregarBanners(currentPage, statusFilter);
+            } else {
+                notify('Não foi possível alterar o banner.');
             }
         } catch (error) {
             console.error('Erro ao atualizar status', error);
+            notify('Falha de conexão ao alterar o banner.');
         }
     };
 
     const handleApprove = async (id: string) => {
-        if (!confirm('Aprovar este anúncio? Ele ficará visível para todos os clientes.')) return;
+        const ok = await confirm({ title: 'Aprovar anúncio', description: 'O anúncio entra no ar na hora e aparece para todos os clientes.', confirmLabel: 'Aprovar e publicar' });
+        if (!ok) return;
         try {
             const res = await fetch(`/api/admin/banners/${id}`, {
                 method: 'PATCH',
@@ -269,17 +281,20 @@ export function BannersManagement() {
             });
 
             if (res.ok) {
-                carregarBanners();
-                setFeedback({ type: 'success', msg: 'Anúncio aprovado e publicado!' });
-                setTimeout(() => setFeedback(null), 3000);
+                carregarBanners(currentPage, statusFilter);
+                notify('Anúncio aprovado e publicado.', 'positive');
+            } else {
+                notify('Não foi possível aprovar o anúncio.');
             }
         } catch (error) {
             console.error('Erro ao aprovar', error);
+            notify('Falha de conexão ao aprovar o anúncio.');
         }
     };
 
     const handleReject = async (id: string) => {
-        if (!confirm('Tem certeza que deseja REJEITAR este anúncio?')) return;
+        const ok = await confirm({ title: 'Rejeitar anúncio', description: 'O anúncio não vai ao ar. A concessionária vê a recusa no painel dela.', confirmLabel: 'Rejeitar anúncio', danger: true });
+        if (!ok) return;
         try {
             const res = await fetch(`/api/admin/banners/${id}`, {
                 method: 'PATCH',
@@ -288,29 +303,31 @@ export function BannersManagement() {
             });
 
             if (res.ok) {
-                carregarBanners();
-                setFeedback({ type: 'success', msg: 'Anúncio rejeitado.' });
-                setTimeout(() => setFeedback(null), 3000);
+                carregarBanners(currentPage, statusFilter);
+                notify('Anúncio rejeitado.', 'positive');
+            } else {
+                notify('Não foi possível rejeitar o anúncio.');
             }
         } catch (error) {
             console.error('Erro ao rejeitar', error);
+            notify('Falha de conexão ao rejeitar o anúncio.');
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm('Tem certeza que deseja excluir este banner?')) return;
+    const handleDelete = async (banner: Banner) => {
+        const ok = await confirm({ title: 'Excluir banner', description: <>O banner <strong>{banner.title}</strong> sai do carrossel e não dá para recuperar.</>, confirmLabel: 'Excluir banner', danger: true });
+        if (!ok) return;
         try {
-            const res = await fetch(`/api/admin/banners/${id}`, {
-                method: 'DELETE'
-            });
-
+            const res = await fetch(`/api/admin/banners/${banner._id}`, { method: 'DELETE' });
             if (res.ok) {
-                carregarBanners();
-                setFeedback({ type: 'success', msg: 'Banner excluído.' });
-                setTimeout(() => setFeedback(null), 3000);
+                carregarBanners(currentPage, statusFilter);
+                notify('Banner excluído.', 'positive');
+            } else {
+                notify('Não foi possível excluir o banner.');
             }
         } catch (error) {
             console.error('Erro ao excluir', error);
+            notify('Falha de conexão ao excluir o banner.');
         }
     };
 
@@ -333,39 +350,157 @@ export function BannersManagement() {
             ctaText: banner.ctaText || '',
             vehicleId: banner.vehicleId || ''
         });
-        setFeedback(null);
+        setFormError(null);
         setFormOpen(true);
     };
 
-    if (isLoading) {
-        return <div className={styles.loading}>Carregando banners...</div>;
-    }
+    const statusDe = (banner: Banner): { label: string; tone: BadgeTone } => {
+        if (banner.status === 'pending') return { label: 'Aguardando aprovação', tone: 'warning' };
+        if (banner.status === 'awaiting_payment') return { label: 'Aguardando pagamento', tone: 'warning' };
+        if (banner.status === 'rejected') return { label: 'Rejeitado', tone: 'negative' };
+        if (banner.status === 'expired') return { label: 'Expirado', tone: 'neutral' };
+        return banner.isActive ? { label: 'No ar', tone: 'positive' } : { label: 'Oculto', tone: 'neutral' };
+    };
+
+    const campoTexto = (label: string, chave: keyof typeof newBanner, placeholder: string) => (
+        <label className={modalStyles.field}>
+            {label}
+            <input type="text" placeholder={placeholder} value={newBanner[chave]} onChange={e => setNewBanner({ ...newBanner, [chave]: e.target.value })} />
+        </label>
+    );
+
+    const campoMoeda = (label: string, chave: 'price' | 'priceSubtitle', placeholder: string) => (
+        <label className={modalStyles.field}>
+            {label}
+            <input
+                type="text"
+                inputMode="numeric"
+                placeholder={placeholder}
+                value={newBanner[chave]}
+                onChange={(e) => {
+                    const digitos = e.target.value.replace(/\D/g, '');
+                    if (!digitos) { setNewBanner({ ...newBanner, [chave]: '' }); return; }
+                    const valor = (parseInt(digitos, 10) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    setNewBanner({ ...newBanner, [chave]: valor });
+                }}
+            />
+        </label>
+    );
+
+    const carregando = isLoading && banners.length === 0;
+    const pendentes = banners.filter(b => b.status === 'pending').length;
 
     return (
-        <div className={styles.container}>
-            <div className={styles.header} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
-                <div>
-                    <h2 className={styles.title}>Gerenciador de Banners</h2>
-                    <p className={styles.subtitle}>
-                        Adicione ou edite banners que aparecerão em um carrossel rotativo na tela principal dos Clientes.
-                    </p>
-                </div>
-                <button type="button" className={modalStyles.primary} onClick={openNewBanner}>
-                    Novo banner
-                </button>
-            </div>
+        <Page>
+            <PageHeader
+                title="Banners"
+                count={carregando ? null : banners.length}
+                description="Carrossel rotativo no topo da consulta dos clientes. Anúncios pagos das concessionárias chegam aqui para aprovação."
+                actions={<Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={openNewBanner}>Novo banner</Button>}
+            />
 
-            {feedback && !formOpen && (
-                <div className={`${styles.feedback} ${feedback.type === 'success' ? styles.feedbackSuccess : styles.feedbackError}`}>
-                    {feedback.msg}
+            <Panel>
+                <PanelToolbar>
+                    <Segmented<FiltroBanner>
+                        label="Filtrar banners"
+                        value={statusFilter}
+                        onChange={(valor) => { setStatusFilter(valor); carregarBanners(1, valor); }}
+                        options={[
+                            { value: 'all', label: 'Todos' },
+                            { value: 'active', label: 'No ar' },
+                            { value: 'pending', label: 'Aprovação', ...(statusFilter === 'all' && pendentes ? { count: pendentes } : {}) },
+                            { value: 'awaiting_payment', label: 'Aguardando pagamento' },
+                            { value: 'inactive', label: 'Ocultos' },
+                            { value: 'expired', label: 'Expirados' },
+                        ]}
+                    />
+                </PanelToolbar>
+
+                <div className={pageStyles.tableWrap}>
+                    <table className={pageStyles.table}>
+                        <thead>
+                            <tr>
+                                <th>Banner</th>
+                                <th>Situação</th>
+                                <th>Destino</th>
+                                <th className={pageStyles.shrink}><span className={pageStyles.srOnly}>Ações</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {carregando && <SkeletonRows rows={4} columns={4} />}
+                            {!carregando && banners.map(banner => {
+                                const situacao = statusDe(banner);
+                                const restante = banner.expiresAt && banner.isActive && banner.status === 'active' ? getTimeRemaining(banner.expiresAt) : null;
+                                return (
+                                    <tr key={banner._id} data-inactive={!banner.isActive && banner.status !== 'pending'}>
+                                        <td className={pageStyles.colMain}>
+                                            <PrimaryCell
+                                                leading={<img src={banner.imageUrl} alt="" className={pageStyles.thumbWide} />}
+                                                title={banner.title}
+                                                subtitle={`Criado em ${new Date(banner.createdAt).toLocaleDateString('pt-BR')}`}
+                                            />
+                                        </td>
+                                        <td>
+                                            <TwoLine
+                                                top={<StatusBadge tone={situacao.tone}>{situacao.label}</StatusBadge>}
+                                                bottom={restante ? <span className={pageStyles.nowrap}>{restante.expired ? 'Expirou' : `Sai do ar em ${restante.text}`}</span> : undefined}
+                                            />
+                                        </td>
+                                        <td>
+                                            {banner.linkUrl
+                                                ? <a href={banner.linkUrl} target="_blank" rel="noopener noreferrer" className={pageStyles.link}>{banner.linkUrl.includes('wa.me') ? 'WhatsApp da loja' : 'Abrir link'}</a>
+                                                : <span className={pageStyles.muted}>Sem link</span>}
+                                        </td>
+                                        <td>
+                                            <RowActions>
+                                                {banner.status === 'pending' ? (
+                                                    <>
+                                                        <Button onClick={() => handleApprove(banner._id)} icon={<Check size={15} aria-hidden="true" />}>Aprovar</Button>
+                                                        <Button variant="danger" onClick={() => handleReject(banner._id)}>Rejeitar</Button>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <IconAction label="Editar banner" onClick={() => handleEditClick(banner)}>
+                                                            <Pencil size={17} aria-hidden="true" />
+                                                        </IconAction>
+                                                        <IconAction label={banner.isActive ? 'Tirar do ar' : 'Colocar no ar'} onClick={() => toggleBannerActive(banner._id, banner.isActive)}>
+                                                            {banner.isActive ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}
+                                                        </IconAction>
+                                                        <IconAction label="Excluir banner" tone="danger" onClick={() => handleDelete(banner)}>
+                                                            <Trash2 size={17} aria-hidden="true" />
+                                                        </IconAction>
+                                                    </>
+                                                )}
+                                            </RowActions>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
                 </div>
-            )}
+
+                {!carregando && banners.length === 0 && (
+                    <EmptyState
+                        icon={<Images size={20} />}
+                        title={statusFilter === 'all' ? 'Nenhum banner cadastrado' : 'Nenhum banner nesta situação'}
+                        description={statusFilter === 'all' ? 'Crie um banner para destacar uma oferta no topo da consulta dos clientes.' : 'Escolha outro filtro para ver os demais banners.'}
+                        action={statusFilter === 'all' ? <Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={openNewBanner}>Novo banner</Button> : undefined}
+                    />
+                )}
+
+                {!carregando && banners.length > 0 && (
+                    <PanelFooter aside={<Pagination page={currentPage} totalPages={totalPages} onChange={(p) => carregarBanners(p, statusFilter)} />}>
+                        Mostrando <strong>{banners.length}</strong> {banners.length === 1 ? 'banner' : 'banners'}{totalPages > 1 ? ' nesta página' : ''}
+                    </PanelFooter>
+                )}
+            </Panel>
 
             {formOpen && (
                 <AdminModal
                     size="lg"
                     title={editingId ? 'Editar banner' : 'Novo banner'}
-                    subtitle="O banner aparece no carrossel rotativo da tela principal dos clientes."
+                    subtitle="Aparece no carrossel rotativo da tela principal dos clientes."
                     onClose={closeForm}
                     busy={isSaving}
                     onSubmit={handleCreateBanner}
@@ -376,379 +511,81 @@ export function BannersManagement() {
                         </button>
                     </>}
                 >
-                    {feedback?.type === 'error' && (
-                        <div className={`${styles.feedback} ${styles.feedbackError}`} role="alert">
-                            {feedback.msg}
-                        </div>
-                    )}
-                    <div className={styles.grid2}>
-                        <div className={styles.formGroup}>
-                            <label>Título (Uso Interno)</label>
-                            <input 
-                                type="text"
-                                placeholder="Ex: Promoção de Natal"
-                                value={newBanner.title}
-                                onChange={e => setNewBanner({...newBanner, title: e.target.value})}
-                                className={styles.input}
-                            />
-                        </div>
-                        <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
-                            <label style={{ color: '#00d284' }}>Preencher dados a partir de um Veículo</label>
-                            <select 
-                                className={styles.input}
-                                value={newBanner.vehicleId || ''}
-                                onChange={(e) => handleVehicleSelect(e.target.value)}
-                            >
-                                <option value="">-- Escolha um veículo para preencher os dados do Banner --</option>
-                                {vehicles.map(v => (
-                                    <option key={v.id || v._id} value={v.id || v._id}>
-                                        {v.modelo} - {v.ano} ({v.concessionaria || 'Sem concessionária'})
-                                    </option>
-                                ))}
-                            </select>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--admin-muted, #666)' }}>Isto irá preencher automaticamente os campos de Modelo, Preço, Ano, Cor, Combustível, Situação e puxará a primeira foto do veículo. O banner também será excluído se o veículo for deletado.</span>
+                    <div className={modalStyles.stack}>
+                        {formError && <InlineNotice>{formError}</InlineNotice>}
+
+                        <label className={modalStyles.field}>
+                            Título (uso interno)
+                            <input type="text" required placeholder="Ex.: Oferta de lançamento" value={newBanner.title} onChange={e => setNewBanner({ ...newBanner, title: e.target.value })} />
+                        </label>
+
+                        <div className={modalStyles.row}>
+                            <label className={modalStyles.field}>
+                                Preencher a partir de um veículo
+                                <select value={newBanner.vehicleId || ''} onChange={(e) => handleVehicleSelect(e.target.value)}>
+                                    <option value="">Escolha um veículo</option>
+                                    {vehicles.map(v => (
+                                        <option key={v.id || v._id} value={v.id || v._id}>
+                                            {v.modelo} · {v.ano} ({v.concessionaria || 'sem concessionária'})
+                                        </option>
+                                    ))}
+                                </select>
+                                <span className={modalStyles.hint}>Preenche modelo, preço, ano, cor, combustível, situação e a primeira foto. O banner sai junto se o veículo for excluído.</span>
+                            </label>
+                            <label className={modalStyles.field}>
+                                Preencher a partir de uma concessionária
+                                <select
+                                    defaultValue=""
+                                    onChange={(e) => {
+                                        const d = dealerships.find(x => x.id === e.target.value);
+                                        if (!d) return;
+                                        const phone = (d.celular || d.telefone || d.telefoneResponsavel || '').replace(/\D/g, '');
+                                        setNewBanner(prev => ({ ...prev, storeName: d.nome || '', linkUrl: phone ? `https://wa.me/55${phone}` : '' }));
+                                    }}
+                                >
+                                    <option value="">Escolha uma concessionária</option>
+                                    {dealerships.map(d => <option key={d.id} value={d.id}>{d.nome}</option>)}
+                                </select>
+                                <span className={modalStyles.hint}>Preenche o nome da loja e o link com o WhatsApp dela.</span>
+                            </label>
                         </div>
 
-                        <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
-                            <label style={{ color: '#ff6b00' }}>Preencher dados a partir de uma Concessionária</label>
-                            <select 
-                                className={styles.input}
-                                onChange={(e) => {
-                                    const dId = e.target.value;
-                                    const d = dealerships.find(x => x.id === dId);
-                                    if (d) {
-                                        const phone = d.celular || d.telefone || d.telefoneResponsavel || '';
-                                        const cleanPhone = phone.replace(/\D/g, '');
-                                        const waLink = cleanPhone ? `https://wa.me/55${cleanPhone}` : '';
-                                        setNewBanner(prev => ({
-                                            ...prev,
-                                            storeName: d.nome || '',
-                                            linkUrl: waLink
-                                        }));
-                                    }
-                                }}
-                            >
-                                <option value="">-- Escolha uma concessionária para preencher Nome e Link --</option>
-                                {dealerships.map(d => (
-                                    <option key={d.id} value={d.id}>{d.nome}</option>
-                                ))}
-                            </select>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--admin-muted, #666)' }}>Isto irá preencher automaticamente os campos "Nome da Loja" e "Link de Destino" abaixo.</span>
-                        </div>
-                        
-                        <div className={styles.formGroup}>
-                            <label>Nome da Loja</label>
-                            <input 
-                                type="text"
-                                placeholder="Ex: CNV Veículos"
-                                value={newBanner.storeName}
-                                onChange={e => setNewBanner({...newBanner, storeName: e.target.value})}
-                                className={styles.input}
-                            />
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label>Link de Destino / WhatsApp (Opcional)</label>
-                            <input 
-                                type="url"
-                                placeholder="https://..."
-                                value={newBanner.linkUrl}
-                                onChange={e => setNewBanner({...newBanner, linkUrl: e.target.value})}
-                                className={styles.input}
-                            />
-                        </div>
-                        
-                        <div className={styles.formGroup}>
-                            <label>Veículo (Modelo)</label>
-                            <input 
-                                type="text"
-                                placeholder="Ex: TIGGO 5X PRO MAX"
-                                value={newBanner.vehicleModel}
-                                onChange={e => setNewBanner({...newBanner, vehicleModel: e.target.value})}
-                                className={styles.input}
-                            />
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label>Preço</label>
-                            <input 
-                                type="text"
-                                placeholder="Ex: R$ 142.000,00"
-                                value={newBanner.price}
-                                onChange={(e) => {
-                                    let value = e.target.value.replace(/\D/g, '');
-                                    if (!value) {
-                                        setNewBanner({...newBanner, price: ''});
-                                        return;
-                                    }
-                                    const numValue = (parseInt(value, 10) / 100).toFixed(2);
-                                    const formattedValue = `R$ ${numValue.replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
-                                    setNewBanner({...newBanner, price: formattedValue});
-                                }}
-                                className={styles.input}
-                            />
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label>Subtítulo do Preço</label>
-                            <input 
-                                type="text"
-                                placeholder="Ex: R$ 150.000,00"
-                                value={newBanner.priceSubtitle}
-                                onChange={(e) => {
-                                    let value = e.target.value.replace(/\D/g, '');
-                                    if (!value) {
-                                        setNewBanner({...newBanner, priceSubtitle: ''});
-                                        return;
-                                    }
-                                    const numValue = (parseInt(value, 10) / 100).toFixed(2);
-                                    const formattedValue = `R$ ${numValue.replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
-                                    setNewBanner({...newBanner, priceSubtitle: formattedValue});
-                                }}
-                                className={styles.input}
-                            />
+                        <div className={modalStyles.row}>
+                            {campoTexto('Nome da loja', 'storeName', 'Ex.: Primos Veículos')}
+                            <label className={modalStyles.field}>
+                                Link de destino (opcional)
+                                <input type="url" placeholder="https://" value={newBanner.linkUrl} onChange={e => setNewBanner({ ...newBanner, linkUrl: e.target.value })} />
+                            </label>
                         </div>
 
-                        <div className={styles.formGroup}>
-                            <label>Ano (FAB/MOD)</label>
-                            <input 
-                                type="text"
-                                placeholder="Ex: 26/27"
-                                value={newBanner.year}
-                                onChange={e => setNewBanner({...newBanner, year: e.target.value})}
-                                className={styles.input}
-                            />
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label>Cor</label>
-                            <input 
-                                type="text"
-                                placeholder="Ex: PRETO"
-                                value={newBanner.color}
-                                onChange={e => setNewBanner({...newBanner, color: e.target.value})}
-                                className={styles.input}
-                            />
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label>Combustível</label>
-                            <input 
-                                type="text"
-                                placeholder="Ex: FLEX"
-                                value={newBanner.fuel}
-                                onChange={e => setNewBanner({...newBanner, fuel: e.target.value})}
-                                className={styles.input}
-                            />
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label>Prazo de Entrega</label>
-                            <input 
-                                type="text"
-                                placeholder="Ex: PRONTA ENTREGA"
-                                value={newBanner.delivery}
-                                onChange={e => setNewBanner({...newBanner, delivery: e.target.value})}
-                                className={styles.input}
-                            />
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label>Situação/Status</label>
-                            <input 
-                                type="text"
-                                placeholder="Ex: ATPV-E"
-                                value={newBanner.statusCondition}
-                                onChange={e => setNewBanner({...newBanner, statusCondition: e.target.value})}
-                                className={styles.input}
-                            />
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label>Badge (Tag Laranja)</label>
-                            <input 
-                                type="text"
-                                placeholder="Ex: OPORTUNIDADE"
-                                value={newBanner.badge}
-                                onChange={e => setNewBanner({...newBanner, badge: e.target.value})}
-                                className={styles.input}
-                            />
+                        <div className={modalStyles.row}>
+                            {campoTexto('Modelo', 'vehicleModel', 'Ex.: TIGGO 5X PRO MAX')}
+                            {campoMoeda('Preço', 'price', 'R$ 142.000,00')}
+                            {campoMoeda('Preço riscado', 'priceSubtitle', 'R$ 150.000,00')}
                         </div>
 
-                        <div className={styles.formGroupFull}>
-                            <label>Imagem do Banner (Recomendado: 1200x300, máx 2MB)</label>
-                            <input 
-                                type="file"
-                                accept="image/*"
-                                onChange={handleImageUpload}
-                                className={styles.input}
-                                style={{ padding: '0.5rem' }}
-                            />
-                            {newBanner.imageBase64 && (
-                                <div style={{ marginTop: '1rem' }}>
-                                    <img src={newBanner.imageBase64} alt="Preview" style={{ maxWidth: '100%', maxHeight: '150px', borderRadius: '8px', border: '1px solid var(--admin-border, #e5e7eb)' }} />
-                                </div>
-                            )}
+                        <div className={modalStyles.row}>
+                            {campoTexto('Ano (fab/mod)', 'year', '26/27')}
+                            {campoTexto('Cor', 'color', 'Preto')}
+                            {campoTexto('Combustível', 'fuel', 'Flex')}
                         </div>
+
+                        <div className={modalStyles.row}>
+                            {campoTexto('Prazo de entrega', 'delivery', 'Pronta entrega')}
+                            {campoTexto('Situação', 'statusCondition', 'ATPV-E')}
+                            {campoTexto('Selo de destaque', 'badge', 'Oportunidade')}
+                        </div>
+
+                        <label className={modalStyles.field}>
+                            Imagem do banner
+                            <input type="file" accept="image/*" onChange={handleImageUpload} />
+                            <span className={modalStyles.hint}>Recomendado 1200 × 300 px, até 2 MB.</span>
+                        </label>
+                        {newBanner.imageBase64 && <img src={newBanner.imageBase64} alt="Prévia do banner" className={pageStyles.bannerPreview} />}
                     </div>
                 </AdminModal>
             )}
-
-            <div className={styles.formGroupPanel}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                    <h3 className={styles.groupTitle} style={{ margin: 0 }}>Banners Ativos e Inativos</h3>
-                    <select 
-                        value={statusFilter}
-                        onChange={(e) => {
-                            setStatusFilter(e.target.value);
-                            carregarBanners(1, e.target.value);
-                        }}
-                        style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--admin-border, #e5e7eb)', outline: 'none' }}
-                    >
-                        <option value="all">Todos os Status</option>
-                        <option value="active">Ativos</option>
-                        <option value="inactive">Inativos</option>
-                        <option value="pending">Pendentes</option>
-                        <option value="awaiting_payment">Aguardando Pagamento</option>
-                        <option value="expired">Expirados</option>
-                    </select>
-                </div>
-                
-                {banners.length === 0 ? (
-                    <p style={{ color: 'var(--admin-muted, #666)' }}>Nenhum banner cadastrado no momento.</p>
-                ) : (
-                    <>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1rem' }}>
-                        <thead>
-                            <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
-                                <th style={{ padding: '1rem' }}>Imagem</th>
-                                <th style={{ padding: '1rem' }}>Título</th>
-                                <th style={{ padding: '1rem' }}>Status</th>
-                                <th style={{ padding: '1rem' }}>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {banners.map(banner => (
-                                <tr key={banner._id} style={{ borderBottom: '1px solid var(--admin-border, #e5e7eb)' }}>
-                                    <td style={{ padding: '1rem', width: '200px' }}>
-                                        <img src={banner.imageUrl} alt={banner.title} style={{ width: '150px', height: 'auto', borderRadius: '4px', border: '1px solid var(--admin-border, #e5e7eb)' }} />
-                                    </td>
-                                    <td style={{ padding: '1rem' }}>
-                                        <strong>{banner.title}</strong>
-                                        {banner.linkUrl && <div style={{ fontSize: '0.8rem', color: 'var(--admin-muted, #666)' }}><a href={banner.linkUrl} target="_blank" rel="noreferrer">🔗 Link</a></div>}
-                                    </td>
-                                    <td style={{ padding: '1rem' }}>
-                                        <span style={{ 
-                                            padding: '0.3rem 0.6rem', 
-                                            borderRadius: '20px', 
-                                            fontSize: '0.8rem',
-                                            fontWeight: 'bold',
-                                            backgroundColor: banner.status === 'pending' ? '#fef7e0' : (banner.isActive ? '#e6f4ea' : (banner.status === 'expired' ? '#f1f3f4' : '#fce8e6')),
-                                            color: banner.status === 'pending' ? '#b06000' : (banner.isActive ? '#1e8e3e' : (banner.status === 'expired' ? '#5f6368' : '#d93025'))
-                                        }}>
-                                            {banner.status === 'pending' ? 'Pendente (Aprovar)' : (banner.status === 'awaiting_payment' ? 'Aguardando Pagamento' : (banner.status === 'expired' ? 'Expirado' : (banner.isActive ? 'Ativo' : 'Inativo')))}
-                                        </span>
-                                        {banner.expiresAt && banner.isActive && banner.status === 'active' && (() => {
-                                            const remaining = getTimeRemaining(banner.expiresAt);
-                                            if (!remaining) return null;
-                                            return (
-                                                <div style={{
-                                                    marginTop: '0.4rem',
-                                                    fontSize: '0.75rem',
-                                                    fontWeight: 600,
-                                                    fontFamily: 'monospace',
-                                                    color: remaining.expired ? '#d93025' : (parseInt(remaining.text) <= 2 ? '#e65100' : '#1a73e8'),
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '4px'
-                                                }}>
-                                                    <span>{remaining.expired ? '⏰' : '⏱️'}</span>
-                                                    <span>{remaining.text}</span>
-                                                </div>
-                                            );
-                                        })()}
-                                    </td>
-                                    <td style={{ padding: '1rem' }}>
-                                        {banner.status === 'pending' ? (
-                                            <>
-                                                <button 
-                                                    onClick={() => handleApprove(banner._id)}
-                                                    style={{ marginRight: '0.5rem', padding: '0.5rem', borderRadius: '4px', border: '1px solid #1e8e3e', background: '#e6f4ea', color: '#1e8e3e', cursor: 'pointer' }}
-                                                >
-                                                    ✅ Aprovar
-                                                </button>
-                                                <button 
-                                                    onClick={() => handleReject(banner._id)}
-                                                    style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #d93025', background: '#fce8e6', color: '#d93025', cursor: 'pointer' }}
-                                                >
-                                                    ❌ Rejeitar
-                                                </button>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <button 
-                                                    onClick={() => handleEditClick(banner)}
-                                                    style={{ marginRight: '0.5rem', padding: '0.5rem', borderRadius: '4px', border: '1px solid #0056b3', background: '#e6f0fa', color: '#0056b3', cursor: 'pointer' }}
-                                                >
-                                                    Editar
-                                                </button>
-                                                <button 
-                                                    onClick={() => toggleBannerActive(banner._id, banner.isActive)}
-                                                    style={{ marginRight: '0.5rem', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--admin-border, #e5e7eb)', background: 'var(--color-surface)', cursor: 'pointer' }}
-                                                >
-                                                    {banner.isActive ? 'Ocultar' : 'Exibir'}
-                                                </button>
-                                                <button 
-                                                    onClick={() => handleDelete(banner._id)}
-                                                    style={{ padding: '0.5rem', borderRadius: '4px', border: 'none', background: '#d93025', color: '#fff', cursor: 'pointer' }}
-                                                >
-                                                    Deletar
-                                                </button>
-                                            </>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                        
-                        {totalPages > 1 && (
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                                gap: '1rem',
-                                marginTop: '1.5rem',
-                                padding: '1rem'
-                            }}>
-                                <button
-                                    onClick={() => carregarBanners(currentPage - 1, statusFilter)}
-                                    disabled={currentPage === 1}
-                                    style={{
-                                        padding: '0.5rem 1rem',
-                                        backgroundColor: currentPage === 1 ? '#e0e0e0' : '#1a73e8',
-                                        color: currentPage === 1 ? '#757575' : '#fff',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
-                                    }}
-                                >
-                                    Anterior
-                                </button>
-                                <span style={{ fontWeight: 500, color: 'var(--admin-text, #3c4043)' }}>
-                                    Página {currentPage} de {totalPages}
-                                </span>
-                                <button
-                                    onClick={() => carregarBanners(currentPage + 1, statusFilter)}
-                                    disabled={currentPage === totalPages}
-                                    style={{
-                                        padding: '0.5rem 1rem',
-                                        backgroundColor: currentPage === totalPages ? '#e0e0e0' : '#1a73e8',
-                                        color: currentPage === totalPages ? '#757575' : '#fff',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
-                                    }}
-                                >
-                                    Próxima
-                                </button>
-                            </div>
-                        )}
-                    </>
-                )}
-            </div>
-        </div>
+            {feedback}
+        </Page>
     );
 }

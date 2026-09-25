@@ -162,45 +162,21 @@ export default function AdminDashboard() {
             case 'veiculos':
                 return <VehicleConsultation role={userInfo.profile as any || 'admin'} />;
             case 'estoque-concessionarias':
-                return (
-                    <div className={styles.contentArea}>
-                        <AdminDealershipVehicles />
-                    </div>
-                );
+                return <AdminDealershipVehicles />;
             case 'catalogo':
-                return (
-                    <div className={styles.contentArea}>
-                        <CatalogVariationsManagement />
-                    </div>
-                );
+                return <CatalogVariationsManagement />;
             case 'concessionarias':
                 return <ConcessionariasManagement />;
             case 'transportadoras':
-                return (
-                    <div className={styles.contentArea}>
-                        <TransportadorasManagement />
-                    </div>
-                );
+                return <TransportadorasManagement />;
             case 'configuracoes':
-                return (
-                    <div className={styles.contentArea}>
-                        <ConfiguracoesManagement />
-                    </div>
-                );
+                return <ConfiguracoesManagement />;
             case 'planos':
                 return <PlansManagement />;
             case 'cobrancas':
-                return (
-                    <div className={styles.contentArea}>
-                        <CobrancasManagement />
-                    </div>
-                );
+                return <CobrancasManagement />;
             case 'crm':
-                return (
-                    <div className={styles.contentArea}>
-                        <CRMManagement highlightEmail={crmHighlightEmail} />
-                    </div>
-                );
+                return <CRMManagement highlightEmail={crmHighlightEmail} />;
             case 'funil':
                 return (
                     <div className={styles.contentArea} style={{ padding: '0', background: 'transparent' }}>
@@ -208,17 +184,9 @@ export default function AdminDashboard() {
                     </div>
                 );
             case 'integracoes':
-                return (
-                    <div className={styles.contentArea}>
-                        <IntegrationsPanel />
-                    </div>
-                );
+                return <IntegrationsPanel />;
             case 'banners':
-                return (
-                    <div className={styles.contentArea}>
-                        <BannersManagement />
-                    </div>
-                );
+                return <BannersManagement />;
             default:
                 return null;
         }

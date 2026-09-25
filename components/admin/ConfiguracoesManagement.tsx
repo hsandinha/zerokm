@@ -1,7 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import styles from './ConfiguracoesManagement.module.css';
+import React, { useEffect, useState } from 'react';
+import { Save } from 'lucide-react';
+import { modalStyles } from '@/components/admin/AdminModal';
+import { Button, Page, PageHeader, SectionCard, pageStyles } from '@/components/ui/Page';
+import { InlineNotice, useFeedback } from '@/components/ui/Feedback';
 
 interface ContatoConfig {
     whatsapp: string;
@@ -13,232 +16,147 @@ interface ContatoConfig {
     cnpj: string;
 }
 
-export function ConfiguracoesManagement() {
-    const [config, setConfig] = useState<ContatoConfig>({
-        whatsapp: '',
-        email_support: '',
-        email_sales: '',
-        email_general: '',
-        address: '',
-        business_hours: '',
-        cnpj: ''
-    });
+const CONTATO_VAZIO: ContatoConfig = {
+    whatsapp: '', email_support: '', email_sales: '', email_general: '', address: '', business_hours: '', cnpj: '',
+};
 
-    const [bannerConfig, setBannerConfig] = useState({
-        price_cents: 5000,
-        duration_days: 7
-    });
-    
+/** Aceita "50", "50,00" e "1.250,90". */
+function paraCentavos(texto: string): number | null {
+    const s = texto.trim();
+    if (!s) return null;
+    const n = Number(s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s);
+    return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : null;
+}
+
+export function ConfiguracoesManagement() {
+    const [config, setConfig] = useState<ContatoConfig>(CONTATO_VAZIO);
+    // Texto, não número: com número controlado não dava para digitar centavos.
+    const [precoBanner, setPrecoBanner] = useState('50,00');
+    const [diasBanner, setDiasBanner] = useState('7');
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    const [feedback, setFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
+    const [erro, setErro] = useState<string | null>(null);
+    const { notify, feedback } = useFeedback();
 
     useEffect(() => {
-        carregarConfigs();
+        const carregar = async () => {
+            try {
+                const [res, resBanner] = await Promise.all([fetch('/api/config/contato'), fetch('/api/config/banners')]);
+                if (res.ok) {
+                    const data = await res.json();
+                    setConfig({
+                        whatsapp: data.whatsapp || '',
+                        email_support: data.email_support || '',
+                        email_sales: data.email_sales || '',
+                        email_general: data.email_general || '',
+                        address: data.address || '',
+                        business_hours: data.business_hours || '',
+                        cnpj: data.cnpj || '',
+                    });
+                }
+                if (resBanner.ok) {
+                    const dataBanner = await resBanner.json();
+                    setPrecoBanner(((dataBanner.price_cents || 5000) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
+                    setDiasBanner(String(dataBanner.duration_days || 7));
+                }
+            } catch (error) {
+                console.error('Erro ao buscar configurações:', error);
+                setErro('Não foi possível carregar as configurações. Recarregue a página.');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        carregar();
     }, []);
 
-    const carregarConfigs = async () => {
-        try {
-            setIsLoading(true);
-            const res = await fetch('/api/config/contato');
-            if (res.ok) {
-                const data = await res.json();
-                setConfig({
-                    whatsapp: data.whatsapp || '',
-                    email_support: data.email_support || '',
-                    email_sales: data.email_sales || '',
-                    email_general: data.email_general || '',
-                    address: data.address || '',
-                    business_hours: data.business_hours || '',
-                    cnpj: data.cnpj || ''
-                });
-            }
-
-            const resBanner = await fetch('/api/config/banners');
-            if (resBanner.ok) {
-                const dataBanner = await resBanner.json();
-                setBannerConfig({
-                    price_cents: dataBanner.price_cents || 5000,
-                    duration_days: dataBanner.duration_days || 7
-                });
-            }
-        } catch (error) {
-            console.error('Erro ao buscar configurações:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    const campo = (chave: keyof ContatoConfig) => ({
+        value: config[chave],
+        onChange: (e: React.ChangeEvent<HTMLInputElement>) => setConfig({ ...config, [chave]: e.target.value }),
+        disabled: isLoading,
+    });
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
-        setFeedback(null);
+        setErro(null);
+
+        const price_cents = paraCentavos(precoBanner);
+        const duration_days = Number.parseInt(diasBanner, 10);
+        if (price_cents === null) { setErro('Informe um preço de anúncio válido (ex.: 50,00).'); return; }
+        if (!Number.isInteger(duration_days) || duration_days < 1) { setErro('A duração do anúncio precisa ser de pelo menos 1 dia.'); return; }
+
         setIsSaving(true);
-
         try {
-            const res = await fetch('/api/config/contato', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(config)
-            });
-
-            const resBanner = await fetch('/api/config/banners', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(bannerConfig)
-            });
-
+            const [res, resBanner] = await Promise.all([
+                fetch('/api/config/contato', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(config) }),
+                fetch('/api/config/banners', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ price_cents, duration_days }) }),
+            ]);
             if (res.ok && resBanner.ok) {
-                setFeedback({ type: 'success', msg: 'Configurações de contato salvas com sucesso!' });
-                setTimeout(() => setFeedback(null), 4000);
+                notify('Configurações salvas. O rodapé do site já usa os dados novos.', 'positive');
             } else {
-                const err = await res.json();
-                setFeedback({ type: 'error', msg: err?.error || 'Erro ao salvar. Verifique se você tem permissão.' });
+                const falhou = !res.ok ? res : resBanner;
+                const body = await falhou.json().catch(() => ({}));
+                setErro(body?.error || 'Não foi possível salvar. Verifique se o seu perfil tem permissão.');
             }
-        } catch (error) {
-            setFeedback({ type: 'error', msg: 'Erro de conexão ao salvar configurações.' });
+        } catch {
+            setErro('Falha de conexão ao salvar as configurações.');
         } finally {
             setIsSaving(false);
         }
     };
 
-    if (isLoading) {
-        return <div className={styles.loading}>Carregando configurações...</div>;
-    }
-
     return (
-        <div className={styles.container}>
-            <div className={styles.header}>
-                <h2 className={styles.title}>Painel de Contatos e Rodapé Global</h2>
-                <p className={styles.subtitle}>
-                    Estes dados alimentam o rodapé (Footer) global do portal, e o número de WhatsApp principal é o destino do botão flutuante.
-                </p>
-            </div>
+        <Page>
+            <form onSubmit={handleSave} className={pageStyles.formStack}>
+                <PageHeader
+                    title="Configurações"
+                    description="Contatos do rodapé do site, WhatsApp do botão flutuante e regras dos anúncios em banner."
+                    actions={<Button type="submit" variant="primary" icon={<Save size={16} aria-hidden="true" />} disabled={isSaving || isLoading}>{isSaving ? 'Salvando...' : 'Salvar alterações'}</Button>}
+                />
 
-            {feedback && (
-                <div className={`${styles.feedback} ${feedback.type === 'success' ? styles.feedbackSuccess : styles.feedbackError}`}>
-                    {feedback.msg}
-                </div>
-            )}
+                {erro && <InlineNotice>{erro}</InlineNotice>}
 
-            <form onSubmit={handleSave} className={styles.form}>
-                <div className={styles.formGroupPanel}>
-                    <h3 className={styles.groupTitle}>Comunicação</h3>
-                    <div className={styles.grid2}>
-                        <div className={styles.formGroup}>
-                            <label>WhatsApp (Link Flutuante e Rodapé)</label>
-                            <input 
+                <SectionCard title="Contatos" description="WhatsApp do botão flutuante e e-mails exibidos no rodapé de todas as páginas públicas.">
+                    <div className={modalStyles.row}>
+                        <label className={modalStyles.field}>
+                            WhatsApp com DDI e DDD
+                            <input
                                 type="text"
-                                placeholder="Ex: 5511999999999 (Apenas números com DDI)"
+                                inputMode="numeric"
+                                placeholder="5531999999999"
                                 value={config.whatsapp}
-                                onChange={e => setConfig({...config, whatsapp: e.target.value.replace(/\D/g, '')})}
-                                className={styles.input}
+                                onChange={e => setConfig({ ...config, whatsapp: e.target.value.replace(/\D/g, '') })}
+                                disabled={isLoading}
                             />
-                            <small>Digitar DDI + DDD + Número. Ex: 5511926384826.</small>
-                        </div>
+                            <span className={modalStyles.hint}>Só números.</span>
+                        </label>
+                        <label className={modalStyles.field}>E-mail geral<input type="email" {...campo('email_general')} /></label>
+                        <label className={modalStyles.field}>E-mail de suporte<input type="email" {...campo('email_support')} /></label>
+                        <label className={modalStyles.field}>E-mail comercial<input type="email" {...campo('email_sales')} /></label>
                     </div>
-                </div>
+                </SectionCard>
 
-                <div className={styles.formGroupPanel}>
-                    <h3 className={styles.groupTitle}>E-mails (Rodapé)</h3>
-                    <div className={styles.grid2}>
-                        <div className={styles.formGroup}>
-                            <label>E-mail Geral / Principal</label>
-                            <input 
-                                type="email"
-                                value={config.email_general}
-                                onChange={e => setConfig({...config, email_general: e.target.value})}
-                                className={styles.input}
-                            />
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label>E-mail de Suporte</label>
-                            <input 
-                                type="email"
-                                value={config.email_support}
-                                onChange={e => setConfig({...config, email_support: e.target.value})}
-                                className={styles.input}
-                            />
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label>E-mail de Vendas (Comercial)</label>
-                            <input 
-                                type="email"
-                                value={config.email_sales}
-                                onChange={e => setConfig({...config, email_sales: e.target.value})}
-                                className={styles.input}
-                            />
-                        </div>
+                <SectionCard title="Empresa" description="Dados institucionais exibidos no rodapé.">
+                    <div className={modalStyles.row}>
+                        <label className={modalStyles.field}>Horário de atendimento<input type="text" placeholder="Seg a sex, 9h às 18h" {...campo('business_hours')} /></label>
+                        <label className={modalStyles.field}>Cidade e estado<input type="text" placeholder="Belo Horizonte, MG" {...campo('address')} /></label>
+                        <label className={modalStyles.field}>CNPJ<input type="text" {...campo('cnpj')} /></label>
                     </div>
-                </div>
+                </SectionCard>
 
-                <div className={styles.formGroupPanel}>
-                    <h3 className={styles.groupTitle}>Dados Jurídicos e Localização</h3>
-                    <div className={styles.grid2}>
-                        <div className={styles.formGroup}>
-                            <label>Horário de Funcionamento</label>
-                            <input 
-                                type="text"
-                                placeholder="Seg–Sex: 09:00–18:00"
-                                value={config.business_hours}
-                                onChange={e => setConfig({...config, business_hours: e.target.value})}
-                                className={styles.input}
-                            />
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label>Localização (Cidade/Estado)</label>
-                            <input 
-                                type="text"
-                                placeholder="São Paulo, SP"
-                                value={config.address}
-                                onChange={e => setConfig({...config, address: e.target.value})}
-                                className={styles.input}
-                            />
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label>CNPJ Comercial</label>
-                            <input 
-                                type="text"
-                                value={config.cnpj}
-                                onChange={e => setConfig({...config, cnpj: e.target.value})}
-                                className={styles.input}
-                            />
-                        </div>
+                <SectionCard title="Anúncios em banner" description="Valor e duração cobrados da concessionária por anúncio no topo da consulta.">
+                    <div className={modalStyles.row}>
+                        <label className={modalStyles.field}>
+                            Preço por anúncio (R$)
+                            <input type="text" inputMode="decimal" value={precoBanner} onChange={e => setPrecoBanner(e.target.value)} disabled={isLoading} />
+                        </label>
+                        <label className={modalStyles.field}>
+                            Duração (dias)
+                            <input type="text" inputMode="numeric" value={diasBanner} onChange={e => setDiasBanner(e.target.value.replace(/\D/g, ''))} disabled={isLoading} />
+                        </label>
                     </div>
-                </div>
-
-                <div className={styles.formGroupPanel}>
-                    <h3 className={styles.groupTitle}>Configurações de Banners e Anúncios</h3>
-                    <div className={styles.grid2}>
-                        <div className={styles.formGroup}>
-                            <label>Preço do Anúncio (R$)</label>
-                            <input 
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={(bannerConfig.price_cents / 100).toFixed(2)}
-                                onChange={e => setBannerConfig({...bannerConfig, price_cents: Math.round(parseFloat(e.target.value) * 100)})}
-                                className={styles.input}
-                            />
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label>Duração do Anúncio (Dias)</label>
-                            <input 
-                                type="number"
-                                min="1"
-                                value={bannerConfig.duration_days}
-                                onChange={e => setBannerConfig({...bannerConfig, duration_days: parseInt(e.target.value) || 1})}
-                                className={styles.input}
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                <div className={styles.formActions}>
-                    <button type="submit" disabled={isSaving} className={styles.btnSave}>
-                        {isSaving ? 'Salvando...' : 'Salvar Alterações Globais'}
-                    </button>
-                </div>
+                </SectionCard>
             </form>
-        </div>
+            {feedback}
+        </Page>
     );
 }

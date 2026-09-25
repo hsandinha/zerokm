@@ -59,7 +59,10 @@
     border-radius: 8px;
     min-height: 40px;
     max-width: 100%;
+    /* Respiro padrão: campo sem classe própria não encosta o texto na borda. */
+    padding: 0 12px;
 }
+[data-admin-design] :where(textarea) { padding: 10px 12px; }
 [data-admin-design] :where(input, textarea)::placeholder { color: var(--color-text-muted); opacity: 1; }
 [data-admin-design] :where(input[type='checkbox'], input[type='radio']) { accent-color: #9b6808; }
 [data-admin-design] :where(button, a, input, select, textarea):focus-visible {

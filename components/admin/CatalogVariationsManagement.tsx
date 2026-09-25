@@ -6,6 +6,12 @@ import type { FipeDetail } from '@/lib/services/fipeService';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import styles from './CatalogVariationsManagement.module.css';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
+import { BookOpen, CarFront, Image as ImageIcon, ImagePlus, Link2, Pencil, Plus, Search, Tags, Trash2, Upload } from 'lucide-react';
+import {
+    Button, EmptyState, FilterSelect, IconAction, Page, PageHeader, Panel, PanelFooter, PanelToolbar, PrimaryCell, RowActions,
+    SearchField, SkeletonRows, StatCard, StatGrid, pageStyles,
+} from '@/components/ui/Page';
+import { InlineNotice, useFeedback } from '@/components/ui/Feedback';
 
 interface Marca {
     id: string;
@@ -166,7 +172,8 @@ export function CatalogVariationsManagement() {
     const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
     const [importLoading, setImportLoading] = useState(false);
     const [importCommitting, setImportCommitting] = useState(false);
-    const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+    const [aviso, setAviso] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+    const { confirm, notify, feedback } = useFeedback();
 
     const [selectedVariations, setSelectedVariations] = useState<string[]>([]);
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -174,6 +181,7 @@ export function CatalogVariationsManagement() {
     const [importOpen, setImportOpen] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [bulkDeleting, setBulkDeleting] = useState(false);
+    const [fotoModal, setFotoModal] = useState<{ variation: VehicleVariation; url: string } | null>(null);
 
     const loadMarcas = useCallback(async () => {
         const res = await fetch('/api/tables/marcas');
@@ -194,27 +202,37 @@ export function CatalogVariationsManagement() {
         setVariations(Array.isArray(data.data) ? data.data : []);
     }, [brandFilter, tipoFilter, search]);
 
-    const loadAll = useCallback(async () => {
-        setLoading(true);
-        setFeedback(null);
 
-        try {
-            await Promise.all([loadMarcas(), loadVariations()]);
-        } catch (error: any) {
-            setFeedback({ type: 'error', message: error?.message || 'Erro ao carregar dados' });
-        } finally {
-            setLoading(false);
-        }
-    }, [loadMarcas, loadVariations]);
+    // Marcas uma vez; variações a cada filtro, com espera para não consultar a cada tecla.
+    useEffect(() => {
+        loadMarcas().catch((error: any) => setAviso({ type: 'error', message: error?.message || 'Erro ao carregar marcas' }));
+    }, [loadMarcas]);
 
     useEffect(() => {
-        loadAll();
-    }, [loadAll]);
+        const t = setTimeout(async () => {
+            setLoading(true);
+            try {
+                await loadVariations();
+            } catch (error: any) {
+                setAviso({ type: 'error', message: error?.message || 'Erro ao carregar catálogo' });
+            } finally {
+                setLoading(false);
+            }
+        }, 300);
+        return () => clearTimeout(t);
+    }, [loadVariations]);
+
+    // Avisos da lista (fora dos modais) viram aviso na tela.
+    useEffect(() => {
+        if (!aviso || formOpen || importOpen || importPreview || fotoModal) return;
+        notify(aviso.message, aviso.type === 'success' ? 'positive' : 'negative');
+        setAviso(null);
+    }, [aviso, formOpen, importOpen, importPreview, fotoModal, notify]);
 
     const resetForm = () => {
         setForm(EMPTY_FORM);
         setEditingId(null);
-        setFeedback(null);
+        setAviso(null);
     };
 
     const openNewVariation = () => {
@@ -231,13 +249,13 @@ export function CatalogVariationsManagement() {
     };
 
     const openImport = () => {
-        setFeedback(null);
+        setAviso(null);
         setImportOpen(true);
     };
 
     const closeImport = () => {
         if (importLoading) return;
-        setFeedback(null);
+        setAviso(null);
         setImportOpen(false);
     };
 
@@ -249,19 +267,18 @@ export function CatalogVariationsManagement() {
      * 115 MB dos 143 MB do banco, e as 27 mil variações passariam de 3 GB —
      * fora que o catálogo faz $lookup sobre a coleção inteira a cada consulta.
      */
-    const [fotoModal, setFotoModal] = useState<{ variation: VehicleVariation; url: string } | null>(null);
     const [savingFoto, setSavingFoto] = useState(false);
 
     const handleSaveFoto = async () => {
         if (!fotoModal) return;
         const url = fotoModal.url.trim();
         if (url && !/^https?:\/\//i.test(url)) {
-            setFeedback({ type: 'error', message: 'O link da foto precisa começar com http:// ou https://' });
+            setAviso({ type: 'error', message: 'O link da foto precisa começar com http:// ou https://' });
             return;
         }
 
         setSavingFoto(true);
-        setFeedback(null);
+        setAviso(null);
         try {
             const res = await fetch(`/api/catalog/variations/${fotoModal.variation.id}`, {
                 method: 'PUT',
@@ -274,9 +291,9 @@ export function CatalogVariationsManagement() {
             }
             setVariations(prev => prev.map(v => v.id === fotoModal.variation.id ? { ...v, imagemUrl: url || undefined } : v));
             setFotoModal(null);
-            setFeedback({ type: 'success', message: url ? 'Foto vinculada à variação.' : 'Foto removida da variação.' });
+            setAviso({ type: 'success', message: url ? 'Foto vinculada à variação.' : 'Foto removida da variação.' });
         } catch (err: any) {
-            setFeedback({ type: 'error', message: err.message });
+            setAviso({ type: 'error', message: err.message });
         } finally {
             setSavingFoto(false);
         }
@@ -296,15 +313,17 @@ export function CatalogVariationsManagement() {
             opcionais: variation.opcionais || variation.opcionaisPadrao?.join(', ') || '',
         });
         setEditingId(variation.id);
-        setFeedback(null);
+        setAviso(null);
         setFipeReset(value => value + 1);
         setFormOpen(true);
     };
 
     const handleDeleteOne = async (id: string) => {
-        if (!window.confirm('Tem certeza que deseja excluir esta variação?')) return;
+        const alvo = variations.find(v => v.id === id);
+        const ok = await confirm({ title: 'Excluir variação', description: <>A variação <strong>{alvo ? `${alvo.marca} ${alvo.modelo}` : ''}</strong> sai do catálogo. Veículos já cadastrados não são apagados.</>, confirmLabel: 'Excluir variação', danger: true });
+        if (!ok) return;
         setDeletingId(id);
-        setFeedback(null);
+        setAviso(null);
         try {
             const res = await fetch(`/api/catalog/variations/${id}`, {
                 method: 'DELETE',
@@ -313,11 +332,11 @@ export function CatalogVariationsManagement() {
                 const data = await res.json();
                 throw new Error(data.error || 'Erro ao excluir variação');
             }
-            setFeedback({ type: 'success', message: 'Variação excluída com sucesso.' });
+            setAviso({ type: 'success', message: 'Variação excluída com sucesso.' });
             setSelectedVariations(prev => prev.filter(v => v !== id));
             await loadVariations();
         } catch (error: any) {
-            setFeedback({ type: 'error', message: error?.message || 'Erro ao excluir variação' });
+            setAviso({ type: 'error', message: error?.message || 'Erro ao excluir variação' });
         } finally {
             setDeletingId(null);
         }
@@ -325,10 +344,12 @@ export function CatalogVariationsManagement() {
 
     const handleDeleteSelected = async () => {
         if (selectedVariations.length === 0) return;
-        if (!window.confirm(`Tem certeza que deseja excluir as ${selectedVariations.length} variações selecionadas?`)) return;
+        const n = selectedVariations.length;
+        const ok = await confirm({ title: `Excluir ${n} ${n === 1 ? 'variação' : 'variações'}`, description: 'As variações selecionadas saem do catálogo. Veículos já cadastrados não são apagados.', confirmLabel: `Excluir ${n}`, danger: true });
+        if (!ok) return;
         
         setBulkDeleting(true);
-        setFeedback(null);
+        setAviso(null);
         try {
             const res = await fetch('/api/catalog/variations', {
                 method: 'DELETE',
@@ -339,11 +360,11 @@ export function CatalogVariationsManagement() {
                 const data = await res.json();
                 throw new Error(data.error || 'Erro ao excluir variações em massa');
             }
-            setFeedback({ type: 'success', message: `${selectedVariations.length} variações excluídas com sucesso.` });
+            setAviso({ type: 'success', message: `${selectedVariations.length} variações excluídas com sucesso.` });
             setSelectedVariations([]);
             await loadVariations();
         } catch (error: any) {
-            setFeedback({ type: 'error', message: error?.message || 'Erro ao excluir variações em massa' });
+            setAviso({ type: 'error', message: error?.message || 'Erro ao excluir variações em massa' });
         } finally {
             setBulkDeleting(false);
         }
@@ -403,7 +424,7 @@ export function CatalogVariationsManagement() {
     const saveVariation = async (event: React.FormEvent) => {
         event.preventDefault();
         setSaving(true);
-        setFeedback(null);
+        setAviso(null);
 
         try {
             if (!form.marca.trim()) {
@@ -439,14 +460,14 @@ export function CatalogVariationsManagement() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || `Erro ao ${editingId ? 'atualizar' : 'salvar'} variação`);
 
-            setFeedback({ type: 'success', message: `Variação ${editingId ? 'atualizada' : 'criada'} com sucesso.` });
+            setAviso({ type: 'success', message: `Variação ${editingId ? 'atualizada' : 'criada'} com sucesso.` });
             setForm(EMPTY_FORM);
             setEditingId(null);
             setFipeReset(value => value + 1);
             setFormOpen(false);
             await Promise.all([loadMarcas(), loadVariations()]);
         } catch (error: any) {
-            setFeedback({ type: 'error', message: error?.message || `Erro ao ${editingId ? 'atualizar' : 'salvar'} variação` });
+            setAviso({ type: 'error', message: error?.message || `Erro ao ${editingId ? 'atualizar' : 'salvar'} variação` });
         } finally {
             setSaving(false);
         }
@@ -456,7 +477,7 @@ export function CatalogVariationsManagement() {
         const file = event.target.files?.[0];
         if (!file) return;
 
-        setFeedback(null);
+        setAviso(null);
         setImportPreview(null);
         setImportCsvFileName(file.name);
         setImportCsvText(await file.text());
@@ -464,7 +485,7 @@ export function CatalogVariationsManagement() {
 
     const previewImport = async () => {
         setImportLoading(true);
-        setFeedback(null);
+        setAviso(null);
 
         try {
             const payload = {
@@ -486,7 +507,7 @@ export function CatalogVariationsManagement() {
             setImportPreview(data);
             setImportOpen(false);
         } catch (error: any) {
-            setFeedback({ type: 'error', message: error?.message || 'Erro ao pré-visualizar importação' });
+            setAviso({ type: 'error', message: error?.message || 'Erro ao pré-visualizar importação' });
         } finally {
             setImportLoading(false);
         }
@@ -497,12 +518,12 @@ export function CatalogVariationsManagement() {
 
         const items = importPreview.rows.filter(row => row.status === 'new');
         if (items.length === 0) {
-            setFeedback({ type: 'error', message: 'Não há linhas novas para importar.' });
+            setAviso({ type: 'error', message: 'Não há linhas novas para importar.' });
             return;
         }
 
         setImportCommitting(true);
-        setFeedback(null);
+        setAviso(null);
 
         try {
             const res = await fetch('/api/catalog/variations/import', {
@@ -517,166 +538,149 @@ export function CatalogVariationsManagement() {
                 console.warn('LINHAS IGNORADAS DETALHES:', data.skipped);
             }
 
-            setFeedback({
+            setAviso({
                 type: 'success',
                 message: `${data.summary?.imported || 0} variações importadas. ${data.summary?.skipped || 0} linhas ignoradas.`,
             });
             setImportPreview(null);
             await Promise.all([loadMarcas(), loadVariations()]);
         } catch (error: any) {
-            setFeedback({ type: 'error', message: error?.message || 'Erro ao importar catálogo' });
+            setAviso({ type: 'error', message: error?.message || 'Erro ao importar catálogo' });
         } finally {
             setImportCommitting(false);
         }
     };
 
+    const todasSelecionadas = variations.length > 0 && selectedVariations.length === variations.length;
+    const comFoto = variations.filter(v => v.imagemUrl).length;
+    const comFipe = variations.filter(v => v.codigoFipe).length;
+    const pct = (n: number) => (variations.length ? (n / variations.length) * 100 : 0);
+    const carregando = loading && variations.length === 0;
+
     return (
-        <div className={styles.container}>
-            <div className={styles.header}>
-                <div>
-                    <h2 className={styles.title}>Catálogo</h2>
-                    <p className={styles.subtitle}>Cadastre variações por marca para disponibilizar às concessionárias.</p>
-                </div>
-                <div className={styles.headerActions}>
-                    <button type="button" className={styles.secondaryButton} onClick={loadAll} disabled={loading || saving}>
-                        Atualizar
-                    </button>
-                    <button type="button" className={styles.secondaryButton} onClick={openImport}>
-                        Importar
-                    </button>
-                    <button type="button" className={styles.primaryButton} onClick={openNewVariation}>
-                        Nova variação
-                    </button>
-                </div>
-            </div>
+        <Page wide>
+            <PageHeader
+                title="Catálogo"
+                count={carregando ? null : variations.length}
+                description="Variações por marca e modelo, com vínculo à Tabela FIPE, disponíveis para as concessionárias."
+                actions={<>
+                    <Button icon={<Upload size={16} aria-hidden="true" />} onClick={openImport}>Importar</Button>
+                    <Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={openNewVariation}>Nova variação</Button>
+                </>}
+            />
 
-            {feedback && !formOpen && !importOpen && !importPreview && (
-                <div className={`${styles.feedback} ${feedback.type === 'error' ? styles.feedbackError : styles.feedbackSuccess}`}>
-                    {feedback.message}
-                </div>
-            )}
+            <StatGrid>
+                <StatCard label="Variações" icon={<BookOpen size={18} />} value={carregando ? '-' : variations.length} caption={variations.length >= 500 ? 'Mostrando as 500 primeiras do filtro' : 'No filtro atual'} />
+                <StatCard label="Marcas" icon={<Tags size={18} />} value={carregando ? '-' : new Set(variations.map(v => v.marca)).size} caption={`${marcas.length} no cadastro`} />
+                <StatCard label="Vinculadas à FIPE" icon={<Link2 size={18} />} value={carregando ? '-' : comFipe} progress={pct(comFipe)} caption={`${Math.round(pct(comFipe))}% com código FIPE`} />
+                <StatCard label="Com foto" icon={<ImageIcon size={18} />} value={carregando ? '-' : comFoto} progress={pct(comFoto)} caption="Aparecem com imagem na consulta" />
+            </StatGrid>
 
-            <div className={styles.listPanel}>
-                <div className={styles.listHeader}>
-                    <div>
-                        <h3>Variações cadastradas</h3>
-                        <p>{variations.length} variações carregadas</p>
-                    </div>
-                    <div className={styles.filters}>
-                        {selectedVariations.length > 0 && (
-                            <button 
-                                type="button" 
-                                className={`${styles.secondaryButton} ${styles.dangerButton}`} 
-                                onClick={handleDeleteSelected}
-                                disabled={bulkDeleting}
-                            >
-                                {bulkDeleting ? 'Excluindo...' : `Excluir ${selectedVariations.length} selecionados`}
-                            </button>
-                        )}
-                        <input
-                            value={search}
-                            onChange={event => setSearch(event.target.value)}
-                            placeholder="Buscar marca, modelo ou cor..."
+            <Panel>
+                <PanelToolbar>
+                    <div className={pageStyles.toolbarGroup}>
+                        <SearchField value={search} onChange={setSearch} placeholder="Marca, modelo ou cor" />
+                        <FilterSelect
+                            label="Filtrar por marca"
+                            value={brandFilter}
+                            onChange={setBrandFilter}
+                            options={[{ value: '', label: 'Todas as marcas' }, ...marcas.map(m => ({ value: m.id, label: m.nome }))]}
                         />
-                        <select value={brandFilter} onChange={event => setBrandFilter(event.target.value)}>
-                            <option value="">Todas as marcas</option>
-                            {marcas.map(marca => (
-                                <option key={marca.id} value={marca.id}>{marca.nome}</option>
-                            ))}
-                        </select>
-                        <select value={tipoFilter} onChange={event => setTipoFilter(event.target.value)}>
-                            <option value="">Todos os tipos</option>
-                            <option value="carro">Carros</option>
-                            <option value="moto">Motos</option>
-                            <option value="caminhao">Caminhões</option>
-                            <option value="utilitario">Utilitários</option>
-                        </select>
+                        <FilterSelect
+                            label="Filtrar por tipo"
+                            value={tipoFilter}
+                            onChange={setTipoFilter}
+                            options={[
+                                { value: '', label: 'Todos os tipos' },
+                                { value: 'carro', label: 'Carros' },
+                                { value: 'moto', label: 'Motos' },
+                                { value: 'caminhao', label: 'Caminhões' },
+                                { value: 'utilitario', label: 'Utilitários' },
+                            ]}
+                        />
                     </div>
-                </div>
+                    {selectedVariations.length > 0 && (
+                        <Button variant="danger" icon={<Trash2 size={16} aria-hidden="true" />} onClick={handleDeleteSelected} disabled={bulkDeleting}>
+                            {bulkDeleting ? 'Excluindo...' : `Excluir ${selectedVariations.length} ${selectedVariations.length === 1 ? 'selecionada' : 'selecionadas'}`}
+                        </Button>
+                    )}
+                </PanelToolbar>
 
-                <div className={styles.tableShell}>
-                    <table className={styles.table}>
+                <div className={pageStyles.tableWrap}>
+                    <table className={`${pageStyles.table} ${pageStyles.tableDense}`}>
                         <thead>
                             <tr>
-                                <th>
-                                    <input 
-                                        type="checkbox" 
-                                        checked={variations.length > 0 && selectedVariations.length === variations.length}
-                                        onChange={handleSelectAll}
-                                    />
+                                <th className={pageStyles.shrink}>
+                                    <input type="checkbox" aria-label="Selecionar todas" checked={todasSelecionadas} onChange={handleSelectAll} />
                                 </th>
-                                <th>Marca</th>
-                                <th>Tipo</th>
                                 <th>Modelo</th>
+                                <th>Tipo</th>
                                 <th>Ano</th>
                                 <th>Combustível</th>
                                 <th>Cor</th>
                                 <th>Câmbio</th>
                                 <th>Opcionais</th>
-                                <th>Ações</th>
+                                <th className={pageStyles.shrink}><span className={pageStyles.srOnly}>Ações</span></th>
                             </tr>
                         </thead>
                         <tbody>
-                            {loading ? (
-                                <tr>
-                                    <td colSpan={10} className={styles.empty}>Carregando...</td>
-                                </tr>
-                            ) : variations.length === 0 ? (
-                                <tr>
-                                    <td colSpan={10} className={styles.empty}>Nenhuma variação encontrada.</td>
-                                </tr>
-                            ) : variations.map(variation => (
-                                <tr key={variation.id} className={selectedVariations.includes(variation.id) ? styles.selectedRow : ''}>
+                            {carregando && <SkeletonRows rows={6} columns={9} />}
+                            {!carregando && variations.map(variation => (
+                                <tr key={variation.id} data-selected={selectedVariations.includes(variation.id)}>
                                     <td>
-                                        <input 
-                                            type="checkbox" 
-                                            checked={selectedVariations.includes(variation.id)}
-                                            onChange={() => handleSelectOne(variation.id)}
+                                        <input type="checkbox" aria-label={`Selecionar ${variation.modelo}`} checked={selectedVariations.includes(variation.id)} onChange={() => handleSelectOne(variation.id)} />
+                                    </td>
+                                    <td className={pageStyles.colMain}>
+                                        <PrimaryCell
+                                            leading={variation.imagemUrl
+                                                ? <img src={variation.imagemUrl} alt="" className={pageStyles.thumb} />
+                                                : <span className={pageStyles.thumbEmpty} aria-hidden="true"><CarFront size={16} /></span>}
+                                            title={variation.modelo}
+                                            subtitle={<>{variation.marca}{variation.codigoFipe ? ` · FIPE ${variation.codigoFipe}` : ''}</>}
                                         />
                                     </td>
-                                    <td>{variation.marca}</td>
                                     <td>
-                                        {TIPO_LABELS[variation.tipoVeiculo] || variation.tipoVeiculo}
-                                        {variation.tipoVeiculo === 'moto' && variation.cilindrada ? ` · ${variation.cilindrada}cc` : ''}
+                                        <span className={pageStyles.nowrap}>
+                                            {TIPO_LABELS[variation.tipoVeiculo] || variation.tipoVeiculo}
+                                            {variation.tipoVeiculo === 'moto' && variation.cilindrada ? ` · ${variation.cilindrada}cc` : ''}
+                                        </span>
                                     </td>
-                                    <td><strong>{variation.modelo}</strong></td>
-                                    <td>{getAnoLabel(variation)}</td>
-                                    <td>{variation.combustivel || '-'}</td>
-                                    <td>{variation.cor || '-'}</td>
-                                    <td>{variation.transmissao || '-'}</td>
-                                    <td>{variation.opcionais || '-'}</td>
+                                    <td><span className={pageStyles.nowrap}>{getAnoLabel(variation)}</span></td>
+                                    <td>{variation.combustivel || <span className={pageStyles.muted}>-</span>}</td>
+                                    <td>{variation.cor || <span className={pageStyles.muted}>-</span>}</td>
+                                    <td>{variation.transmissao || <span className={pageStyles.muted}>-</span>}</td>
+                                    <td>{variation.opcionais ? <span className={pageStyles.clamp2} title={variation.opcionais}>{variation.opcionais}</span> : <span className={pageStyles.muted}>-</span>}</td>
                                     <td>
-                                        <div className={styles.rowActions}>
-                                            <button
-                                                className={styles.iconButton}
-                                                onClick={() => setFotoModal({ variation, url: variation.imagemUrl || '' })}
-                                                title={variation.imagemUrl ? 'Trocar foto do veículo' : 'Adicionar foto do veículo'}
-                                            >
-                                                {variation.imagemUrl ? '🖼️' : '📷'}
-                                            </button>
-                                            <button 
-                                                className={styles.iconButton} 
-                                                onClick={() => handleEdit(variation)}
-                                                title="Editar"
-                                            >
-                                                ✏️
-                                            </button>
-                                            <button 
-                                                className={`${styles.iconButton} ${styles.dangerText}`} 
-                                                onClick={() => handleDeleteOne(variation.id)}
-                                                disabled={deletingId === variation.id}
-                                                title="Excluir"
-                                            >
-                                                {deletingId === variation.id ? '...' : '🗑️'}
-                                            </button>
-                                        </div>
+                                        <RowActions>
+                                            <IconAction label={variation.imagemUrl ? 'Trocar foto' : 'Adicionar foto'} onClick={() => setFotoModal({ variation, url: variation.imagemUrl || '' })}>
+                                                <ImagePlus size={17} aria-hidden="true" />
+                                            </IconAction>
+                                            <IconAction label="Editar variação" onClick={() => handleEdit(variation)}>
+                                                <Pencil size={17} aria-hidden="true" />
+                                            </IconAction>
+                                            <IconAction label="Excluir variação" tone="danger" onClick={() => handleDeleteOne(variation.id)}>
+                                                <Trash2 size={17} aria-hidden="true" />
+                                            </IconAction>
+                                        </RowActions>
                                     </td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 </div>
-            </div>
+
+                {!carregando && variations.length === 0 && (
+                    search || brandFilter || tipoFilter
+                        ? <EmptyState icon={<Search size={20} />} title="Nenhuma variação encontrada" description="Ajuste a busca ou os filtros de marca e tipo." />
+                        : <EmptyState icon={<BookOpen size={20} />} title="Catálogo vazio" description="Cadastre a primeira variação pela busca na FIPE ou importe uma planilha." action={<Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={openNewVariation}>Nova variação</Button>} />
+                )}
+
+                {!carregando && variations.length > 0 && (
+                    <PanelFooter aside={selectedVariations.length > 0 ? `${selectedVariations.length} ${selectedVariations.length === 1 ? 'selecionada' : 'selecionadas'}` : 'Até 500 por consulta'}>
+                        Mostrando <strong>{variations.length}</strong> {variations.length === 1 ? 'variação' : 'variações'}
+                    </PanelFooter>
+                )}
+            </Panel>
 
             {formOpen && (
                 <AdminModal
@@ -694,10 +698,8 @@ export function CatalogVariationsManagement() {
                     </>}
                 >
                     <div className={modalStyles.stack}>
-                        {feedback?.type === 'error' && (
-                            <div className={`${styles.feedback} ${styles.feedbackError}`} role="alert">
-                                {feedback.message}
-                            </div>
+                        {aviso?.type === 'error' && (
+                            <InlineNotice>{aviso.message}</InlineNotice>
                         )}
                         <div className={styles.formGrid}>
                             <label>Código FIPE (opcional)<input value={form.codigoFipe} onChange={event => { void handleFipeCode(event.target.value); }} placeholder="000000-0" inputMode="numeric" /></label>
@@ -837,10 +839,8 @@ export function CatalogVariationsManagement() {
                     </>}
                 >
                     <div className={modalStyles.stack}>
-                        {feedback?.type === 'error' && (
-                            <div className={`${styles.feedback} ${styles.feedbackError}`} role="alert">
-                                {feedback.message}
-                            </div>
+                        {aviso?.type === 'error' && (
+                            <InlineNotice>{aviso.message}</InlineNotice>
                         )}
                         <div className={modalStyles.field}>
                             <span>Origem</span>
@@ -911,10 +911,8 @@ export function CatalogVariationsManagement() {
                         </button>
                     </>}
                 >
-                    {feedback?.type === 'error' && (
-                        <div className={`${styles.feedback} ${styles.feedbackError}`} role="alert">
-                            {feedback.message}
-                        </div>
+                    {aviso?.type === 'error' && (
+                        <InlineNotice>{aviso.message}</InlineNotice>
                     )}
                     <div className={styles.summaryGrid}>
                         <div>
@@ -940,9 +938,7 @@ export function CatalogVariationsManagement() {
                     </div>
 
                     {importPreview.truncated && (
-                        <div className={`${styles.feedback} ${styles.feedbackError}`}>
-                            A prévia foi limitada às primeiras 2500 linhas.
-                        </div>
+                        <InlineNotice tone="warning">A prévia mostra só as primeiras 2.500 linhas.</InlineNotice>
                     )}
 
                     <div className={styles.modalTableShell}>
@@ -970,7 +966,7 @@ export function CatalogVariationsManagement() {
                                         <td>{row.rowNumber} · {{ new: 'Nova', existing: 'Existente', duplicate: 'Duplicada', invalid: 'Com erro' }[row.status]}</td>
                                         <td>{row.marca || '-'}</td>
                                         <td><strong>{row.modelo || '-'}</strong></td>
-                                        <td style={{ minWidth: 230, whiteSpace: 'normal' }}>{row.codigoFipe || 'Sem vínculo'}{[...row.errors, ...row.warnings].map((message, i) => <p key={i}>{message}</p>)}</td>
+                                        <td className={styles.previewFipeCell}>{row.codigoFipe || 'Sem vínculo'}{[...row.errors, ...row.warnings].map((message, i) => <p key={i}>{message}</p>)}</td>
                                         <td>{row.ano || row.anoModelo || '-'}</td>
                                         <td>{row.combustivel || '-'}</td>
                                         <td>{row.cor || '-'}</td>
@@ -1032,6 +1028,7 @@ export function CatalogVariationsManagement() {
                     </div>
                 </AdminModal>
             )}
-        </div>
+            {feedback}
+        </Page>
     );
 }

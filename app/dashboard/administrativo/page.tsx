@@ -72,7 +72,7 @@ export default function AdministrativoDashboard() {
     ];
 
     // Telas que já montam a própria página (components/ui/Page) ou ocupam a tela toda.
-    const SEM_MOLDURA = new Set(['veiculos', 'usuarios', 'concessionarias']);
+    const SEM_MOLDURA = new Set(['veiculos', 'usuarios', 'concessionarias', 'banners', 'estoque-concessionarias', 'catalogo', 'transportadoras']);
 
     const renderContent = () => {
         switch (activeTab) {

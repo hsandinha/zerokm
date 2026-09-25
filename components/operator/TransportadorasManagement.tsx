@@ -1,339 +1,177 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Table2, LayoutGrid } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Pause, Pencil, Play, Plus, Search, Trash2, Truck } from 'lucide-react';
 import { Transportadora, TransportadoraService } from '../../lib/services/transportadoraService';
 import { AddTransportadoraModal } from './AddTransportadoraModal';
-import styles from './VehicleConsultation.module.css';
+import {
+    Button, EmptyState, FilterSelect, IconAction, Page, PageHeader, Pagination, Panel, PanelFooter, PanelToolbar, RowActions,
+    SearchField, SkeletonRows, StatusBadge, pageStyles,
+} from '@/components/ui/Page';
+import { useFeedback } from '@/components/ui/Feedback';
 
 interface TransportadorasManagementProps {
     role?: 'admin' | 'administrador' | 'operator' | 'operador' | 'client' | 'dealership' | 'vendedor' | 'operator/vendedor' | 'gerente';
 }
 
-export function TransportadorasManagement({ role = 'operator' }: TransportadorasManagementProps) {
+type PorPagina = '25' | '50' | '100' | 'todos';
+
+const moeda = (v?: number) => (v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+/** Tabela de frete por estado de destino. */
+export function TransportadorasManagement(_props: TransportadorasManagementProps) {
     const [transportadoras, setTransportadoras] = useState<Transportadora[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [showForm, setShowForm] = useState(false);
     const [editingTransportadora, setEditingTransportadora] = useState<Transportadora | null>(null);
-    const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
-
-    // Paginação
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(50);
+    const [porPagina, setPorPagina] = useState<PorPagina>('50');
     const [totalItems, setTotalItems] = useState(0);
+    const { confirm, notify, feedback } = useFeedback();
 
-    // Carregar transportadoras
-    const loadTransportadoras = async () => {
+    const itensPorPagina = porPagina === 'todos' ? 1000 : Number(porPagina);
+    const totalPaginas = Math.max(1, Math.ceil(totalItems / itensPorPagina));
+
+    const loadTransportadoras = useCallback(async () => {
         try {
             setLoading(true);
-            const { data, total } = await TransportadoraService.getTransportadorasPaginated({
-                page: currentPage,
-                itemsPerPage: itemsPerPage === -1 ? 1000 : itemsPerPage,
-                searchTerm
-            });
+            const { data, total } = await TransportadoraService.getTransportadorasPaginated({ page: currentPage, itemsPerPage: itensPorPagina, searchTerm });
             setTransportadoras(data);
             setTotalItems(total);
         } catch (error) {
             console.error('Erro ao carregar transportadoras:', error);
+            notify('Não foi possível carregar a tabela de fretes.');
         } finally {
             setLoading(false);
         }
-    };
+    }, [currentPage, itensPorPagina, searchTerm, notify]);
 
     useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            loadTransportadoras();
-        }, 500);
-        return () => clearTimeout(timeoutId);
-    }, [currentPage, itemsPerPage, searchTerm]);
+        const t = setTimeout(loadTransportadoras, 300);
+        return () => clearTimeout(t);
+    }, [loadTransportadoras]);
 
-    // Resetar página quando busca muda
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchTerm]);
+    useEffect(() => { setCurrentPage(1); }, [searchTerm, porPagina]);
 
-    const closeForm = () => {
-        setShowForm(false);
-        setEditingTransportadora(null);
-    };
+    const abrirNovo = () => { setEditingTransportadora(null); setShowForm(true); };
+    const fecharForm = () => { setShowForm(false); setEditingTransportadora(null); };
 
-    // Handlers
-    const handleAddTransportadora = () => {
-        if (showForm && !editingTransportadora) {
-            closeForm();
-            return;
-        }
-        setEditingTransportadora(null);
-        setShowForm(true);
-    };
-
-    const handleEditTransportadora = (transportadora: Transportadora) => {
-        setEditingTransportadora(transportadora);
-        setShowForm(true);
-    };
-
-    const handleDeleteTransportadora = async (id: string) => {
-        if (window.confirm('Tem certeza que deseja excluir esta transportadora?')) {
-            try {
-                await TransportadoraService.deleteTransportadora(id);
-                await loadTransportadoras();
-            } catch (error) {
-                console.error('Erro ao excluir transportadora:', error);
-                alert('Erro ao excluir transportadora. Tente novamente.');
-            }
-        }
-    };
-
-    const handleToggleStatus = async (transportadora: Transportadora) => {
+    const excluir = async (t: Transportadora) => {
+        const ok = await confirm({ title: 'Excluir frete', description: <>O frete para <strong>{t.estado}</strong> sai da tabela. Consultas para esse estado ficam sem valor de frete.</>, confirmLabel: 'Excluir frete', danger: true });
+        if (!ok) return;
         try {
-            await TransportadoraService.updateTransportadora(transportadora.id!, {
-                ativo: !transportadora.ativo
-            });
+            await TransportadoraService.deleteTransportadora(t.id!);
+            notify('Frete excluído.', 'positive');
+            await loadTransportadoras();
+        } catch (error) {
+            console.error('Erro ao excluir transportadora:', error);
+            notify('Não foi possível excluir o frete. Tente de novo.');
+        }
+    };
+
+    const alternar = async (t: Transportadora) => {
+        try {
+            await TransportadoraService.updateTransportadora(t.id!, { ativo: !t.ativo });
+            notify(t.ativo ? `Frete para ${t.estado} pausado.` : `Frete para ${t.estado} ativado.`, 'positive');
             await loadTransportadoras();
         } catch (error) {
             console.error('Erro ao alterar status:', error);
-            alert('Erro ao alterar status. Tente novamente.');
+            notify('Não foi possível alterar a situação do frete.');
         }
     };
 
-    const handleTransportadoraAdded = () => {
-        loadTransportadoras();
-    };
-
-    const clearSearch = () => {
-        setSearchTerm('');
-    };
-
-    if (loading) {
-        return (
-            <div className={styles.container}>
-                <div className={styles.loadingContainer}>
-                    <div className={styles.spinner}></div>
-                    <p>Carregando tabela de fretes...</p>
-                </div>
-            </div>
-        );
-    }
+    const carregando = loading && transportadoras.length === 0;
 
     return (
-        <div className={styles.container}>
-            <div className={styles.header}>
-                <h2>Tabela de Fretes</h2>
-                <div className={styles.headerActions}>
-                    <button className={styles.addButton} onClick={handleAddTransportadora}>
-                        {showForm ? 'Cancelar' : '+ Novo Frete'}
-                    </button>
-                    <div className={styles.viewToggle}>
-                        <button
-                            className={`${styles.viewButton} ${viewMode === 'table' ? styles.active : ''}`}
-                            onClick={() => setViewMode('table')}
-                            title="Visualização em Tabela"
-                        >
-                            <Table2 size={17} aria-hidden="true" />
-                        </button>
-                        <button
-                            className={`${styles.viewButton} ${viewMode === 'cards' ? styles.active : ''}`}
-                            onClick={() => setViewMode('cards')}
-                            title="Visualização em Cards"
-                        >
-                            <LayoutGrid size={17} aria-hidden="true" />
-                        </button>
-                    </div>
-                </div>
-            </div>
+        <Page>
+            <PageHeader
+                title="Frete"
+                count={carregando ? null : totalItems}
+                description="Valor do frete por estado de destino, somado ao preço dos veículos na consulta."
+                actions={<Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={abrirNovo}>Novo frete</Button>}
+            />
 
-            {showForm && (
-                <div className={styles.inlineFormWrapper}>
-                    <AddTransportadoraModal
-                        isOpen={showForm}
-                        onClose={closeForm}
-                        onTransportadoraAdded={handleTransportadoraAdded}
-                        editingTransportadora={editingTransportadora ?? undefined}
-                        isEditing={Boolean(editingTransportadora)}
+            <Panel>
+                <PanelToolbar>
+                    <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Buscar por estado" />
+                    <FilterSelect<PorPagina>
+                        label="Itens por página"
+                        value={porPagina}
+                        onChange={setPorPagina}
+                        options={[
+                            { value: '25', label: '25 por página' },
+                            { value: '50', label: '50 por página' },
+                            { value: '100', label: '100 por página' },
+                            { value: 'todos', label: 'Todos' },
+                        ]}
                     />
-                </div>
-            )}
+                </PanelToolbar>
 
-            <div className={styles.searchSection}>
-                <div className={styles.searchContainer}>
-                    <input
-                        type="text"
-                        placeholder="Buscar por estado..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className={styles.searchInput}
-                    />
-                    {searchTerm && (
-                        <button className={styles.clearButton} onClick={clearSearch}>
-                            ✕
-                        </button>
-                    )}
-                </div>
-            </div>
-
-            <div className={styles.resultsSection}>
-                <div className={styles.resultsHeader}>
-                    <h3>Resultados ({totalItems})</h3>
-                </div>
-
-                {viewMode === 'table' ? (
-                    <div className={styles.tableContainer}>
-                        <table className={styles.table}>
-                            <thead>
-                                <tr>
-                                    <th className={styles.tableHeader}>ESTADO</th>
-                                    <th className={styles.tableHeader}>VALOR DO FRETE</th>
-                                    <th className={styles.tableHeader}>OBSERVAÇÃO</th>
-                                    <th className={styles.tableHeader}>STATUS</th>
-                                    <th className={styles.tableHeader}>AÇÕES</th>
+                <div className={pageStyles.tableWrap}>
+                    <table className={pageStyles.table}>
+                        <thead>
+                            <tr>
+                                <th>Estado</th>
+                                <th className={pageStyles.num}>Valor do frete</th>
+                                <th>Observação</th>
+                                <th>Situação</th>
+                                <th className={pageStyles.shrink}><span className={pageStyles.srOnly}>Ações</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {carregando && <SkeletonRows rows={6} columns={5} />}
+                            {!carregando && transportadoras.map((t) => (
+                                <tr key={t.id} data-inactive={!t.ativo}>
+                                    <td><strong>{t.estado}</strong></td>
+                                    <td className={pageStyles.num}><strong>{moeda(t.valor)}</strong></td>
+                                    <td>{t.observacao || <span className={pageStyles.muted}>Sem observação</span>}</td>
+                                    <td>{t.ativo ? <StatusBadge tone="positive">Ativo</StatusBadge> : <StatusBadge>Pausado</StatusBadge>}</td>
+                                    <td>
+                                        <RowActions>
+                                            <IconAction label="Editar frete" onClick={() => { setEditingTransportadora(t); setShowForm(true); }}>
+                                                <Pencil size={17} aria-hidden="true" />
+                                            </IconAction>
+                                            <IconAction label={t.ativo ? 'Pausar frete' : 'Ativar frete'} onClick={() => alternar(t)}>
+                                                {t.ativo ? <Pause size={17} aria-hidden="true" /> : <Play size={17} aria-hidden="true" />}
+                                            </IconAction>
+                                            <IconAction label="Excluir frete" tone="danger" onClick={() => excluir(t)}>
+                                                <Trash2 size={17} aria-hidden="true" />
+                                            </IconAction>
+                                        </RowActions>
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                {transportadoras.map((transportadora) => (
-                                    <tr key={transportadora.id} className={styles.tableRow}>
-                                        <td className={styles.tableCell}>{transportadora.estado}</td>
-                                        <td className={styles.tableCell}>
-                                            {transportadora.valor?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                        </td>
-                                        <td className={styles.tableCell}>{transportadora.observacao || '-'}</td>
-                                        <td className={styles.tableCell}>
-                                            <span className={`${styles.statusBadge} ${transportadora.ativo ? styles.statusActive : styles.statusInactive}`}>
-                                                {transportadora.ativo ? 'Ativo' : 'Inativo'}
-                                            </span>
-                                        </td>
-                                        {true && (
-                                            <td className={styles.tableCell}>
-                                                <div className={styles.actionButtons}>
-                                                    <button
-                                                        className={styles.editButton}
-                                                        onClick={() => handleEditTransportadora(transportadora)}
-                                                        title="Editar"
-                                                    >
-                                                        ✏️
-                                                    </button>
-                                                    <button
-                                                        className={styles.toggleButton}
-                                                        onClick={() => handleToggleStatus(transportadora)}
-                                                        title={transportadora.ativo ? 'Desativar' : 'Ativar'}
-                                                    >
-                                                        {transportadora.ativo ? '⏸️' : '▶️'}
-                                                    </button>
-                                                    <button
-                                                        className={styles.deleteButton}
-                                                        onClick={() => handleDeleteTransportadora(transportadora.id!)}
-                                                        title="Excluir"
-                                                    >
-                                                        🗑️
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        )}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                ) : (
-                    <div className={styles.cardsContainer}>
-                        {transportadoras.map((transportadora) => (
-                            <div key={transportadora.id} className={styles.card}>
-                                <div className={styles.cardHeader}>
-                                    <h4 className={styles.cardTitle}>{transportadora.estado}</h4>
-                                    <span className={`${styles.statusBadge} ${transportadora.ativo ? styles.statusActive : styles.statusInactive}`}>
-                                        {transportadora.ativo ? 'Ativo' : 'Inativo'}
-                                    </span>
-                                </div>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
 
-                                <div className={styles.cardBody}>
-                                    <div className={styles.cardRow}>
-                                        <span className={styles.cardLabel}>Valor do Frete:</span>
-                                        <span className={styles.cardValue}>
-                                            {transportadora.valor?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div className={styles.cardActions}>
-                                    <button
-                                        className={styles.editButton}
-                                        onClick={() => handleEditTransportadora(transportadora)}
-                                    >
-                                        ✏️ Editar
-                                    </button>
-                                    <button
-                                        className={styles.toggleButton}
-                                        onClick={() => handleToggleStatus(transportadora)}
-                                    >
-                                        {transportadora.ativo ? '⏸️ Desativar' : '▶️ Ativar'}
-                                    </button>
-                                    <button
-                                        className={styles.deleteButton}
-                                        onClick={() => handleDeleteTransportadora(transportadora.id!)}
-                                    >
-                                        🗑️ Excluir
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                {!carregando && transportadoras.length === 0 && (
+                    searchTerm
+                        ? <EmptyState icon={<Search size={20} />} title="Nenhum estado encontrado" description="Confira a sigla ou o nome do estado." />
+                        : <EmptyState icon={<Truck size={20} />} title="Nenhum frete cadastrado" description="Cadastre o valor do frete para cada estado atendido." action={<Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={abrirNovo}>Novo frete</Button>} />
                 )}
 
-                <div className={styles.paginationContainer} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', padding: '10px', borderTop: '1px solid #eee' }}>
-                    <div className={styles.itemsPerPage}>
-                        <label htmlFor="itemsPerPage">Itens por página: </label>
-                        <select
-                            id="itemsPerPage"
-                            value={itemsPerPage}
-                            onChange={(e) => {
-                                setItemsPerPage(parseInt(e.target.value));
-                                setCurrentPage(1);
-                            }}
-                            style={{ marginLeft: '10px', padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
-                        >
-                            <option value={25}>25</option>
-                            <option value={50}>50</option>
-                            <option value={75}>75</option>
-                            <option value={100}>100</option>
-                            <option value={-1}>Todos</option>
-                        </select>
-                    </div>
+                {!carregando && transportadoras.length > 0 && (
+                    <PanelFooter aside={<Pagination page={currentPage} totalPages={porPagina === 'todos' ? 1 : totalPaginas} onChange={setCurrentPage} />}>
+                        Mostrando <strong>{transportadoras.length}</strong> de {totalItems} {totalItems === 1 ? 'estado' : 'estados'}
+                    </PanelFooter>
+                )}
+            </Panel>
 
-                    <div className={styles.paginationControls} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                        <button
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                            style={{
-                                padding: '5px 10px',
-                                cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-                                opacity: currentPage === 1 ? 0.5 : 1,
-                                border: '1px solid #ccc',
-                                borderRadius: '4px',
-                                background: '#fff'
-                            }}
-                        >
-                            Anterior
-                        </button>
-                        <span>
-                            Página {currentPage} de {itemsPerPage === -1 ? 1 : Math.ceil(totalItems / itemsPerPage)}
-                        </span>
-                        <button
-                            onClick={() => setCurrentPage(p => Math.min(itemsPerPage === -1 ? 1 : Math.ceil(totalItems / itemsPerPage), p + 1))}
-                            disabled={currentPage === (itemsPerPage === -1 ? 1 : Math.ceil(totalItems / itemsPerPage))}
-                            style={{
-                                padding: '5px 10px',
-                                cursor: currentPage === (itemsPerPage === -1 ? 1 : Math.ceil(totalItems / itemsPerPage)) ? 'not-allowed' : 'pointer',
-                                opacity: currentPage === (itemsPerPage === -1 ? 1 : Math.ceil(totalItems / itemsPerPage)) ? 0.5 : 1,
-                                border: '1px solid #ccc',
-                                borderRadius: '4px',
-                                background: '#fff'
-                            }}
-                        >
-                            Próxima
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
+            {showForm && (
+                <AddTransportadoraModal
+                    isOpen={showForm}
+                    onClose={fecharForm}
+                    onTransportadoraAdded={() => {
+                        notify(editingTransportadora ? 'Frete atualizado.' : 'Frete cadastrado.', 'positive');
+                        loadTransportadoras();
+                    }}
+                    editingTransportadora={editingTransportadora ?? undefined}
+                    isEditing={Boolean(editingTransportadora)}
+                />
+            )}
+            {feedback}
+        </Page>
     );
 }

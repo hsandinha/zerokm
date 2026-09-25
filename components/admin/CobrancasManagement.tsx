@@ -1,7 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import styles from './CobrancasManagement.module.css';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { Check, CircleCheck, Clock, Copy, FileText, Landmark, MailWarning, Receipt, RefreshCw, Search, Send } from 'lucide-react';
+import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
+import {
+    Button, EmptyState, IconAction, Page, PageHeader, Panel, PanelFooter, PanelToolbar, PrimaryCell, RowActions,
+    SearchField, Segmented, SkeletonRows, StatCard, StatGrid, StatusBadge, TwoLine, pageStyles, type BadgeTone,
+} from '@/components/ui/Page';
+import { InlineNotice, useFeedback } from '@/components/ui/Feedback';
+
+type FiltroStatus = '' | 'pending' | 'approved' | 'cancelled';
 
 type Cobranca = {
     id: string;
@@ -28,29 +36,29 @@ type Cobranca = {
     };
 };
 
-const brl = (v: number) => `R$ ${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+const brl = (v: number) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const data = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('pt-BR') : '-');
 const dataHora = (iso: string | null) => (iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '-');
 
-const STATUS_PAGAMENTO: Record<string, { label: string; cls: string }> = {
-    approved: { label: 'Pago', cls: 'badgeOk' },
-    pending: { label: 'Aguardando', cls: 'badgePendente' },
-    in_process: { label: 'Em análise', cls: 'badgePendente' },
-    rejected: { label: 'Recusado', cls: 'badgeErro' },
-    cancelled: { label: 'Cancelado', cls: 'badgeNeutro' },
-    refunded: { label: 'Estornado', cls: 'badgeNeutro' },
+const STATUS_PAGAMENTO: Record<string, { label: string; tone: BadgeTone }> = {
+    approved: { label: 'Pago', tone: 'positive' },
+    pending: { label: 'Aguardando', tone: 'warning' },
+    in_process: { label: 'Em análise', tone: 'warning' },
+    rejected: { label: 'Recusado', tone: 'negative' },
+    cancelled: { label: 'Cancelado', tone: 'neutral' },
+    refunded: { label: 'Estornado', tone: 'neutral' },
 };
 
 // Eventos do Resend. "delivered" é o que interessa ao atendimento.
-const STATUS_EMAIL: Record<string, { label: string; cls: string }> = {
-    delivered: { label: 'Entregue', cls: 'badgeOk' },
-    sent: { label: 'Enviado', cls: 'badgePendente' },
-    delivery_delayed: { label: 'Atrasado', cls: 'badgePendente' },
-    queued: { label: 'Na fila', cls: 'badgePendente' },
-    bounced: { label: 'Voltou', cls: 'badgeErro' },
-    complained: { label: 'Marcado como spam', cls: 'badgeErro' },
-    opened: { label: 'Aberto', cls: 'badgeOk' },
-    clicked: { label: 'Clicou', cls: 'badgeOk' },
+const STATUS_EMAIL: Record<string, { label: string; tone: BadgeTone }> = {
+    delivered: { label: 'Entregue', tone: 'positive' },
+    sent: { label: 'Enviado', tone: 'warning' },
+    delivery_delayed: { label: 'Atrasado', tone: 'warning' },
+    queued: { label: 'Na fila', tone: 'warning' },
+    bounced: { label: 'Voltou', tone: 'negative' },
+    complained: { label: 'Marcado como spam', tone: 'negative' },
+    opened: { label: 'Aberto', tone: 'positive' },
+    clicked: { label: 'Clicou', tone: 'positive' },
 };
 
 export function CobrancasManagement() {
@@ -58,11 +66,13 @@ export function CobrancasManagement() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
-    const [status, setStatus] = useState('');
-    const [reenviando, setReenviando] = useState<string | null>(null);
-    const [aviso, setAviso] = useState<string | null>(null);
+    const [status, setStatus] = useState<FiltroStatus>('');
+    const [reenvio, setReenvio] = useState<{ row: Cobranca; email: string } | null>(null);
+    const [reenviando, setReenviando] = useState(false);
+    const [reenvioErro, setReenvioErro] = useState<string | null>(null);
     const [copiado, setCopiado] = useState<string | null>(null);
     const [avisoMP, setAvisoMP] = useState<string | null>(null);
+    const { notify, feedback } = useFeedback();
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -88,163 +98,212 @@ export function CobrancasManagement() {
         return () => clearTimeout(t);
     }, [load]);
 
-    const reenviar = async (row: Cobranca) => {
-        const destino = window.prompt(
-            `Reenviar o boleto de ${row.cliente} para qual e-mail?`,
-            row.email.para || row.clienteEmail,
-        );
-        if (destino === null) return;
-        setReenviando(row.id);
-        setAviso(null);
-        setError(null);
+    const abrirReenvio = (row: Cobranca) => {
+        setReenvioErro(null);
+        setReenvio({ row, email: row.email.para || row.clienteEmail || '' });
+    };
+
+    const reenviar = async (event: FormEvent) => {
+        event.preventDefault();
+        if (!reenvio) return;
+        setReenviando(true);
+        setReenvioErro(null);
         try {
-            const res = await fetch(`/api/admin/cobrancas/${row.id}/reenviar`, {
+            const res = await fetch(`/api/admin/cobrancas/${reenvio.row.id}/reenviar`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: destino.trim() }),
+                body: JSON.stringify({ email: reenvio.email.trim() }),
             });
             const body = await res.json();
             if (!res.ok) throw new Error(body.error || 'Falha ao reenviar');
-            setAviso(`Boleto reenviado para ${body.para}.`);
+            setReenvio(null);
+            notify(`Boleto reenviado para ${body.para}.`, 'positive');
             await load();
         } catch (err: any) {
-            setError(err?.message || 'Falha ao reenviar');
+            setReenvioErro(err?.message || 'Falha ao reenviar');
         } finally {
-            setReenviando(null);
+            setReenviando(false);
         }
     };
 
-    const copiarCodigo = (row: Cobranca) => {
+    const copiarCodigo = async (row: Cobranca) => {
         if (!row.boletoBarcode) return;
-        navigator.clipboard?.writeText(row.boletoBarcode);
-        setCopiado(row.id);
-        setTimeout(() => setCopiado(null), 2000);
+        try {
+            await navigator.clipboard.writeText(row.boletoBarcode);
+            setCopiado(row.id);
+            setTimeout(() => setCopiado(null), 2000);
+        } catch {
+            notify('Não foi possível copiar. Abra o boleto e copie a linha digitável por lá.');
+        }
     };
 
-    const badgeEmail = (row: Cobranca) => {
-        if (row.email.erro) return <span className={`${styles.badge} ${styles.badgeErro}`} title={row.email.erro}>Falhou</span>;
-        if (!row.email.enviadoEm) return <span className={`${styles.badge} ${styles.badgeNeutro}`}>Não enviado</span>;
+    const selosEmail = (row: Cobranca) => {
+        if (row.origem === 'painel') return <StatusBadge dot={false}>Fora do sistema</StatusBadge>;
+        if (row.email.erro) return <StatusBadge tone="negative">Falhou</StatusBadge>;
+        if (!row.email.enviadoEm) return <StatusBadge>Não enviado</StatusBadge>;
         const s = row.email.situacao ? STATUS_EMAIL[row.email.situacao] : null;
-        return <span className={`${styles.badge} ${s ? (styles as any)[s.cls] : styles.badgePendente}`}>{s?.label || 'Enviado'}</span>;
+        return <StatusBadge tone={s?.tone ?? 'warning'}>{s?.label || 'Enviado'}</StatusBadge>;
     };
+
+    const aguardando = rows.filter(r => r.status === 'pending' || r.status === 'in_process');
+    const valorAguardando = aguardando.reduce((soma, r) => soma + (Number(r.valor) || 0), 0);
+    const pagos = rows.filter(r => r.status === 'approved');
+    const falhasEmail = rows.filter(r => r.origem !== 'painel' && !!r.email.erro).length;
+    const doPainel = rows.filter(r => r.origem === 'painel').length;
+    const carregando = loading && rows.length === 0;
 
     return (
-        <div className={styles.container}>
-            <div className={styles.header}>
-                <h2>Cobranças por boleto</h2>
-                <p>Boletos do sistema e os emitidos no painel do Mercado Pago, com a situação do e-mail. O status vem do Mercado Pago a cada abertura desta tela.</p>
-            </div>
+        <Page wide>
+            <PageHeader
+                title="Cobranças"
+                count={carregando ? null : rows.length}
+                description="Boletos do sistema e os emitidos no painel do Mercado Pago, com a situação do e-mail. O status é consultado no Mercado Pago a cada abertura."
+                actions={<Button icon={<RefreshCw size={16} aria-hidden="true" />} onClick={load} disabled={loading}>{loading ? 'Atualizando...' : 'Atualizar'}</Button>}
+            />
 
-            <div className={styles.filters}>
-                <input
-                    className={styles.search}
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    placeholder="Buscar por cliente, e-mail ou id do pagamento..."
-                />
-                <div className={styles.segmented}>
-                    {([['', 'Todos'], ['pending', 'Aguardando'], ['approved', 'Pagos'], ['cancelled', 'Cancelados']] as Array<[string, string]>).map(([v, label]) => (
-                        <button
-                            key={label}
-                            type="button"
-                            className={`${styles.segment} ${status === v ? styles.segmentActive : ''}`}
-                            onClick={() => setStatus(v)}
-                        >
-                            {label}
-                        </button>
-                    ))}
+            <StatGrid>
+                <StatCard label="Aguardando pagamento" icon={<Clock size={18} />} value={carregando ? '-' : aguardando.length} caption={carregando ? 'Na lista atual' : `${brl(valorAguardando)} em aberto na lista`} />
+                <StatCard label="Pagos" icon={<CircleCheck size={18} />} value={carregando ? '-' : pagos.length} tone="positive" progress={rows.length ? (pagos.length / rows.length) * 100 : 0} caption="Entre os boletos listados" />
+                <StatCard label="E-mails com falha" icon={<MailWarning size={18} />} value={carregando ? '-' : falhasEmail} tone={falhasEmail > 0 ? 'negative' : 'default'} caption="Precisam de reenvio" />
+                <StatCard label="Emitidos no painel MP" icon={<Landmark size={18} />} value={carregando ? '-' : doPainel} caption="Sem envio pelo sistema" />
+            </StatGrid>
+
+            <Panel>
+                <PanelToolbar>
+                    <Segmented<FiltroStatus>
+                        label="Filtrar por pagamento"
+                        value={status}
+                        onChange={setStatus}
+                        options={[
+                            { value: '', label: 'Todos' },
+                            { value: 'pending', label: 'Aguardando' },
+                            { value: 'approved', label: 'Pagos' },
+                            { value: 'cancelled', label: 'Cancelados' },
+                        ]}
+                    />
+                    <SearchField value={search} onChange={setSearch} placeholder="Cliente, e-mail ou id do pagamento" />
+                </PanelToolbar>
+
+                {(error || avisoMP) && (
+                    <div className={pageStyles.panelNotice}>
+                        {error && <InlineNotice>{error}</InlineNotice>}
+                        {avisoMP && <InlineNotice tone="warning">{avisoMP} Os status abaixo podem estar desatualizados.</InlineNotice>}
+                    </div>
+                )}
+
+                <div className={pageStyles.tableWrap}>
+                    <table className={pageStyles.table}>
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Plano</th>
+                                <th className={pageStyles.num}>Valor</th>
+                                <th>Emitido</th>
+                                <th>Pagamento</th>
+                                <th>E-mail do boleto</th>
+                                <th className={pageStyles.shrink}><span className={pageStyles.srOnly}>Ações</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {carregando && <SkeletonRows rows={5} columns={7} />}
+                            {!carregando && rows.map(row => {
+                                const sp = STATUS_PAGAMENTO[row.status] || { label: row.status, tone: 'neutral' as BadgeTone };
+                                return (
+                                    <tr key={row.id}>
+                                        <td className={pageStyles.colMain}>
+                                            <PrimaryCell
+                                                title={<>{row.cliente}{row.origem === 'painel' && <> <StatusBadge dot={false}>{row.clienteConfirmado ? 'Painel MP' : 'Painel MP · cliente incerto'}</StatusBadge></>}</>}
+                                                subtitle={<>
+                                                    {row.clienteEmail}
+                                                    {row.assinaturaExpiraEm && <span className={pageStyles.subLine}>Assinatura vence {data(row.assinaturaExpiraEm)}</span>}
+                                                </>}
+                                            />
+                                        </td>
+                                        <td>{row.plano}</td>
+                                        <td className={pageStyles.num}><strong>{brl(row.valor)}</strong></td>
+                                        <td><span className={pageStyles.nowrap}>{data(row.criadoEm)}</span></td>
+                                        <td><StatusBadge tone={sp.tone}>{sp.label}</StatusBadge></td>
+                                        <td>
+                                            <TwoLine
+                                                top={selosEmail(row)}
+                                                bottom={<>
+                                                    {row.email.para || '-'}
+                                                    <span className={pageStyles.subLine}>{row.email.enviadoEm ? dataHora(row.email.enviadoEm) : 'Nunca enviado'}</span>
+                                                    {row.email.erro && <span className={pageStyles.subLine}>{row.email.erro}</span>}
+                                                </>}
+                                            />
+                                        </td>
+                                        <td>
+                                            <RowActions>
+                                                {row.boletoUrl && (
+                                                    <IconAction label="Abrir boleto" href={row.boletoUrl}>
+                                                        <FileText size={17} aria-hidden="true" />
+                                                    </IconAction>
+                                                )}
+                                                {row.boletoBarcode && (
+                                                    <IconAction label={copiado === row.id ? 'Código copiado' : 'Copiar linha digitável'} onClick={() => copiarCodigo(row)}>
+                                                        {copiado === row.id ? <Check size={17} aria-hidden="true" /> : <Copy size={17} aria-hidden="true" />}
+                                                    </IconAction>
+                                                )}
+                                                {row.podeReenviar && row.boletoUrl && (
+                                                    <IconAction label="Reenviar boleto por e-mail" onClick={() => abrirReenvio(row)}>
+                                                        <Send size={17} aria-hidden="true" />
+                                                    </IconAction>
+                                                )}
+                                            </RowActions>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
                 </div>
-                <button type="button" className={styles.btn} onClick={load} disabled={loading}>
-                    {loading ? 'Atualizando...' : 'Atualizar'}
-                </button>
-            </div>
 
-            {error && <div className={styles.erro}>{error}</div>}
-            {avisoMP && <div className={styles.erro}>{avisoMP} Os status abaixo podem estar desatualizados.</div>}
-            {aviso && <div className={styles.aviso}>{aviso}</div>}
+                {!carregando && rows.length === 0 && (
+                    <EmptyState
+                        icon={search || status ? <Search size={20} /> : <Receipt size={20} />}
+                        title={search || status ? 'Nenhuma cobrança encontrada' : 'Nenhum boleto emitido ainda'}
+                        description={search || status ? 'Ajuste a busca ou o filtro de pagamento.' : 'Os boletos aparecem aqui assim que um cliente escolhe pagar por boleto.'}
+                    />
+                )}
 
-            <div className={styles.tableShell}>
-                <table className={styles.table}>
-                    <thead>
-                        <tr>
-                            <th>Cliente</th>
-                            <th>Plano</th>
-                            <th>Valor</th>
-                            <th>Emitido</th>
-                            <th>Pagamento</th>
-                            <th>E-mail</th>
-                            <th>Boleto</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {loading && rows.length === 0 ? (
-                            <tr><td colSpan={7} className={styles.empty}>Carregando...</td></tr>
-                        ) : rows.length === 0 ? (
-                            <tr><td colSpan={7} className={styles.empty}>Nenhuma cobrança por boleto encontrada.</td></tr>
-                        ) : rows.map(row => {
-                            const sp = STATUS_PAGAMENTO[row.status] || { label: row.status, cls: 'badgeNeutro' };
-                            return (
-                                <tr key={row.id}>
-                                    <td>
-                                        <div className={styles.cliente}>
-                                            {row.cliente}
-                                            {row.origem === 'painel' && (
-                                                <span className={`${styles.badge} ${styles.badgeNeutro}`} title="Emitido direto no painel do Mercado Pago" style={{ marginLeft: 6 }}>
-                                                    {row.clienteConfirmado ? 'Painel MP' : 'Painel MP · cliente incerto'}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className={styles.muted}>{row.clienteEmail}</div>
-                                        {row.assinaturaExpiraEm && (
-                                            <div className={styles.muted}>assinatura vence {data(row.assinaturaExpiraEm)}</div>
-                                        )}
-                                    </td>
-                                    <td>{row.plano}</td>
-                                    <td style={{ whiteSpace: 'nowrap' }}>{brl(row.valor)}</td>
-                                    <td style={{ whiteSpace: 'nowrap' }}>{data(row.criadoEm)}</td>
-                                    <td><span className={`${styles.badge} ${(styles as any)[sp.cls]}`}>{sp.label}</span></td>
-                                    <td>
-                                        {row.origem === 'painel' ? (
-                                            <span className={`${styles.badge} ${styles.badgeNeutro}`}>Fora do sistema</span>
-                                        ) : badgeEmail(row)}
-                                        <div className={styles.muted}>{row.email.para || '-'}</div>
-                                        <div className={styles.muted}>{row.email.enviadoEm ? dataHora(row.email.enviadoEm) : 'nunca enviado'}</div>
-                                        {row.email.erro && <div className={styles.muted}>{row.email.erro}</div>}
-                                    </td>
-                                    <td>
-                                        <div className={styles.acoes}>
-                                            {row.boletoUrl ? (
-                                                <a className={styles.btn} href={row.boletoUrl} target="_blank" rel="noopener noreferrer">Abrir boleto</a>
-                                            ) : (
-                                                <span className={styles.muted}>sem link</span>
-                                            )}
-                                            {row.boletoBarcode && (
-                                                <button type="button" className={styles.btn} onClick={() => copiarCodigo(row)}>
-                                                    {copiado === row.id ? 'Copiado!' : 'Copiar código'}
-                                                </button>
-                                            )}
-                                            {row.podeReenviar ? (
-                                                <button
-                                                    type="button"
-                                                    className={`${styles.btn} ${styles.btnPrimario}`}
-                                                    onClick={() => reenviar(row)}
-                                                    disabled={reenviando === row.id || !row.boletoUrl}
-                                                >
-                                                    {reenviando === row.id ? 'Enviando...' : 'Reenviar e-mail'}
-                                                </button>
-                                            ) : (
-                                                <span className={styles.muted} title="Cobrança criada fora do sistema: não temos o cadastro para enviar">
-                                                    envio pelo painel
-                                                </span>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+                {!carregando && rows.length > 0 && (
+                    <PanelFooter aside="Mais recentes primeiro, até 50 por consulta">
+                        Mostrando <strong>{rows.length}</strong> {rows.length === 1 ? 'boleto' : 'boletos'}
+                    </PanelFooter>
+                )}
+            </Panel>
+
+            {reenvio && (
+                <AdminModal
+                    title="Reenviar boleto"
+                    subtitle={<>{reenvio.row.cliente} · {reenvio.row.plano} · {brl(reenvio.row.valor)}</>}
+                    size="sm"
+                    busy={reenviando}
+                    onClose={() => setReenvio(null)}
+                    onSubmit={reenviar}
+                    footer={<>
+                        <button type="button" className={modalStyles.secondary} onClick={() => setReenvio(null)} disabled={reenviando}>Cancelar</button>
+                        <button type="submit" className={modalStyles.primary} disabled={reenviando || !reenvio.email.trim()}>{reenviando ? 'Enviando...' : 'Reenviar boleto'}</button>
+                    </>}
+                >
+                    <div className={modalStyles.stack}>
+                        <label className={modalStyles.field}>
+                            E-mail de destino
+                            <input
+                                type="email"
+                                required
+                                autoFocus
+                                value={reenvio.email}
+                                onChange={e => setReenvio({ ...reenvio, email: e.target.value })}
+                            />
+                            <span className={modalStyles.hint}>O boleto sai com o mesmo link e a mesma linha digitável.</span>
+                        </label>
+                        {reenvioErro && <InlineNotice>{reenvioErro}</InlineNotice>}
+                    </div>
+                </AdminModal>
+            )}
+            {feedback}
+        </Page>
     );
 }

@@ -5,6 +5,7 @@ import { Transportadora, TransportadoraService } from '../../lib/services/transp
 import { AutocompleteInput } from './AutocompleteInput';
 import { CurrencyInput } from './CurrencyInput';
 import { getEstados } from '../../lib/data/estadosCidades';
+import { InlineNotice } from '@/components/ui/Feedback';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
 
 interface AddTransportadoraModalProps {
@@ -23,6 +24,7 @@ export function AddTransportadoraModal({
     isEditing = false
 }: AddTransportadoraModalProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [erro, setErro] = useState<string | null>(null);
     const [estados] = useState<string[]>(getEstados());
     const [formData, setFormData] = useState<Omit<Transportadora, 'id'>>({
         estado: '',
@@ -53,6 +55,7 @@ export function AddTransportadoraModal({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setErro(null);
         setIsSubmitting(true);
 
         try {
@@ -65,7 +68,7 @@ export function AddTransportadoraModal({
             onClose();
         } catch (error) {
             console.error('Erro ao salvar transportadora:', error);
-            alert('Erro ao salvar transportadora. Verifique os dados e tente novamente.');
+            setErro('Não foi possível salvar o frete. Confira o estado e o valor e tente de novo.');
         } finally {
             setIsSubmitting(false);
         }
@@ -111,6 +114,7 @@ export function AddTransportadoraModal({
                     />
                 </div>
 
+                {erro && <div className={modalStyles.span2}><InlineNotice>{erro}</InlineNotice></div>}
                 <label className={`${modalStyles.field} ${modalStyles.span2}`}>
                     Observação
                     <textarea

@@ -1,65 +1,10 @@
-.container {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-}
-
-.header,
-.listHeader {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 1rem;
-}
-
-.title {
-    margin: 0;
-    color: var(--color-text);
-    font-size: 1.35rem;
-    font-weight: 700;
-}
-
-.subtitle,
-.listHeader p {
-    margin: 0.35rem 0 0;
-    color: var(--color-text-muted);
-    font-size: 0.92rem;
-}
-
-.headerActions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.6rem;
-}
-
-.listPanel {
-    border: 1px solid var(--color-highlight);
-    border-radius: 8px;
-    background: var(--color-surface);
-    padding: 1rem;
-}
-
-.listHeader h3 {
-    margin: 0;
-    color: var(--color-text);
-    font-size: 1rem;
-    font-weight: 700;
-}
-
 .formGrid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.85rem;
 }
 
-.linkGrid {
-    display: grid;
-    gap: 0.85rem;
-    margin-top: 1rem;
-}
-
-.formGrid label,
-.linkGrid label {
+.formGrid label {
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
@@ -69,10 +14,7 @@
 }
 
 .formGrid input,
-.formGrid select,
-.linkGrid select,
-.filters input,
-.filters select {
+.formGrid select {
     height: 40px;
     border: 1px solid var(--color-highlight);
     border-radius: 8px;
@@ -96,19 +38,15 @@
 }
 
 .formGrid input::placeholder,
-.formGrid textarea::placeholder,
-.filters input::placeholder {
+.formGrid textarea::placeholder {
     color: var(--color-text-muted);
 }
 
 .formGrid input:focus,
 .formGrid select:focus,
-.formGrid textarea:focus,
-.linkGrid select:focus,
-.filters input:focus,
-.filters select:focus {
+.formGrid textarea:focus {
     border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px rgba(246, 183, 60, 0.16);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 16%, transparent);
 }
 
 .wideField {
@@ -139,7 +77,7 @@
 
 .segmentedControl .segmentActive {
     background: var(--color-accent);
-    color: #111827;
+    color: var(--admin-on-accent);
 }
 
 .fileName {
@@ -168,160 +106,10 @@
     gap: 4px;
 }
 
-.primaryButton,
-.secondaryButton {
-    border: 0;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.88rem;
-    font-weight: 700;
-    min-height: 40px;
-    padding: 0 1rem;
-}
-
-.primaryButton {
-    background: var(--color-accent);
-    color: #111827;
-}
-
-.secondaryButton {
-    background: var(--color-panel);
-    color: var(--color-text);
-    border: 1px solid var(--color-highlight);
-}
-
-.dangerButton {
-    background: #fef2f2;
-    color: #b91c1c;
-    border-color: #fecaca;
-}
-
-.primaryButton:disabled,
-.secondaryButton:disabled,
-.dangerButton:disabled {
-    cursor: not-allowed;
-    opacity: 0.55;
-}
-
-.feedback {
-    border-radius: 8px;
-    padding: 0.85rem 1rem;
-    font-size: 0.9rem;
-}
-
-.feedbackSuccess {
-    border: 1px solid #bbf7d0;
-    background: #f0fdf4;
-    color: #166534;
-}
-
-.feedbackError {
-    border: 1px solid #fecaca;
-    background: #fef2f2;
-    color: #991b1b;
-}
-
-.currentLinks {
-    display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
-    margin-top: 1rem;
-}
-
-.linkRow {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.8rem;
-    border: 1px solid var(--color-highlight);
-    border-radius: 8px;
-    padding: 0.55rem 0.65rem;
-    color: var(--color-text-muted);
-    font-size: 0.84rem;
-}
-
-.linkRow strong {
-    color: var(--color-text);
-}
-
-.filters {
-    display: flex;
-    gap: 0.6rem;
-}
-
-.tableShell {
-    overflow: auto;
-    margin-top: 1rem;
-}
-
-.table {
-    width: 100%;
-    min-width: 1120px;
-    border-collapse: collapse;
-}
-
-.table th,
-.table td {
-    border-bottom: 1px solid var(--color-highlight);
-    padding: 0.72rem 0.8rem;
-    text-align: left;
-    vertical-align: middle;
-    font-size: 0.88rem;
-    color: var(--color-text);
-}
-
-.selectedRow td {
-    background-color: rgba(246, 183, 60, 0.05);
-}
-
-.table th {
-    background: var(--color-panel);
-    color: var(--color-text);
-    font-size: 0.76rem;
-    font-weight: 800;
-    text-transform: uppercase;
-}
-
-.rowActions {
-    display: flex;
-    gap: 0.45rem;
-}
-
-.rowActions button {
-    border: 1px solid var(--color-highlight);
-    border-radius: 8px;
-    background: var(--color-bg);
-    color: var(--color-text);
-    cursor: pointer;
-    font-size: 0.8rem;
-    font-weight: 700;
-    min-height: 34px;
-    padding: 0 0.7rem;
-}
-
-.dangerText {
-    color: #dc2626 !important;
-}
-
 .empty {
     color: var(--color-text-muted);
     padding: 2rem !important;
     text-align: center !important;
-}
-
-.iconButton {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border: 1px solid var(--color-highlight);
-    border-radius: 8px;
-    background: var(--color-bg);
-    color: var(--color-text);
-    cursor: pointer;
-    font-size: 1.5rem;
-    line-height: 1;
 }
 
 .summaryGrid {
@@ -389,52 +177,16 @@
     text-transform: uppercase;
 }
 
-.statusBadge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 78px;
-    border-radius: 999px;
-    padding: 0.28rem 0.55rem;
-    font-size: 0.72rem;
-    font-weight: 800;
-}
-
-.status_new {
-    background: rgba(34, 197, 94, 0.14);
-    color: #16a34a;
-}
-
-.status_existing {
-    background: rgba(59, 130, 246, 0.14);
-    color: #2563eb;
-}
-
-.status_duplicate {
-    background: rgba(245, 158, 11, 0.16);
-    color: #d97706;
-}
-
-.status_invalid {
-    background: rgba(239, 68, 68, 0.14);
-    color: #dc2626;
-}
-
 @media (max-width: 1040px) {
-    .formGrid {
+
+.formGrid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
 @media (max-width: 720px) {
-    .header,
-    .listHeader,
-    .filters {
-        align-items: stretch;
-        flex-direction: column;
-    }
 
-    .formGrid,
+.formGrid,
     .summaryGrid {
         grid-template-columns: 1fr;
     }
@@ -468,19 +220,8 @@
     color: var(--color-negative);
 }
 
-
-/* Shared administration design; other profiles keep their existing presentation. */
-:global([data-admin-design]) .primaryButton { background: var(--color-accent); color: var(--admin-on-accent); border: 1px solid transparent; border-radius: 8px; min-height: 40px; padding: 10px 16px; font-size: 14px; font-weight: 600; box-shadow: none; }
-:global([data-admin-design]) .secondaryButton { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--admin-border); border-radius: 8px; box-shadow: none; font-weight: 500; }
-:global([data-admin-design]) .listPanel,
-:global([data-admin-design]) .tableShell { background: var(--color-surface); border: 1px solid var(--admin-border); border-radius: 12px; box-shadow: var(--admin-shadow); }
-:global([data-admin-design]) .title { font-size: 28px; font-weight: 650; letter-spacing: -.035em; }
 :global([data-admin-design]) .previewTable th { background: var(--color-panel); color: var(--color-text-muted); font-size: 12px; font-weight: 600; text-transform: none; padding: 12px 16px; border: 0; border-bottom: 1px solid var(--admin-border); }
+
 :global([data-admin-design]) .previewTable td { padding: 14px 16px; border: 0; border-bottom: 1px solid var(--admin-border); font-size: 14px; line-height: 1.45; }
-:global([data-admin-design]) .table th { background: var(--color-panel); color: var(--color-text-muted); font-size: 12px; font-weight: 600; text-transform: none; padding: 12px 16px; border: 0; border-bottom: 1px solid var(--admin-border); }
-:global([data-admin-design]) .table td { padding: 14px 16px; border: 0; border-bottom: 1px solid var(--admin-border); font-size: 14px; line-height: 1.45; }
-:global([data-admin-design]) .feedbackSuccess { color: var(--color-positive); }
-:global([data-admin-design]) .feedbackError { color: var(--color-negative); }
-@media (max-width: 768px) {
-:global([data-admin-design]) .title { font-size: 23px; }
-}
+
+.previewFipeCell { min-width: 230px; white-space: normal; }

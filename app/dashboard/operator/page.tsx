@@ -121,7 +121,7 @@ export default function OperatorDashboard() {
     ];
 
     // Abas com layout de tela cheia (Consulta de veículos e fallback) não usam a área padrão.
-    const isFullBleed = !['visao-geral', 'clientes', 'catalogo'].includes(activeTab);
+    const isFullBleed = !['visao-geral', 'clientes'].includes(activeTab);
 
     const renderTabContent = () => {
         switch (activeTab) {
