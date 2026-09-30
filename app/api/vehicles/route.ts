@@ -193,10 +193,24 @@ export async function GET(request: Request) {
         if (searchParams.get('modelo')) matchStage['variation.modelo'] = { $regex: escapeRegex(searchParams.get('modelo')!), $options: 'i' };
         if (searchParams.get('opcionais')) matchStage['variation.opcionais'] = { $regex: escapeRegex(searchParams.get('opcionais')!), $options: 'i' };
         
-        if (searchParams.get('estado')) matchStage['concessionariaInfo.uf'] = { $regex: escapeRegex(searchParams.get('estado')!), $options: 'i' };
-        if (searchParams.get('cidade')) matchStage['concessionariaInfo.cidade'] = { $regex: escapeRegex(searchParams.get('cidade')!), $options: 'i' };
-        if (searchParams.get('concessionaria')) matchStage['concessionariaInfo.nome'] = { $regex: escapeRegex(searchParams.get('concessionaria')!), $options: 'i' };
-        if (searchParams.get('operador')) matchStage['operadorInfo.displayName'] = { $regex: escapeRegex(searchParams.get('operador')!), $options: 'i' };
+        // UF, cidade, loja e operador viram lista de ids numa consulta barata em
+        // `concessionarias`. Filtrar por esses campos dentro do pipeline obrigaria
+        // a juntar loja e usuário nas 12 mil linhas antes do filtro — era o que
+        // fazia a busca levar 7s. `concessionariaId` já está no próprio anúncio.
+        const filtroLoja: any = {};
+        const regexDe = (valor: string) => ({ $regex: escapeRegex(valor), $options: 'i' });
+        if (searchParams.get('estado')) filtroLoja.uf = regexDe(searchParams.get('estado')!);
+        if (searchParams.get('cidade')) filtroLoja.cidade = regexDe(searchParams.get('cidade')!);
+        if (searchParams.get('concessionaria')) filtroLoja.nome = regexDe(searchParams.get('concessionaria')!);
+
+        if (searchParams.get('operador')) {
+            const operadores = await User.find({ displayName: regexDe(searchParams.get('operador')!) }).distinct('_id');
+            filtroLoja.operadorId = { $in: operadores };
+        }
+
+        if (Object.keys(filtroLoja).length > 0) {
+            matchStage['concessionariaId'] = { $in: await Concessionaria.find(filtroLoja).distinct('_id') };
+        }
         
         // O novo sistema não tem nomeContato no DealerVehiclePrice, usamos observacoes ou fallback
         if (searchParams.get('cor')) {
@@ -240,6 +254,13 @@ export async function GET(request: Request) {
             if (fuelMap[normalized]) matchStage['variation.combustivel'] = fuelMap[normalized];
             else if (transMap[normalized]) matchStage['variation.transmissao'] = transMap[normalized];
 
+            // Nome da loja, UF e operador também saem por id, pelo mesmo motivo
+            // dos filtros acima: a busca global cobre os três sem junção.
+            const operadoresAchados = await User.find({ displayName: searchRegex }).distinct('_id');
+            const lojasAchadas = await Concessionaria.find({
+                $or: [{ nome: searchRegex }, { uf: searchRegex }, { operadorId: { $in: operadoresAchados } }],
+            }).distinct('_id');
+
             const orConditions: any[] = [
                 { 'variation.modelo': searchRegex },
                 { 'variation.marca': searchRegex },
@@ -247,78 +268,140 @@ export async function GET(request: Request) {
                 { 'variation.transmissao': searchRegex },
                 { 'variation.cor': searchRegex },
                 { 'variation.opcionais': searchRegex },
-                { 'concessionariaInfo.nome': searchRegex },
-                { 'concessionariaInfo.uf': searchRegex },
-                { 'operadorInfo.displayName': searchRegex }, // Buscamos pelo nome do operador real!
+                ...(lojasAchadas.length > 0 ? [{ concessionariaId: { $in: lojasAchadas } }] : []),
             ];
 
             matchStage.$or = matchStage.$or ? [...matchStage.$or, ...orConditions] : orConditions;
         }
 
-        const pipeline: any[] = [
-            // 1. Join with Variation
+        // ── Junções: só antes de paginar quando o filtro depende delas ──────
+        //
+        // Três junções sobre 12 mil linhas a cada consulta custavam 7s. Só a do
+        // catálogo é sempre necessária (o filtro exige variação ativa); loja e
+        // operador entram antes do $match apenas quando são filtrados ou
+        // ordenados, senão são resolvidos depois da paginação, em 50 linhas.
+        const juncaoCatalogo = [
             {
                 $lookup: {
                     from: VehicleVariation.collection.name,
                     localField: 'variationId',
                     foreignField: '_id',
-                    as: 'variation'
-                }
+                    as: 'variation',
+                },
             },
             { $unwind: '$variation' },
-            
-            // 2. Join with Concessionaria
+        ];
+
+        const juncaoLoja = [
             {
                 $lookup: {
                     from: Concessionaria.collection.name,
                     localField: 'concessionariaId',
                     foreignField: '_id',
-                    as: 'concessionariaInfo'
-                }
+                    as: 'concessionariaInfo',
+                },
             },
             { $unwind: { path: '$concessionariaInfo', preserveNullAndEmptyArrays: true } },
-            
-            // 2.5. Join with User to get dynamic Operador
             {
                 $lookup: {
                     from: 'users',
                     localField: 'concessionariaInfo.operadorId',
                     foreignField: '_id',
-                    as: 'operadorInfo'
-                }
+                    as: 'operadorInfo',
+                },
             },
             { $unwind: { path: '$operadorInfo', preserveNullAndEmptyArrays: true } },
-            { $addFields: { origem: 'novo' } },
-
-            // 2.6. Em "Todos", os usados entram na mesma lista, já no mesmo formato.
-            ...(tipo === 'todos'
-                ? [{ $unionWith: { coll: RepasseVehicle.collection.name, pipeline: repasseAsVitrineStages() } }]
-                : []),
-
-            // 3. Match filters
-            { $match: matchStage },
-            
-            // 4. Sort and Paginate (Facet for totals)
-            { $sort: { [sortField]: sortDir } },
-            {
-                $facet: {
-                    data: [ { $skip: skip }, { $limit: limit } ],
-                    totalCount: [ { $count: 'count' } ],
-                    totalQuantidade: [ { $group: { _id: null, total: { $sum: '$quantidade' } } } ]
-                }
-            }
         ];
 
-        // Segmento Repasse: começa direto na coleção de usados. Troca os estágios
-        // de junção do 0KM pelos do repasse e mantém $match/ordenação/paginação.
-        const matchIndex = pipeline.findIndex(stage => '$match' in stage);
-        const [aggregationResult] = tipo === 'repasse'
-            ? await RepasseVehicle.aggregate([...repasseAsVitrineStages(), ...pipeline.slice(matchIndex)])
-            : await DealerVehiclePrice.aggregate(pipeline);
-        
-        const data = aggregationResult.data || [];
-        const total = aggregationResult.totalCount[0]?.count || 0;
-        const totalQuantidade = aggregationResult.totalQuantidade[0]?.total || 0;
+        const usaDadosDaLoja = JSON.stringify(matchStage).includes('concessionariaInfo')
+            || JSON.stringify(matchStage).includes('operadorInfo')
+            || sortField.startsWith('concessionariaInfo')
+            || sortField.startsWith('operadorInfo');
+
+        // Documento enxuto para ordenar e paginar: mantém só o que a resposta usa.
+        const projecao = {
+            $project: {
+                _id: 1,
+                origem: 1,
+                concessionariaId: 1,
+                preco: 1,
+                frete: 1,
+                quantidade: 1,
+                prazo: 1,
+                coresDisponiveis: 1,
+                observacoes: 1,
+                statusVeiculo: 1,
+                ativo: 1,
+                km: 1,
+                createdAt: 1,
+                updatedAt: 1,
+                variation: {
+                    _id: '$variation._id',
+                    ativo: '$variation.ativo',
+                    marca: '$variation.marca',
+                    modelo: '$variation.modelo',
+                    tipoVeiculo: '$variation.tipoVeiculo',
+                    cilindrada: '$variation.cilindrada',
+                    ano: '$variation.ano',
+                    anoModelo: '$variation.anoModelo',
+                    anoFabricacao: '$variation.anoFabricacao',
+                    combustivel: '$variation.combustivel',
+                    cor: '$variation.cor',
+                    transmissao: '$variation.transmissao',
+                    opcionais: '$variation.opcionais',
+                    motor: '$variation.motor',
+                    carroceria: '$variation.carroceria',
+                    portas: '$variation.portas',
+                    imagemUrl: '$variation.imagemUrl',
+                    status: '$variation.status',
+                },
+                ...(usaDadosDaLoja
+                    ? {
+                        concessionariaInfo: 1,
+                        operadorInfo: { displayName: '$operadorInfo.displayName' },
+                    }
+                    : {}),
+            },
+        };
+
+        const estagiosBase: any[] = tipo === 'repasse'
+            ? [...repasseAsVitrineStages(), { $match: matchStage }]
+            : [
+                ...juncaoCatalogo,
+                ...(usaDadosDaLoja ? juncaoLoja : []),
+                { $addFields: { origem: 'novo' } },
+                // Em "Todos", os usados entram na mesma lista, já no mesmo formato.
+                ...(tipo === 'todos'
+                    ? [{ $unionWith: { coll: RepasseVehicle.collection.name, pipeline: repasseAsVitrineStages() } }]
+                    : []),
+                { $match: matchStage },
+            ];
+
+        // Sem $facet de propósito: com ele a ordenação fica presa ao teto de 32 MB
+        // em memória (nem allowDiskUse a libera) e a vitrine voltava 500 —
+        // "Sort exceeded memory limit" — assim que o catálogo passou de 12 mil
+        // linhas. Duas consultas em paralelo saem em ~2s e não têm esse teto.
+        const colecao: any = tipo === 'repasse' ? RepasseVehicle : DealerVehiclePrice;
+        const [data, totais] = await Promise.all([
+            colecao.aggregate([
+                ...estagiosBase,
+                projecao,
+                { $sort: { [sortField]: sortDir } },
+                { $skip: skip },
+                { $limit: limit },
+                // Loja e operador de quem sobrou na página. Vale também para o
+                // repasse: a projeção acima enxuga os dois lados igual, então
+                // pular esta junção deixava o usado sem o nome da loja.
+                ...(usaDadosDaLoja ? [] : juncaoLoja),
+            ]),
+            colecao.aggregate([
+                ...estagiosBase,
+                { $group: { _id: null, total: { $sum: 1 }, quantidade: { $sum: '$quantidade' } } },
+            ]),
+        ]);
+
+        const total = totais[0]?.total || 0;
+        const totalQuantidade = totais[0]?.quantidade || 0;
 
         // Serialize data para manter o MESMO FORMATO esperado pelo Frontend
         const serializedData = data.map((doc: any) => {
