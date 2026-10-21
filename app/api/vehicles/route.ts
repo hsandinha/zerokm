@@ -15,6 +15,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { createExpiredFreeTrialWindow, isFreeTrialExpired } from '@/lib/utils/freeTrial';
 import { rotuloAno } from '@/lib/utils/anoVeiculo';
+import { acessoBloqueado } from '@/lib/utils/acessoAssinatura';
 
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const normalizeAccessProfile = (profile?: string | null) => profile === 'dealership' ? 'concessionaria' : profile;
@@ -117,8 +118,9 @@ export async function GET(request: Request) {
             const user = await User.findOne({ email: session.user.email }).select('allowedProfiles freeTrialExpiresAt subscription');
 
             if (effectiveProfile === 'cliente' && user?.allowedProfiles?.includes('cliente') && user.subscription?.expiresAt) {
-                const expiresAt = new Date(user.subscription.expiresAt);
-                if (expiresAt.getTime() <= Date.now()) {
+                // Bloqueia só no dia seguinte ao vencimento (lib/utils/acessoAssinatura.ts):
+                // no dia do vencimento o cliente ainda consegue pagar o boleto e usar.
+                if (acessoBloqueado(user.subscription.expiresAt)) {
                     return NextResponse.json(
                         { error: 'Assinatura vencida. Gere o PIX de renovação para continuar.', code: 'SUBSCRIPTION_EXPIRED' },
                         { status: 402 }

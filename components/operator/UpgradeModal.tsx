@@ -151,8 +151,11 @@ export function UpgradeModal({ onClose, initialPlanId, initialBilling, locked = 
         fetch('/api/admin/plans')
             .then(r => r.json())
             .then((data: Plan[]) => {
-                // Plano de concessionária (repasse) não é vendido ao lojista.
-                setPlans(Array.isArray(data) ? data.filter(p => p.active && (p as any).publico !== 'concessionaria') : []);
+                // Plano de concessionária (repasse) não é vendido ao lojista. Plano
+                // especial só aparece para quem já está nele (renovação).
+                setPlans(Array.isArray(data)
+                    ? data.filter(p => p.active && (p as any).publico !== 'concessionaria' && (!(p as any).especial || p.id === initialPlanId))
+                    : []);
                 setLoading(false);
             })
             .catch(() => {

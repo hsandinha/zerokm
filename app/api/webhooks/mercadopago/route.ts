@@ -520,6 +520,17 @@ export async function POST(req: NextRequest) {
             paymentData.boletoBarcode = payment.barcode.content;
         }
 
+        // Baixa manual da equipe manda: o boleto que ela cancelou no MP (porque o
+        // cliente pagou por PIX direto) chega aqui como "cancelled" e, sem esta
+        // parada, derrubaria a assinatura que a baixa acabou de renovar.
+        const anterior = await Payment.findOne({ mpPaymentId: String(paymentId) })
+            .select('assinaturaAplicadaEm baixaManual')
+            .lean() as any;
+        if (anterior?.baixaManual?.em) {
+            console.log(`[Webhook] Payment ${paymentId} já teve baixa manual; status do MP (${mpStatus}) ignorado.`);
+            return NextResponse.json({ ok: true });
+        }
+
         await Payment.findOneAndUpdate(
             { mpPaymentId: String(paymentId) },
             { $set: paymentData },
@@ -538,6 +549,14 @@ export async function POST(req: NextRequest) {
                 console.error('[Webhook] Plano não encontrado:', planId);
                 return NextResponse.json({ ok: true });
             }
+
+            // A tela de Cobranças já renovou por este pagamento (o webhook atrasou):
+            // estender de novo daria um mês a mais de graça.
+            if (anterior?.assinaturaAplicadaEm) {
+                console.log(`[Webhook] Payment ${paymentId} já renovou a assinatura em ${anterior.assinaturaAplicadaEm}; nada a fazer.`);
+                return NextResponse.json({ ok: true });
+            }
+            await Payment.updateOne({ mpPaymentId: String(paymentId) }, { $set: { assinaturaAplicadaEm: new Date() } });
 
             // Calcular expiração baseado na data de vencimento original (não do pagamento)
             // Se venceu dia 9 e pagou dia 12, a próxima renovação é dia 09 do mês seguinte

@@ -17,6 +17,7 @@ import {
     normalizeBillingType,
 } from '@/lib/services/mercadoPagoSubscriptionService';
 import { isPlanoConcessionaria } from '@/lib/utils/planoRepasse';
+import { MSG_PLANO_ESPECIAL, podeContratarPlano } from '@/lib/utils/planoEspecial';
 
 async function cancelPreviousPreapproval(preapprovalId?: string) {
     if (!preapprovalId) return;
@@ -74,6 +75,9 @@ export async function POST(req: NextRequest) {
     }
     if (isPlanoConcessionaria(plan)) {
         return NextResponse.json({ error: 'Este plano é exclusivo para concessionárias.' }, { status: 400 });
+    }
+    if (!podeContratarPlano(plan, user)) {
+        return NextResponse.json({ error: MSG_PLANO_ESPECIAL }, { status: 403 });
     }
 
     const activeInvitesCount = await Invite.countDocuments({

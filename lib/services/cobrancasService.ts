@@ -1,5 +1,6 @@
 import Payment from '@/models/Payment';
 import { searchPayments } from '@/lib/mercadopago';
+import { aplicarPagamentoNaAssinatura } from '@/lib/services/assinaturaPagamento';
 
 /**
  * A tela de Cobranças precisa mostrar a realidade do Mercado Pago, não a nossa
@@ -57,15 +58,24 @@ export async function buscarBoletosNoMP(diasParaTras = 45): Promise<{ porId: Map
 /**
  * Corrige no nosso banco o status dos boletos que mudaram no MP. Só grava
  * quando muda, para não reescrever tudo a cada abertura da tela.
+ *
+ * Boleto que virou "pago" aqui também renova a assinatura (o webhook pode não
+ * ter chegado). Sem isso a Cobranças mostrava Pago e o CRM, Expirado.
+ * Pagamento com baixa manual não é tocado: quem manda é a equipe.
  */
 export async function sincronizarStatus(nossos: any[], porId: Map<string, BoletoDoMP>): Promise<number> {
     const mudancas = nossos
+        .filter(p => !p.baixaManual?.em)
         .filter(p => p.mpPaymentId && porId.get(String(p.mpPaymentId))?.status && porId.get(String(p.mpPaymentId))!.status !== p.status)
-        .map(p => ({ id: p._id, de: p.status, para: porId.get(String(p.mpPaymentId))!.status }));
+        .map(p => ({ id: p._id, de: p.status, para: porId.get(String(p.mpPaymentId))!.status, temPlano: Boolean(p.planId) }));
 
     for (const m of mudancas) {
         await Payment.findByIdAndUpdate(m.id, { $set: { status: m.para } });
         console.log('[cobrancas] Status corrigido pelo Mercado Pago:', { paymentId: String(m.id), de: m.de, para: m.para });
+        if (m.para === 'approved' && m.temPlano) {
+            const r = await aplicarPagamentoNaAssinatura({ paymentDocId: m.id, metodo: 'boleto' }).catch(error => ({ aplicado: false, motivo: String(error?.message || error) }));
+            console.log('[cobrancas] Assinatura pelo boleto pago:', { paymentId: String(m.id), ...r });
+        }
     }
     return mudancas.length;
 }

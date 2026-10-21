@@ -111,7 +111,8 @@ export default async function LandingPage() {
     let PLANS: PlanData[] = [];
     try {
         await connectDB();
-        const dbPlans = await PlanModel.find({ active: true, publico: { $ne: 'concessionaria' } }).sort({ price: 1 }).lean();
+        // Plano especial é condição negociada pela equipe: não aparece aqui.
+        const dbPlans = await PlanModel.find({ active: true, publico: { $ne: 'concessionaria' }, especial: { $ne: true } }).sort({ price: 1 }).lean();
         const popularId = dbPlans.find(p => (p as any).popular)?._id?.toString();
         const maisCaroId = dbPlans.length > 1 ? dbPlans[dbPlans.length - 1]._id?.toString() : undefined;
         const destaqueId = popularId ?? maisCaroId;

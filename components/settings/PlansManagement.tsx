@@ -27,6 +27,8 @@ interface Plan {
     invitePrice: number;
     features: string[];
     popular: boolean;
+    /** Condição especial de um cliente: fora do checkout e da landing, só pelo CRM. */
+    especial?: boolean;
     active: boolean;
 }
 
@@ -52,12 +54,13 @@ interface PlanForm {
     invitePrice: string;
     featuresText: string;
     popular: boolean;
+    especial: boolean;
     active: boolean;
 }
 
 const emptyForm: PlanForm = {
     name: '', description: '', publico: 'cliente', type: 'credits', credits: '', price: '',
-    annualPrice: '', invitePrice: '', featuresText: '', popular: false, active: true
+    annualPrice: '', invitePrice: '', featuresText: '', popular: false, especial: false, active: true
 };
 
 const planToForm = (p: Plan): PlanForm => ({
@@ -71,6 +74,7 @@ const planToForm = (p: Plan): PlanForm => ({
     invitePrice: p.invitePrice != null ? String(p.invitePrice) : '',
     featuresText: (p.features ?? []).join('\n'),
     popular: !!p.popular,
+    especial: p.especial === true,
     active: p.active !== false,
 });
 
@@ -178,7 +182,8 @@ export function PlansManagement() {
             // As linhas só são aparadas aqui: fazer isso a cada tecla apagava o
             // espaço recém-digitado e engolia a linha em branco do Enter.
             features: form.featuresText.split('\n').map(s => s.trim()).filter(Boolean),
-            popular: isConcessionaria ? false : form.popular,
+            popular: isConcessionaria || form.especial ? false : form.popular,
+            especial: isConcessionaria ? false : form.especial,
             active: form.active,
         };
 
@@ -300,7 +305,11 @@ export function PlansManagement() {
                                 <tr key={plan.id} data-inactive={!plan.active}>
                                     <td>
                                         <PrimaryCell
-                                            title={<>{plan.name}{plan.popular && <> <StatusBadge tone="accent" dot={false}>Mais popular</StatusBadge></>}</>}
+                                            title={<>
+                                                {plan.name}
+                                                {plan.popular && <> <StatusBadge tone="accent" dot={false}>Mais popular</StatusBadge></>}
+                                                {plan.especial && <> <StatusBadge tone="info" dot={false}>Especial · só pelo CRM</StatusBadge></>}
+                                            </>}
                                             subtitle={plan.description || undefined}
                                         />
                                     </td>
@@ -506,9 +515,20 @@ export function PlansManagement() {
                                     <input
                                         type="checkbox"
                                         checked={form.popular}
+                                        disabled={form.especial}
                                         onChange={e => setForm(f => ({ ...f, popular: e.target.checked }))}
                                     />
                                     Destacar como “Mais popular” na LP
+                                </label>
+                            )}
+                            {form.publico === 'cliente' && (
+                                <label className={modalStyles.choice} title="Fica fora do checkout e da landing. A equipe atribui pelo CRM e a renovação segue normal.">
+                                    <input
+                                        type="checkbox"
+                                        checked={form.especial}
+                                        onChange={e => setForm(f => ({ ...f, especial: e.target.checked, popular: e.target.checked ? false : f.popular }))}
+                                    />
+                                    Plano especial (cliente com condição negociada, só pelo CRM)
                                 </label>
                             )}
                             <label className={modalStyles.choice}>

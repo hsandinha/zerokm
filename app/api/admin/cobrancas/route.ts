@@ -71,7 +71,8 @@ export async function GET(request: Request) {
         const corrigidos = await sincronizarStatus(pagamentos, noMP);
         for (const p of pagamentos as any[]) {
             const mp = noMP.get(String(p.mpPaymentId));
-            if (mp) {
+            // Baixa manual: o boleto pode ter sido cancelado no MP, mas está pago.
+            if (mp && !p.baixaManual?.em) {
                 p.status = mp.status;
                 p.boletoUrl = p.boletoUrl || mp.boletoUrl;
                 p.boletoBarcode = p.boletoBarcode || mp.boletoBarcode;
@@ -114,6 +115,12 @@ export async function GET(request: Request) {
                     boletoBarcode: p.boletoBarcode || null,
                     origem: 'sistema' as const,
                     podeReenviar: true,
+                    baixaManual: p.baixaManual?.em ? {
+                        por: p.baixaManual.por || null,
+                        em: p.baixaManual.em,
+                        forma: p.baixaManual.forma || null,
+                        dataPagamento: p.baixaManual.dataPagamento || null,
+                    } : null,
                     email: {
                         enviadoEm: p.boletoEmailSentAt || null,
                         para: p.boletoEmailTo || u?.email || p.payerEmail || '',

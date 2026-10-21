@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Check, CircleCheck, Clock, Copy, FileText, Landmark, MailWarning, Receipt, RefreshCw, Search, Send } from 'lucide-react';
+import { BadgeCheck, Check, CircleCheck, Clock, Copy, FileText, Landmark, MailWarning, Receipt, RefreshCw, Search, Send } from 'lucide-react';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
 import {
     Button, EmptyState, IconAction, Page, PageHeader, Panel, PanelFooter, PanelToolbar, PrimaryCell, RowActions,
@@ -27,6 +27,7 @@ type Cobranca = {
     origem: 'sistema' | 'painel';
     podeReenviar: boolean;
     clienteConfirmado?: boolean;
+    baixaManual?: { por: string | null; em: string; forma: string | null; dataPagamento: string | null } | null;
     email: {
         enviadoEm: string | null;
         para: string;
@@ -34,6 +35,31 @@ type Cobranca = {
         erro: string | null;
         situacao: string | null;
     };
+};
+
+type FormaBaixa = 'pix' | 'transferencia' | 'dinheiro' | 'boleto' | 'cartao' | 'outro';
+const FORMAS_BAIXA: Array<{ value: FormaBaixa; label: string }> = [
+    { value: 'pix', label: 'PIX' },
+    { value: 'transferencia', label: 'Transferência' },
+    { value: 'dinheiro', label: 'Dinheiro' },
+    { value: 'boleto', label: 'Boleto (pago no banco)' },
+    { value: 'cartao', label: 'Cartão' },
+    { value: 'outro', label: 'Outro' },
+];
+
+type Baixa = {
+    row: Cobranca;
+    forma: FormaBaixa;
+    dataPagamento: string;
+    observacao: string;
+    cancelarBoleto: boolean;
+    renovarAssinatura: boolean;
+    clienteEmail: string;
+};
+
+const hojeISO = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
 const brl = (v: number) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -72,7 +98,60 @@ export function CobrancasManagement() {
     const [reenvioErro, setReenvioErro] = useState<string | null>(null);
     const [copiado, setCopiado] = useState<string | null>(null);
     const [avisoMP, setAvisoMP] = useState<string | null>(null);
+    const [baixa, setBaixa] = useState<Baixa | null>(null);
+    const [baixando, setBaixando] = useState(false);
+    const [baixaErro, setBaixaErro] = useState<string | null>(null);
     const { notify, feedback } = useFeedback();
+
+    /** Cobrança que aceita baixa manual: não paga, ou paga no painel do MP sem dono no sistema. */
+    const podeDarBaixa = (row: Cobranca) => !row.baixaManual && (row.status !== 'approved' || row.origem === 'painel');
+
+    const abrirBaixa = (row: Cobranca) => {
+        setBaixaErro(null);
+        const pendente = row.status === 'pending' || row.status === 'in_process';
+        setBaixa({
+            row,
+            forma: row.status === 'approved' ? 'boleto' : 'pix',
+            dataPagamento: hojeISO(),
+            observacao: '',
+            cancelarBoleto: pendente,
+            renovarAssinatura: true,
+            clienteEmail: row.clienteEmail || '',
+        });
+    };
+
+    const darBaixa = async (event: FormEvent) => {
+        event.preventDefault();
+        if (!baixa) return;
+        setBaixando(true);
+        setBaixaErro(null);
+        try {
+            const painel = baixa.row.origem === 'painel';
+            const res = await fetch('/api/admin/cobrancas/baixa', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...(painel ? { mpPaymentId: baixa.row.mpPaymentId, userEmail: baixa.clienteEmail.trim() } : { paymentId: baixa.row.id }),
+                    forma: baixa.forma,
+                    dataPagamento: baixa.dataPagamento,
+                    observacao: baixa.observacao,
+                    cancelarBoleto: baixa.cancelarBoleto,
+                    renovarAssinatura: baixa.renovarAssinatura,
+                }),
+            });
+            const body = await res.json();
+            if (!res.ok) throw new Error(body.error || 'Não foi possível dar baixa');
+            setBaixa(null);
+            const vence = body.novoVencimento ? ` Assinatura renovada até ${data(body.novoVencimento)}.` : body.motivo ? ` ${body.motivo}` : '';
+            notify(`Baixa registrada.${vence}`, 'positive');
+            if (body.avisoMP) notify(body.avisoMP);
+            await load();
+        } catch (err: any) {
+            setBaixaErro(err?.message || 'Não foi possível dar baixa');
+        } finally {
+            setBaixando(false);
+        }
+    };
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -222,7 +301,16 @@ export function CobrancasManagement() {
                                         <td>{row.plano}</td>
                                         <td className={pageStyles.num}><strong>{brl(row.valor)}</strong></td>
                                         <td><span className={pageStyles.nowrap}>{data(row.criadoEm)}</span></td>
-                                        <td><StatusBadge tone={sp.tone}>{sp.label}</StatusBadge></td>
+                                        <td>
+                                            {row.baixaManual ? (
+                                                <TwoLine
+                                                    top={<StatusBadge tone="positive">Pago · baixa manual</StatusBadge>}
+                                                    bottom={<span className={pageStyles.subLine} title={row.baixaManual.por ? `Baixa por ${row.baixaManual.por}` : undefined}>
+                                                        {[FORMAS_BAIXA.find(f => f.value === row.baixaManual?.forma)?.label, row.baixaManual.dataPagamento ? `em ${data(row.baixaManual.dataPagamento)}` : null].filter(Boolean).join(' ')}
+                                                    </span>}
+                                                />
+                                            ) : <StatusBadge tone={sp.tone}>{sp.label}</StatusBadge>}
+                                        </td>
                                         <td>
                                             <TwoLine
                                                 top={selosEmail(row)}
@@ -245,9 +333,17 @@ export function CobrancasManagement() {
                                                         {copiado === row.id ? <Check size={17} aria-hidden="true" /> : <Copy size={17} aria-hidden="true" />}
                                                     </IconAction>
                                                 )}
-                                                {row.podeReenviar && row.boletoUrl && (
+                                                {row.podeReenviar && row.boletoUrl && row.status !== 'approved' && (
                                                     <IconAction label="Reenviar boleto por e-mail" onClick={() => abrirReenvio(row)}>
                                                         <Send size={17} aria-hidden="true" />
+                                                    </IconAction>
+                                                )}
+                                                {podeDarBaixa(row) && (
+                                                    <IconAction
+                                                        label={row.status === 'approved' ? 'Ligar ao cliente e renovar a assinatura' : 'Dar baixa: marcar como pago'}
+                                                        onClick={() => abrirBaixa(row)}
+                                                    >
+                                                        <BadgeCheck size={17} aria-hidden="true" />
                                                     </IconAction>
                                                 )}
                                             </RowActions>
@@ -273,6 +369,67 @@ export function CobrancasManagement() {
                     </PanelFooter>
                 )}
             </Panel>
+
+            {baixa && (
+                <AdminModal
+                    title={baixa.row.status === 'approved' ? 'Ligar pagamento ao cliente' : 'Dar baixa manual'}
+                    subtitle={<>{baixa.row.cliente} · {baixa.row.plano} · {brl(baixa.row.valor)}</>}
+                    size="sm"
+                    busy={baixando}
+                    onClose={() => setBaixa(null)}
+                    onSubmit={darBaixa}
+                    footer={<>
+                        <button type="button" className={modalStyles.secondary} onClick={() => setBaixa(null)} disabled={baixando}>Cancelar</button>
+                        <button type="submit" className={modalStyles.primary} disabled={baixando || (baixa.row.origem === 'painel' && !baixa.clienteEmail.trim())}>
+                            {baixando ? 'Salvando...' : 'Marcar como pago'}
+                        </button>
+                    </>}
+                >
+                    <div className={modalStyles.stack}>
+                        <p className={modalStyles.flush}>
+                            {baixa.row.status === 'approved'
+                                ? 'Este boleto foi pago no Mercado Pago, mas foi emitido no painel e não está ligado a nenhum cliente. Informe o cliente para registrar o pagamento e renovar o acesso dele.'
+                                : 'Use quando o cliente pagou por fora do boleto (PIX direto, transferência). A cobrança fica como paga e o acesso do cliente é renovado.'}
+                        </p>
+                        {baixa.row.origem === 'painel' && (
+                            <label className={modalStyles.field}>
+                                E-mail do cliente
+                                <input type="email" required value={baixa.clienteEmail} onChange={e => setBaixa({ ...baixa, clienteEmail: e.target.value })} />
+                                <span className={modalStyles.hint}>{baixa.row.clienteConfirmado ? 'Preenchido pelo nome na descrição do boleto. Confira.' : 'Não deu para identificar o cliente pela descrição do boleto.'}</span>
+                            </label>
+                        )}
+                        <div className={modalStyles.grid2}>
+                            <label className={modalStyles.field}>
+                                Como pagou
+                                <select value={baixa.forma} onChange={e => setBaixa({ ...baixa, forma: e.target.value as FormaBaixa })}>
+                                    {FORMAS_BAIXA.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                                </select>
+                            </label>
+                            <label className={modalStyles.field}>
+                                Data do pagamento
+                                <input type="date" required value={baixa.dataPagamento} max={hojeISO()} onChange={e => setBaixa({ ...baixa, dataPagamento: e.target.value })} />
+                            </label>
+                        </div>
+                        <label className={modalStyles.field}>
+                            Observação (opcional)
+                            <input type="text" maxLength={500} value={baixa.observacao} onChange={e => setBaixa({ ...baixa, observacao: e.target.value })} placeholder="Ex.: comprovante enviado no WhatsApp" />
+                        </label>
+                        <div className={modalStyles.choices}>
+                            {(baixa.row.status === 'pending' || baixa.row.status === 'in_process') && (
+                                <label className={modalStyles.choice}>
+                                    <input type="checkbox" checked={baixa.cancelarBoleto} onChange={e => setBaixa({ ...baixa, cancelarBoleto: e.target.checked })} />
+                                    Cancelar o boleto no Mercado Pago (evita pagar duas vezes)
+                                </label>
+                            )}
+                            <label className={modalStyles.choice}>
+                                <input type="checkbox" checked={baixa.renovarAssinatura} onChange={e => setBaixa({ ...baixa, renovarAssinatura: e.target.checked })} />
+                                Renovar a assinatura do cliente
+                            </label>
+                        </div>
+                        {baixaErro && <InlineNotice>{baixaErro}</InlineNotice>}
+                    </div>
+                </AdminModal>
+            )}
 
             {reenvio && (
                 <AdminModal

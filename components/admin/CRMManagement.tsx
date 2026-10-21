@@ -50,6 +50,8 @@ interface CRMClient {
     cardLastFour?: string | null;
     profileCompletion: number;
     inviteCount: number;
+    /** Telas extras ativas desta conta (não aparecem como clientes à parte). */
+    telasExtras?: TelaExtra[];
     isInvitee: boolean;
     vendedorId?: string | null;
     vendedorNome?: string | null;
@@ -65,6 +67,15 @@ interface Plan {
     price: number;
     annualPrice?: number | null;
     active: boolean;
+    /** Condição especial: fora do checkout, só atribuída aqui. */
+    especial?: boolean;
+}
+
+/** Tela extra (convidado) de uma conta: aparece dentro do cliente principal. */
+interface TelaExtra {
+    id: string;
+    nome: string;
+    email: string;
 }
 
 interface CRMSummary {
@@ -98,6 +109,8 @@ type AssignPlanModal = {
     client: CRMClient;
     planId: string;
     startDate: string;
+    /** Vencimento definido à mão (cliente especial). Vazio = início + 30/365 dias. */
+    expiresAtManual?: string;
     activationMethod?: 'manual' | 'cortesia';
     paymentMethod?: 'pix' | 'boleto' | 'card';
     paymentFrequency?: 'monthly' | 'annual';
@@ -437,6 +450,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                     activationMethod: assignModal.planId === '__gratis__' ? undefined : (assignModal.activationMethod || 'manual'),
                     paymentMethod: assignModal.paymentMethod || 'pix',
                     startDate: requiresStartDate ? assignModal.startDate : undefined,
+                    expiresAt: requiresStartDate && assignModal.expiresAtManual ? assignModal.expiresAtManual : undefined,
                 }),
             });
             const text = await res.text();
@@ -735,10 +749,12 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
 
         if (search.trim()) {
             const q = search.toLowerCase();
+            // Buscar pelo nome ou e-mail de uma tela extra acha a conta principal.
             list = list.filter(c =>
                 c.displayName.toLowerCase().includes(q) ||
                 c.email.toLowerCase().includes(q) ||
-                (c.phoneNumber && c.phoneNumber.includes(q))
+                (c.phoneNumber && c.phoneNumber.includes(q)) ||
+                (c.telasExtras || []).some(t => t.nome.toLowerCase().includes(q) || t.email.toLowerCase().includes(q))
             );
         }
 
@@ -947,6 +963,11 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                                     <span className={pageStyles.subLine}>
                                                         {client.phoneNumber ? `${client.phoneNumber} · ` : ''}Cadastro {profileCompletion}% completo
                                                     </span>
+                                                    {(client.telasExtras?.length ?? 0) > 0 && (
+                                                        <span className={pageStyles.subLine} title={client.telasExtras!.map(t => `${t.nome} (${t.email})`).join('\n')}>
+                                                            + {client.telasExtras!.length} {client.telasExtras!.length === 1 ? 'tela extra' : 'telas extras'}: {client.telasExtras!.map(t => t.nome || t.email).join(', ')}
+                                                        </span>
+                                                    )}
                                                 </>}
                                             />
                                         </td>
@@ -1531,17 +1552,29 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                             >
                                 <option value="">Selecione um plano...</option>
                                 <option value="__gratis__">🔓 Grátis (sem plano)</option>
-                                {plans.map(p => {
-                                    const isAnnual = assignModal.paymentFrequency === 'annual';
-                                    const displayPrice = isAnnual && p.annualPrice ? p.annualPrice : p.price;
-                                    return (
-                                        <option key={p.id} value={p.id}>
-                                            {p.name} — R$ {displayPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                            {p.type === 'monthly' ? (isAnnual ? ' (ano)' : ' (mês)') : ` (${p.credits} créditos)`}
-                                        </option>
-                                    );
-                                })}
+                                {([
+                                    ['Planos do checkout', plans.filter(p => !p.especial)],
+                                    ['Planos especiais (só pelo CRM)', plans.filter(p => p.especial)],
+                                ] as const).filter(([, lista]) => lista.length > 0).map(([grupo, lista]) => (
+                                    <optgroup key={grupo} label={grupo}>
+                                        {lista.map(p => {
+                                            const isAnnual = assignModal.paymentFrequency === 'annual';
+                                            const displayPrice = isAnnual && p.annualPrice ? p.annualPrice : p.price;
+                                            return (
+                                                <option key={p.id} value={p.id}>
+                                                    {p.name} · R$ {displayPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                    {p.type === 'monthly' ? (isAnnual ? ' (ano)' : ' (mês)') : ` (${p.credits} créditos)`}
+                                                </option>
+                                            );
+                                        })}
+                                    </optgroup>
+                                ))}
                             </select>
+                            {plans.every(p => !p.especial) && (
+                                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem', margin: '0.4rem 0 0' }}>
+                                    Para um cliente com condição especial, crie em Planos um plano marcado como especial: ele fica fora do checkout e aparece aqui.
+                                </p>
+                            )}
                         </div>
 
                         {assignModal.planId && assignModal.planId !== '__gratis__' && (
@@ -1591,6 +1624,25 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                     {assignModal.client.expiresAt
                                         ? 'Preenchida com a expiração atual do cliente. Ajuste para a data em que o pagamento foi recebido, se necessário.'
                                         : 'Preenchida com a data de hoje. Ajuste para a data em que o pagamento foi recebido, se necessário.'}
+                                </p>
+                            </div>
+                        )}
+
+                        {assignPlanRequiresStartDate && (
+                            <div style={{ marginBottom: '1.25rem' }}>
+                                <label htmlFor="plan-expires-manual" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    Vencimento manual (opcional)
+                                </label>
+                                <input
+                                    id="plan-expires-manual"
+                                    className={styles.planSelect}
+                                    type="date"
+                                    value={assignModal.expiresAtManual || ''}
+                                    min={assignModal.startDate || undefined}
+                                    onChange={event => setAssignModal({ ...assignModal, expiresAtManual: event.target.value })}
+                                />
+                                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem', margin: '0.4rem 0 0' }}>
+                                    Para cliente especial: o acesso vai até esta data, em vez de 30 dias (ou 1 ano) a partir do início.
                                 </p>
                             </div>
                         )}

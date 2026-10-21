@@ -12,8 +12,9 @@ function normalizarPublico(body: any) {
     if (!body || typeof body !== 'object') return body;
     if (!Object.prototype.hasOwnProperty.call(body, 'publico')) return body;
     const publico = body.publico === 'concessionaria' ? 'concessionaria' : 'cliente';
-    if (publico === 'cliente') return { ...body, publico };
-    return { ...body, publico, type: 'monthly', credits: null, invitePrice: 0, popular: false };
+    // Plano especial (só pelo CRM) não aparece na landing: não pode ser o destaque.
+    if (publico === 'cliente') return body.especial === true ? { ...body, publico, popular: false } : { ...body, publico };
+    return { ...body, publico, type: 'monthly', credits: null, invitePrice: 0, popular: false, especial: false };
 }
 
 export async function GET() {
@@ -22,7 +23,7 @@ export async function GET() {
         const plans = await Plan.find({}).sort({ createdAt: -1 });
         return NextResponse.json(plans.map(p => {
             const obj = p.toObject();
-            return { ...obj, id: p._id.toString(), _id: undefined, popular: obj.popular ?? false, publico: obj.publico || 'cliente' };
+            return { ...obj, id: p._id.toString(), _id: undefined, popular: obj.popular ?? false, especial: obj.especial === true, publico: obj.publico || 'cliente' };
         }));
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });

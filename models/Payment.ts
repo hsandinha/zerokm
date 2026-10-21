@@ -36,6 +36,20 @@ export interface IPayment extends Document {
     // Dates
     mpDateCreated?: Date;
     mpDateApproved?: Date;
+    /**
+     * Quando este pagamento já renovou a assinatura. Marca para nunca estender
+     * duas vezes (webhook atrasado depois da baixa manual ou da sincronização).
+     */
+    assinaturaAplicadaEm?: Date;
+    /** Baixa feita à mão pela equipe (cliente pagou por fora, ex.: PIX direto). */
+    baixaManual?: {
+        por?: string;
+        em?: Date;
+        dataPagamento?: Date;
+        forma?: string;
+        observacao?: string;
+        boletoCanceladoNoMP?: boolean;
+    };
     createdAt: Date;
     updatedAt: Date;
 }
@@ -79,6 +93,15 @@ const PaymentSchema: Schema = new Schema({
     // MP dates
     mpDateCreated: { type: Date },
     mpDateApproved: { type: Date },
+    assinaturaAplicadaEm: { type: Date },
+    baixaManual: {
+        por: { type: String },
+        em: { type: Date },
+        dataPagamento: { type: Date },
+        forma: { type: String },
+        observacao: { type: String },
+        boletoCanceladoNoMP: { type: Boolean },
+    },
 }, {
     timestamps: true,
 });

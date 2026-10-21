@@ -9,6 +9,7 @@ import Payment from '@/models/Payment';
 import { createBoletoPayment, getBoletoExpirationDate, validateBoletoProfile } from '@/lib/services/boletoService';
 import { normalizeBillingType } from '@/lib/services/mercadoPagoSubscriptionService';
 import { isPlanoConcessionaria } from '@/lib/utils/planoRepasse';
+import { MSG_PLANO_ESPECIAL, podeContratarPlano } from '@/lib/utils/planoEspecial';
 
 export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
@@ -37,6 +38,9 @@ export async function POST(req: NextRequest) {
     const user = await User.findOne({ firebaseUid: session.user.uid });
     if (!user) {
         return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
+    }
+    if (!podeContratarPlano(plan, user)) {
+        return NextResponse.json({ error: MSG_PLANO_ESPECIAL }, { status: 403 });
     }
 
     // A regra do documento vive em validateBoletoProfile (aceita CPF e CNPJ):

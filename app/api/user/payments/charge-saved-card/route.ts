@@ -10,6 +10,7 @@ import Transaction from '@/models/Transaction';
 import { validateCPF } from '@/lib/utils/cpf';
 import { chargeCustomerCard, getPayment, mpGet, mpPut } from '@/lib/mercadopago';
 import { isPlanoConcessionaria } from '@/lib/utils/planoRepasse';
+import { MSG_PLANO_ESPECIAL, podeContratarPlano } from '@/lib/utils/planoEspecial';
 
 export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
@@ -63,6 +64,9 @@ export async function POST(req: NextRequest) {
     if (!plan) return NextResponse.json({ error: 'Plano não encontrado' }, { status: 404 });
     if (isPlanoConcessionaria(plan)) {
         return NextResponse.json({ error: 'Este plano é exclusivo para concessionárias.' }, { status: 400 });
+    }
+    if (!podeContratarPlano(plan, user)) {
+        return NextResponse.json({ error: MSG_PLANO_ESPECIAL }, { status: 403 });
     }
 
     // Math for total sum exactly as Cron does

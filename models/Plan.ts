@@ -16,6 +16,8 @@ export interface IPlan extends Document {
     invitePrice?: number;
     features?: string[];
     popular?: boolean;
+    /** Condição especial para um cliente: fora do checkout e da landing, só pelo CRM (lib/utils/planoEspecial.ts). */
+    especial?: boolean;
     active: boolean;
     createdAt: Date;
     updatedAt: Date;
@@ -32,6 +34,7 @@ const PlanSchema: Schema = new Schema({
     invitePrice: { type: Number, default: 0 },
     features: { type: [String], default: [] },
     popular: { type: Boolean, default: false },
+    especial: { type: Boolean, default: false },
     active: { type: Boolean, default: true }
 }, {
     timestamps: true

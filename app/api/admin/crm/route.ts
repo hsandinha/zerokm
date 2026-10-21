@@ -37,12 +37,24 @@ export async function GET() {
     // Build invite count map: userId → number of invites
     const invites = await Invite.find({ status: { $in: ['accepted', 'pending'] } }).lean();
     const inviteCountMap = new Map<string, number>();
+    // Tela extra (convidado com convite ativo) → conta principal. Ela recebe o
+    // plano da conta principal e aparecia como mais um cliente ativo; agora fica
+    // dentro do cliente principal e não entra nos contadores.
+    const telasPorConta = new Map<string, Array<{ id: string; nome: string; email: string }>>();
+    const idsTelasExtras = new Set<string>();
     for (const inv of invites) {
         const key = (inv as any).inviterId.toString();
         inviteCountMap.set(key, (inviteCountMap.get(key) || 0) + 1);
+        const tela = {
+            id: (inv as any).inviteeUserId ? String((inv as any).inviteeUserId) : String((inv as any)._id),
+            nome: (inv as any).inviteeName || '',
+            email: (inv as any).inviteeEmail || '',
+        };
+        telasPorConta.set(key, [...(telasPorConta.get(key) || []), tela]);
+        if ((inv as any).inviteeUserId) idsTelasExtras.add(String((inv as any).inviteeUserId));
     }
 
-    const clients = users.map((u: any) => {
+    const clients = users.filter((u: any) => !idsTelasExtras.has(u._id.toString())).map((u: any) => {
         const isCliente = u.allowedProfiles?.includes('cliente');
         const isGratis = u.allowedProfiles?.includes('gratis') && !isCliente;
 
@@ -94,6 +106,7 @@ export async function GET() {
             cardLastFour: u.creditCard?.lastFour || null,
             profileCompletion,
             inviteCount: inviteCountMap.get(u._id.toString()) || 0,
+            telasExtras: telasPorConta.get(u._id.toString()) || [],
             isInvitee: u.isInvitee === true,
             vendedorId: u.vendedorId || null,
             freeTrialExpiresAt: isGratis && u.freeTrialExpiresAt ? new Date(u.freeTrialExpiresAt).toISOString() : null,
@@ -126,7 +139,7 @@ export async function PATCH(request: Request) {
     } catch {
         return NextResponse.json({ error: 'Body inválido.' }, { status: 400 });
     }
-    const { userId, planId, activationMethod, paymentFrequency, paymentMethod, startDate } = body;
+    const { userId, planId, activationMethod, paymentFrequency, paymentMethod, startDate, expiresAt: expiresAtManual } = body;
     if (!userId || !planId) {
         return NextResponse.json({ error: 'userId e planId são obrigatórios.' }, { status: 400 });
     }
@@ -188,9 +201,22 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: 'Data de início inválida.' }, { status: 400 });
     }
 
-    const expiresAt = durationDays && selectedStartDate
-        ? calculateSubscriptionExpiry(selectedStartDate, durationDays)
+    // Cliente especial: a equipe pode fixar o vencimento em vez de início + 30/365 dias.
+    const vencimentoManual = durationDays && expiresAtManual !== undefined && expiresAtManual !== ''
+        ? parseSubscriptionStartDate(expiresAtManual)
         : null;
+    if (durationDays && expiresAtManual && !vencimentoManual) {
+        return NextResponse.json({ error: 'Data de vencimento inválida.' }, { status: 400 });
+    }
+    if (vencimentoManual && selectedStartDate && vencimentoManual.getTime() <= selectedStartDate.getTime()) {
+        return NextResponse.json({ error: 'O vencimento precisa ser depois da data de início.' }, { status: 400 });
+    }
+
+    const expiresAt = vencimentoManual
+        ? vencimentoManual
+        : durationDays && selectedStartDate
+            ? calculateSubscriptionExpiry(selectedStartDate, durationDays)
+            : null;
 
     const updateFields: Record<string, any> = {
         'subscription.planId': planId,

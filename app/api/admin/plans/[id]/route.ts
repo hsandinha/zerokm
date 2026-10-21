@@ -12,8 +12,9 @@ function normalizarPublico(body: any) {
     if (!body || typeof body !== 'object') return body;
     if (!Object.prototype.hasOwnProperty.call(body, 'publico')) return body;
     const publico = body.publico === 'concessionaria' ? 'concessionaria' : 'cliente';
-    if (publico === 'cliente') return { ...body, publico };
-    return { ...body, publico, type: 'monthly', credits: null, invitePrice: 0, popular: false };
+    // Plano especial (só pelo CRM) não aparece na landing: não pode ser o destaque.
+    if (publico === 'cliente') return body.especial === true ? { ...body, publico, popular: false } : { ...body, publico };
+    return { ...body, publico, type: 'monthly', credits: null, invitePrice: 0, popular: false, especial: false };
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {

@@ -3,6 +3,7 @@
 // e o notification_url aponta para o webhook DA ZEROKM: a ativação do plano
 // (promover para `cliente`, gravar subscription) continua centralizada lá.
 
+import { MSG_PLANO_ESPECIAL, podeContratarPlano } from "@/lib/utils/planoEspecial";
 import dbConnect from "@/lib/mongodb";
 import { mpPost, createPreference } from "@wa/lib/mercadopago";
 import Plan, { type IPlan } from "@/models/Plan";
@@ -13,7 +14,8 @@ const ZEROKM_BASE_URL = () => process.env.ZEROKM_BASE_URL || "https://www.cnv0km
 
 export async function getActivePlans(): Promise<IPlan[]> {
   await dbConnect();
-  return Plan.find({ active: true, type: "monthly" }).sort({ price: 1 });
+  // Plano especial é condição negociada pela equipe: a Vera não oferece.
+  return Plan.find({ active: true, type: "monthly", especial: { $ne: true } }).sort({ price: 1 });
 }
 
 function priceFor(plan: IPlan, billing: "monthly" | "annual"): number {
@@ -33,6 +35,7 @@ async function loadPlanAndUser(planId: string, firebaseUid: string): Promise<Loa
   if (!plan || !plan.active) return { ok: false, error: "Plano não encontrado ou inativo" };
   const user = await User.findOne({ firebaseUid });
   if (!user) return { ok: false, error: "Usuário não encontrado — faça o cadastro primeiro" };
+  if (!podeContratarPlano(plan as any, user as any)) return { ok: false, error: MSG_PLANO_ESPECIAL };
   return { ok: true, plan, user };
 }
 
