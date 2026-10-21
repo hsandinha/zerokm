@@ -20,10 +20,32 @@ const base = {
 };
 
 describe('cotação em PDF', () => {
-    it('traz o nome do cliente no título', () => {
+    it('o título do orçamento é MEU CARRO, e a loja segue no rodapé', () => {
         const html = montarCotacaoHtml(base);
-        expect(html).toContain('COTAÇÃO — BRUNO BUIU');
+        expect(html).toContain('<h2>MEU CARRO</h2>');
+        expect(html).toContain('<title>MEU CARRO</title>');
+        expect(html).not.toContain('COTAÇÃO — BRUNO BUIU');
         expect(html).toContain('Bruno Buiu');
+    });
+
+    it('não leva a seção de observações', () => {
+        const html = montarCotacaoHtml(base);
+        expect(html).not.toContain('OBSERVAÇÕES');
+        expect(html).not.toContain('PEDIDO PCD');
+    });
+
+    it('põe a logo da loja no topo quando existe', () => {
+        const logo = 'data:image/png;base64,iVBORw0KGgo=';
+        expect(montarCotacaoHtml({ ...base, logoUrl: logo })).toContain(`<img class="logo" src="${logo}"`);
+        expect(montarCotacaoHtml(base)).not.toContain('class="logo"');
+    });
+
+    it('recusa logo que não é imagem', () => {
+        expect(montarCotacaoHtml({ ...base, logoUrl: 'javascript:alert(1)' })).not.toContain('class="logo"');
+    });
+
+    it('mostra a quilometragem do usado', () => {
+        expect(montarCotacaoHtml({ ...base, veiculo: { ...base.veiculo, km: 'Usado · 48.500 km' } })).toContain('48.500 km');
     });
 
     it('usa o preço recebido, que já vem com a margem do perfil', () => {
@@ -55,7 +77,7 @@ describe('cotação em PDF', () => {
     it('escapa conteúdo do veículo para não injetar HTML', () => {
         const html = montarCotacaoHtml({
             ...base,
-            veiculo: { ...base.veiculo, observacoes: '<script>alert(1)</script>' },
+            veiculo: { ...base.veiculo, opcionais: '<script>alert(1)</script>' },
         });
         expect(html).not.toContain('<script>alert(1)</script>');
         expect(html).toContain('&lt;script&gt;');

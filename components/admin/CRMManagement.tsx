@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/Page';
 import { InlineNotice, useFeedback } from '@/components/ui/Feedback';
 import { ClienteFinanceiro } from './ClienteFinanceiro';
+import { ClienteLogoField } from './ClienteLogoField';
 import { getUserAccessStatus, updateUserProfiles, toggleUserStatus, deleteUser } from '@/app/dashboard/admin/users/actions';
 import { toggleProfileSelection, DIRETIVO_PROFILES, OPERACIONAL_PROFILES, CLIENT_PROFILES } from '@/lib/utils/userProfiles';
 import type { UserProfile } from '@/lib/types/auth';
@@ -1088,6 +1089,14 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                                 <span className={styles.clientFormValue} style={{ color: 'var(--color-text-muted)' }}>{selectedClient.email}</span>
                                             </div>
                                         </div>
+                                    </div>
+
+                                    {/* Logo do orçamento: só a equipe coloca, depois da assinatura. */}
+                                    <div className={styles.clientSection}>
+                                        <div className={styles.clientSectionHeader}>
+                                            <span className={styles.clientSectionTitle}>Logo no orçamento</span>
+                                        </div>
+                                        <ClienteLogoField userId={selectedClient.id} nomeCliente={selectedClient.displayName} />
                                     </div>
 
                                     {/* Address */}

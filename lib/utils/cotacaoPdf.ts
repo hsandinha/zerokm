@@ -20,6 +20,8 @@ export interface CotacaoVeiculo {
     estado?: string;
     prazo?: number | null;
     imagemUrl?: string;
+    /** Repasse: quilometragem já formatada ("48.500 km"). */
+    km?: string;
 }
 
 export interface CotacaoParams {
@@ -27,6 +29,20 @@ export interface CotacaoParams {
     /** Preço já com a margem aplicada — o mesmo número que o cliente vê no grid. */
     preco: number;
     nomeCliente: string;
+    /**
+     * Logo do lojista (data URL ou https), cadastrada pela equipe no CRM.
+     * Vai no canto superior esquerdo: o orçamento sai com a cara da loja.
+     */
+    logoUrl?: string | null;
+}
+
+/** Só aceita imagem embutida ou link https: nada de javascript: no src. */
+function logoSegura(url?: string | null): string | null {
+    if (!url) return null;
+    const limpa = url.trim();
+    if (/^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(limpa)) return limpa;
+    if (/^https:\/\//i.test(limpa)) return limpa;
+    return null;
 }
 
 const brl = (valor: number) =>
@@ -50,22 +66,27 @@ function secao(titulo: string, conteudo: string): string {
     return `<section class="bloco"><h3>${escapar(titulo)}</h3><p>${escapar(conteudo)}</p></section>`;
 }
 
-export function montarCotacaoHtml({ veiculo, preco, nomeCliente }: CotacaoParams): string {
+export function montarCotacaoHtml({ veiculo, preco, nomeCliente, logoUrl }: CotacaoParams): string {
     const hoje = new Date().toLocaleDateString('pt-BR');
     const titulo = [veiculo.marca, veiculo.modelo].filter(Boolean).join(' ').toUpperCase();
+    const logo = logoSegura(logoUrl);
     const prazoTexto = veiculo.prazo === 0
         ? 'PRONTA ENTREGA'
         : (typeof veiculo.prazo === 'number' && veiculo.prazo > 0 ? `${veiculo.prazo} DIAS` : null);
 
     return `<!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><title>Cotação — ${escapar(titulo)}</title>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>MEU CARRO</title>
 <style>
   @page { size: A4; margin: 14mm; }
   * { box-sizing: border-box; }
   body { margin: 0; background: #EFEDE7; color: #12100C;
          font-family: "Helvetica Neue", Arial, sans-serif; font-size: 12px; }
   .folha { max-width: 190mm; margin: 0 auto; padding: 8mm; }
-  .topo { display: flex; justify-content: space-between; font-size: 11px; letter-spacing: .04em; }
+  .topo { display: flex; justify-content: space-between; align-items: center; gap: 16px;
+          font-size: 11px; letter-spacing: .04em; }
+  .topoEsq { display: flex; align-items: center; gap: 14px; }
+  .topoDir { text-align: right; }
+  .logo { display: block; max-height: 56px; max-width: 200px; object-fit: contain; }
   .linha { border: 0; border-top: 1px solid #12100C; margin: 10px 0 22px; }
   .corpo { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
   .foto { width: 100%; height: 190px; object-fit: contain; }
@@ -89,7 +110,13 @@ export function montarCotacaoHtml({ veiculo, preco, nomeCliente }: CotacaoParams
   @media print { body { background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 </style></head>
 <body><div class="folha">
-  <div class="topo"><span>${hoje}</span><span>${escapar(titulo)}</span></div>
+  <div class="topo">
+    <div class="topoEsq">
+      ${logo ? `<img class="logo" src="${escapar(logo)}" alt="Logo da loja">` : ''}
+      <span>${hoje}</span>
+    </div>
+    <span class="topoDir">${escapar(titulo)}</span>
+  </div>
   <hr class="linha">
 
   <div class="corpo">
@@ -102,7 +129,7 @@ export function montarCotacaoHtml({ veiculo, preco, nomeCliente }: CotacaoParams
     </div>
 
     <div>
-      <h2>COTAÇÃO — ${escapar(nomeCliente.toUpperCase())}</h2>
+      <h2>MEU CARRO</h2>
       <div class="item"><span>PREÇO DO VEÍCULO</span><span>${brl(preco)}</span></div>
       <div class="item"><span>COR</span><span>${brl(0)}</span></div>
       <div class="item"><span>OPCIONAIS</span><span>${brl(0)}</span></div>
@@ -122,7 +149,7 @@ export function montarCotacaoHtml({ veiculo, preco, nomeCliente }: CotacaoParams
   ${secao('COR', veiculo.cor || '')}
   ${secao('VERSÃO, MOTOR E CÂMBIO', [veiculo.modelo, veiculo.combustivel, veiculo.transmissao, veiculo.ano].filter(Boolean).join(' · '))}
   ${secao('ITENS DE SÉRIE', veiculo.opcionais || '')}
-  ${secao('OBSERVAÇÕES', veiculo.observacoes || '')}
+  ${veiculo.km ? secao('QUILOMETRAGEM', veiculo.km) : ''}
   ${prazoTexto ? secao('PRAZO DE ENTREGA', prazoTexto) : ''}
 
   <div class="rodape">
@@ -134,11 +161,24 @@ export function montarCotacaoHtml({ veiculo, preco, nomeCliente }: CotacaoParams
 </body></html>`;
 }
 
-/** Abre a cotação numa janela e dispara a impressão (o navegador salva em PDF). */
-export function gerarCotacaoPdf(params: CotacaoParams): boolean {
+/**
+ * Abre a cotação numa janela e dispara a impressão (o navegador salva em PDF).
+ *
+ * A janela abre na hora do clique (senão o bloqueador de pop-up barra) e o
+ * documento é escrito quando a logo da loja termina de carregar.
+ */
+export function gerarCotacaoPdf(params: Omit<CotacaoParams, 'logoUrl'>, logo?: Promise<string | null>): boolean {
     const janela = window.open('', '_blank', 'width=900,height=1200');
     if (!janela) return false;   // bloqueador de pop-up
-    janela.document.write(montarCotacaoHtml(params));
-    janela.document.close();
+    const escrever = (logoUrl: string | null) => {
+        janela.document.write(montarCotacaoHtml({ ...params, logoUrl }));
+        janela.document.close();
+    };
+    if (!logo) {
+        escrever(null);
+        return true;
+    }
+    janela.document.write('<p style="font-family:Arial,sans-serif;padding:24px">Gerando o orçamento...</p>');
+    logo.then(escrever, () => escrever(null));
     return true;
 }
