@@ -169,38 +169,67 @@ export function ConcessionariasManagement({ perfil = 'admin' }: { perfil?: Perfi
         return cliente.marca ? [cliente.marca] : [];
     };
 
-    // Atualiza as marcas de uma concessionária localmente (otimista, sem recarregar a lista toda).
-    const applyBrandsLocally = (clienteId: string, marcaIds: string[]) => {
-        const nomes = marcaIds
-            .map(id => marcas.find(m => m.id === id)?.nome)
-            .filter((nome): nome is string => Boolean(nome));
-        setClientes(prev => prev.map(c => c.id === clienteId
-            ? { ...c, marcaIds, marcas: nomes, marcaId: marcaIds[0] ?? null, marca: nomes[0] ?? null }
-            : c));
+    // Lista mais recente fora do ciclo de render: dois cliques rápidos em marcas
+    // diferentes liam a mesma lista antiga e o segundo apagava o primeiro.
+    const clientesRef = useRef<ClienteData[]>([]);
+    clientesRef.current = clientes;
+
+    type MarcasDaLoja = Pick<ClienteData, 'marcaIds' | 'marcas' | 'marcaId' | 'marca'>;
+
+    const setMarcasDaLoja = (clienteId: string, dados: MarcasDaLoja) => {
+        const proximo = clientesRef.current.map(c => c.id === clienteId ? { ...c, ...dados } : c);
+        clientesRef.current = proximo;
+        setClientes(proximo);
     };
 
-    const handleToggleBrand = async (cliente: ClienteData, marcaId: string) => {
+    // Atualiza as marcas de uma concessionária localmente (otimista, sem recarregar a lista toda).
+    const applyBrandsLocally = (clienteId: string, marcaIds: string[], anterior: ClienteData) => {
+        const idsAnteriores = getSelectedBrandIds(anterior);
+        const nomesAnteriores = getSelectedBrandNames(anterior);
+        const nomes = marcaIds
+            .map(id => marcas.find(m => m.id === id)?.nome ?? nomesAnteriores[idsAnteriores.indexOf(id)])
+            .filter((nome): nome is string => Boolean(nome));
+        setMarcasDaLoja(clienteId, { marcaIds, marcas: nomes, marcaId: marcaIds[0] ?? null, marca: nomes[0] ?? null });
+    };
+
+    const handleToggleBrand = async (clienteId: string, marcaId: string) => {
+        const cliente = clientesRef.current.find(c => c.id === clienteId);
+        if (!cliente) return;
         const current = getSelectedBrandIds(cliente);
         const next = current.includes(marcaId)
             ? current.filter(id => id !== marcaId)
             : [...current, marcaId];
 
-        applyBrandsLocally(cliente.id, next);
+        applyBrandsLocally(clienteId, next, cliente);
 
         try {
-            const response = await fetch(`/api/concessionarias/${cliente.id}/catalog-brand`, {
+            const response = await fetch(`/api/concessionarias/${clienteId}/catalog-brand`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ marcaIds: next }),
             });
+            const data = await response.json().catch(() => ({}));
             if (!response.ok) {
-                const data = await response.json().catch(() => ({}));
                 throw new Error(data.error || 'Erro ao atualizar marcas');
+            }
+            // O servidor pode ter limpado uma marca que não existe mais: vale a versão dele.
+            setMarcasDaLoja(clienteId, {
+                marcaIds: data.marcaIds || [],
+                marcas: data.marcas || [],
+                marcaId: data.marcaId ?? null,
+                marca: data.marca ?? null,
+            });
+            if (Array.isArray(data.descartadas) && data.descartadas.length > 0) {
+                notify(`Removida da loja a marca que não existe mais no cadastro: ${data.descartadas.join(', ')}.`, 'positive');
             }
         } catch (error) {
             console.error('Erro ao atualizar marcas:', error);
-            applyBrandsLocally(cliente.id, current); // reverte
-            notify('Não foi possível atualizar as marcas. A seleção anterior foi mantida.');
+            setMarcasDaLoja(clienteId, {
+                marcaIds: cliente.marcaIds, marcas: cliente.marcas, marcaId: cliente.marcaId, marca: cliente.marca,
+            }); // reverte
+            notify(error instanceof Error && error.message !== 'Erro ao atualizar marcas'
+                ? `Não foi possível atualizar as marcas: ${error.message}`
+                : 'Não foi possível atualizar as marcas. A seleção anterior foi mantida.');
         }
     };
 
@@ -752,6 +781,10 @@ export function ConcessionariasManagement({ perfil = 'admin' }: { perfil?: Perfi
                                 const selectedNames = getSelectedBrandNames(cliente);
                                 const isOpen = openBrandMenuId === cliente.id;
                                 const filteredMarcas = marcas.filter(m => m.nome.toLowerCase().includes(brandSearch.toLowerCase()));
+                                // Marca vinculada que saiu do cadastro: aparece marcada no topo para poder ser desmarcada.
+                                const marcasForaDoCadastro = selectedIds
+                                    .map((id, i) => ({ id, nome: selectedNames[i] || 'Marca removida' }))
+                                    .filter(m => !marcas.some(cad => cad.id === m.id));
                                 const semaforo = atualizacao(cliente.ultimaAtualizacao);
                                 const veiculos = cliente.totalVeiculos || 0;
                                 const repasse = situacaoRepasse(cliente.planoRepasse);
@@ -804,6 +837,16 @@ export function ConcessionariasManagement({ perfil = 'admin' }: { perfil?: Perfi
                                                             autoFocus
                                                         />
                                                         <div className={styles.brandMenuList}>
+                                                            {marcasForaDoCadastro.map(marca => (
+                                                                <label key={marca.id} className={styles.brandMenuItem} title="Esta marca não existe mais no cadastro. Desmarque para tirar da loja.">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked
+                                                                        onChange={() => handleToggleBrand(cliente.id, marca.id)}
+                                                                    />
+                                                                    <span>{marca.nome} <span className={pageStyles.muted}>(fora do cadastro)</span></span>
+                                                                </label>
+                                                            ))}
                                                             {marcas.length === 0 ? (
                                                                 <span className={styles.brandMenuEmpty}>Nenhuma marca disponível.</span>
                                                             ) : filteredMarcas.length === 0 ? (
@@ -813,7 +856,7 @@ export function ConcessionariasManagement({ perfil = 'admin' }: { perfil?: Perfi
                                                                     <input
                                                                         type="checkbox"
                                                                         checked={selectedIds.includes(marca.id)}
-                                                                        onChange={() => handleToggleBrand(cliente, marca.id)}
+                                                                        onChange={() => handleToggleBrand(cliente.id, marca.id)}
                                                                     />
                                                                     <span>{marca.nome}</span>
                                                                 </label>

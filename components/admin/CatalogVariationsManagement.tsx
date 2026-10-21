@@ -9,8 +9,9 @@ import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
 import { BookOpen, CarFront, Image as ImageIcon, ImagePlus, Link2, Pencil, Plus, Search, Tags, Trash2, Upload } from 'lucide-react';
 import {
     Button, EmptyState, FilterSelect, IconAction, Page, PageHeader, Panel, PanelFooter, PanelToolbar, PrimaryCell, RowActions,
-    SearchField, SkeletonRows, StatCard, StatGrid, pageStyles,
+    SearchField, SkeletonRows, StatCard, StatGrid, StatusBadge, pageStyles,
 } from '@/components/ui/Page';
+import { anoDivergente, rotuloAno } from '@/lib/utils/anoVeiculo';
 import { InlineNotice, useFeedback } from '@/components/ui/Feedback';
 
 interface Marca {
@@ -146,12 +147,9 @@ function parseOptionals(value: string) {
         .filter(Boolean);
 }
 
+/** Mesmo ano que o Estoque e a consulta de Veículos mostram (ver lib/utils/anoVeiculo.ts). */
 function getAnoLabel(variation: Pick<VehicleVariation, 'ano' | 'anoModelo' | 'anoFabricacao'>) {
-    if (variation.ano) return variation.ano;
-    if (variation.anoFabricacao && variation.anoModelo) {
-        return `${String(variation.anoFabricacao).slice(-2)}/${String(variation.anoModelo).slice(-2)}`;
-    }
-    return variation.anoModelo ? String(variation.anoModelo) : '-';
+    return rotuloAno(variation) || '-';
 }
 
 export function CatalogVariationsManagement() {
@@ -306,7 +304,7 @@ export function CatalogVariationsManagement() {
             modelo: variation.modelo,
             tipoVeiculo: variation.tipoVeiculo || 'carro',
             cilindrada: variation.cilindrada ? String(variation.cilindrada) : '',
-            ano: variation.ano || variation.anoModelo?.toString() || '',
+            ano: rotuloAno(variation),
             combustivel: variation.combustivel || '',
             cor: variation.cor || '',
             transmissao: variation.transmissao || '',
@@ -645,7 +643,14 @@ export function CatalogVariationsManagement() {
                                             {variation.tipoVeiculo === 'moto' && variation.cilindrada ? ` · ${variation.cilindrada}cc` : ''}
                                         </span>
                                     </td>
-                                    <td><span className={pageStyles.nowrap}>{getAnoLabel(variation)}</span></td>
+                                    <td>
+                                        <span className={pageStyles.nowrap}>{getAnoLabel(variation)}</span>
+                                        {anoDivergente(variation) && (
+                                            <span className={pageStyles.subLine} title={`O texto antigo do ano diz "${variation.ano}". Abra a variação e salve para corrigir.`}>
+                                                <StatusBadge tone="warning" dot={false}>Ano a conferir</StatusBadge>
+                                            </span>
+                                        )}
+                                    </td>
                                     <td>{variation.combustivel || <span className={pageStyles.muted}>-</span>}</td>
                                     <td>{variation.cor || <span className={pageStyles.muted}>-</span>}</td>
                                     <td>{variation.transmissao || <span className={pageStyles.muted}>-</span>}</td>

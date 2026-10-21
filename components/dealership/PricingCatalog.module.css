@@ -293,3 +293,9 @@ details[open] > .sectionTitle::before {
 .obsInput { min-width: 180px; border: 1px solid var(--admin-border, var(--color-highlight)); border-radius: 8px; background: var(--color-surface); }
 
 .statusStack { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+
+/* Data da última alteração da linha (Estoque). */
+.dateCell {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}

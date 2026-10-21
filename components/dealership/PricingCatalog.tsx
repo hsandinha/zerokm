@@ -8,8 +8,21 @@ import { InlineNotice, useFeedback } from '@/components/ui/Feedback';
 import { Pagination } from '../Pagination';
 import styles from './PricingCatalog.module.css';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
+import { rotuloAno } from '@/lib/utils/anoVeiculo';
 
 type PricingStatus = 'todos' | 'ativo' | 'inativo';
+type Ordem = 'modelo' | 'recentes';
+
+/** Data e hora da última alteração da linha, para a equipe saber o que já mexeu. */
+function formatAlteracao(value?: string | null) {
+    if (!value) return null;
+    const data = new Date(value);
+    if (Number.isNaN(data.getTime())) return null;
+    return {
+        dia: data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }),
+        hora: data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+    };
+}
 
 interface PricingRow {
     variationId: string;
@@ -18,6 +31,7 @@ interface PricingRow {
     codigoFipe?: string;
     opcionais?: string;
     opcionaisPadrao?: string[];
+    ano?: string;
     anoModelo?: number;
     anoFabricacao?: number;
     combustivel?: string;
@@ -32,7 +46,8 @@ interface PricingRow {
     status: 'ativo' | 'inativo';
     statusVeiculo?: string;
     observacoes?: string;
-    updatedAt?: string;
+    updatedAt?: string | null;
+    createdAt?: string | null;
 }
 
 interface PricingResponse {
@@ -46,6 +61,7 @@ interface PricingResponse {
     concessionaria?: {
         nome?: string;
         marca?: string | null;
+        marcas?: string[];
         cidade?: string | null;
         uf?: string | null;
         telefone?: string | null;
@@ -109,6 +125,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState<PricingStatus>('todos');
     const [tipo, setTipo] = useState<'todos' | 'carro' | 'moto'>('todos');
+    const [ordem, setOrdem] = useState<Ordem>('modelo');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [draftPrices, setDraftPrices] = useState<Record<string, string>>({});
@@ -132,9 +149,10 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
         if (search.trim()) params.set('search', search.trim());
         if (queryStatus) params.set('status', queryStatus);
         if (tipo !== 'todos') params.set('tipo', tipo);
+        if (ordem === 'recentes') params.set('ordem', 'recentes');
         if (concessionariaId) params.set('concessionariaId', concessionariaId);
         return `/api/dealership/pricing-catalog?${params.toString()}`;
-    }, [queryStatus, search, tipo, concessionariaId]);
+    }, [queryStatus, search, tipo, ordem, concessionariaId]);
 
     const loadCatalog = useCallback(async () => {
         setLoading(true);
@@ -183,7 +201,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
     // Filtros mudaram: a página atual pode não existir no novo resultado.
     useEffect(() => {
         setPage(1);
-    }, [search, queryStatus, tipo, concessionariaId]);
+    }, [search, queryStatus, tipo, ordem, concessionariaId]);
 
     const handlePageChange = (nextPage: number) => {
         const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -269,6 +287,8 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                     statusVeiculo: data.statusVeiculo,
                     ativo: data.ativo,
                     status: data.status,
+                    updatedAt: data.updatedAt !== undefined ? data.updatedAt : new Date().toISOString(),
+                    createdAt: data.createdAt !== undefined ? data.createdAt : item.createdAt,
                 }
                 : item
             ));
@@ -390,9 +410,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
             
             const precoAtual = row.preco || 0;
             const dataEntradaStr = row.updatedAt ? new Date(row.updatedAt).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
-            const anoFormatado = row.anoFabricacao && row.anoModelo 
-                ? `${String(row.anoFabricacao).slice(-2)}/${String(row.anoModelo).slice(-2)}` 
-                : (row.anoModelo?.toString() || '');
+            const anoFormatado = rotuloAno(row);
             
             const cols = [
                 `"${dataEntradaStr}"`,
@@ -568,7 +586,14 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
     return (
         <div className={styles.container}>
             <StatGrid>
-                <StatCard label="Variações no catálogo" icon={<BookOpen size={18} />} value={total.toLocaleString('pt-BR')} caption={concessionariaInfo?.marca ? `Marca vinculada: ${concessionariaInfo.marca}` : 'Catálogo 0KM da CNV'} />
+                <StatCard
+                    label="Variações no catálogo"
+                    icon={<BookOpen size={18} />}
+                    value={total.toLocaleString('pt-BR')}
+                    caption={concessionariaInfo?.marcas && concessionariaInfo.marcas.length > 1
+                        ? `Marcas vinculadas: ${concessionariaInfo.marcas.join(', ')}`
+                        : concessionariaInfo?.marca ? `Marca vinculada: ${concessionariaInfo.marca}` : 'Catálogo 0KM do CNV'}
+                />
                 <StatCard label="Veículos disponíveis" icon={<CarFront size={18} />} value={totalQuantidade.toLocaleString('pt-BR')} caption="Soma das quantidades com preço" />
                 <StatCard
                     label="Sem preço"
@@ -595,6 +620,12 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                             value={status}
                             onChange={setStatus}
                             options={[{ value: 'todos', label: 'Todos' }, { value: 'inativo', label: 'Sem preço' }, { value: 'ativo', label: 'Com preço' }]}
+                        />
+                        <Segmented<Ordem>
+                            label="Ordenar"
+                            value={ordem}
+                            onChange={setOrdem}
+                            options={[{ value: 'modelo', label: 'Por modelo' }, { value: 'recentes', label: 'Últimas alterações' }]}
                         />
                     </div>
                     {selectedIds.size > 0 ? (
@@ -640,20 +671,22 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                             <th style={{ width: '80px' }}>Prazo</th>
                             <th style={{ minWidth: '150px' }}>Observações</th>
                             <th>Status</th>
+                            <th>Atualizado em</th>
                         </tr>
                     </thead>
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan={12} className={styles.empty}>Carregando catálogo...</td>
+                                <td colSpan={14} className={styles.empty}>Carregando catálogo...</td>
                             </tr>
                         ) : rows.length === 0 ? (
                             <tr>
-                                <td colSpan={12} className={styles.empty}>Nenhuma variação encontrada.</td>
+                                <td colSpan={14} className={styles.empty}>Nenhuma variação encontrada.</td>
                             </tr>
                         ) : rows.map((row, index) => {
                             const inputValue = draftPrices[row.variationId] ?? formatCurrency(row.preco);
                             const isSaving = saving[row.variationId];
+                            const alteracao = formatAlteracao(row.updatedAt);
 
                             return (
                                 <tr key={row.variationId}>
@@ -669,11 +702,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                                         <strong>{row.modelo}</strong>
                                         {row.motor && <span className={styles.muted}>{row.motor}</span>}
                                     </td>
-                                    <td>
-                                        {row.anoFabricacao && row.anoModelo
-                                            ? `${String(row.anoFabricacao).slice(-2)}/${String(row.anoModelo).slice(-2)}`
-                                            : row.anoModelo || '-'}
-                                    </td>
+                                    <td>{rotuloAno(row) || '-'}</td>
                                     <td>{row.combustivel || '-'}</td>
                                     <td>{row.cor || '-'}</td>
                                     <td>{row.transmissao || '-'}</td>
@@ -815,6 +844,14 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                                                 {isSaving ? 'Salvando...' : row.ativo ? 'Ativo' : 'Inativo'}
                                             </span>
                                         </div>
+                                    </td>
+                                    <td className={styles.dateCell}>
+                                        {alteracao ? (
+                                            <>
+                                                <span>{alteracao.dia}</span>
+                                                <span className={styles.muted}>{alteracao.hora}</span>
+                                            </>
+                                        ) : <span className={styles.muted}>-</span>}
                                     </td>
                                 </tr>
                             );

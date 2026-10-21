@@ -13,6 +13,7 @@ import { filtroPlanoRepasseAtivo } from '@/lib/utils/planoRepasse';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { createExpiredFreeTrialWindow, isFreeTrialExpired } from '@/lib/utils/freeTrial';
+import { rotuloAno } from '@/lib/utils/anoVeiculo';
 
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const normalizeAccessProfile = (profile?: string | null) => profile === 'dealership' ? 'concessionaria' : profile;
@@ -422,7 +423,8 @@ export async function GET(request: Request) {
                 modelo: v.modelo,
                 tipoVeiculo: v.tipoVeiculo || 'carro',
                 cilindrada: v.cilindrada,
-                ano: v.ano || String(v.anoModelo),
+                // Mesmo ano do Catálogo e do Estoque: os números mandam sobre o texto legado.
+                ano: rotuloAno(v),
                 anoModelo: v.anoModelo,
                 anoFabricacao: v.anoFabricacao,
                 combustivel: v.combustivel,

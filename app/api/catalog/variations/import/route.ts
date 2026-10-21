@@ -1,3 +1,4 @@
+import { textoDoAno } from '@/lib/utils/anoVeiculo';
 import { findOrCreateMarca } from '@/lib/services/marcaResolver';
 import { enrichFipeRows } from '@/lib/services/fipeImport';
 import { NextResponse } from 'next/server';
@@ -596,7 +597,8 @@ async function commitRows(rawItems: any[], createdBy?: string | null) {
                 codigoFipe: row.codigoFipe,
                 descricaoFipe: row.descricaoFipe,
                 tipoVeiculo: row.tipoVeiculo || (marca as any).tipoVeiculo || 'carro',
-                ano: row.ano,
+                // Texto do ano sempre a partir dos números (ver lib/utils/anoVeiculo.ts).
+                ano: textoDoAno(row.anoFabricacao, row.anoModelo) || row.ano,
                 anoModelo: row.anoModelo,
                 anoFabricacao: row.anoFabricacao,
                 combustivel: row.combustivel,

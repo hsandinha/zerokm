@@ -7,6 +7,7 @@ import connectDB from '@/lib/mongodb';
 import Marca from '@/models/Marca';
 import VehicleVariation from '@/models/VehicleVariation';
 import DealerVehiclePrice from '@/models/DealerVehiclePrice';
+import { lerAnoTexto, textoDoAno } from '@/lib/utils/anoVeiculo';
 
 const MASTER_CATALOG_PROFILES = new Set(['admin', 'administrador', 'administrativo', 'gerente', 'operador', 'operator']);
 
@@ -124,6 +125,20 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         const current = await VehicleVariation.findById(id).lean();
         if (!current) {
             return NextResponse.json({ error: 'Variação não encontrada' }, { status: 404 });
+        }
+
+        // Ano: os números mandam e o texto é regravado a partir deles. Antes o
+        // texto e os números podiam divergir e cada tela mostrava um ano.
+        const mexeuNoAno = ['ano', 'anoModelo', 'anoFabricacao'].some(campo => Object.prototype.hasOwnProperty.call(body, campo));
+        if (mexeuNoAno) {
+            const doTexto = lerAnoTexto(body.ano);
+            const anoModelo = update.anoModelo ?? doTexto.anoModelo
+                ?? (Object.prototype.hasOwnProperty.call(body, 'anoModelo') ? null : current.anoModelo ?? null);
+            const anoFabricacao = update.anoFabricacao ?? doTexto.anoFabricacao
+                ?? (Object.prototype.hasOwnProperty.call(body, 'anoFabricacao') ? null : current.anoFabricacao ?? null);
+            update.anoModelo = anoModelo;
+            update.anoFabricacao = anoFabricacao;
+            update.ano = textoDoAno(anoFabricacao, anoModelo) || normalizeText(body.ano) || current.ano;
         }
         const identity = catalogFipeIdentity({ ...current, ...update });
         if (identity) {

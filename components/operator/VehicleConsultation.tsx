@@ -603,7 +603,8 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
             });
         } catch (error) {
             console.error(`Erro ao atualizar ${field}:`, error);
-            notify(`Não foi possível salvar o campo ${field}.`);
+            const motivo = error instanceof Error && error.message !== 'Failed to update vehicle' ? ` ${error.message}` : '';
+            notify(`Não foi possível salvar o campo ${field}.${motivo}`);
         }
     };
 

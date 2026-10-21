@@ -7,6 +7,7 @@ import connectDB from '@/lib/mongodb';
 import Marca from '@/models/Marca';
 import VehicleVariation from '@/models/VehicleVariation';
 import DealerVehiclePrice from '@/models/DealerVehiclePrice';
+import { textoDoAno } from '@/lib/utils/anoVeiculo';
 
 const MASTER_CATALOG_PROFILES = new Set(['admin', 'administrador', 'administrativo', 'gerente', 'operador', 'operator']);
 
@@ -169,7 +170,9 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Modelo é obrigatório' }, { status: 400 });
         }
 
-        const identity = catalogFipeIdentity({ ...body, anoModelo: parseNumber(body.anoModelo) || anoComposto.anoModelo, anoFabricacao: parseNumber(body.anoFabricacao) || anoComposto.anoFabricacao });
+        const anoModelo = parseNumber(body.anoModelo) || anoComposto.anoModelo;
+        const anoFabricacao = parseNumber(body.anoFabricacao) || anoComposto.anoFabricacao;
+        const identity = catalogFipeIdentity({ ...body, anoModelo, anoFabricacao });
         if (identity) {
             const existing = await VehicleVariation.findOne(identity);
             if (existing) return NextResponse.json({ error: 'Já existe uma variação com este código FIPE, ano, combustível, cor e opcionais. Use o cadastro existente.', existingId: existing._id.toString() }, { status: 409 });
@@ -182,9 +185,10 @@ export async function POST(request: Request) {
             descricaoFipe: normalizeText(body.descricaoFipe) || undefined,
             // Sem tipo explícito, herda o da marca (HONDA MOTOS → moto).
             tipoVeiculo: normalizeText(body.tipoVeiculo) || (marca as any)?.tipoVeiculo || 'carro',
-            ano: normalizeText(body.ano) || undefined,
-            anoModelo: parseNumber(body.anoModelo) || anoComposto.anoModelo,
-            anoFabricacao: parseNumber(body.anoFabricacao) || anoComposto.anoFabricacao,
+            // Texto do ano sempre a partir dos números (ver lib/utils/anoVeiculo.ts).
+            ano: textoDoAno(anoFabricacao, anoModelo) || normalizeText(body.ano) || undefined,
+            anoModelo,
+            anoFabricacao,
             combustivel: normalizeText(body.combustivel) || undefined,
             cor: normalizeText(body.cor) || undefined,
             transmissao: normalizeText(body.transmissao) || undefined,

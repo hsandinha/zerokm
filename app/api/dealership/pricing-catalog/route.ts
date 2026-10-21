@@ -28,6 +28,7 @@ function serializeCatalogRow(row: any) {
         modelo: row.modelo,
         codigoFipe: row.codigoFipe,
         tipoVeiculo: row.tipoVeiculo,
+        ano: row.ano,
         anoModelo: row.anoModelo,
         anoFabricacao: row.anoFabricacao,
         combustivel: row.combustivel,
@@ -49,7 +50,10 @@ function serializeCatalogRow(row: any) {
         statusVeiculo: price?.statusVeiculo || row.status || 'A faturar',
         ativo: priceValue !== null && priceValue > 0,
         status: priceValue !== null && priceValue > 0 ? 'ativo' : 'inativo',
-        updatedAt: price?.updatedAt || row.updatedAt,
+        // Datas do registro de preço da loja, não da variação: é o que diz quando
+        // a equipe (ou a loja) mexeu naquela linha. Sem preço, não há data.
+        updatedAt: price?.updatedAt || null,
+        createdAt: price?.createdAt || null,
     };
 }
 
@@ -145,6 +149,8 @@ export async function GET(request: Request) {
         const search = normalizeText(searchParams.get('search'));
         const status = normalizeText(searchParams.get('status'));
         const tipo = normalizeText(searchParams.get('tipo'));
+        // 'recentes' = últimas alterações primeiro, para conferir o que já foi editado.
+        const ordem = normalizeText(searchParams.get('ordem'));
 
         const variationMatch: any = { ativo: true };
         if (tipo && tipo !== 'todos') variationMatch.tipoVeiculo = tipo;
@@ -213,7 +219,9 @@ export async function GET(request: Request) {
             // _id como desempate: sem ele, variações que empatam em
             // modelo/cor/ano podem trocar de posição entre páginas e o mesmo
             // veículo aparecer duas vezes (ou sumir) ao navegar.
-            { $sort: { modelo: 1, cor: 1, anoModelo: -1, _id: 1 } },
+            ordem === 'recentes'
+                ? { $sort: { 'priceRecord.updatedAt': -1, modelo: 1, _id: 1 } }
+                : { $sort: { modelo: 1, cor: 1, anoModelo: -1, _id: 1 } },
             {
                 $facet: {
                     metadata: [{ $count: 'total' }],
@@ -238,6 +246,7 @@ export async function GET(request: Request) {
                 id: concessionaria._id.toString(),
                 nome: concessionaria.nome,
                 marca: concessionaria.marca || null,
+                marcas: concessionaria.marcas?.length ? concessionaria.marcas : (concessionaria.marca ? [concessionaria.marca] : []),
                 marcaId: concessionaria.marcaId?.toString?.() || null,
                 cidade: concessionaria.cidade || null,
                 uf: concessionaria.uf || null,
@@ -304,6 +313,8 @@ export async function PATCH(request: Request) {
                 ativo: false,
                 status: 'inativo',
                 statusVeiculo: body.statusVeiculo || variation.status || 'A faturar',
+                updatedAt: null,
+                createdAt: null,
             });
         }
 
@@ -351,6 +362,8 @@ export async function PATCH(request: Request) {
             statusVeiculo: price.statusVeiculo || variation.status || 'A faturar',
             ativo: price.ativo,
             status: price.ativo ? 'ativo' : 'inativo',
+            updatedAt: price.updatedAt,
+            createdAt: price.createdAt,
         });
     } catch (error: any) {
         console.error('Erro ao atualizar preço da concessionária:', error);

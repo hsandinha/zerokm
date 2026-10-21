@@ -135,7 +135,10 @@ export class VehicleService {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updates)
             });
-            if (!response.ok) throw new Error('Failed to update vehicle');
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data.error || 'Failed to update vehicle');
+            }
         } catch (error) {
             console.error('Erro ao atualizar veículo:', error);
             throw error;
