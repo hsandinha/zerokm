@@ -1,6 +1,6 @@
 # Módulo WhatsApp
 
-IA de vendas da CNV no WhatsApp: tira dúvidas, cadastra o lojista, gera a
+IA de vendas do CNV no WhatsApp: tira dúvidas, cadastra o lojista, gera a
 assinatura e passa para um humano quando precisa. Fica em
 `/dashboard/admin/whatsapp`, no perfil administrador.
 
@@ -40,7 +40,7 @@ apagados.
 
 ## O fluxo da IA (Gemini)
 
-1. Tira dúvidas com a base de conhecimento da CNV (editável na tela IA & WABA);
+1. Tira dúvidas com a base de conhecimento do CNV (editável na tela IA & WABA);
 2. Induz ao cadastro — coleta nome, e-mail e CPF/CNPJ e chama `criar_cadastro`;
 3. Gera a assinatura (`gerar_pagamento`: PIX ou link com cartão em até 12x);
 4. Em caso de resistência, oferece o teste grátis de 24h (que é o próprio
@@ -64,7 +64,7 @@ automático. A cobrança usa `external_reference` no formato
 | Operação | `/visao-geral` | KPIs do dia, funil de 30 dias (disparo → resposta → cadastro → pagamento → assinatura) e o que a IA fez sozinha |
 | | `/central` | Fila com filtros (aguardando, com a IA, em atendimento, minhas, SLA violado, resolvidas), chat e **dossiê do lojista**. **Nova conversa** (número + template aprovado) e, fora da janela de 24h, **Enviar template** para reabrir |
 | | `/pipeline` | Kanban por etapa (abordado → em conversa → cadastrado → pagamento enviado → assinante / perdido), com arrastar |
-| | `/contatos` | Quem passou pelo número, com busca, situação na CNV, cobranças e opt-out |
+| | `/contatos` | Quem passou pelo número, com busca, situação no CNV, cobranças e opt-out |
 | Base | `/contatos/enriquecer` | Procob: CNPJ → sócios → celulares e e-mails (só administrador) |
 | | `/contatos/pesquisas` | Histórico das consultas à Procob, com busca por nome, telefone ou e-mail |
 | | `/importacao` | CSV com mapeamento de colunas detectado |
@@ -220,7 +220,7 @@ segundo é declarado no módulo com o valor da zerokm, o que torna a colisão
 inofensiva por construção.
 
 O tema claro/escuro do módulo é a classe `.wa-dark` na própria `.wa-scope`
-(padrão: escuro, a identidade da CNV). Não encosta no tema da zerokm, que é
+(padrão: escuro, a identidade do CNV). Não encosta no tema da zerokm, que é
 `data-theme` no `<html>`.
 
 ## Variáveis de ambiente

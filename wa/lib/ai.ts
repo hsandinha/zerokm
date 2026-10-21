@@ -1,4 +1,4 @@
-// IA de vendas da CNV — tira dúvidas usando a base de conhecimento, conduz ao
+// IA de vendas do CNV — tira dúvidas usando a base de conhecimento, conduz ao
 // cadastro (que já ativa o teste grátis de 24h da zerokm), gera a assinatura
 // pelo Mercado Pago e transfere para um humano quando precisa. Motor: Gemini.
 
@@ -66,7 +66,7 @@ export const TOOLS: LlmTool[] = [
   {
     name: "transferir_para_humano",
     description:
-      "Transfere a conversa para um atendente humano da CNV. Chame quando o cliente pedir para falar com uma pessoa, quando houver um problema que você não resolve (erro de pagamento repetido, reclamação, negociação especial) ou quando o assunto fugir totalmente do escopo.",
+      "Transfere a conversa para um atendente humano do CNV. Chame quando o cliente pedir para falar com uma pessoa, quando houver um problema que você não resolve (erro de pagamento repetido, reclamação, negociação especial) ou quando o assunto fugir totalmente do escopo.",
     schema: {
       type: "object",
       properties: {
@@ -78,7 +78,7 @@ export const TOOLS: LlmTool[] = [
         mensagem_despedida: {
           type: "string",
           description:
-            "OBRIGATÓRIO. Frase curta avisando que um atendente da CNV assume a conversa em instantes.",
+            "OBRIGATÓRIO. Frase curta avisando que um atendente do CNV assume a conversa em instantes.",
         },
       },
       required: ["motivo", "resumo", "mensagem_despedida"],
@@ -147,7 +147,7 @@ export const PROMPT_VARS: Record<string, string> = {
   assistente: "Nome do assistente",
   agora: "Data e hora agora (Brasília)",
   saudacao: "Bloco da saudação inicial (vazio se você não definir uma)",
-  conhecimento: "Base de conhecimento da CNV (editável no painel)",
+  conhecimento: "Base de conhecimento do CNV (editável no painel)",
   planos: "Planos ativos com preços (vêm do banco da zerokm)",
   situacao: "Situação do cliente no funil (sem cadastro / trial / assinante)",
   instrucoes: "Bloco das instruções extras (vazio se não houver)",
@@ -157,13 +157,13 @@ export const DEFAULT_SYSTEM_PROMPT = `Você é {{assistente}}, consultora de ven
 Agora são {{agora}} (horário de Brasília).
 {{saudacao}}
 ## Sua missão (funil de vendas — siga nesta ordem)
-1. **Tirar dúvidas**: responda tudo sobre a CNV usando SOMENTE a base de conhecimento abaixo. Desperte interesse: fale dos números (12.000+ veículos, 500+ concessionárias) e do que o lojista ganha na prática;
+1. **Tirar dúvidas**: responda tudo sobre o CNV usando SOMENTE a base de conhecimento abaixo. Desperte interesse: fale dos números (12.000+ veículos, 500+ concessionárias) e do que o lojista ganha na prática;
 2. **Conduzir ao cadastro**: seu objetivo é o cliente sair da conversa CADASTRADO. Assim que perceber interesse, proponha criar a conta agora mesmo — você mesma faz o cadastro pelo WhatsApp em 1 minuto. Colete: nome completo, e-mail e CPF ou CNPJ. Com nome + e-mail em mãos, chame criar_cadastro;
 3. **Fechar a assinatura**: com o cadastro criado, apresente os planos e conduza ao pagamento. Pergunte a forma preferida (PIX na hora ou link com cartão em até 12x/boleto) e chame gerar_pagamento;
 4. **Se houver resistência**: NÃO insista na venda — ofereça o TESTE GRÁTIS DE 24H. O teste é ativado automaticamente no cadastro, então basta convencer a pessoa a criar a conta ("crie a conta sem compromisso e veja o estoque por 24 horas, sem pagar nada"). Depois do teste, retome a conversa de assinatura;
 5. **Cliente já assinante**: agradeça, tire dúvidas e ofereça ajuda com a plataforma.
 
-## Base de conhecimento da CNV (só afirme o que está aqui)
+## Base de conhecimento do CNV (só afirme o que está aqui)
 {{conhecimento}}
 
 ## Planos disponíveis (preços reais — use exatamente estes valores e ids)
@@ -208,9 +208,9 @@ export const MENSAGEM_DE_FALHA_NO_CADASTRO: Partial<Record<RegisterErrorCode, st
   invalid_document:
     "Esse documento não parece completo. Me manda o CPF (11 dígitos) ou o CNPJ (14 dígitos), por favor?",
   email_taken:
-    "Esse e-mail já tem conta na CNV. Se for sua, é só acessar cnv0km.com.br e usar “Esqueci minha senha”. Se preferir cadastrar outro e-mail, me manda que eu crio agora.",
+    "Esse e-mail já tem conta no CNV. Se for sua, é só acessar cnv0km.com.br e usar “Esqueci minha senha”. Se preferir cadastrar outro e-mail, me manda que eu crio agora.",
   document_taken:
-    "Esse CPF/CNPJ já está cadastrado na CNV. Se a conta for sua, acesse cnv0km.com.br e use “Esqueci minha senha” — ou me diga outro documento para eu seguir.",
+    "Esse CPF/CNPJ já está cadastrado no CNV. Se a conta for sua, acesse cnv0km.com.br e use “Esqueci minha senha” — ou me diga outro documento para eu seguir.",
 };
 
 export function sanitizeAssistantText(raw: string | null | undefined): string {
@@ -244,7 +244,7 @@ export type FunnelInfo = Awaited<ReturnType<typeof getFunnelStatus>>;
 
 export function formatFunnelStatus(status: FunnelInfo, contactName?: string | null): string {
   if (!status.registered) {
-    return `- Cliente ${contactName ? `"${contactName}" ` : ""}AINDA NÃO TEM CADASTRO na CNV. Objetivo: criar o cadastro nesta conversa.`;
+    return `- Cliente ${contactName ? `"${contactName}" ` : ""}AINDA NÃO TEM CADASTRO no CNV. Objetivo: criar o cadastro nesta conversa.`;
   }
   const u = status.user!;
   const lines = [

@@ -9,7 +9,7 @@ const EXEMPLO_JSON = `{
   "name": "Nome do lead",
   "phone": "(31) 99999-9999",
   "email": "email@exemplo.com",
-  "message": "Olá! Vim do anúncio e gostaria de criar minha conta na CNV",
+  "message": "Olá! Vim do anúncio e gostaria de criar minha conta no CNV",
   "source": "Facebook Ads",
   "campaign": "Campanha de lançamento",
   "notes": "Tem interesse no carro X"

@@ -58,7 +58,7 @@ const DRAFTS = {
         type: "BODY",
         text:
           "Bom dia, {{1}}! 👋\n\n" +
-          "Aqui é a Vera, da CNV — Comércio Nacional de Veículos 0km.\n\n" +
+          "Aqui é a Vera, do CNV — Comércio Nacional de Veículos 0km.\n\n" +
           "Sua loja pode negociar 0km direto com a concessionária, sem mesa e sem comissão de intermediário. 🤝\n\n" +
           "Hoje são {{2}} veículos 0km disponíveis, de {{3}} concessionárias parceiras em {{4}} estados. " +
           "Você consulta preço, prazo e disponibilidade em tempo real e fecha direto com quem tem o carro.\n\n" +
@@ -83,7 +83,7 @@ const DRAFTS = {
       {
         type: "BODY",
         text:
-          "Olá, {{1}}! Aqui é a Vera, da CNV. 👋\n\n" +
+          "Olá, {{1}}! Aqui é a Vera, do CNV. 👋\n\n" +
           "Sua loja compra 0km direto da concessionária, sem intermediário e sem comissão. " +
           "São {{2}} veículos de {{3}} concessionárias, com preço e prazo em tempo real.\n\n" +
           "Posso te mostrar como funciona?",

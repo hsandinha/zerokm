@@ -7,7 +7,7 @@
 //   - CNPJ e CPF são validados por dígito verificador (erro de digitação não
 //     vira alvo);
 //   - telefone é canonizado para +55DDD9XXXXXXXX e fixo não entra em disparo;
-//   - quem JÁ é cliente da CNV entra suprimido — nunca oferecer o produto a
+//   - quem JÁ é cliente do CNV entra suprimido — nunca oferecer o produto a
 //     quem já paga por ele;
 //   - quem pediu opt-out continua fora, mesmo voltando na planilha.
 
@@ -102,7 +102,7 @@ export async function ingestRows(
               cnpj,
               source,
               status: customer ? "suppressed" : phone ? "ready" : "new",
-              suppressedReason: customer ? "já é cliente da CNV" : undefined,
+              suppressedReason: customer ? "já é cliente do CNV" : undefined,
             },
             $set: {
               ...(item.row.company ? { legalName: item.row.company } : {}),

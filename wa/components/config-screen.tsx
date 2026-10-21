@@ -138,14 +138,14 @@ export function ConfigScreen() {
             <span className="mb-1 block text-muted">Saudação inicial (opcional)</span>
             <input
               className="input"
-              placeholder="Oi! Eu sou a Vera, consultora da CNV 🚗 …"
+              placeholder="Oi! Eu sou a Vera, consultora do CNV 🚗 …"
               value={String(form.greeting ?? "")}
               onChange={(e) => set("greeting", e.target.value)}
             />
           </label>
           <label className="block text-sm">
             <span className="mb-1 flex items-center justify-between text-muted">
-              <span>Base de conhecimento da CNV</span>
+              <span>Base de conhecimento do CNV</span>
               <button
                 type="button"
                 className="flex items-center gap-1 text-xs text-brand-700 hover:text-brand-800"
@@ -161,7 +161,7 @@ export function ConfigScreen() {
               onChange={(e) => set("knowledgeBase", e.target.value)}
             />
             <span className="mt-1 block text-xs text-muted">
-              Em branco = texto institucional padrão da CNV.
+              Em branco = texto institucional padrão do CNV.
             </span>
           </label>
           <label className="block text-sm">

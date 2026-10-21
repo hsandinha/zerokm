@@ -211,7 +211,7 @@ export function TemplatesScreen() {
               value={body}
               onChange={(e) => setBody(e.target.value)}
               maxLength={1024}
-              placeholder="Olá {{1}}! Aqui é a Vera, da CNV — mais de 12 mil veículos 0km para a sua loja…"
+              placeholder="Olá {{1}}! Aqui é a Vera, do CNV — mais de 12 mil veículos 0km para a sua loja…"
             />
             <p className="mt-1 text-[11px] text-muted">
               Use {`{{1}}`}, {`{{2}}`}… para as variáveis, em ordem. {body.length}/1024

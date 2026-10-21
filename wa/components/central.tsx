@@ -3,7 +3,7 @@
 // Central: filtros à esquerda, fila, chat e o dossiê do cliente ao lado.
 //
 // O painel da direita é a diferença em relação a um inbox comum: quem assume a
-// conversa vê na hora a situação do lojista na CNV — se já tem conta, se o
+// conversa vê na hora a situação do lojista no CNV — se já tem conta, se o
 // teste de 24h está de pé, se a assinatura está ativa e o que já foi cobrado.
 // Sem isso, o atendente promete o que já existe ou cobra quem já pagou.
 
@@ -130,7 +130,7 @@ type Detail = {
     optOut: boolean;
     registered: boolean;
   } | null;
-  /** Situação do lojista na CNV — o que o atendente precisa saber antes de falar. */
+  /** Situação do lojista no CNV — o que o atendente precisa saber antes de falar. */
   dossier: {
     registered: boolean;
     displayName: string | null;
@@ -472,7 +472,7 @@ function CentralInner({ currentEmail }: { currentEmail: string }) {
           <p className="flex items-center gap-1.5 text-[11px] font-semibold text-ink-700">
             <MessageCircle size={12} className="text-emerald-600" /> WhatsApp
           </p>
-          <p className="truncate text-[10px] text-muted">{channelPhone ?? "número da CNV"}</p>
+          <p className="truncate text-[10px] text-muted">{channelPhone ?? "número do CNV"}</p>
         </div>
       </aside>
 
@@ -974,12 +974,12 @@ function DossierPanel({
         )}
       </div>
 
-      {/* ── Situação na CNV ─────────────────────────────────── */}
+      {/* ── Situação no CNV ─────────────────────────────────── */}
       {/* É a mesma verdade que a IA lê antes de responder: cadastro, teste de
           24h e assinatura vêm do banco da zerokm a cada mensagem. */}
       <div className="border-t border-line pt-3">
         <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
-          <BadgeCheck size={13} /> Situação na CNV
+          <BadgeCheck size={13} /> Situação no CNV
         </p>
         {!d?.registered ? (
           <p className="mt-1 text-xs text-muted">

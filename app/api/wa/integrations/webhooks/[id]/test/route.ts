@@ -31,7 +31,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
     payload: {
       event: "teste.ping",
       createdAt: new Date().toISOString(),
-      data: { message: "Teste enviado pela tela de Configurações da CNV." },
+      data: { message: "Teste enviado pela tela de Configurações do CNV." },
     },
   });
 

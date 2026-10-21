@@ -1469,7 +1469,7 @@ function PersonCard({
 
           <p className="flex items-start gap-2 border-t border-line px-5 py-3 text-[11px] text-muted">
             <AlertTriangle size={13} className="mt-0.5 shrink-0 text-amber-700" />
-            Dado pessoal obtido de bureau: use só para a abordagem comercial prevista na base legal da CNV e respeite opt-out.
+            Dado pessoal obtido de bureau: use só para a abordagem comercial prevista na base legal do CNV e respeite opt-out.
             {r.lookup.refreshedAt ? ` Consulta da Procob em ${dateTime(r.lookup.refreshedAt)}.` : ""}
           </p>
         </>
@@ -1528,7 +1528,7 @@ function ResultCard({
             </p>
             <div className="mt-1.5 flex flex-wrap gap-1">
               {r.target?.isClient && (
-                <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-600">já é cliente da CNV — não abordar</span>
+                <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-600">já é cliente do CNV — não abordar</span>
               )}
               {r.target && !r.target.isClient && (
                 <span className="rounded-full bg-ink-100 px-2 py-0.5 text-[10px] font-semibold text-ink-800">
@@ -1818,7 +1818,7 @@ function ResultCard({
 
           <p className="flex items-start gap-2 border-t border-line px-5 py-3 text-[11px] text-muted">
             <AlertTriangle size={13} className="mt-0.5 shrink-0 text-amber-700" />
-            Dado pessoal obtido de bureau: use só para a abordagem comercial prevista na base legal da CNV e respeite opt-out.
+            Dado pessoal obtido de bureau: use só para a abordagem comercial prevista na base legal do CNV e respeite opt-out.
             {r.lookup.refreshedAt ? ` Consulta da Procob em ${dateTime(r.lookup.refreshedAt)}.` : ""}
           </p>
         </>

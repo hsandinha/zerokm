@@ -1,7 +1,7 @@
 import { formatBrazilPhone, normalizeBrazilWhatsAppNumber } from '@/lib/utils/leadWhatsApp';
 
 /**
- * Transportadora parceira da CNV.
+ * Transportadora parceira do CNV.
  *
  * A tabela de frete (coleção `transportadoras`) guarda só faixas de preço por
  * estado — não tem campo de transportadora, porque todas as 35 faixas são desta

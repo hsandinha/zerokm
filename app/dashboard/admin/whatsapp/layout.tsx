@@ -7,7 +7,7 @@ import "@wa/styles/whatsapp.css";
 export const metadata: Metadata = {
   title: "CNV WhatsApp — Central de Vendas",
   description:
-    "IA de vendas da CNV no WhatsApp: dúvidas, cadastro, assinatura e campanhas.",
+    "IA de vendas do CNV no WhatsApp: dúvidas, cadastro, assinatura e campanhas.",
 };
 
 export default async function WhatsAppLayout({

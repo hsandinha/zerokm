@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────
-   Landing page da CNV 0KM.
+   Landing page do CNV 0KM.
    Clara, com azul-marinho e o amarelo da marca, no mesmo desenho do painel.
    Os tokens valem só dentro de .page: o resto do site não é afetado.
    ───────────────────────────────────────────────────────────── */
@@ -187,6 +187,10 @@
 .statNum { font-size: 40px; font-weight: 700; letter-spacing: -0.03em; color: var(--lp-navy); font-variant-numeric: tabular-nums; }
 .statAccent { color: var(--lp-positive); }
 .statLabel { font-size: 15px; color: var(--lp-muted); }
+.statLive { display: inline-flex; align-items: center; gap: 8px; }
+.statLive .liveDot { flex: none; animation: pulsoAoVivo 2s ease-in-out infinite; }
+@keyframes pulsoAoVivo { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .statLive .liveDot { animation: none; } }
 
 /* ── Seções ── */
 .section { padding: 112px 0; background: #ffffff; }

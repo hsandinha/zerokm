@@ -8,6 +8,7 @@ import { PlansSection, type PlanData } from '@/components/lp/PlansSection';
 import { FloatingWhatsAppClient } from '@/components/lp/FloatingWhatsAppClient';
 import { LandingNav, BrandLockup } from '@/components/lp/LandingNav';
 import { ComissaoCalculadora } from '@/components/lp/ComissaoCalculadora';
+import { VeiculosAoVivo } from '@/components/lp/VeiculosAoVivo';
 import {
     IconArrowRight, IconBell, IconChat, IconChevronDown, IconFile, IconHeart, IconInbox, IconMegaphone,
     IconPhone, IconRepeat, IconSearch, IconTable, IconTruck, IconUpload,
@@ -97,12 +98,12 @@ const CONCESSIONARIA = [
 ];
 
 const DUVIDAS = [
-    { q: 'A CNV cobra comissão sobre as vendas?', a: 'Não. Você paga só o plano. A negociação é direta entre a sua loja e a concessionária, sem porcentagem para a CNV nem para intermediários.' },
+    { q: 'O CNV cobra comissão sobre as vendas?', a: 'Não. Você paga só o plano. A negociação é direta entre a sua loja e a concessionária, sem porcentagem para o CNV nem para intermediários.' },
     { q: 'Como funciona o teste grátis?', a: 'Você cria a conta e usa a consulta completa por 10 minutos. Para continuar, escolhe um plano e paga por PIX, boleto ou cartão.' },
-    { q: 'De onde vêm os preços e o estoque?', a: 'Das próprias concessionárias, que publicam e atualizam preço, prazo e quantidade no painel da CNV.' },
+    { q: 'De onde vêm os preços e o estoque?', a: 'Das próprias concessionárias, que publicam e atualizam preço, prazo e quantidade no painel do CNV.' },
     { q: 'Posso cancelar quando quiser?', a: 'Sim. Não há fidelidade nem multa. A cobrança recorrente no cartão é cancelada pelo próprio painel e o acesso segue até o fim do período pago.' },
     { q: 'A consulta funciona no celular?', a: 'Sim. A consulta, os favoritos e o orçamento funcionam no computador, no tablet e no celular.' },
-    { q: 'Sou concessionária. Como entro na plataforma?', a: 'Faça o cadastro da concessionária. A equipe da CNV confere os dados, vincula as marcas e libera o painel para você publicar o estoque.' },
+    { q: 'Sou concessionária. Como entro na plataforma?', a: 'Faça o cadastro da concessionária. A equipe do CNV confere os dados, vincula as marcas e libera o painel para você publicar o estoque.' },
 ];
 
 export default async function LandingPage() {
@@ -261,8 +262,10 @@ export default async function LandingPage() {
                         {temEstoque && (
                             <ul className={`${styles.stats} ${styles.plainList}`} aria-label="Estoque publicado hoje">
                                 <li className={styles.stat}>
-                                    <span className={styles.statNum}>{estoque.totalVehicles.toLocaleString('pt-BR')}</span>
-                                    <span className={styles.statLabel}>veículos 0km disponíveis hoje</span>
+                                    <VeiculosAoVivo inicial={estoque.totalVehicles} className={styles.statNum} />
+                                    <span className={`${styles.statLabel} ${styles.statLive}`}>
+                                        <span className={styles.liveDot} aria-hidden="true" />veículos 0km disponíveis agora
+                                    </span>
                                 </li>
                                 <li className={styles.stat}>
                                     <span className={styles.statNum}>{valorEstoque(estoque.totalValue)}</span>
@@ -287,12 +290,12 @@ export default async function LandingPage() {
                         <div className={styles.stack}>
                             <span className={styles.eyebrow}>A conta da mesa</span>
                             <h2 id="titulo-conta" className={styles.h2}>Cada carro comprado pela mesa leva um pedaço da sua margem.</h2>
-                            <p className={styles.lead}>Na CNV você vê o estoque que as próprias concessionárias publicam e fala direto com elas. Nenhum intermediário entre o preço de fábrica e o seu cliente.</p>
-                            <div className={styles.compare} role="table" aria-label="Comparação entre comprar pela mesa e pela CNV">
+                            <p className={styles.lead}>No CNV você vê o estoque que as próprias concessionárias publicam e fala direto com elas. Nenhum intermediário entre o preço de fábrica e o seu cliente.</p>
+                            <div className={styles.compare} role="table" aria-label="Comparação entre comprar pela mesa e pelo CNV">
                                 <div role="row" className={`${styles.compareRow} ${styles.compareHead}`}>
                                     <span role="columnheader"><span className={styles.srOnly}>Tema</span></span>
                                     <span role="columnheader">Com a mesa</span>
-                                    <span role="columnheader">Com a CNV</span>
+                                    <span role="columnheader">Com o CNV</span>
                                 </div>
                                 {COMPARACAO.map(c => (
                                     <div role="row" key={c.tema} className={styles.compareRow}>

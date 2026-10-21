@@ -1,4 +1,4 @@
-// Conecta o número da CNV na Cloud API: valida o token, identifica o app,
+// Conecta o número do CNV na Cloud API: valida o token, identifica o app,
 // configura o webhook do app, inscreve o app no WABA e registra o número.
 //
 //   node scripts/meta-connect.mjs                        → diagnóstico (não altera nada)

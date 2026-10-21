@@ -168,7 +168,7 @@
   }
 }
 
-/* ── Tema escuro (padrão da CNV) ──────────────────────────────
+/* ── Tema escuro (padrão do CNV) ──────────────────────────────
    No app original a classe `.dark` entrava no <html>. Aqui ela é `.wa-dark`
    na própria `.wa-scope`: o tema do módulo não pode mexer no tema da zerokm,
    que é outro mecanismo (`data-theme` no <html>).

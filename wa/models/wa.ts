@@ -10,7 +10,7 @@ export interface IWaSettings extends Document {
   aiActive: boolean;
   maxTurns: number;
   systemPrompt?: string; // em branco = prompt de fábrica
-  knowledgeBase?: string; // explicativo institucional da CNV ({{conhecimento}})
+  knowledgeBase?: string; // explicativo institucional do CNV ({{conhecimento}})
   greeting?: string;
   extraInstructions?: string;
   // WABA (token/appSecret criptografados com APP_ENCRYPTION_KEY)
@@ -91,7 +91,7 @@ WaContactSchema.index({ document: 1 });
 // ── Conversa ─────────────────────────────────────────────────
 export type WaConversationStatus = "ai_active" | "waiting_human" | "human_active" | "closed";
 
-// Etapa do funil da CNV. Avança sozinha pelo fluxo (disparo → resposta →
+// Etapa do funil do CNV. Avança sozinha pelo fluxo (disparo → resposta →
 // cadastro → pagamento → assinatura) e pode ser movida à mão no kanban.
 export type WaStage =
   | "abordado"

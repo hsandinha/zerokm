@@ -1,4 +1,4 @@
-// API pública — uma conversa com histórico e a situação do cliente na CNV.
+// API pública — uma conversa com histórico e a situação do cliente no CNV.
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiKey } from "@wa/lib/api-keys";

@@ -1,6 +1,6 @@
 // Templates do WABA: listar, criar (submetendo direto para a Meta) e excluir.
 //
-// O objetivo é a CNV não precisar entrar na Business Manager. A
+// O objetivo é o CNV não precisar entrar na Business Manager. A
 // aprovação continua sendo da Meta — o template nasce PENDING e a tela mostra
 // o status e, quando recusado, o motivo.
 

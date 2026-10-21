@@ -1,6 +1,6 @@
 "use client";
 
-// Contatos: quem já trocou mensagem (ou foi abordado) pelo número da CNV.
+// Contatos: quem já trocou mensagem (ou foi abordado) pelo número do CNV.
 //
 // A ficha à direita responde a pergunta que quem atende faz antes de ligar:
 // essa pessoa já tem conta? está no teste grátis? já pagou alguma coisa? — e
@@ -191,7 +191,7 @@ function ContactsInner() {
           <h1 className="mt-1 text-2xl font-bold">Contatos</h1>
           <p className="mt-1 text-sm text-muted">
             {formatNumber(total)} contato{total === 1 ? "" : "s"} — todo mundo que recebeu ou mandou
-            mensagem pelo número da CNV.
+            mensagem pelo número do CNV.
           </p>
         </div>
         <label className="relative">
@@ -405,7 +405,7 @@ function Ficha({
     return (
       <aside className="card hidden h-fit lg:block">
         <p className="text-sm text-muted">
-          Selecione um contato para ver a situação dele na CNV: cadastro, teste grátis, assinatura e
+          Selecione um contato para ver a situação dele no CNV: cadastro, teste grátis, assinatura e
           cobranças.
         </p>
       </aside>
@@ -517,10 +517,10 @@ function Ficha({
         </dl>
       )}
 
-      {/* ── Situação na CNV ─────────────────────────────────── */}
+      {/* ── Situação no CNV ─────────────────────────────────── */}
       <div className="border-t border-line pt-3">
         <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
-          <BadgeCheck size={13} /> Situação na CNV
+          <BadgeCheck size={13} /> Situação no CNV
         </p>
         {!d?.registered ? (
           <p className="mt-1 text-xs text-muted">Ainda sem cadastro na plataforma.</p>

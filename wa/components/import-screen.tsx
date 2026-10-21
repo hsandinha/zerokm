@@ -7,7 +7,7 @@
 // planilha inteira de uma vez estoura o limite de body da Vercel.
 //
 // O que a importação faz sozinha: valida CNPJ e CPF por dígito verificador,
-// canoniza o telefone, descarta quem já é cliente da CNV e mantém de fora quem
+// canoniza o telefone, descarta quem já é cliente do CNV e mantém de fora quem
 // pediu opt-out.
 
 import { useCallback, useEffect, useState } from "react";
@@ -194,7 +194,7 @@ export function ImportScreen() {
             <li>{formatNumber(resultado.contactsUpserted)} contato(s) de WhatsApp</li>
             {resultado.alreadyCustomers > 0 && (
               <li className="text-muted">
-                {formatNumber(resultado.alreadyCustomers)} já são clientes da CNV — entraram
+                {formatNumber(resultado.alreadyCustomers)} já são clientes do CNV — entraram
                 suprimidos, sem risco de receber oferta
               </li>
             )}

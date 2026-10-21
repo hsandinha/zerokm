@@ -1,6 +1,6 @@
 "use client";
 
-// API e integrações: as chaves que deixam outro sistema falar com a CNV, e os
+// API e integrações: as chaves que deixam outro sistema falar com o CNV, e os
 // webhooks que avisam esse sistema quando algo acontece aqui.
 //
 // A chave inteira aparece UMA vez, na criação — depois só o prefixo. O segredo
@@ -186,7 +186,7 @@ export function Integrations() {
       <div>
         <h2 className="text-lg font-bold">API e integrações</h2>
         <p className="text-sm text-muted">
-          Para o site, o ERP ou uma automação falarem com o WhatsApp da CNV — e serem avisados do
+          Para o site, o ERP ou uma automação falarem com o WhatsApp do CNV — e serem avisados do
           que acontece aqui.
         </p>
       </div>

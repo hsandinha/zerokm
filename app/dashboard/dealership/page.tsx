@@ -62,7 +62,7 @@ export default function DealershipDashboard() {
                 {aba === 'veiculos' && <VehicleConsultation role="dealership" />}
                 {aba === 'precos' && (
                     <Page wide>
-                        <PageHeader title="Estoque e preços" description="Preço e quantidade dos seus 0KM sobre o catálogo da CNV, e os usados do repasse." />
+                        <PageHeader title="Estoque e preços" description="Preço e quantidade dos seus 0KM sobre o catálogo do CNV, e os usados do repasse." />
                         <DealerInventory />
                     </Page>
                 )}
@@ -101,7 +101,7 @@ function VisaoGeral({ onAtualizar }: { onAtualizar: () => void }) {
         <Page>
             <PageHeader
                 title="Visão geral"
-                description="Seu estoque na CNV e há quanto tempo ele foi atualizado."
+                description="Seu estoque no CNV e há quanto tempo ele foi atualizado."
                 actions={<Button variant="primary" icon={<Tag size={16} aria-hidden="true" />} onClick={onAtualizar}>Atualizar estoque</Button>}
             />
             {erro && <InlineNotice>Não foi possível carregar os indicadores. Atualize a página.</InlineNotice>}
@@ -165,7 +165,7 @@ function PerfilLoja({ onCadastrarVeiculo }: { onCadastrarVeiculo: () => void }) 
         <Page>
             <PageHeader
                 title="Meu perfil"
-                description="Dados da loja na CNV. Para corrigir alguma informação, fale com o seu operador."
+                description="Dados da loja no CNV. Para corrigir alguma informação, fale com o seu operador."
                 actions={<Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={onCadastrarVeiculo}>Cadastrar veículo</Button>}
             />
             {estado === 'erro' && <EmptyState icon={<Building2 size={20} />} title="Perfil indisponível" description="Não foi possível carregar os dados da loja. Atualize a página." />}

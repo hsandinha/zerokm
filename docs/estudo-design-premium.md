@@ -1,10 +1,10 @@
-# Estudo de evolução visual da CNV
+# Estudo de evolução visual do CNV
 
 Data: 24/09/2026. Escopo: auditoria do código de interface e proposta de evolução. As telas autenticadas não foram inspecionadas visualmente no navegador; efeitos de layout são hipóteses fundamentadas no código, a validar com dados reais. Não foram realizadas entrevistas nem medições de uso. Nenhuma interface foi alterada neste estudo.
 
 ## Diagnóstico
 
-A CNV já possui elementos aproveitáveis: identidade azul e âmbar, variáveis de tema, componentes de consulta, filtros, alternativas de visualização e navegação móvel. O problema principal é a falta de um sistema consistente entre as áreas. Premium, para este produto, deve significar clareza, precisão e confiança para comparar veículos e negociar.
+O CNV já possui elementos aproveitáveis: identidade azul e âmbar, variáveis de tema, componentes de consulta, filtros, alternativas de visualização e navegação móvel. O problema principal é a falta de um sistema consistente entre as áreas. Premium, para este produto, deve significar clareza, precisão e confiança para comparar veículos e negociar.
 
 | Evidência no projeto | Consequência provável | Recomendação |
 | --- | --- | --- |
@@ -112,4 +112,4 @@ Não há métricas atuais suficientes para prometer aumento de conversão. A pri
 - [IBM Carbon — Data table](https://carbondesignsystem.com/components/data-table/usage/): referência para organização de tabelas, barra de ferramentas, seleção e ações. Usar princípios, sem copiar sua identidade visual.
 - [W3C — WCAG 2.2](https://www.w3.org/TR/WCAG22/): referência para contraste, foco, redimensionamento e alvos de interação. A conformidade exige testes; este estudo não é uma certificação.
 
-**Decisão recomendada:** começar pela consulta de veículos e extrair dela o sistema visual que orientará o restante da CNV.
+**Decisão recomendada:** começar pela consulta de veículos e extrair dela o sistema visual que orientará o restante do CNV.

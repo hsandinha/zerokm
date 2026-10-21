@@ -1,6 +1,6 @@
 // Dossiê do cliente: o que quem atende precisa saber ANTES de responder.
 //
-// Na CNV o dossiê não é grafo societário — é a situação do lojista no funil da
+// No CNV o dossiê não é grafo societário — é a situação do lojista no funil da
 // zerokm: tem conta? o teste de 24h está de pé? a assinatura está ativa? o que
 // já foi cobrado? Sem isso, o atendente promete o que já existe ou cobra quem
 // já pagou.

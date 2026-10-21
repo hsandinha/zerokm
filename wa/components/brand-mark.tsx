@@ -1,4 +1,4 @@
-// Símbolo da CNV (o mesmo do favicon), inline para seguir o tema: o traço usa
+// Símbolo do CNV (o mesmo do favicon), inline para seguir o tema: o traço usa
 // a cor de marca e o fundo some no claro.
 
 export function BrandMark({ className }: { className?: string }) {

@@ -761,7 +761,7 @@ function LookupDetail({
 
         <p className="flex items-start gap-2 border-t border-line px-5 py-3 text-[11px] text-muted">
           <AlertTriangle size={13} className="mt-0.5 shrink-0 text-amber-700" />
-          Dado de bureau: use só para a abordagem comercial prevista na base legal da CNV e respeite opt-out.
+          Dado de bureau: use só para a abordagem comercial prevista na base legal do CNV e respeite opt-out.
           {refreshedAt ? ` Consulta da Procob em ${dateTime(refreshedAt)}.` : ""} Abrir esta ficha não custa nada.
         </p>
       </div>

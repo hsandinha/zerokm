@@ -37,7 +37,7 @@ export type IngestResult = {
   rowsError: number;
   targetsUpserted: number;
   contactsUpserted: number;
-  /** Descartados por já serem clientes da CNV — resultado esperado de parte
+  /** Descartados por já serem clientes do CNV — resultado esperado de parte
    *  da lista, não erro. */
   alreadyCustomers: number;
   errors: Array<{ line: number; error: string }>;

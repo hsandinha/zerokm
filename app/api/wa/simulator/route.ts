@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       ? "- Cliente JÁ CADASTRADO (Cliente Teste — teste@exemplo.com).\n- ASSINATURA ATIVA ✅ — cliente pagante. Não ofereça cadastro nem cobre assinatura de novo."
       : body.funnel === "cadastrado"
         ? "- Cliente JÁ CADASTRADO (Cliente Teste — teste@exemplo.com).\n- TESTE GRÁTIS ATIVO até amanhã — sem assinatura paga ainda. Objetivo: converter em assinante."
-        : "- Cliente AINDA NÃO TEM CADASTRO na CNV. Objetivo: criar o cadastro nesta conversa.";
+        : "- Cliente AINDA NÃO TEM CADASTRO no CNV. Objetivo: criar o cadastro nesta conversa.";
 
   const [settings, plans] = await Promise.all([getSettings(), getActivePlans()]);
   const systemPrompt = buildSystemPrompt({ settings, plans, funnelStatus: funnelText });

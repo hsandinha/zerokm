@@ -1034,7 +1034,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
         // Repasse não tem foto nem placa no sistema: o lojista pede direto à loja.
         const message = encodeURIComponent(
             vehicle.origem === 'repasse'
-                ? `Olá, vi na CNV o repasse ${[vehicle.marca, vehicle.modelo, vehicle.cor, vehicle.ano].filter(Boolean).join(' ')}, ${formatKm(vehicle.km)} (${preco}). Pode me enviar fotos e a placa?`
+                ? `Olá, vi no CNV o repasse ${[vehicle.marca, vehicle.modelo, vehicle.cor, vehicle.ano].filter(Boolean).join(' ')}, ${formatKm(vehicle.km)} (${preco}). Pode me enviar fotos e a placa?`
                 : `Olá, tenho interesse no veículo ${vehicle.modelo} ${vehicle.cor} ${vehicle.ano} (${preco})`
         );
 

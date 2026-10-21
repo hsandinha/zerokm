@@ -92,6 +92,6 @@ export async function POST(req: NextRequest) {
     hasAccount: Boolean(conta),
     message: conta
       ? `${email} já pode entrar com a senha da conta CNV.`
-      : `Acesso liberado, mas ${email} ainda não tem conta na CNV — a pessoa precisa se cadastrar em cnv0km.com.br antes de conseguir entrar.`,
+      : `Acesso liberado, mas ${email} ainda não tem conta no CNV — a pessoa precisa se cadastrar em cnv0km.com.br antes de conseguir entrar.`,
   });
 }

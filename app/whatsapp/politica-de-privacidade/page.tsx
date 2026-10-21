@@ -12,7 +12,7 @@ const ATUALIZADO_EM = "29 de julho de 2026";
 export const metadata: Metadata = {
   title: "Política de Privacidade — CNV WhatsApp",
   description:
-    "Como a CNV coleta, usa e protege os dados pessoais tratados no atendimento por WhatsApp.",
+    "Como o CNV coleta, usa e protege os dados pessoais tratados no atendimento por WhatsApp.",
 };
 
 function Secao({ titulo, children }: { titulo: string; children: React.ReactNode }) {
@@ -42,14 +42,14 @@ export default function PoliticaDePrivacidade() {
           </p>
           <p>
             Esta política descreve como tratamos dados pessoais no atendimento
-            automatizado e humano realizado pelo WhatsApp da CNV, no número
+            automatizado e humano realizado pelo WhatsApp do CNV, no número
             +55 31 7168-0453, e está em conformidade com a Lei nº 13.709/2018
             (Lei Geral de Proteção de Dados — LGPD).
           </p>
         </Secao>
 
         <Secao titulo="2. Quais dados coletamos">
-          <p>Ao conversar com o WhatsApp da CNV, tratamos:</p>
+          <p>Ao conversar com o WhatsApp do CNV, tratamos:</p>
           <ul className="list-disc space-y-1.5 pl-5">
             <li>
               <strong className="text-ink-800">Dados de contato:</strong> o número de
@@ -78,7 +78,7 @@ export default function PoliticaDePrivacidade() {
 
         <Secao titulo="3. Para que usamos">
           <ul className="list-disc space-y-1.5 pl-5">
-            <li>Responder às suas dúvidas sobre a plataforma e os planos da CNV;</li>
+            <li>Responder às suas dúvidas sobre a plataforma e os planos do CNV;</li>
             <li>Criar e manter a sua conta na plataforma CNV 0KM;</li>
             <li>Gerar cobranças e processar a sua assinatura;</li>
             <li>Transferir o atendimento para um atendente humano quando necessário;</li>
@@ -165,7 +165,7 @@ export default function PoliticaDePrivacidade() {
           <p>
             Todo o tráfego trafega por conexões cifradas (TLS). Credenciais de acesso a
             serviços externos são armazenadas cifradas com AES-256-GCM. O acesso ao
-            painel de atendimento é restrito a administradores autenticados da CNV.
+            painel de atendimento é restrito a administradores autenticados do CNV.
           </p>
         </Secao>
 
@@ -186,7 +186,7 @@ export default function PoliticaDePrivacidade() {
 
         <Secao titulo="10. Como parar de receber mensagens">
           <p>
-            Para deixar de receber comunicações da CNV no WhatsApp, responda{" "}
+            Para deixar de receber comunicações do CNV no WhatsApp, responda{" "}
             <strong className="text-ink-800">PARAR</strong> na própria conversa, ou
             escreva para {EMAIL_CONTATO}. O descadastro não afeta as mensagens
             necessárias à execução de um contrato já em vigor.

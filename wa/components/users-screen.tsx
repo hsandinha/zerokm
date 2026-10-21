@@ -2,7 +2,7 @@
 
 // Quem entra no painel.
 //
-// A CONTA é a mesma da CNV (cnv0km.com.br, Firebase) — o painel não cria nem
+// A CONTA é a mesma do CNV (cnv0km.com.br, Firebase) — o painel não cria nem
 // troca senha. O que se dá aqui é PERMISSÃO: quem opera e com que papel.
 //
 // Enquanto a lista estiver vazia, todo administrador da zerokm entra (é o
@@ -106,7 +106,7 @@ export function UsersScreen() {
   }
 
   async function remover(u: PanelUser) {
-    if (!(await confirmar({ title: "Remover o acesso ao painel?", description: `${u.email} deixa de entrar no módulo WhatsApp. A conta na CNV continua existindo.`, confirmLabel: "Remover acesso", danger: true }))) {
+    if (!(await confirmar({ title: "Remover o acesso ao painel?", description: `${u.email} deixa de entrar no módulo WhatsApp. A conta no CNV continua existindo.`, confirmLabel: "Remover acesso", danger: true }))) {
       return;
     }
     setErro(null);
@@ -133,7 +133,7 @@ export function UsersScreen() {
       {bootstrap && (
         <p className="flex items-start gap-2 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-700">
           <AlertTriangle size={15} className="mt-0.5 shrink-0" />
-          A lista está vazia: no momento, <b>qualquer administrador da CNV</b> consegue entrar. Ao
+          A lista está vazia: no momento, <b>qualquer administrador do CNV</b> consegue entrar. Ao
           cadastrar o primeiro nome aqui, só quem estiver na lista entra — comece por você.
         </p>
       )}
@@ -203,7 +203,7 @@ export function UsersScreen() {
                     {!u.hasAccount && (
                       <span
                         className="shrink-0 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700"
-                        title="Sem conta na CNV: a pessoa precisa se cadastrar em cnv0km.com.br"
+                        title="Sem conta no CNV: a pessoa precisa se cadastrar em cnv0km.com.br"
                       >
                         sem conta
                       </span>
@@ -242,7 +242,7 @@ export function UsersScreen() {
 
       <p className="flex items-start gap-2 text-xs text-muted">
         <Check size={13} className="mt-0.5 shrink-0" />
-        Remover daqui tira só a permissão de operar o painel — a conta na CNV continua valendo para
+        Remover daqui tira só a permissão de operar o painel — a conta no CNV continua valendo para
         o site. As travas impedem remover ou rebaixar o último administrador.
       </p>
       <div className="zk-ui">{feedback}</div>

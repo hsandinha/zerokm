@@ -1,6 +1,6 @@
 "use client";
 
-// Pipeline de atendimento: cada cartão é uma conversa do número da CNV, na
+// Pipeline de atendimento: cada cartão é uma conversa do número do CNV, na
 // etapa em que o lojista está. A etapa avança sozinha pelo fluxo (resposta →
 // cadastro → pagamento → assinatura); arrastar corrige — e é o único jeito de
 // marcar "assinante" à mão.
@@ -56,7 +56,7 @@ type Item = {
   city: string | null;
   state: string | null;
   document: string | null;
-  /** Já tem conta na CNV (o cadastro criado pela IA). */
+  /** Já tem conta no CNV (o cadastro criado pela IA). */
   registered: boolean;
   stalled: boolean;
 };
@@ -332,7 +332,7 @@ function Card({
         {item.registered && (
           <span
             className="flex items-center gap-1 rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700"
-            title="Já tem conta na CNV"
+            title="Já tem conta no CNV"
           >
             <BadgeCheck size={10} /> cadastrado
           </span>

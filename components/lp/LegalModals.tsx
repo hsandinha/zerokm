@@ -25,7 +25,7 @@ function TermosContent() {
 
             <section className={legalStyles.section}>
                 <h2 className={legalStyles.sectionTitle}>2. Sobre a Plataforma</h2>
-                <p>A CNV é uma plataforma digital que conecta concessionárias de veículos zero quilômetro a compradores em todo o Brasil. Oferecemos ferramentas de gestão de estoque, CRM, logística integrada e relatórios de desempenho.</p>
+                <p>O CNV é uma plataforma digital que conecta concessionárias de veículos zero quilômetro a compradores em todo o Brasil. Oferecemos ferramentas de gestão de estoque, CRM, logística integrada e relatórios de desempenho.</p>
                 <p>A plataforma é operada por CNV — Comércio Nacional de Veículos 0km, CNPJ: 64.467.246/0001-50, com sede em São Paulo/SP.</p>
             </section>
 
@@ -34,7 +34,7 @@ function TermosContent() {
                 <ul className={legalStyles.list}>
                     <li>Você é responsável pela veracidade das informações fornecidas no cadastro.</li>
                     <li>É vedado criar conta em nome de terceiros sem autorização expressa.</li>
-                    <li>Mantenha suas credenciais de acesso em sigilo. A CNV não se responsabiliza por acessos indevidos decorrentes de negligência do usuário.</li>
+                    <li>Mantenha suas credenciais de acesso em sigilo. O CNV não se responsabiliza por acessos indevidos decorrentes de negligência do usuário.</li>
                     <li>Cada usuário pode possuir somente uma conta ativa na plataforma.</li>
                 </ul>
             </section>
@@ -56,23 +56,23 @@ function TermosContent() {
                 <ul className={legalStyles.list}>
                     <li>As concessionárias são integralmente responsáveis pelas informações sobre veículos cadastrados em seus estoques.</li>
                     <li>Preços, disponibilidade e condições de venda são de exclusiva responsabilidade de cada concessionária.</li>
-                    <li>A CNV atua como intermediadora tecnológica e não é parte nas transações comerciais entre concessionárias e compradores.</li>
+                    <li>O CNV atua como intermediador tecnológico e não é parte nas transações comerciais entre concessionárias e compradores.</li>
                 </ul>
             </section>
 
             <section className={legalStyles.section}>
                 <h2 className={legalStyles.sectionTitle}>6. Propriedade Intelectual</h2>
-                <p>Todo o conteúdo da Plataforma — incluindo textos, logotipos, interfaces, código-fonte e funcionalidades — é propriedade da CNV e está protegido pelas leis de propriedade intelectual.</p>
+                <p>Todo o conteúdo da Plataforma — incluindo textos, logotipos, interfaces, código-fonte e funcionalidades — é propriedade do CNV e está protegido pelas leis de propriedade intelectual.</p>
             </section>
 
             <section className={legalStyles.section}>
                 <h2 className={legalStyles.sectionTitle}>7. Limitação de Responsabilidade</h2>
-                <p>A CNV não se responsabiliza por danos diretos, indiretos ou consequenciais decorrentes do uso ou da impossibilidade de uso da Plataforma, incluindo falhas técnicas temporárias, perda de dados ou interrupções de serviço.</p>
+                <p>O CNV não se responsabiliza por danos diretos, indiretos ou consequenciais decorrentes do uso ou da impossibilidade de uso da Plataforma, incluindo falhas técnicas temporárias, perda de dados ou interrupções de serviço.</p>
             </section>
 
             <section className={legalStyles.section}>
                 <h2 className={legalStyles.sectionTitle}>8. Suspensão e Encerramento</h2>
-                <p>A CNV reserva-se o direito de suspender ou encerrar contas que violem estes Termos, sem aviso prévio, a seu exclusivo critério.</p>
+                <p>O CNV reserva-se o direito de suspender ou encerrar contas que violem estes Termos, sem aviso prévio, a seu exclusivo critério.</p>
             </section>
 
             <section className={legalStyles.section}>

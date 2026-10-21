@@ -85,7 +85,7 @@ export async function upsertPartner(params: {
   };
 }
 
-/** Quem já tem conta na CNV não é prospect: o documento vira supressão. */
+/** Quem já tem conta no CNV não é prospect: o documento vira supressão. */
 export async function isAlreadyCustomer(document: string): Promise<boolean> {
   const d = onlyDigits(document);
   if (d.length !== 11 && d.length !== 14) return false;
@@ -154,7 +154,7 @@ export async function upsertTarget(params: {
     cnpj,
     legalName: params.legalName ?? undefined,
     status: isClient ? "suppressed" : "new",
-    suppressedReason: isClient ? "já é cliente da CNV" : undefined,
+    suppressedReason: isClient ? "já é cliente do CNV" : undefined,
     source: params.source ?? "procob",
     raw: { origem: params.source ?? "procob", situacao_receita: params.status ?? null },
   });

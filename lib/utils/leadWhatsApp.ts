@@ -45,7 +45,7 @@ export function buildLeadWhatsAppUrl(salesNumber: string | undefined | null, lea
 
     const contact = lead.mobile?.trim() || lead.phone?.trim() || 'Nao informado';
     const lines = [
-        'Novo lead cadastrado na CNV',
+        'Novo lead cadastrado no CNV',
         `Nome: ${lead.name || 'Nao informado'}`,
         `Contato: ${contact}`,
         `E-mail: ${lead.email || 'Nao informado'}`,

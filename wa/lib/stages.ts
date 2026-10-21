@@ -16,7 +16,7 @@ export type StageMeta = {
   chip: string;
 };
 
-// Ordem do funil da CNV: o disparo abre, a resposta engata, o cadastro já
+// Ordem do funil do CNV: o disparo abre, a resposta engata, o cadastro já
 // liga o teste grátis de 24h, a cobrança sai e a assinatura fecha.
 export const STAGES: StageMeta[] = [
   {

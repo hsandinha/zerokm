@@ -75,7 +75,7 @@ export function VisaoGeralVendedor() {
                         <tbody>
                             {carregando && <SkeletonRows rows={4} columns={5} />}
                             {!carregando && linhas.map(({ c, farol, dias }) => {
-                                const wa = linkWhatsApp(c.telefone, `Olá ${c.nome || ''}, tudo bem? Seu plano na CNV precisa de atenção.`);
+                                const wa = linkWhatsApp(c.telefone, `Olá ${c.nome || ''}, tudo bem? Seu plano no CNV precisa de atenção.`);
                                 return (
                                     <tr key={c.id}>
                                         <td className={pageStyles.colMain}><PrimaryCell title={c.nome || c.email || '-'} subtitle={[c.email, c.telefone].filter(Boolean).join(' · ') || undefined} /></td>
