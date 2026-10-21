@@ -32,6 +32,8 @@ export interface Vehicle {
     imagemUrl?: string;
     /** Aba Favoritos: oferta que entrou depois da última visita do cliente. */
     novoFavorito?: boolean;
+    /** Favorito específico alterado (preço, quantidade, status) desde a última visita. */
+    favoritoAtualizado?: boolean;
 
     // Campos opcionais mantidos por compatibilidade ou uso futuro
     fotos?: string[];

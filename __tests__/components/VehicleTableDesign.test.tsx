@@ -60,36 +60,37 @@ function TabelaComFavoritos() {
     return <VehicleTable {...tableProps('client')} isFavorite={favoritos.isFavorite} onToggleFavorite={v => favoritos.toggle(v)} />;
 }
 
-describe('carros monitorados (favoritos) do cliente', () => {
-    it('monitora e deixa de monitorar o modelo pelo coração', async () => {
-        const servidor: Array<{ id: string; marca: string; modelo: string; disponiveis: number; novos: number; lastSeenAt: string }> = [];
+describe('favoritos do cliente (veículo específico)', () => {
+    it('favorita e desfavorita o veículo da linha pelo coração', async () => {
+        const servidor: Array<Record<string, unknown>> = [];
         const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
             if (init?.method === 'POST') {
-                const { marca, modelo } = JSON.parse(String(init.body));
-                servidor.push({ id: 'f1', marca, modelo, disponiveis: 1, novos: 0, lastSeenAt: new Date().toISOString() });
+                const corpo = JSON.parse(String(init.body));
+                servidor.push({ id: 'f1', ...corpo, disponivel: true, atualizado: false, lastSeenAt: new Date().toISOString() });
             }
             if (init?.method === 'DELETE') servidor.splice(0, servidor.length);
-            return { ok: true, json: async () => (init?.method ? { ok: true } : { favoritos: [...servidor], totalNovos: 0 }) };
+            return { ok: true, json: async () => (init?.method ? { ok: true } : { veiculos: [...servidor], favoritos: [], totalNovos: 0 }) };
         });
         vi.stubGlobal('fetch', fetchMock);
         render(<TabelaComFavoritos />);
         await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/user/favoritos'));
 
-        const coracao = screen.getByRole('button', { name: /Monitorar este carro/ });
+        const coracao = screen.getByRole('button', { name: 'Favoritar este veículo' });
         expect(coracao).toHaveAttribute('aria-pressed', 'false');
         await act(async () => { fireEvent.click(coracao); });
         const post = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST');
-        expect(JSON.parse(String(post?.[1]?.body))).toMatchObject({ marca: expect.any(String), modelo: expect.any(String) });
-        const marcado = await screen.findByRole('button', { name: 'Parar de monitorar este carro' });
+        // O favorito é a oferta (id da linha), não o modelo.
+        expect(JSON.parse(String(post?.[1]?.body))).toMatchObject({ veiculoId: 'v1', modelo: 'Corolla XEi' });
+        const marcado = await screen.findByRole('button', { name: 'Tirar este veículo dos favoritos' });
         expect(marcado).toHaveAttribute('aria-pressed', 'true');
 
         await act(async () => { fireEvent.click(marcado); });
-        expect(fetchMock.mock.calls.some(([url, init]) => init?.method === 'DELETE' && String(url).startsWith('/api/user/favoritos?marca='))).toBe(true);
-        expect(await screen.findByRole('button', { name: /Monitorar este carro/ })).toHaveAttribute('aria-pressed', 'false');
+        expect(fetchMock.mock.calls.some(([url, init]) => init?.method === 'DELETE' && String(url) === '/api/user/favoritos?veiculoId=v1')).toBe(true);
+        expect(await screen.findByRole('button', { name: 'Favoritar este veículo' })).toHaveAttribute('aria-pressed', 'false');
         vi.unstubAllGlobals();
     });
     it('não mostra o coração sem favoritos habilitados', () => {
         render(<VehicleTable {...tableProps('administrador')} />);
-        expect(screen.queryByRole('button', { name: /monitorar/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /favorit/i })).not.toBeInTheDocument();
     });
 });

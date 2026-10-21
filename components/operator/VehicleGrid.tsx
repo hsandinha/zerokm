@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Bike, Car, FileText, Heart, Images, MapPin } from 'lucide-react';
+import { Bike, Car, ChevronRight, FileText, Heart, Images, MapPin, Truck } from 'lucide-react';
 import { Vehicle } from '../../lib/services/vehicleService';
 import { calculateDaysSinceUpdate, formatDate, getUpdateStatusColor } from '../../lib/utils/formatters';
 import { FaWhatsapp } from 'react-icons/fa';
 import { EditableCurrencyCell, EditableTextCell, EditableNumberCell } from './EditableCells';
 import { formatKm } from '../../lib/utils/repasse';
 import { abrirCotacaoDoVeiculo } from '../../lib/utils/cotacaoVeiculo';
+import { TRANSPORTADORA_PARCEIRA, whatsappTransportadora } from '../../lib/utils/transportadora';
 import styles from './VehicleConsultation.module.css';
 
 export function getStatusColor(status: string | undefined) {
@@ -67,9 +68,12 @@ interface FavoriteButtonProps {
     className?: string;
 }
 
-/** Coração de favoritos do cliente. Não propaga o clique para a linha ou o card. */
+/**
+ * Coração de favoritos do cliente: favorita o veículo específico (esta oferta),
+ * não o modelo. Não propaga o clique para a linha ou o card.
+ */
 export function FavoriteButton({ active, onToggle, className = '' }: FavoriteButtonProps) {
-    const label = active ? 'Parar de monitorar este carro' : 'Monitorar este carro: avisar quando chegarem ofertas novas';
+    const label = active ? 'Tirar este veículo dos favoritos' : 'Favoritar este veículo';
     return (
         <button
             type="button"
@@ -102,12 +106,20 @@ interface VehicleCardProps {
     onToggleFavorite?: (vehicle: Vehicle) => void;
     /** Nome que sai no cabeçalho da cotação em PDF. */
     nomeCliente?: string;
+    /** Frete da tabela por estado (mesma regra da tabela). */
+    getFreteTabela?: (estado?: string) => { min: number; count: number } | null;
+    onFreteTabelaClick?: (estado?: string) => void;
 }
 
-export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsApp, onCreateBanner, onLocationClick, role = 'operator', canViewLocation = false, onUpdatePreco, onUpdateObservacoes, onUpdateQuantidade, isFavorite = false, onToggleFavorite, nomeCliente }: VehicleCardProps) {
+const brl = (valor: number) => valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsApp, onCreateBanner, onLocationClick, role = 'operator', canViewLocation = false, onUpdatePreco, onUpdateObservacoes, onUpdateQuantidade, isFavorite = false, onToggleFavorite, nomeCliente, getFreteTabela, onFreteTabelaClick }: VehicleCardProps) {
     const isRepasse = vehicle.origem === 'repasse';
     // Usado se edita no painel Repasse da concessionária, não aqui.
     const canEditPriceAndNotes = !isRepasse && ['admin', 'administrador', 'administrativo', 'operator', 'operador', 'gerente'].includes(role || '');
+    // Mesma regra da tabela: UF e frete interessam a quem compra. Concessionária e
+    // teste grátis não veem (o grátis não pode ver o estado do veículo).
+    const showUfAndFrete = role !== 'dealership' && role !== 'gratis';
     
     const calculateClientPrice = () => {
         const basePrice = vehicle.preco || 0;
@@ -133,12 +145,49 @@ export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsA
                 <h4 className={styles.cardTitle}>
                     {vehicle.marca && <span className={styles.cardMarca}>{vehicle.marca}</span>}
                     {vehicle.novoFavorito && <span className={styles.novoFavoritoTag} title="Oferta nova desde a sua última visita">NOVO</span>}
+                    {vehicle.favoritoAtualizado && <span className={styles.novoFavoritoTag} title="Preço, quantidade ou status mudou desde a sua última visita">ATUALIZADO</span>}
                     {isRepasse && <span style={{ fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.05em', padding: '1px 6px', borderRadius: 4, marginRight: 6, background: 'var(--color-highlight)', color: 'var(--color-text)', verticalAlign: 'middle' }}>REPASSE</span>}
                     {vehicle.modelo}
                 </h4>
                 <span className={`${styles.statusBadge} ${getStatusColor(vehicle.status)}`}>
                     {vehicle.status}
                 </span>
+            </div>
+
+            {/* Preço e frete logo abaixo do título: é o que o lojista procura primeiro. */}
+            <div className={styles.cardPriceTop}>
+                <span className={styles.priceLabel}>Preço</span>
+                <span className={styles.priceValue}>
+                    {canEditPriceAndNotes && onUpdatePreco ? (
+                        <EditableCurrencyCell
+                            value={vehicle.preco}
+                            onSave={(val) => onUpdatePreco(vehicle, val)}
+                        />
+                    ) : (
+                        `R$ ${brl(role === 'client' ? calculateClientPrice() : (vehicle.preco || 0))}`
+                    )}
+                </span>
+                {showUfAndFrete && (
+                    <span className={styles.cardFrete}>
+                        {vehicle.frete ? (
+                            <>Frete R$ {brl(vehicle.frete)}</>
+                        ) : (() => {
+                            const tabela = getFreteTabela?.(vehicle.estado);
+                            if (!tabela) return <span className={styles.freteVazio}>Frete sem tabela</span>;
+                            return (
+                                <button
+                                    type="button"
+                                    onClick={() => onFreteTabelaClick?.(vehicle.estado)}
+                                    className={styles.freteTabela}
+                                    title={`Ver as ${tabela.count} faixas de frete para ${vehicle.estado}`}
+                                >
+                                    Frete a partir de <span className={styles.freteTabelaValor}>R$ {brl(tabela.min)}</span>
+                                    <ChevronRight size={12} aria-hidden="true" />
+                                </button>
+                            );
+                        })()}
+                    </span>
+                )}
             </div>
 
             <div className={styles.cardBody}>
@@ -156,10 +205,12 @@ export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsA
                         <span className={styles.cardValue}>{formatKm(vehicle.km)}</span>
                     </div>
                 )}
-                <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>UF:</span>
-                    <span className={styles.cardValue}>{vehicle.estado}</span>
-                </div>
+                {showUfAndFrete && (
+                    <div className={styles.cardRow}>
+                        <span className={styles.cardLabel}>UF:</span>
+                        <span className={styles.cardValue}>{vehicle.estado}</span>
+                    </div>
+                )}
                 <div className={styles.cardRow}>
                     <span className={styles.cardLabel}>Cor:</span>
                     <span className={styles.cardValue}>{vehicle.cor}</span>
@@ -246,41 +297,40 @@ export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsA
                         })()}
                     </span>
                 </div>
-                {vehicle.observacoes || canEditPriceAndNotes ? (
-                    <div className={styles.cardRow}>
-                        <span className={styles.cardLabel}>Observações:</span>
-                        <span className={styles.cardValue}>
-                            {canEditPriceAndNotes && onUpdateObservacoes ? (
-                                <EditableTextCell
-                                    value={vehicle.observacoes}
-                                    onSave={(val) => onUpdateObservacoes(vehicle, val)}
-                                    placeholder="Observações"
-                                />
-                            ) : (
-                                vehicle.observacoes
-                            )}
-                        </span>
-                    </div>
-                ) : null}
+                {/* Observações sempre visíveis, como na tabela (vazio vira "-"). */}
+                <div className={styles.cardRow}>
+                    <span className={styles.cardLabel}>Observações:</span>
+                    <span className={styles.cardValue}>
+                        {canEditPriceAndNotes && onUpdateObservacoes ? (
+                            <EditableTextCell
+                                value={vehicle.observacoes}
+                                onSave={(val) => onUpdateObservacoes(vehicle, val)}
+                                placeholder="Observações"
+                            />
+                        ) : (
+                            vehicle.observacoes || '-'
+                        )}
+                    </span>
+                </div>
             </div>
 
             <div className={styles.cardFooter}>
-                <div className={styles.priceSection}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                        <span className={styles.priceLabel} style={{ fontSize: '0.8rem' }}>Preço:</span>
-                        <span className={styles.priceValue} style={{ fontSize: '0.9rem' }}>
-                            {canEditPriceAndNotes && onUpdatePreco ? (
-                                <EditableCurrencyCell
-                                    value={vehicle.preco}
-                                    onSave={(val) => onUpdatePreco(vehicle, val)}
-                                />
-                            ) : (
-                                `R$ ${(role === 'client' ? calculateClientPrice() : (vehicle.preco || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-                            )}
-                        </span>
-                    </div>
-                </div>
                 <div className={styles.cardActions}>
+                    {/* Orçamento do frete com a transportadora parceira: recurso dos planos pagos. */}
+                    {showUfAndFrete && (
+                        <a
+                            href={whatsappTransportadora(
+                                [vehicle.marca, vehicle.modelo, vehicle.cor, vehicle.estado && `para ${vehicle.estado}`]
+                                    .filter(Boolean).join(' ')
+                            )}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={styles.cardPdfButton}
+                            title={`Orçamento de frete com a ${TRANSPORTADORA_PARCEIRA.nome} no WhatsApp`}
+                        >
+                            <Truck size={16} aria-hidden="true" /> Frete
+                        </a>
+                    )}
                     {onCreateBanner && (
                         <button
                             type="button"
@@ -338,9 +388,11 @@ interface VehicleGridProps {
     isFavorite?: (vehicle: Vehicle) => boolean;
     onToggleFavorite?: (vehicle: Vehicle) => void;
     nomeCliente?: string;
+    getFreteTabela?: (estado?: string) => { min: number; count: number } | null;
+    onFreteTabelaClick?: (estado?: string) => void;
 }
 
-export function VehicleGrid({ vehicles, margem, fixedMargin, marginMode, onWhatsApp, onCreateBanner, onLocationClick, role, canViewLocation, onUpdatePreco, onUpdateObservacoes, onUpdateQuantidade, isFavorite, onToggleFavorite, nomeCliente }: VehicleGridProps) {
+export function VehicleGrid({ vehicles, margem, fixedMargin, marginMode, onWhatsApp, onCreateBanner, onLocationClick, role, canViewLocation, onUpdatePreco, onUpdateObservacoes, onUpdateQuantidade, isFavorite, onToggleFavorite, nomeCliente, getFreteTabela, onFreteTabelaClick }: VehicleGridProps) {
     return (
         <div className={styles.gridContainer}>
             {vehicles.length === 0 ? (
@@ -366,6 +418,8 @@ export function VehicleGrid({ vehicles, margem, fixedMargin, marginMode, onWhats
                         isFavorite={Boolean(isFavorite?.(vehicle))}
                         onToggleFavorite={onToggleFavorite}
                         nomeCliente={nomeCliente}
+                        getFreteTabela={getFreteTabela}
+                        onFreteTabelaClick={onFreteTabelaClick}
                     />
                 ))
             )}

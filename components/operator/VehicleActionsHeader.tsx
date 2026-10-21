@@ -1,5 +1,5 @@
 import React from 'react';
-import { CalendarDays, Trash2, Download, ChartNoAxesCombined, Table2, LayoutGrid, X } from 'lucide-react';
+import { CalendarDays, Trash2, Download, ChartNoAxesCombined, Table2, LayoutGrid, RefreshCw, X } from 'lucide-react';
 import styles from './VehicleConsultation.module.css';
 
 interface VehicleActionsHeaderProps {
@@ -12,6 +12,9 @@ interface VehicleActionsHeaderProps {
     isExporting: boolean;
     handleExport: (format: 'csv' | 'json') => void;
     setShowMargemModal: (show: boolean) => void;
+    /** Atualizar a consulta sem recarregar a página (F5). */
+    onRefresh?: () => void;
+    refreshing?: boolean;
     viewMode: 'table' | 'grid';
     setViewMode: (mode: 'table' | 'grid') => void;
     onClose?: () => void;
@@ -36,6 +39,8 @@ export function VehicleActionsHeader({
     isExporting,
     handleExport,
     setShowMargemModal,
+    onRefresh,
+    refreshing,
     viewMode,
     setViewMode,
     onClose,
@@ -66,6 +71,8 @@ export function VehicleActionsHeader({
                     isExporting={isExporting}
                     handleExport={handleExport}
                     setShowMargemModal={setShowMargemModal}
+                    onRefresh={onRefresh}
+                    refreshing={refreshing}
                     onClose={onClose}
                 />
             </div>
@@ -83,6 +90,8 @@ interface VehicleHeaderActionsProps {
     isExporting: boolean;
     handleExport: (format: 'csv' | 'json') => void;
     setShowMargemModal: (show: boolean) => void;
+    onRefresh?: () => void;
+    refreshing?: boolean;
     onClose?: () => void;
 }
 
@@ -100,10 +109,23 @@ export function VehicleHeaderActions({
     isExporting,
     handleExport,
     setShowMargemModal,
+    onRefresh,
+    refreshing = false,
     onClose,
 }: VehicleHeaderActionsProps) {
     return (
         <>
+        {onRefresh && (
+            <button
+                type="button"
+                className={styles.importButton}
+                onClick={onRefresh}
+                disabled={refreshing}
+                title="Buscar preços e estoque de novo, sem recarregar a página"
+            >
+                <RefreshCw size={16} aria-hidden="true" className={refreshing ? styles.spinning : undefined} /> {refreshing ? 'Atualizando...' : 'Atualizar'}
+            </button>
+        )}
         {role !== 'client' && selectedIds.length > 0 && (
             <>
                 <button
@@ -156,7 +178,7 @@ export function VehicleHeaderActions({
         {/* Margem: admin, gerente e client (plano pago) editam */}
         {['admin', 'administrador', 'gerente', 'client'].includes(role) && (
             <button
-                className={styles.importButton}
+                className={`${styles.importButton} ${styles.margemButton}`}
                 onClick={() => setShowMargemModal(true)}
                 title="Configurar Margem"
             >

@@ -2,14 +2,34 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 
 /**
- * Carros monitorados pelo cliente (marca + modelo). Estado único para a página:
- * o coração na consulta, a bolinha do menu e a aba Favoritos leem o mesmo store.
+ * Favoritos do cliente. Estado único para a página: o coração na consulta, a
+ * bolinha do menu e a aba Favoritos leem o mesmo store.
  *
- * API: GET    /api/user/favoritos                 -> { favoritos, totalNovos }
- *      POST   /api/user/favoritos { marca, modelo } -> monitora
- *      DELETE /api/user/favoritos?marca=&modelo=    -> para de monitorar
- *      POST   /api/user/favoritos/visto            -> zera as novidades
+ * O favorito é o veículo específico da linha (a oferta), não o modelo. Os
+ * favoritos antigos por modelo continuam aparecendo até o cliente removê-los.
+ *
+ * API: GET    /api/user/favoritos                    -> { veiculos, favoritos, totalNovos }
+ *      POST   /api/user/favoritos { veiculoId, ... } -> favorita o veículo
+ *      DELETE /api/user/favoritos?veiculoId=         -> tira o veículo
+ *      DELETE /api/user/favoritos?marca=&modelo=     -> remove favorito antigo por modelo
+ *      POST   /api/user/favoritos/visto              -> zera as novidades
  */
+export interface FavoritoVeiculoResumo {
+    id: string;
+    veiculoId: string;
+    origem: 'novo' | 'repasse';
+    marca: string;
+    modelo: string;
+    ano?: string;
+    cor?: string;
+    tipoVeiculo?: string;
+    imagemUrl?: string;
+    disponivel: boolean;
+    atualizado: boolean;
+    lastSeenAt: string;
+}
+
+/** Favorito antigo, por modelo. */
 export interface FavoritoResumo {
     id: string;
     marca: string;
@@ -21,13 +41,22 @@ export interface FavoritoResumo {
     lastSeenAt: string;
 }
 
-type Estado = { favoritos: FavoritoResumo[]; totalNovos: number; loaded: boolean };
-type VeiculoFavoritavel = { marca?: string; modelo?: string; tipoVeiculo?: string; imagemUrl?: string };
+type Estado = { veiculos: FavoritoVeiculoResumo[]; modelos: FavoritoResumo[]; totalNovos: number; loaded: boolean };
+type VeiculoFavoritavel = {
+    id?: string;
+    origem?: 'novo' | 'repasse';
+    marca?: string;
+    modelo?: string;
+    ano?: string;
+    cor?: string;
+    tipoVeiculo?: string;
+    imagemUrl?: string;
+};
 
-const chave = (marca?: string, modelo?: string) => `${(marca || '').trim()}|${(modelo || '').trim()}`;
+const chaveModelo = (marca?: string, modelo?: string) => `${(marca || '').trim()}|${(modelo || '').trim()}`;
 const ATUALIZAR_A_CADA_MS = 5 * 60 * 1000;
 
-let estado: Estado = { favoritos: [], totalNovos: 0, loaded: false };
+let estado: Estado = { veiculos: [], modelos: [], totalNovos: 0, loaded: false };
 const ouvintes = new Set<() => void>();
 let timer: ReturnType<typeof setInterval> | null = null;
 let carregando: Promise<void> | null = null;
@@ -37,8 +66,8 @@ function definir(novo: Partial<Estado>) {
     ouvintes.forEach(ouvir => ouvir());
 }
 
-function recalcularTotal(favoritos: FavoritoResumo[]) {
-    return favoritos.reduce((soma, f) => soma + f.novos, 0);
+function recalcularTotal(veiculos: FavoritoVeiculoResumo[], modelos: FavoritoResumo[]) {
+    return veiculos.filter(v => v.atualizado).length + modelos.reduce((soma, f) => soma + f.novos, 0);
 }
 
 export function carregarFavoritos() {
@@ -46,8 +75,14 @@ export function carregarFavoritos() {
     carregando = fetch('/api/user/favoritos')
         .then(res => (res.ok ? res.json() : null))
         .then(data => {
-            if (data && Array.isArray(data.favoritos)) definir({ favoritos: data.favoritos, totalNovos: Number(data.totalNovos) || 0, loaded: true });
-            else definir({ loaded: true });
+            if (data && (Array.isArray(data.veiculos) || Array.isArray(data.favoritos))) {
+                definir({
+                    veiculos: Array.isArray(data.veiculos) ? data.veiculos : [],
+                    modelos: Array.isArray(data.favoritos) ? data.favoritos : [],
+                    totalNovos: Number(data.totalNovos) || 0,
+                    loaded: true,
+                });
+            } else definir({ loaded: true });
         })
         .catch(() => definir({ loaded: true }))
         .finally(() => { carregando = null; });
@@ -61,7 +96,7 @@ function aoVoltarParaAba() {
 function assinar(ouvir: () => void) {
     ouvintes.add(ouvir);
     if (ouvintes.size === 1) {
-        // Novas ofertas chegam sem o cliente recarregar a página.
+        // Alterações chegam sem o cliente recarregar a página.
         timer = setInterval(() => { void carregarFavoritos(); }, ATUALIZAR_A_CADA_MS);
         document.addEventListener('visibilitychange', aoVoltarParaAba);
     }
@@ -75,7 +110,7 @@ function assinar(ouvir: () => void) {
     };
 }
 
-const vazio: Estado = { favoritos: [], totalNovos: 0, loaded: false };
+const vazio: Estado = { veiculos: [], modelos: [], totalNovos: 0, loaded: false };
 
 export function useFavoritos(enabled = true) {
     const snapshot = useSyncExternalStore(enabled ? assinar : () => () => {}, () => (enabled ? estado : vazio), () => vazio);
@@ -84,52 +119,100 @@ export function useFavoritos(enabled = true) {
         if (enabled && !estado.loaded) void carregarFavoritos();
     }, [enabled]);
 
+    /** O coração da linha: só o veículo específico. */
     const isFavorite = useCallback(
-        (vehicle: VeiculoFavoritavel) => snapshot.favoritos.some(f => chave(f.marca, f.modelo) === chave(vehicle.marca, vehicle.modelo)),
-        [snapshot.favoritos],
+        (vehicle: VeiculoFavoritavel) => Boolean(vehicle.id) && snapshot.veiculos.some(f => f.veiculoId === vehicle.id),
+        [snapshot.veiculos],
+    );
+
+    /** Oferta de um modelo monitorado no formato antigo (também entra na aba Favoritos). */
+    const isModeloMonitorado = useCallback(
+        (vehicle: VeiculoFavoritavel) => snapshot.modelos.some(f => chaveModelo(f.marca, f.modelo) === chaveModelo(vehicle.marca, vehicle.modelo)),
+        [snapshot.modelos],
     );
 
     /** Otimista: muda na hora, confirma com a API e recarrega as contagens. */
     const toggle = useCallback(async (vehicle: VeiculoFavoritavel) => {
-        if (!vehicle.marca || !vehicle.modelo) return;
-        const k = chave(vehicle.marca, vehicle.modelo);
-        const anterior = estado.favoritos;
-        const era = anterior.some(f => chave(f.marca, f.modelo) === k);
-        const proximos = era
-            ? anterior.filter(f => chave(f.marca, f.modelo) !== k)
-            : [{ id: `tmp-${k}`, marca: vehicle.marca, modelo: vehicle.modelo, tipoVeiculo: vehicle.tipoVeiculo, imagemUrl: vehicle.imagemUrl, disponiveis: 0, novos: 0, lastSeenAt: new Date().toISOString() }, ...anterior];
-        definir({ favoritos: proximos, totalNovos: recalcularTotal(proximos) });
+        if (!vehicle.id) return;
+        const veiculoId = vehicle.id;
+        const anterior = estado.veiculos;
+        const era = anterior.some(f => f.veiculoId === veiculoId);
+        const proximos: FavoritoVeiculoResumo[] = era
+            ? anterior.filter(f => f.veiculoId !== veiculoId)
+            : [{
+                id: `tmp-${veiculoId}`,
+                veiculoId,
+                origem: vehicle.origem === 'repasse' ? 'repasse' : 'novo',
+                marca: vehicle.marca || '',
+                modelo: vehicle.modelo || '',
+                ano: vehicle.ano,
+                cor: vehicle.cor,
+                tipoVeiculo: vehicle.tipoVeiculo,
+                imagemUrl: vehicle.imagemUrl,
+                disponivel: true,
+                atualizado: false,
+                lastSeenAt: new Date().toISOString(),
+            }, ...anterior];
+        definir({ veiculos: proximos, totalNovos: recalcularTotal(proximos, estado.modelos) });
         try {
             const res = era
-                ? await fetch(`/api/user/favoritos?marca=${encodeURIComponent(vehicle.marca)}&modelo=${encodeURIComponent(vehicle.modelo)}`, { method: 'DELETE' })
+                ? await fetch(`/api/user/favoritos?veiculoId=${encodeURIComponent(veiculoId)}`, { method: 'DELETE' })
                 : await fetch('/api/user/favoritos', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ marca: vehicle.marca, modelo: vehicle.modelo, tipoVeiculo: vehicle.tipoVeiculo, imagemUrl: vehicle.imagemUrl }),
+                    body: JSON.stringify({
+                        veiculoId,
+                        origem: vehicle.origem === 'repasse' ? 'repasse' : 'novo',
+                        marca: vehicle.marca,
+                        modelo: vehicle.modelo,
+                        ano: vehicle.ano,
+                        cor: vehicle.cor,
+                        tipoVeiculo: vehicle.tipoVeiculo,
+                        imagemUrl: vehicle.imagemUrl,
+                    }),
                 });
             if (!res.ok) throw new Error('Falha ao salvar favorito');
             await carregarFavoritos();
         } catch {
-            definir({ favoritos: anterior, totalNovos: recalcularTotal(anterior) });
+            definir({ veiculos: anterior, totalNovos: recalcularTotal(anterior, estado.modelos) });
+        }
+    }, []);
+
+    /** Remove um favorito do formato antigo (por modelo). */
+    const removerModelo = useCallback(async (marca: string, modelo: string) => {
+        const anterior = estado.modelos;
+        const proximos = anterior.filter(f => chaveModelo(f.marca, f.modelo) !== chaveModelo(marca, modelo));
+        definir({ modelos: proximos, totalNovos: recalcularTotal(estado.veiculos, proximos) });
+        try {
+            const res = await fetch(`/api/user/favoritos?marca=${encodeURIComponent(marca)}&modelo=${encodeURIComponent(modelo)}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error();
+        } catch {
+            definir({ modelos: anterior, totalNovos: recalcularTotal(estado.veiculos, anterior) });
         }
     }, []);
 
     /** O cliente abriu Favoritos: tudo que está lá passa a ser visto. */
     const markSeen = useCallback(async () => {
         if (!estado.totalNovos) return;
-        const semNovos = estado.favoritos.map(f => ({ ...f, novos: 0 }));
-        definir({ favoritos: semNovos, totalNovos: 0 });
+        definir({
+            veiculos: estado.veiculos.map(v => ({ ...v, atualizado: false })),
+            modelos: estado.modelos.map(f => ({ ...f, novos: 0 })),
+            totalNovos: 0,
+        });
         await fetch('/api/user/favoritos/visto', { method: 'POST' }).catch(() => { /* reaparece na próxima atualização */ });
     }, []);
 
     return {
-        favoritos: snapshot.favoritos,
+        veiculos: snapshot.veiculos,
+        modelos: snapshot.modelos,
         totalNovos: snapshot.totalNovos,
         loading: enabled && !snapshot.loaded,
         isFavorite,
+        isModeloMonitorado,
         toggle,
+        removerModelo,
         markSeen,
         refresh: carregarFavoritos,
-        count: snapshot.favoritos.length,
+        count: snapshot.veiculos.length + snapshot.modelos.length,
     };
 }

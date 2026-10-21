@@ -2186,3 +2186,61 @@ th.colAcoes { background: var(--color-panel); z-index: 3; }
 .exportMenu button { min-height: 40px !important; padding: 0 14px; border: 0; border-radius: 0; background: none; text-align: left; font-size: 14px; color: var(--color-text); cursor: pointer; }
 .exportMenu button + button { border-top: 1px solid var(--admin-border, var(--color-highlight)); }
 .exportMenu button:hover { background: var(--admin-hover, var(--color-panel)); }
+
+/* Margem em destaque: botão principal da marca (azul-marinho; amarelo no escuro). */
+.importButton.margemButton {
+    color: var(--color-surface);
+    background: var(--color-primary);
+    border-color: transparent;
+    font-weight: 600;
+}
+
+.importButton.margemButton:hover {
+    color: var(--color-surface);
+    background: var(--color-primary);
+    border-color: transparent;
+    filter: brightness(1.12);
+}
+
+/* Ícone do botão Atualizar girando enquanto busca. */
+.spinning {
+    animation: girarAtualizar 0.9s linear infinite;
+}
+
+@keyframes girarAtualizar {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .spinning { animation: none; }
+}
+
+/* Card: preço e frete logo abaixo do título (antes ficavam escondidos no rodapé). */
+.cardPriceTop {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.35rem 0.6rem;
+    padding: 0.75rem 1.25rem 0;
+}
+
+.cardPriceTop .priceValue {
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.cardFrete {
+    flex-basis: 100%;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+}
+
+.cardFooter .cardActions {
+    flex-wrap: wrap;
+    width: 100%;
+    justify-content: flex-end;
+}
+
+@media (max-width: 768px) {
+    .cardPriceTop { padding: 0.75rem 1rem 0; }
+}

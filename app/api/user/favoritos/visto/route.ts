@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import connectDB from '@/lib/mongodb';
 import Favorito from '@/models/Favorito';
+import FavoritoVeiculo from '@/models/FavoritoVeiculo';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +14,11 @@ export async function POST() {
         const email = session?.user?.email?.toLowerCase().trim();
         if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         await connectDB();
-        await Favorito.updateMany({ userEmail: email }, { $set: { lastSeenAt: new Date() } });
+        const agora = new Date();
+        await Promise.all([
+            Favorito.updateMany({ userEmail: email }, { $set: { lastSeenAt: agora } }),
+            FavoritoVeiculo.updateMany({ userEmail: email }, { $set: { lastSeenAt: agora } }),
+        ]);
         return NextResponse.json({ ok: true });
     } catch (error: any) {
         console.error('[favoritos/visto] POST', error);

@@ -147,6 +147,7 @@ export function VehicleTable({
                                     <div className={styles.vehInfo}>
                                         <div className={styles.vehTitleLine}>
                                             {vehicle.novoFavorito && <span className={`${styles.tipoBadge} ${styles.tipoBadgeNovo}`} title="Oferta nova desde a sua última visita">NOVO</span>}
+                                            {vehicle.favoritoAtualizado && <span className={`${styles.tipoBadge} ${styles.tipoBadgeNovo}`} title="Preço, quantidade ou status mudou desde a sua última visita">ATUALIZADO</span>}
                                             {isRepasse && <span className={`${styles.tipoBadge} ${styles.tipoBadgeRepasse}`} title="Usado de repasse">REPASSE</span>}
                                             {vehicle.tipoVeiculo === 'moto' && <span className={styles.tipoBadge} title={isRepasse ? 'Moto' : 'Moto 0KM'}>MOTO</span>}
                                             {vehicle.marca && (

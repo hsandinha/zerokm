@@ -7,6 +7,7 @@ import DealerVehiclePrice from '@/models/DealerVehiclePrice';
 import VehicleVariation from '@/models/VehicleVariation';
 import RepasseVehicle from '@/models/RepasseVehicle';
 import Favorito from '@/models/Favorito';
+import FavoritoVeiculo from '@/models/FavoritoVeiculo';
 import { chaveFavorito } from '@/lib/services/favoritosService';
 import { REPASSE_STATUS_VITRINE } from '@/lib/utils/repasse';
 import { filtroPlanoRepasseAtivo } from '@/lib/utils/planoRepasse';
@@ -221,16 +222,32 @@ export async function GET(request: Request) {
             ];
         }
 
-        // Aba Favoritos do cliente: todas as ofertas (0KM e repasse) dos carros que
-        // ele monitora. Quem entrou depois da última visita volta marcado como novo.
+        // Aba Favoritos do cliente: os veículos específicos que ele favoritou e,
+        // dos favoritos antigos por modelo, todas as ofertas daquele modelo.
+        // Veículo alterado depois da última visita volta marcado como atualizado;
+        // oferta nova de modelo antigo, como nova.
         let vistoPorModelo: Map<string, number> | null = null;
+        let vistoPorVeiculo: Map<string, number> | null = null;
         if (searchParams.get('favoritos') === '1') {
             const email = session.user?.email?.toLowerCase().trim();
-            const favoritos = email ? await Favorito.find({ userEmail: email }).select('marca modelo lastSeenAt createdAt').lean() : [];
+            const [favoritos, veiculosFavoritos] = email
+                ? await Promise.all([
+                    Favorito.find({ userEmail: email }).select('marca modelo lastSeenAt createdAt').lean(),
+                    FavoritoVeiculo.find({ userEmail: email }).select('veiculoId lastSeenAt createdAt').lean(),
+                ])
+                : [[], []];
             vistoPorModelo = new Map(favoritos.map(f => [chaveFavorito(f.marca, f.modelo), new Date(f.lastSeenAt || f.createdAt).getTime()]));
-            const porModelo = favoritos.map(f => ({ 'variation.marca': f.marca, 'variation.modelo': f.modelo }));
+            vistoPorVeiculo = new Map(veiculosFavoritos.map(f => [f.veiculoId, new Date(f.lastSeenAt || f.createdAt).getTime()]));
+            const ids = veiculosFavoritos
+                .map(f => f.veiculoId)
+                .filter(id => mongoose.isValidObjectId(id))
+                .map(id => new mongoose.Types.ObjectId(id));
+            const condicoes: any[] = [
+                ...(ids.length ? [{ _id: { $in: ids } }] : []),
+                ...favoritos.map(f => ({ 'variation.marca': f.marca, 'variation.modelo': f.modelo })),
+            ];
             // Sem favoritos, nenhum resultado (um $or vazio seria inválido).
-            matchStage.$and = [...(matchStage.$and || []), porModelo.length ? { $or: porModelo } : { _id: { $in: [] } }];
+            matchStage.$and = [...(matchStage.$and || []), condicoes.length ? { $or: condicoes } : { _id: { $in: [] } }];
         }
 
         // Restriction apply
@@ -457,6 +474,9 @@ export async function GET(request: Request) {
                 telefone: c.celular || c.telefone || '',
                 ...(vistoPorModelo ? {
                     novoFavorito: new Date(doc.createdAt).getTime() > (vistoPorModelo.get(chaveFavorito(v.marca, v.modelo)) ?? Infinity),
+                } : {}),
+                ...(vistoPorVeiculo?.has(doc._id.toString()) ? {
+                    favoritoAtualizado: new Date(doc.updatedAt).getTime() > (vistoPorVeiculo.get(doc._id.toString()) ?? Infinity),
                 } : {}),
             };
         });
