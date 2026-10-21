@@ -8,6 +8,7 @@ import Transaction from '@/models/Transaction';
 import { chargeCustomerCard, mpPut } from '@/lib/mercadopago';
 import { createBoletoPayment, getBoletoExpirationDate, validateBoletoProfile } from '@/lib/services/boletoService';
 import { enviarBoletoPorEmail } from '@/lib/services/boletoEmailService';
+import { precoDoCliente } from '@/lib/utils/valorCombinado';
 
 export const maxDuration = 60;
 
@@ -351,9 +352,8 @@ export async function GET(request: Request) {
                 status: { $in: ['pending', 'accepted'] },
             });
 
-            const basePrice = billingType === 'annual' && typeof plan.annualPrice === 'number' && plan.annualPrice > 0
-                ? plan.annualPrice
-                : plan.price;
+            // Valor combinado do cliente, se houver (lib/utils/valorCombinado.ts).
+            const basePrice = precoDoCliente(plan, billingType, user).valor;
             const inviteUnitPrice = billingType === 'annual'
                 ? (plan.invitePrice || 0) * 12
                 : (plan.invitePrice || 0);

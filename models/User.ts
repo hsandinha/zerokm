@@ -59,6 +59,15 @@ export interface IUser extends Document {
     /** Aceite dos termos no cadastro ("Li e concordo"). */
     termosAceitosEm?: Date;
     termosVersao?: string;
+    /** Cliente que paga diferente da tabela (lib/utils/valorCombinado.ts). */
+    valorCombinado?: {
+        valor?: number;
+        periodicidade?: 'monthly' | 'annual';
+        planId?: string;
+        observacao?: string;
+        atualizadoPor?: string;
+        atualizadoEm?: Date;
+    };
     createdAt: Date;
     updatedAt: Date;
 }
@@ -120,6 +129,14 @@ const UserSchema: Schema = new Schema({
     instagram: { type: String, trim: true },
     termosAceitosEm: { type: Date },
     termosVersao: { type: String },
+    valorCombinado: {
+        valor: { type: Number, min: 0 },
+        periodicidade: { type: String, enum: ['monthly', 'annual'] },
+        planId: { type: String },
+        observacao: { type: String, trim: true },
+        atualizadoPor: { type: String },
+        atualizadoEm: { type: Date },
+    },
 }, {
     timestamps: true
 });

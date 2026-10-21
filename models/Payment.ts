@@ -50,6 +50,12 @@ export interface IPayment extends Document {
         observacao?: string;
         boletoCanceladoNoMP?: boolean;
     };
+    /** A equipe corrigiu o valor de um registro manual (ex.: cliente com valor combinado). */
+    valorEditado?: {
+        valorOriginal?: number;
+        por?: string;
+        em?: Date;
+    };
     createdAt: Date;
     updatedAt: Date;
 }
@@ -101,6 +107,11 @@ const PaymentSchema: Schema = new Schema({
         forma: { type: String },
         observacao: { type: String },
         boletoCanceladoNoMP: { type: Boolean },
+    },
+    valorEditado: {
+        valorOriginal: { type: Number },
+        por: { type: String },
+        em: { type: Date },
     },
 }, {
     timestamps: true,

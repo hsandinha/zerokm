@@ -8,6 +8,8 @@ import Plan from '../../../../../models/Plan';
 import Payment from '../../../../../models/Payment';
 import Transaction from '../../../../../models/Transaction';
 import { isPlanoConcessionaria } from '@/lib/utils/planoRepasse';
+import Invite from '../../../../../models/Invite';
+import { calculateSubscriptionAmount, normalizeBillingType } from '@/lib/services/mercadoPagoSubscriptionService';
 
 export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
@@ -39,6 +41,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Este plano é exclusivo para concessionárias.' }, { status: 400 });
     }
 
+    // Mesmo cálculo da renovação automática: valor combinado do cliente (se houver),
+    // periodicidade da assinatura e telas extras.
+    const billingType = normalizeBillingType(user.subscription?.billingType);
+    const telasExtras = await Invite.countDocuments({ inviterId: user._id, status: { $in: ['pending', 'accepted'] } });
+    const { totalAmount: valorCobrado } = calculateSubscriptionAmount(plan, billingType, telasExtras, user);
+
     // Cobrar via cartão salvo (usando CVV salvo)
     const payRes = await chargeCustomerCard({
         customerId: user.mpCustomerId,
@@ -46,8 +54,8 @@ export async function POST(req: NextRequest) {
         paymentMethodId: user.creditCard.brand || 'visa',
         securityCode: user.creditCard.securityCode || undefined,
         email: user.email,
-        amount: plan.price,
-        description: `Renovação de plano: ${plan.name}`,
+        amount: valorCobrado,
+        description: `Renovação de plano: ${plan.name}${billingType === 'annual' ? ' (anual)' : ''}`,
         metadata: { userId: userId.toString(), planId: planId.toString() },
     });
 
@@ -67,7 +75,7 @@ export async function POST(req: NextRequest) {
 
     // Aprovado → ativa assinatura + extrato "paid"
     if (mpStatus === 'approved') {
-        const durationDays = plan.type === 'monthly' ? 30 : null;
+        const durationDays = plan.type === 'monthly' ? (billingType === 'annual' ? 365 : 30) : null;
         const expiresAt = durationDays
             ? new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000)
             : null;
@@ -103,7 +111,8 @@ export async function POST(req: NextRequest) {
                     method: 'credit_card',
                     status: 'approved',
                     statusDetail: mpStatusDetail,
-                    amount: plan.price,
+                    amount: valorCobrado,
+                    billingType,
                     currency: 'BRL',
                     payerEmail: user.email,
                 },
@@ -117,8 +126,8 @@ export async function POST(req: NextRequest) {
                 $set: {
                     userId: user._id,
                     type: 'subscription',
-                    description: `Cobrança Admin — ${plan.name} via Cartão`,
-                    amount: plan.price,
+                    description: `Cobrança Admin: ${plan.name} via Cartão`,
+                    amount: valorCobrado,
                     referenceId: mpPaymentId,
                     month,
                     status: 'paid',
@@ -147,7 +156,8 @@ export async function POST(req: NextRequest) {
                 method: 'credit_card',
                 status: mpStatus,
                 statusDetail: mpStatusDetail,
-                amount: plan.price,
+                amount: valorCobrado,
+                billingType,
                 currency: 'BRL',
                 payerEmail: user.email,
             },
@@ -161,8 +171,8 @@ export async function POST(req: NextRequest) {
             $set: {
                 userId: user._id,
                 type: 'subscription',
-                description: `Cobrança Admin — ${plan.name} via Cartão (em análise)`,
-                amount: plan.price,
+                description: `Cobrança Admin: ${plan.name} via Cartão (em análise)`,
+                amount: valorCobrado,
                 referenceId: mpPaymentId,
                 month,
                 status: 'pending',

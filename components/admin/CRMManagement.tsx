@@ -12,6 +12,7 @@ import {
 import { InlineNotice, useFeedback } from '@/components/ui/Feedback';
 import { ClienteFinanceiro } from './ClienteFinanceiro';
 import { ClienteLogoField } from './ClienteLogoField';
+import { ValorCombinadoCliente } from './ValorCombinadoCliente';
 import { linkInstagram, normalizarInstagram } from '@/lib/utils/instagram';
 import { getUserAccessStatus, updateUserProfiles, toggleUserStatus, deleteUser } from '@/app/dashboard/admin/users/actions';
 import { toggleProfileSelection, DIRETIVO_PROFILES, OPERACIONAL_PROFILES, CLIENT_PROFILES } from '@/lib/utils/userProfiles';
@@ -36,8 +37,13 @@ interface CRMClient {
     profileType: 'cliente' | 'gratis';
     credits: number;
     status: 'active' | 'expired' | 'no_plan';
+    planId?: string | null;
     planName: string | null;
     planType: string | null;
+    /** Valor do plano que o cliente paga (tabela ou combinado), sem telas extras. */
+    valorPlano?: number | null;
+    valorTabela?: number | null;
+    valorCombinadoAtivo?: boolean;
     expiresAt: string | null;
     daysUntilExpiry: number | null;
     activationMethod: 'manual' | 'cortesia' | 'card' | 'pix' | 'boleto' | null;
@@ -114,6 +120,10 @@ type AssignPlanModal = {
     activationMethod?: 'manual' | 'cortesia';
     paymentMethod?: 'pix' | 'boleto' | 'card';
     paymentFrequency?: 'monthly' | 'annual';
+    /** Valor do plano para este cliente, sem telas extras. Vazio = tabela ou o combinado que ele já tem. */
+    valorPlano?: string;
+    /** Guardar o valor como combinado: as próximas cobranças usam ele. */
+    salvarValorCombinado?: boolean;
 };
 
 type PaymentInfo = {
@@ -277,6 +287,8 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
             .then(data => {
                 setClients(data.clients || []);
                 setSummary(data.summary || { total: 0, active: 0, expired: 0, no_plan: 0, cortesia: 0 });
+                // A ficha aberta acompanha (ex.: valor combinado alterado na aba Financeiro).
+                setSelectedClient(prev => (prev ? (data.clients || []).find((c: CRMClient) => c.id === prev.id) || prev : prev));
             });
     };
 
@@ -422,8 +434,10 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
         setAssignError(null);
         setAssignModal({
             client,
-            planId: plans[0]?.id ?? '',
+            planId: client.planId && plans.some(p => p.id === client.planId) ? client.planId : plans[0]?.id ?? '',
             startDate: toDateInputValue(client.expiresAt),
+            paymentFrequency: client.billingType === 'annual' ? 'annual' : 'monthly',
+            salvarValorCombinado: true,
         });
     };
 
@@ -451,6 +465,8 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                     paymentMethod: assignModal.paymentMethod || 'pix',
                     startDate: requiresStartDate ? assignModal.startDate : undefined,
                     expiresAt: requiresStartDate && assignModal.expiresAtManual ? assignModal.expiresAtManual : undefined,
+                    valorPlano: assignModal.valorPlano?.trim() ? assignModal.valorPlano.trim() : undefined,
+                    salvarValorCombinado: Boolean(assignModal.valorPlano?.trim() && assignModal.salvarValorCombinado),
                 }),
             });
             const text = await res.text();
@@ -825,6 +841,16 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
         ? plans.find(plan => plan.id === assignModal.planId)
         : null;
     const assignPlanRequiresStartDate = selectedAssignPlan?.type === 'monthly';
+    /** Preço que vale se o campo Valor ficar vazio: o combinado do cliente (mesmo plano e periodicidade) ou a tabela. */
+    const assignValorPadrao = (() => {
+        if (!assignModal || !selectedAssignPlan) return null;
+        const anual = assignModal.paymentFrequency === 'annual';
+        const tabela = anual && selectedAssignPlan.annualPrice ? selectedAssignPlan.annualPrice : selectedAssignPlan.price;
+        const c = assignModal.client;
+        const mesmoPlano = c.planId === selectedAssignPlan.id && (c.billingType === 'annual') === anual;
+        if (mesmoPlano && c.valorCombinadoAtivo && typeof c.valorPlano === 'number') return { valor: c.valorPlano, tabela, combinado: true };
+        return { valor: tabela, tabela, combinado: false };
+    })();
 
     const whatsappLink = (phone: string, name: string, status: CRMClient['status']) => {
         const clean = phone.replace(/\D/g, '');
@@ -1053,6 +1079,12 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                 {selectedClient.expiresAt ? formatDate(selectedClient.expiresAt) : '-'}
                             </span>
                             <span className={styles.fact}><em>Pagamento</em>{getPaymentInfo(selectedClient)?.label.replace(/^[^ ]+ /, '') || 'Sem pagamento'}</span>
+                            {typeof selectedClient.valorPlano === 'number' && (
+                                <span className={styles.fact}>
+                                    <em>{selectedClient.valorCombinadoAtivo ? 'Valor combinado' : 'Valor'}</em>
+                                    R$ {selectedClient.valorPlano.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}{selectedClient.billingType === 'annual' ? '/ano' : '/mês'}
+                                </span>
+                            )}
                         </div>
                     </>}
                     toolbar={
@@ -1439,11 +1471,19 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
 
                             {/* ── Financeiro tab ── */}
                             {modalTab === 'financeiro' && (
-                                <div className={styles.clientSection}>
-                                    <div className={styles.clientSectionHeader}>
-                                        <span className={styles.clientSectionTitle}>Cobranças e envios</span>
+                                <div>
+                                    <div className={styles.clientSection}>
+                                        <div className={styles.clientSectionHeader}>
+                                            <span className={styles.clientSectionTitle}>Valor do plano</span>
+                                        </div>
+                                        <ValorCombinadoCliente userId={selectedClient.id} onChange={reloadClients} />
                                     </div>
-                                    <ClienteFinanceiro userId={selectedClient.id} />
+                                    <div className={styles.clientSection}>
+                                        <div className={styles.clientSectionHeader}>
+                                            <span className={styles.clientSectionTitle}>Cobranças e envios</span>
+                                        </div>
+                                        <ClienteFinanceiro userId={selectedClient.id} />
+                                    </div>
                                 </div>
                             )}
 
@@ -1657,7 +1697,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                     value={assignModal.activationMethod || 'manual'}
                                     onChange={e => setAssignModal({ ...assignModal, activationMethod: e.target.value as 'manual' | 'cortesia' })}
                                 >
-                                    <option value="manual">💰 Recebimento Externo (Gera extrato do valor integral do plano)</option>
+                                    <option value="manual">💰 Recebimento Externo (Gera extrato com o valor do plano)</option>
                                     <option value="cortesia">🎁 Cortesia / Bonificação (Gera extrato gratuito de R$ 0,00)</option>
                                 </select>
                             </div>
@@ -1677,6 +1717,36 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                     <option value="boleto">Boleto</option>
                                     <option value="card">Cartão de crédito</option>
                                 </select>
+                            </div>
+                        )}
+
+                        {assignPlanRequiresStartDate && assignModal.activationMethod !== 'cortesia' && assignValorPadrao && (
+                            <div style={{ marginBottom: '1.25rem' }}>
+                                <label htmlFor="plan-valor" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    Valor do plano {assignModal.paymentFrequency === 'annual' ? '(ano)' : '(mês)'}
+                                </label>
+                                <input
+                                    id="plan-valor"
+                                    className={styles.planSelect}
+                                    inputMode="decimal"
+                                    value={assignModal.valorPlano || ''}
+                                    onChange={event => setAssignModal({ ...assignModal, valorPlano: event.target.value })}
+                                    placeholder={assignValorPadrao.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                />
+                                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem', margin: '0.4rem 0 0' }}>
+                                    Vazio: R$ {assignValorPadrao.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ({assignValorPadrao.combinado ? 'valor combinado do cliente' : 'preço da tabela'}).
+                                    Para cliente que paga diferente, digite o valor. Telas extras continuam somadas à parte.
+                                </p>
+                                {assignModal.valorPlano?.trim() && (
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.6rem', fontSize: '0.85rem', cursor: 'pointer' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={assignModal.salvarValorCombinado !== false}
+                                            onChange={event => setAssignModal({ ...assignModal, salvarValorCombinado: event.target.checked })}
+                                        />
+                                        <span>Usar este valor nas próximas cobranças deste cliente</span>
+                                    </label>
+                                )}
                             </div>
                         )}
 

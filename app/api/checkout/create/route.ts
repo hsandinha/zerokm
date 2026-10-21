@@ -9,6 +9,7 @@ import Payment from '../../../../models/Payment';
 import Invite from '../../../../models/Invite';
 import { isPlanoConcessionaria } from '@/lib/utils/planoRepasse';
 import { MSG_PLANO_ESPECIAL, podeContratarPlano } from '@/lib/utils/planoEspecial';
+import { precoDoCliente } from '@/lib/utils/valorCombinado';
 
 export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
@@ -44,11 +45,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Calcular preço baseado no tipo de cobrança
-    let finalPrice = plan.price;
+    // Valor combinado do cliente, se houver (lib/utils/valorCombinado.ts).
+    const finalPrice = precoDoCliente(plan, billing, user).valor;
     let description = plan.name;
 
     if (billing === 'annual' && plan.annualPrice && plan.annualPrice > 0) {
-        finalPrice = plan.annualPrice;
         description = `${plan.name} — Plano Anual`;
     } else {
         description = `${plan.name} — Plano Mensal`;

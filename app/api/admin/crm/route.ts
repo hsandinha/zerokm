@@ -10,6 +10,8 @@ import { calculateProfileCompletion } from '../../../../lib/utils/profileComplet
 import { calculateSubscriptionExpiry, parseSubscriptionStartDate } from '../../../../lib/utils/subscriptionDates';
 import { isFreeTrialExpired } from '../../../../lib/utils/freeTrial';
 import { isPlanoConcessionaria } from '@/lib/utils/planoRepasse';
+import { LIMITE_VALOR_COMBINADO, lerValorEmReais, precoDoCliente } from '@/lib/utils/valorCombinado';
+import { gravarValorCombinado } from '@/lib/services/valorCombinadoService';
 
 export async function GET() {
     const session = await getServerSession(authOptions);
@@ -28,7 +30,7 @@ export async function GET() {
     const users = await User.find({
         allowedProfiles: { $in: ['gratis', 'cliente'] },
     })
-        .select('displayName email phoneNumber allowedProfiles credits subscription createdAt creditCard address cpf isInvitee vendedorId freeTrialStartedAt freeTrialExpiresAt firebaseUid instagram')
+        .select('displayName email phoneNumber allowedProfiles credits subscription createdAt creditCard address cpf isInvitee vendedorId freeTrialStartedAt freeTrialExpiresAt firebaseUid instagram valorCombinado')
         .sort({ createdAt: -1 })
         .lean();
 
@@ -92,6 +94,7 @@ export async function GET() {
             profileType: isCliente ? 'cliente' : 'gratis',
             credits: u.credits ?? 0,
             status,
+            planId: plan ? String((plan as any)._id) : null,
             planName: plan ? (plan as any).name : null,
             planType: plan ? (plan as any).type : null,
             expiresAt: sub?.expiresAt ? new Date(sub.expiresAt).toISOString() : null,
@@ -107,6 +110,12 @@ export async function GET() {
             profileCompletion,
             inviteCount: inviteCountMap.get(u._id.toString()) || 0,
             telasExtras: telasPorConta.get(u._id.toString()) || [],
+            // Valor do plano que este cliente paga (tabela ou combinado), sem as telas extras.
+            ...(() => {
+                if (!plan || (plan as any).type !== 'monthly') return { valorPlano: null, valorCombinadoAtivo: false };
+                const preco = precoDoCliente(plan as any, sub?.billingType === 'annual' ? 'annual' : 'monthly', u);
+                return { valorPlano: preco.valor, valorTabela: preco.tabela, valorCombinadoAtivo: preco.combinado };
+            })(),
             isInvitee: u.isInvitee === true,
             vendedorId: u.vendedorId || null,
             freeTrialExpiresAt: isGratis && u.freeTrialExpiresAt ? new Date(u.freeTrialExpiresAt).toISOString() : null,
@@ -139,7 +148,7 @@ export async function PATCH(request: Request) {
     } catch {
         return NextResponse.json({ error: 'Body inválido.' }, { status: 400 });
     }
-    const { userId, planId, activationMethod, paymentFrequency, paymentMethod, startDate, expiresAt: expiresAtManual } = body;
+    const { userId, planId, activationMethod, paymentFrequency, paymentMethod, startDate, expiresAt: expiresAtManual, valorPlano: valorPlanoBruto, salvarValorCombinado } = body;
     if (!userId || !planId) {
         return NextResponse.json({ error: 'userId e planId são obrigatórios.' }, { status: 400 });
     }
@@ -218,6 +227,14 @@ export async function PATCH(request: Request) {
             ? calculateSubscriptionExpiry(selectedStartDate, durationDays)
             : null;
 
+    // Valor do plano para este cliente (sem as telas extras). Vazio = tabela ou o combinado que ele já tem.
+    const valorInformado = valorPlanoBruto === undefined || valorPlanoBruto === null || valorPlanoBruto === ''
+        ? null
+        : lerValorEmReais(valorPlanoBruto);
+    if (valorPlanoBruto !== undefined && valorPlanoBruto !== null && valorPlanoBruto !== '' && (valorInformado === null || valorInformado <= 0 || valorInformado > LIMITE_VALOR_COMBINADO)) {
+        return NextResponse.json({ error: 'Valor do plano inválido.' }, { status: 400 });
+    }
+
     const updateFields: Record<string, any> = {
         'subscription.planId': planId,
         'subscription.status': 'active',
@@ -225,6 +242,8 @@ export async function PATCH(request: Request) {
         'subscription.paymentMethod': activationMethod === 'cortesia' ? null : (paymentMethod || 'pix')
     };
     if (expiresAt) updateFields['subscription.expiresAt'] = expiresAt;
+    // A periodicidade escolhida aqui é a que as próximas cobranças usam.
+    if (plan.type === 'monthly') updateFields['subscription.billingType'] = isAnnual ? 'annual' : 'monthly';
 
     const user = await User.findById(userId).lean() as any;
     if (!user) return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
@@ -280,10 +299,22 @@ export async function PATCH(request: Request) {
     // Gerar Registros no Extrato (Payment) para este upgrade manual!
     let inviteesFee = 0;
     if (invites.length > 0 && plan.invitePrice) {
-        inviteesFee = plan.invitePrice * invites.length;
+        inviteesFee = (isAnnual ? plan.invitePrice * 12 : plan.invitePrice) * invites.length;
     }
-    const basePlanPrice = isAnnual && plan.annualPrice ? plan.annualPrice : plan.price;
+    const periodicidade = isAnnual ? 'annual' : 'monthly';
+    const basePlanPrice = valorInformado ?? precoDoCliente(plan, periodicidade, user).valor;
     const finalAmount = activationMethod === 'cortesia' ? 0 : (basePlanPrice + inviteesFee);
+
+    // "Usar nas próximas cobranças": vira o valor combinado do cliente para este plano.
+    if (salvarValorCombinado === true && activationMethod !== 'cortesia' && plan.type === 'monthly' && valorInformado !== null) {
+        await gravarValorCombinado({
+            userId: String(user._id),
+            planId: String(plan._id),
+            periodicidade,
+            valor: valorInformado,
+            por: session?.user?.email || 'equipe',
+        });
+    }
 
     await Payment.create({
         userId: user._id,

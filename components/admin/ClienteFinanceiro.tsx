@@ -1,6 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
+import { InlineNotice } from '@/components/ui/Feedback';
+import { lerValorEmReais } from '@/lib/utils/valorCombinado';
 import styles from './ClienteFinanceiro.module.css';
 
 type Cobranca = {
@@ -13,6 +16,9 @@ type Cobranca = {
     boletoUrl: string | null;
     boletoBarcode: string | null;
     email: { enviadoEm: string | null; para: string; id: string | null; erro: string | null; situacao: string | null };
+    /** Registro manual (ativação pelo CRM ou baixa manual): o valor pode ser corrigido. */
+    podeEditarValor?: boolean;
+    valorEditado?: { valorOriginal: number | null; por: string | null; em: string } | null;
 };
 
 const brl = (v: number) => `R$ ${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
@@ -53,6 +59,8 @@ export function ClienteFinanceiro({ userId }: { userId: string }) {
     const [aviso, setAviso] = useState<string | null>(null);
     const [ocupado, setOcupado] = useState<string | null>(null);
     const [copiado, setCopiado] = useState<string | null>(null);
+    const [corrigindo, setCorrigindo] = useState<{ row: Cobranca; valor: string } | null>(null);
+    const [erroCorrecao, setErroCorrecao] = useState<string | null>(null);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -94,6 +102,34 @@ export function ClienteFinanceiro({ userId }: { userId: string }) {
         }
     };
 
+    const salvarValor = async (event: FormEvent) => {
+        event.preventDefault();
+        if (!corrigindo) return;
+        const valor = lerValorEmReais(corrigindo.valor);
+        if (valor === null || valor < 0) {
+            setErroCorrecao('Informe o valor recebido.');
+            return;
+        }
+        setOcupado(corrigindo.row.id);
+        setErroCorrecao(null);
+        try {
+            const res = await fetch(`/api/admin/cobrancas/${corrigindo.row.id}/valor`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ valor }),
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(body.error || 'Não foi possível corrigir o valor');
+            setCorrigindo(null);
+            setAviso(`Valor corrigido para ${brl(body.valor)}.`);
+            await load();
+        } catch (err: any) {
+            setErroCorrecao(err?.message || 'Não foi possível corrigir o valor');
+        } finally {
+            setOcupado(null);
+        }
+    };
+
     const copiar = (row: Cobranca) => {
         if (!row.boletoBarcode) return;
         navigator.clipboard?.writeText(row.boletoBarcode);
@@ -124,6 +160,11 @@ export function ClienteFinanceiro({ userId }: { userId: string }) {
                             <div>
                                 <strong className={styles.valor}>{brl(row.valor)}</strong>
                                 <span className={styles.plano}>{row.plano}</span>
+                                {row.valorEditado && (
+                                    <span className={styles.sub}>
+                                        Valor corrigido{row.valorEditado.valorOriginal !== null ? ` (era ${brl(row.valorEditado.valorOriginal)})` : ''}{row.valorEditado.por ? ` por ${row.valorEditado.por}` : ''}
+                                    </span>
+                                )}
                             </div>
                             <span className={`${styles.chip} ${(styles as any)[pag.tom]}`}>{pag.label}</span>
                         </header>
@@ -144,8 +185,21 @@ export function ClienteFinanceiro({ userId }: { userId: string }) {
                             </div>
                         </dl>
 
+                        {row.podeEditarValor && !row.boletoUrl && (
+                            <footer className={styles.acoes}>
+                                <button type="button" className={styles.btn} onClick={() => { setErroCorrecao(null); setCorrigindo({ row, valor: Number(row.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) }); }}>
+                                    Corrigir valor
+                                </button>
+                            </footer>
+                        )}
+
                         {row.boletoUrl && (
                             <footer className={styles.acoes}>
+                                {row.podeEditarValor && (
+                                    <button type="button" className={styles.btn} onClick={() => { setErroCorrecao(null); setCorrigindo({ row, valor: Number(row.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) }); }}>
+                                        Corrigir valor
+                                    </button>
+                                )}
                                 <a className={styles.btn} href={row.boletoUrl} target="_blank" rel="noopener noreferrer">Abrir boleto</a>
                                 {row.boletoBarcode && (
                                     <button type="button" className={styles.btn} onClick={() => copiar(row)}>
@@ -160,6 +214,30 @@ export function ClienteFinanceiro({ userId }: { userId: string }) {
                     </article>
                 );
             })}
+
+            {corrigindo && (
+                <AdminModal
+                    size="sm"
+                    title="Corrigir valor"
+                    subtitle={<>Registro de {corrigindo.row.plano} de {data(corrigindo.row.criadoEm)}. Vale para o extrato e os relatórios; não gera cobrança nova.</>}
+                    onClose={() => { if (!ocupado) setCorrigindo(null); }}
+                    busy={ocupado === corrigindo.row.id}
+                    onSubmit={salvarValor}
+                    footer={<>
+                        <button type="button" className={modalStyles.secondary} onClick={() => setCorrigindo(null)} disabled={ocupado === corrigindo.row.id}>Cancelar</button>
+                        <button type="submit" className={modalStyles.primary} disabled={ocupado === corrigindo.row.id}>{ocupado === corrigindo.row.id ? 'Salvando...' : 'Salvar valor'}</button>
+                    </>}
+                >
+                    <div className={modalStyles.stack}>
+                        {erroCorrecao && <InlineNotice>{erroCorrecao}</InlineNotice>}
+                        <label className={modalStyles.field}>
+                            Valor recebido
+                            <input value={corrigindo.valor} onChange={e => setCorrigindo({ ...corrigindo, valor: e.target.value })} inputMode="decimal" autoFocus />
+                            <span className={modalStyles.hint}>Para as próximas cobranças usarem outro valor, use Valor combinado, acima.</span>
+                        </label>
+                    </div>
+                </AdminModal>
+            )}
         </div>
     );
 }

@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
         status: { $in: ['pending', 'accepted'] },
     });
 
-    const { totalAmount } = calculateSubscriptionAmount(plan, billingType, activeInvitesCount);
+    const { totalAmount } = calculateSubscriptionAmount(plan, billingType, activeInvitesCount, user);
     const externalReference = buildSubscriptionExternalReference(session.user.uid, plan._id.toString(), billingType);
     const { frequency, frequencyType } = getBillingPeriodConfig(billingType);
     const baseUrl = getPublicBaseUrl();

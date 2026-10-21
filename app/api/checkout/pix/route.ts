@@ -10,6 +10,7 @@ import Payment from '@/models/Payment';
 import { validateCPF } from '@/lib/utils/cpf';
 import { isPlanoConcessionaria } from '@/lib/utils/planoRepasse';
 import { MSG_PLANO_ESPECIAL, podeContratarPlano } from '@/lib/utils/planoEspecial';
+import { precoDoCliente } from '@/lib/utils/valorCombinado';
 
 export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
@@ -50,8 +51,9 @@ export async function POST(req: NextRequest) {
 
     // Calculate total amount (plan + invitees)
     // annualPrice é o valor TOTAL anual (ex.: R$ 7.188) — usar diretamente, sem * 12.
-    const hasAnnualPrice = billingType === 'annual' && typeof plan.annualPrice === 'number' && plan.annualPrice > 0;
-    let totalAmount = hasAnnualPrice ? (plan.annualPrice as number) : plan.price;
+    // Valor combinado do cliente, se houver (lib/utils/valorCombinado.ts).
+    const basePrice = precoDoCliente(plan, billingType === 'annual' ? 'annual' : 'monthly', user).valor;
+    let totalAmount = basePrice;
     let inviteesCount = 0;
 
     if (plan.invitePrice && plan.invitePrice > 0) {
@@ -97,7 +99,7 @@ export async function POST(req: NextRequest) {
             title: `Assinatura ${plan.name} (${billingLabel})`,
             description: plan.description || `Assinatura ${plan.name} (${billingLabel})`,
             quantity: 1,
-            unit_price: hasAnnualPrice ? (plan.annualPrice as number) : plan.price,
+            unit_price: basePrice,
             category_id: 'services',
         },
     ];

@@ -148,13 +148,22 @@ export function UpgradeModal({ onClose, initialPlanId, initialBilling, locked = 
 
     useEffect(() => {
         // Obter os planos
-        fetch('/api/admin/plans')
-            .then(r => r.json())
-            .then((data: Plan[]) => {
+        Promise.all([
+            fetch('/api/admin/plans').then(r => r.json()),
+            // Cliente com valor combinado vê o valor dele, que é o que o checkout cobra.
+            fetch('/api/user/valor-combinado').then(r => (r.ok ? r.json() : null)).catch(() => null),
+        ])
+            .then(([data, combinado]: [Plan[], { valorCombinado: { valor: number; periodicidade: BillingType; planId: string } | null } | null]) => {
+                const vc = combinado?.valorCombinado;
                 // Plano de concessionária (repasse) não é vendido ao lojista. Plano
                 // especial só aparece para quem já está nele (renovação).
                 setPlans(Array.isArray(data)
-                    ? data.filter(p => p.active && (p as any).publico !== 'concessionaria' && (!(p as any).especial || p.id === initialPlanId))
+                    ? data
+                        .filter(p => p.active && (p as any).publico !== 'concessionaria' && (!(p as any).especial || p.id === initialPlanId))
+                        .map(p => {
+                            if (!vc || p.id !== vc.planId) return p;
+                            return vc.periodicidade === 'annual' ? { ...p, annualPrice: vc.valor } : { ...p, price: vc.valor };
+                        })
                     : []);
                 setLoading(false);
             })

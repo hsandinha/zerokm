@@ -3,14 +3,16 @@ import { withApiRoute } from '@/lib/apiRouteWrapper';
 
 import User from '@/models/User';
 import Plan from '@/models/Plan';
+import { precoDoCliente } from '@/lib/utils/valorCombinado';
 
-/** Monthly revenue equivalent for a given subscription. */
-function monthlyValue(plan: any, billingType?: string | null): number {
+/** Receita mensal equivalente da assinatura, com o valor combinado do cliente quando houver. */
+function monthlyValue(plan: any, billingType?: string | null, user?: any): number {
     if (!plan) return 0;
-    if (billingType === 'annual' && plan.annualPrice && plan.annualPrice > 0) {
-        return plan.annualPrice / 12;
-    }
-    return plan.price || 0;
+    const periodicidade = billingType === 'annual' ? 'annual' : 'monthly';
+    const preco = precoDoCliente(plan, periodicidade, user);
+    // Anual é o total do ano (combinado ou annualPrice); sem preço anual, a tabela é a mensal.
+    if (periodicidade === 'annual' && (preco.combinado || (plan.annualPrice && plan.annualPrice > 0))) return preco.valor / 12;
+    return preco.valor || 0;
 }
 
 export const GET = withApiRoute(async (_request) => {
@@ -60,7 +62,7 @@ export const GET = withApiRoute(async (_request) => {
             const isInvitee = user.isInvitee === true;
 
             const plan = planMap.get(user.subscription.planId?.toString());
-            const planValue = monthlyValue(plan, user.subscription?.billingType);
+            const planValue = monthlyValue(plan, user.subscription?.billingType, user);
 
             const opId = user.operadorId?.toString() || user.vendedorId?.toString();
             if (opId && !operatorStats[opId]) {

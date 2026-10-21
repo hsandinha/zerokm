@@ -9,6 +9,7 @@ import { mpPost, createPreference } from "@wa/lib/mercadopago";
 import Plan, { type IPlan } from "@/models/Plan";
 import User, { type IUser } from "@/models/User";
 import Payment from "@/models/Payment";
+import { precoDoCliente } from "@/lib/utils/valorCombinado";
 
 const ZEROKM_BASE_URL = () => process.env.ZEROKM_BASE_URL || "https://www.cnv0km.com.br";
 
@@ -18,11 +19,9 @@ export async function getActivePlans(): Promise<IPlan[]> {
   return Plan.find({ active: true, type: "monthly", especial: { $ne: true } }).sort({ price: 1 });
 }
 
-function priceFor(plan: IPlan, billing: "monthly" | "annual"): number {
-  if (billing === "annual" && typeof plan.annualPrice === "number" && plan.annualPrice > 0) {
-    return plan.annualPrice; // valor TOTAL anual
-  }
-  return plan.price;
+/** Preço da tabela (anual = total do ano) ou o valor combinado do cliente, se houver. */
+function priceFor(plan: IPlan, billing: "monthly" | "annual", user?: IUser): number {
+  return precoDoCliente(plan as any, billing, user as any).valor;
 }
 
 type LoadedPlanUser =
@@ -66,7 +65,7 @@ export async function createPixPayment(params: {
   if (!loaded.ok) return { ok: false, error: loaded.error };
   const { plan, user } = loaded;
 
-  const amount = priceFor(plan, params.billing);
+  const amount = priceFor(plan, params.billing, user);
   const billingLabel = params.billing === "annual" ? "Anual" : "Mensal";
   const externalRef = `${params.firebaseUid}:${plan._id.toString()}:${params.billing}`;
 
@@ -131,7 +130,7 @@ export async function createPaymentLink(params: {
   if (!loaded.ok) return { ok: false, error: loaded.error };
   const { plan, user } = loaded;
 
-  const amount = priceFor(plan, params.billing);
+  const amount = priceFor(plan, params.billing, user);
   const billingLabel = params.billing === "annual" ? "Anual" : "Mensal";
   const externalRef = `${params.firebaseUid}:${plan._id.toString()}:${params.billing}`;
   const base = ZEROKM_BASE_URL();

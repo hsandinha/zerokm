@@ -1,5 +1,6 @@
 import User from '@/models/User';
 import Invite from '@/models/Invite';
+import { precoDoCliente, type ValorCombinado } from '@/lib/utils/valorCombinado';
 
 export type BillingType = 'monthly' | 'annual';
 
@@ -42,10 +43,9 @@ export function addBillingPeriod(base: Date, billingType: BillingType): Date {
     return next;
 }
 
-export function calculateSubscriptionAmount(plan: any, billingType: BillingType, activeInvitesCount: number) {
-    const basePrice = billingType === 'annual' && typeof plan.annualPrice === 'number' && plan.annualPrice > 0
-        ? plan.annualPrice
-        : plan.price;
+/** Total da assinatura. Com `cliente`, usa o valor combinado dele (lib/utils/valorCombinado.ts). */
+export function calculateSubscriptionAmount(plan: any, billingType: BillingType, activeInvitesCount: number, cliente?: { valorCombinado?: ValorCombinado | null } | null) {
+    const basePrice = precoDoCliente(plan, billingType, cliente).valor;
     const inviteUnitPrice = billingType === 'annual'
         ? (plan.invitePrice || 0) * 12
         : (plan.invitePrice || 0);

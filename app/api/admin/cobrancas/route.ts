@@ -8,6 +8,7 @@ import Plan from '@/models/Plan';
 import User from '@/models/User';
 import { consultarStatusEmail } from '@/lib/services/boletoEmailService';
 import { acharClientePorNome, buscarBoletosNoMP, nomeNaDescricao, sincronizarStatus } from '@/lib/services/cobrancasService';
+import { valorEditavel } from '@/lib/utils/cobrancaManual';
 
 export const dynamic = 'force-dynamic';
 
@@ -115,6 +116,13 @@ export async function GET(request: Request) {
                     boletoBarcode: p.boletoBarcode || null,
                     origem: 'sistema' as const,
                     podeReenviar: true,
+                    // Registro manual (CRM ou baixa): a equipe pode corrigir o valor.
+                    podeEditarValor: valorEditavel(p),
+                    valorEditado: p.valorEditado?.em ? {
+                        valorOriginal: p.valorEditado.valorOriginal ?? null,
+                        por: p.valorEditado.por || null,
+                        em: p.valorEditado.em,
+                    } : null,
                     baixaManual: p.baixaManual?.em ? {
                         por: p.baixaManual.por || null,
                         em: p.baixaManual.em,

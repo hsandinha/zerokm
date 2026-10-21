@@ -11,6 +11,7 @@ import { validateCPF } from '@/lib/utils/cpf';
 import { chargeCustomerCard, getPayment, mpGet, mpPut } from '@/lib/mercadopago';
 import { isPlanoConcessionaria } from '@/lib/utils/planoRepasse';
 import { MSG_PLANO_ESPECIAL, podeContratarPlano } from '@/lib/utils/planoEspecial';
+import { precoDoCliente } from '@/lib/utils/valorCombinado';
 
 export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
@@ -86,10 +87,8 @@ export async function POST(req: NextRequest) {
 
     // Preço base conforme o tipo de cobrança
     // annualPrice é o valor TOTAL anual (ex.: R$ 7.188) — usar diretamente, sem * 12.
-    const hasAnnualPrice = billingType === 'annual' && typeof plan.annualPrice === 'number' && plan.annualPrice > 0;
-    const basePrice = hasAnnualPrice
-        ? (plan.annualPrice as number)
-        : plan.price;
+    // Valor combinado do cliente, se houver (lib/utils/valorCombinado.ts).
+    const basePrice = precoDoCliente(plan, billingType === 'annual' ? 'annual' : 'monthly', user).valor;
 
     const totalAmount = basePrice + inviteesFee;
     const billingLabel = billingType === 'annual' ? 'Anual' : 'Mensal';

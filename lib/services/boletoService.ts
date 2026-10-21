@@ -80,7 +80,7 @@ export async function createBoletoPayment({
 }: CreateBoletoPaymentParams) {
     const normalizedBilling = normalizeBillingType(billingType);
     const billingLabel = normalizedBilling === 'annual' ? 'Anual' : 'Mensal';
-    const { basePrice, inviteUnitPrice, totalAmount } = calculateSubscriptionAmount(plan, normalizedBilling, inviteesCount);
+    const { basePrice, inviteUnitPrice, totalAmount } = calculateSubscriptionAmount(plan, normalizedBilling, inviteesCount, user);
     const { firstName, lastName } = splitName(user.displayName || '');
     const identification = getPayerIdentification(user.cpf);
     const phoneDigits = cleanDigits(user.phoneNumber);
