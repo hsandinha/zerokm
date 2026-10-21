@@ -6,13 +6,15 @@ import type { FipeDetail } from '@/lib/services/fipeService';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import styles from './CatalogVariationsManagement.module.css';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
-import { BookOpen, CarFront, Image as ImageIcon, ImagePlus, Link2, Pencil, Plus, Search, Tags, Trash2, Upload } from 'lucide-react';
+import { BookOpen, CarFront, Download, Image as ImageIcon, ImagePlus, Link2, ListChecks, Pencil, Plus, Search, Tags, Trash2, Upload } from 'lucide-react';
 import {
     Button, EmptyState, FilterSelect, IconAction, Page, PageHeader, Panel, PanelFooter, PanelToolbar, PrimaryCell, RowActions,
     SearchField, SkeletonRows, StatCard, StatGrid, StatusBadge, pageStyles,
 } from '@/components/ui/Page';
 import { anoDivergente, rotuloAno } from '@/lib/utils/anoVeiculo';
 import { InlineNotice, useFeedback } from '@/components/ui/Feedback';
+import { MarcasCatalogoModal } from '@/components/admin/MarcasCatalogoModal';
+import { BOM, nomeDoArquivo } from '@/lib/utils/exportarCatalogo';
 
 interface Marca {
     id: string;
@@ -139,6 +141,22 @@ const EMPTY_FORM: VariationForm = {
     opcionais: '',
 };
 
+/** Campos que a edição em massa altera (os mesmos do pedido da equipe). */
+type CampoMassa = 'modelo' | 'ano' | 'combustivel' | 'transmissao' | 'opcionais';
+const CAMPOS_MASSA: Array<{ campo: CampoMassa; rotulo: string; placeholder: string }> = [
+    { campo: 'modelo', rotulo: 'Modelo', placeholder: 'Ex.: Argo Drive 1.3' },
+    { campo: 'ano', rotulo: 'Ano', placeholder: '26/27' },
+    { campo: 'combustivel', rotulo: 'Combustível', placeholder: 'Flex, Diesel, Elétrico...' },
+    { campo: 'transmissao', rotulo: 'Câmbio', placeholder: 'Automática, Manual, CVT...' },
+    { campo: 'opcionais', rotulo: 'Opcionais', placeholder: 'Itens de série, taxa zero...' },
+];
+type MassaForm = {
+    alterar: Record<CampoMassa, boolean>;
+    valores: Record<CampoMassa, string>;
+    opcionaisModo: 'substituir' | 'acrescentar';
+};
+type MassaResultado = { atualizadas: number; ignoradas: Array<{ id: string; nome: string; motivo: string }> };
+
 function parseOptionals(value: string) {
     if (!value.trim()) return [];
     return value
@@ -180,6 +198,11 @@ export function CatalogVariationsManagement() {
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [bulkDeleting, setBulkDeleting] = useState(false);
     const [fotoModal, setFotoModal] = useState<{ variation: VehicleVariation; url: string } | null>(null);
+    const [marcasOpen, setMarcasOpen] = useState(false);
+    const [exportando, setExportando] = useState(false);
+    const [massa, setMassa] = useState<MassaForm | null>(null);
+    const [massaResultado, setMassaResultado] = useState<MassaResultado | null>(null);
+    const [salvandoMassa, setSalvandoMassa] = useState(false);
 
     const loadMarcas = useCallback(async () => {
         const res = await fetch('/api/tables/marcas');
@@ -222,10 +245,118 @@ export function CatalogVariationsManagement() {
 
     // Avisos da lista (fora dos modais) viram aviso na tela.
     useEffect(() => {
-        if (!aviso || formOpen || importOpen || importPreview || fotoModal) return;
+        if (!aviso || formOpen || importOpen || importPreview || fotoModal || massa || massaResultado) return;
         notify(aviso.message, aviso.type === 'success' ? 'positive' : 'negative');
         setAviso(null);
-    }, [aviso, formOpen, importOpen, importPreview, fotoModal, notify]);
+    }, [aviso, formOpen, importOpen, importPreview, fotoModal, massa, massaResultado, notify]);
+
+    /** Filtro da tela, para a lista e a exportação trazerem o mesmo recorte. */
+    const filtroAtual = () => {
+        const params = new URLSearchParams();
+        if (search.trim()) params.set('search', search.trim());
+        if (brandFilter) params.set('marcaId', brandFilter);
+        if (tipoFilter) params.set('tipo', tipoFilter);
+        return params;
+    };
+
+    /** Baixa o catálogo inteiro do filtro (não só as 500 da tela), página por página. */
+    const exportar = async () => {
+        setExportando(true);
+        try {
+            const params = filtroAtual();
+            const partes: string[] = [BOM];
+            let pagina = '1';
+            for (let voltas = 0; pagina && voltas < 100; voltas += 1) {
+                params.set('pagina', pagina);
+                const res = await fetch(`/api/catalog/variations/export?${params.toString()}`, { cache: 'no-store' });
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data.error || 'Não foi possível exportar o catálogo.');
+                }
+                partes.push(await res.text());
+                pagina = res.headers.get('X-Proxima-Pagina') || '';
+            }
+            const url = URL.createObjectURL(new Blob(partes, { type: 'text/csv;charset=utf-8' }));
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = nomeDoArquivo();
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 2000);
+            notify('Catálogo exportado. O arquivo abre no Excel e volta pelo Importar.', 'positive');
+        } catch (error: any) {
+            notify(error?.message || 'Não foi possível exportar o catálogo.');
+        } finally {
+            setExportando(false);
+        }
+    };
+
+    /** Abre a edição em massa já com o valor que todas as selecionadas têm em comum. */
+    const abrirEdicaoEmMassa = () => {
+        const selecionadas = variations.filter(v => selectedVariations.includes(v.id));
+        const comum = (valor: (v: VehicleVariation) => string) => {
+            const valores = new Set(selecionadas.map(valor));
+            return valores.size === 1 ? [...valores][0] : '';
+        };
+        setAviso(null);
+        setMassaResultado(null);
+        setMassa({
+            alterar: { modelo: false, ano: false, combustivel: false, transmissao: false, opcionais: false },
+            valores: {
+                modelo: comum(v => v.modelo || ''),
+                ano: comum(v => rotuloAno(v)),
+                combustivel: comum(v => v.combustivel || ''),
+                transmissao: comum(v => v.transmissao || ''),
+                opcionais: '',
+            },
+            opcionaisModo: 'substituir',
+        });
+    };
+
+    const fecharEdicaoEmMassa = () => {
+        if (salvandoMassa) return;
+        setMassa(null);
+        setMassaResultado(null);
+        setAviso(null);
+    };
+
+    const salvarEdicaoEmMassa = async (event: React.FormEvent) => {
+        event.preventDefault();
+        if (!massa) return;
+        const campos = Object.fromEntries(CAMPOS_MASSA.filter(c => massa.alterar[c.campo]).map(c => [c.campo, massa.valores[c.campo]]));
+        if (Object.keys(campos).length === 0) {
+            setAviso({ type: 'error', message: 'Marque ao menos um campo para alterar.' });
+            return;
+        }
+        setSalvandoMassa(true);
+        setAviso(null);
+        try {
+            const res = await fetch('/api/catalog/variations', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: selectedVariations, campos, opcionaisModo: massa.opcionaisModo }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || 'Não foi possível alterar as variações.');
+            const resultado: MassaResultado = { atualizadas: data.atualizadas || 0, ignoradas: Array.isArray(data.ignoradas) ? data.ignoradas : [] };
+            await loadVariations();
+            if (resultado.ignoradas.length === 0) {
+                setMassa(null);
+                setSelectedVariations([]);
+                setAviso({ type: 'success', message: `${resultado.atualizadas} ${resultado.atualizadas === 1 ? 'variação alterada' : 'variações alteradas'}.` });
+                return;
+            }
+            // As que não mudaram ficam selecionadas para a equipe decidir o que fazer.
+            setSelectedVariations(resultado.ignoradas.map(item => item.id));
+            setMassa(null);
+            setMassaResultado(resultado);
+        } catch (error: any) {
+            setAviso({ type: 'error', message: error?.message || 'Não foi possível alterar as variações.' });
+        } finally {
+            setSalvandoMassa(false);
+        }
+    };
 
     const resetForm = () => {
         setForm(EMPTY_FORM);
@@ -562,6 +693,8 @@ export function CatalogVariationsManagement() {
                 count={carregando ? null : variations.length}
                 description="Variações por marca e modelo, com vínculo à Tabela FIPE, disponíveis para as concessionárias."
                 actions={<>
+                    <Button icon={<Tags size={16} aria-hidden="true" />} onClick={() => setMarcasOpen(true)}>Marcas</Button>
+                    <Button icon={<Download size={16} aria-hidden="true" />} onClick={exportar} disabled={exportando}>{exportando ? 'Exportando...' : 'Exportar'}</Button>
                     <Button icon={<Upload size={16} aria-hidden="true" />} onClick={openImport}>Importar</Button>
                     <Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={openNewVariation}>Nova variação</Button>
                 </>}
@@ -598,9 +731,14 @@ export function CatalogVariationsManagement() {
                         />
                     </div>
                     {selectedVariations.length > 0 && (
-                        <Button variant="danger" icon={<Trash2 size={16} aria-hidden="true" />} onClick={handleDeleteSelected} disabled={bulkDeleting}>
-                            {bulkDeleting ? 'Excluindo...' : `Excluir ${selectedVariations.length} ${selectedVariations.length === 1 ? 'selecionada' : 'selecionadas'}`}
-                        </Button>
+                        <div className={pageStyles.toolbarGroup}>
+                            <Button icon={<ListChecks size={16} aria-hidden="true" />} onClick={abrirEdicaoEmMassa} disabled={bulkDeleting}>
+                                {`Editar ${selectedVariations.length} ${selectedVariations.length === 1 ? 'selecionada' : 'selecionadas'}`}
+                            </Button>
+                            <Button variant="danger" icon={<Trash2 size={16} aria-hidden="true" />} onClick={handleDeleteSelected} disabled={bulkDeleting}>
+                                {bulkDeleting ? 'Excluindo...' : `Excluir ${selectedVariations.length}`}
+                            </Button>
+                        </div>
                     )}
                 </PanelToolbar>
 
@@ -1033,6 +1171,94 @@ export function CatalogVariationsManagement() {
                     </div>
                 </AdminModal>
             )}
+            {marcasOpen && (
+                <MarcasCatalogoModal
+                    onClose={() => setMarcasOpen(false)}
+                    onChanged={() => {
+                        setBrandFilter('');
+                        void Promise.all([loadMarcas(), loadVariations()]).catch(() => undefined);
+                    }}
+                />
+            )}
+
+            {massa && (
+                <AdminModal
+                    size="md"
+                    title={`Editar ${selectedVariations.length} ${selectedVariations.length === 1 ? 'variação' : 'variações'}`}
+                    subtitle="Marque os campos que vão mudar. Os campos sem marca ficam como estão em cada variação."
+                    onClose={fecharEdicaoEmMassa}
+                    busy={salvandoMassa}
+                    onSubmit={salvarEdicaoEmMassa}
+                    footer={<>
+                        <button type="button" className={modalStyles.secondary} onClick={fecharEdicaoEmMassa} disabled={salvandoMassa}>Cancelar</button>
+                        <button type="submit" className={modalStyles.primary} disabled={salvandoMassa || !CAMPOS_MASSA.some(c => massa.alterar[c.campo])}>
+                            {salvandoMassa ? 'Salvando...' : 'Aplicar nas selecionadas'}
+                        </button>
+                    </>}
+                >
+                    <div className={modalStyles.stack}>
+                        {aviso?.type === 'error' && <InlineNotice>{aviso.message}</InlineNotice>}
+                        {CAMPOS_MASSA.map(({ campo, rotulo, placeholder }) => (
+                            <div key={campo} className={styles.massaCampo}>
+                                <label className={styles.checkboxField}>
+                                    <input
+                                        type="checkbox"
+                                        checked={massa.alterar[campo]}
+                                        onChange={event => setMassa(prev => prev && ({ ...prev, alterar: { ...prev.alterar, [campo]: event.target.checked } }))}
+                                    />
+                                    <span>Alterar {rotulo.toLowerCase()}</span>
+                                </label>
+                                <input
+                                    aria-label={rotulo}
+                                    value={massa.valores[campo]}
+                                    disabled={!massa.alterar[campo]}
+                                    onChange={event => setMassa(prev => prev && ({ ...prev, valores: { ...prev.valores, [campo]: event.target.value } }))}
+                                    placeholder={placeholder}
+                                />
+                                {campo === 'opcionais' && massa.alterar.opcionais && (
+                                    <div className={styles.segmentedControl}>
+                                        <button type="button" className={massa.opcionaisModo === 'substituir' ? styles.segmentActive : ''} onClick={() => setMassa(prev => prev && ({ ...prev, opcionaisModo: 'substituir' }))}>
+                                            Substituir
+                                        </button>
+                                        <button type="button" className={massa.opcionaisModo === 'acrescentar' ? styles.segmentActive : ''} onClick={() => setMassa(prev => prev && ({ ...prev, opcionaisModo: 'acrescentar' }))}>
+                                            Acrescentar ao que já tem
+                                        </button>
+                                    </div>
+                                )}
+                                {campo === 'ano' && massa.alterar.ano && <span className={modalStyles.hint}>Fabricação/modelo, como 26/27. Só o ano-modelo: 2027.</span>}
+                            </div>
+                        ))}
+                        <p className={modalStyles.hint}>
+                            Vale para o catálogo de todas as concessionárias. Se alguma variação ficar igual a outra já cadastrada, ela não muda e aparece na lista ao final.
+                        </p>
+                    </div>
+                </AdminModal>
+            )}
+
+            {massaResultado && (
+                <AdminModal
+                    size="md"
+                    title="Edição em massa concluída"
+                    subtitle={`${massaResultado.atualizadas} ${massaResultado.atualizadas === 1 ? 'variação alterada' : 'variações alteradas'}. ${massaResultado.ignoradas.length} ${massaResultado.ignoradas.length === 1 ? 'ficou como estava' : 'ficaram como estavam'}.`}
+                    onClose={() => setMassaResultado(null)}
+                    footer={<button type="button" className={modalStyles.primary} onClick={() => setMassaResultado(null)}>Entendi</button>}
+                >
+                    <div className={modalStyles.stack}>
+                        <p className={modalStyles.hint}>
+                            Elas continuam selecionadas na lista. Se forem repetidas, exclua ou unifique pela tela de Marcas.
+                        </p>
+                        <ul className={styles.massaIgnoradas}>
+                            {massaResultado.ignoradas.map(item => (
+                                <li key={item.id}>
+                                    <strong>{item.nome}</strong>
+                                    <span>{item.motivo}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </AdminModal>
+            )}
+
             {feedback}
         </Page>
     );

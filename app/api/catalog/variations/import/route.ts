@@ -1,4 +1,5 @@
 import { textoDoAno } from '@/lib/utils/anoVeiculo';
+import { pareceData } from '@/lib/utils/marcasCatalogo';
 import { findOrCreateMarca } from '@/lib/services/marcaResolver';
 import { enrichFipeRows } from '@/lib/services/fipeImport';
 import { NextResponse } from 'next/server';
@@ -381,6 +382,7 @@ function normalizeItem(rowNumber: number, record: Record<string, string>, defaul
     };
 
     if (!item.marca) item.errors.push('Marca ausente.');
+    else if (pareceData(item.marca)) item.errors.push('A marca parece uma data ou um número. Confira a coluna Marca.');
     if (!item.modelo) item.errors.push('Modelo ausente.');
     if (item.anoModelo && !Number.isInteger(item.anoModelo)) item.errors.push('Ano modelo inválido.');
     if (item.anoFabricacao && !Number.isInteger(item.anoFabricacao)) item.errors.push('Ano fabricação inválido.');
@@ -552,6 +554,7 @@ function sanitizeCommitItem(rawItem: any): ParsedImportItem {
     };
 
     if (!item.marca) item.errors.push('Marca ausente.');
+    else if (pareceData(item.marca)) item.errors.push('A marca parece uma data ou um número. Confira a coluna Marca.');
     if (!item.modelo) item.errors.push('Modelo ausente.');
     item.duplicateKey = buildDuplicateKey(item);
     if (item.errors.length > 0) item.status = 'invalid';

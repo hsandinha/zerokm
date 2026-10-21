@@ -225,3 +225,49 @@
 :global([data-admin-design]) .previewTable td { padding: 14px 16px; border: 0; border-bottom: 1px solid var(--admin-border); font-size: 14px; line-height: 1.45; }
 
 .previewFipeCell { min-width: 230px; white-space: normal; }
+
+/* Edição em massa: cada campo com a sua marca de "alterar". */
+.massaCampo {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.massaCampo > input {
+    width: 100%;
+    min-height: 40px;
+    padding: 0 12px;
+    font-size: 14px;
+    color: var(--color-text);
+    background: var(--color-surface);
+    border: 1px solid var(--admin-border, var(--color-highlight));
+    border-radius: 8px;
+}
+
+.massaCampo > input:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.massaIgnoradas {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.massaIgnoradas li {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 12px;
+    font-size: 13px;
+    border: 1px solid var(--admin-border, var(--color-highlight));
+    border-radius: 8px;
+}
+
+.massaIgnoradas li span {
+    color: var(--color-text-muted);
+}

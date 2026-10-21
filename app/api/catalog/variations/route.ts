@@ -7,11 +7,15 @@ import connectDB from '@/lib/mongodb';
 import Marca from '@/models/Marca';
 import VehicleVariation from '@/models/VehicleVariation';
 import DealerVehiclePrice from '@/models/DealerVehiclePrice';
-import { textoDoAno } from '@/lib/utils/anoVeiculo';
+import { lerAnoTexto, rotuloAno as rotuloDoAno, textoDoAno } from '@/lib/utils/anoVeiculo';
+import { filtroDoCatalogo, ORDEM_DO_CATALOGO } from '@/lib/services/catalogoFiltro';
+import { PERFIS_CATALOGO } from '@/lib/utils/permissoesCatalogo';
+import mongoose from 'mongoose';
 
-const MASTER_CATALOG_PROFILES = new Set(['admin', 'administrador', 'administrativo', 'gerente', 'operador', 'operator']);
+const MASTER_CATALOG_PROFILES = PERFIS_CATALOGO;
 
-const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// Edição em massa grava variação por variação.
+export const maxDuration = 60;
 
 function normalizeText(value: unknown) {
     return typeof value === 'string' ? value.trim() : '';
@@ -105,37 +109,11 @@ export async function GET(request: Request) {
         const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
         const limit = Math.min(500, Math.max(1, parseInt(searchParams.get('limit') || '100', 10)));
         const skip = (page - 1) * limit;
-        const search = normalizeText(searchParams.get('search'));
-        const marca = normalizeText(searchParams.get('marca'));
-        const marcaId = normalizeText(searchParams.get('marcaId'));
-        const tipo = normalizeText(searchParams.get('tipo'));
-        const activeParam = searchParams.get('active');
-
-        const query: any = {};
-        if (tipo && tipo !== 'todos') query.tipoVeiculo = tipo;
-        if (activeParam !== 'all') query.ativo = activeParam === 'false' ? false : true;
-        if (marcaId) query.marcaId = marcaId;
-        if (marca) query.marca = { $regex: `^${escapeRegex(marca)}$`, $options: 'i' };
-        if (search) {
-            const regex = { $regex: escapeRegex(search), $options: 'i' };
-            query.$or = [
-                { marca: regex },
-                { modelo: regex },
-                { codigoFipe: regex },
-                { cor: regex },
-                { status: regex },
-                { cidade: regex },
-                { estado: regex },
-                { concessionaria: regex },
-                { nomeContato: regex },
-                { operador: regex },
-                { opcionais: regex },
-            ];
-        }
+        const query = filtroDoCatalogo(searchParams);
 
         const [data, total] = await Promise.all([
             VehicleVariation.find(query)
-                .sort({ marca: 1, modelo: 1, cor: 1, anoModelo: -1 })
+                .sort(ORDEM_DO_CATALOGO)
                 .skip(skip)
                 .limit(limit),
             VehicleVariation.countDocuments(query),
@@ -257,5 +235,140 @@ export async function DELETE(request: Request) {
     } catch (error: any) {
         console.error('Erro ao excluir variações em massa:', error);
         return NextResponse.json({ error: error.message || 'Erro interno ao excluir variações' }, { status: 500 });
+    }
+}
+
+/* ── Edição em massa ── */
+
+const CAMPOS_EM_MASSA = ['modelo', 'ano', 'combustivel', 'transmissao', 'opcionais'] as const;
+
+/** Mesmas chaves do índice único das variações ativas. */
+function chaveUnica(v: Record<string, any>) {
+    const valor = (campo: string) => (v[campo] === undefined ? null : v[campo]);
+    return {
+        marca: v.marca,
+        modelo: v.modelo,
+        anoFabricacao: valor('anoFabricacao'),
+        anoModelo: valor('anoModelo'),
+        combustivel: valor('combustivel'),
+        cor: valor('cor'),
+        transmissao: valor('transmissao'),
+        opcionais: valor('opcionais'),
+    };
+}
+
+/** "Taxa zero" acrescentado a "Ar, Direção" vira "Ar, Direção, Taxa zero" (sem repetir). */
+function acrescentarOpcionais(atual: string | undefined, novo: string) {
+    const base = (atual || '').trim();
+    if (!base) return novo;
+    if (base.toLowerCase().includes(novo.toLowerCase())) return base;
+    return `${base.replace(/[,;|]\s*$/, '')}, ${novo}`;
+}
+
+/**
+ * Altera os mesmos campos em várias variações de uma vez. A variação que
+ * ficaria igual a outra já cadastrada não é alterada e volta na lista de
+ * ignoradas, com o motivo, para a equipe decidir (unificar ou excluir).
+ */
+export async function PATCH(request: Request) {
+    try {
+        const access = await assertCanManageCatalog();
+        if (access.error) return access.error;
+
+        await connectDB();
+        const body = await request.json().catch(() => ({}));
+
+        const ids: string[] = Array.isArray(body?.ids)
+            ? [...new Set<string>(body.ids.filter((id: unknown): id is string => typeof id === 'string' && mongoose.isValidObjectId(id)))]
+            : [];
+        if (ids.length === 0) return NextResponse.json({ error: 'Selecione ao menos uma variação.' }, { status: 400 });
+        if (ids.length > 500) return NextResponse.json({ error: 'Edite até 500 variações por vez.' }, { status: 400 });
+
+        const campos = body?.campos && typeof body.campos === 'object' ? body.campos : {};
+        const mudar: Partial<Record<(typeof CAMPOS_EM_MASSA)[number], string>> = {};
+        for (const campo of CAMPOS_EM_MASSA) {
+            if (Object.prototype.hasOwnProperty.call(campos, campo)) mudar[campo] = normalizeText(campos[campo]);
+        }
+        if (Object.keys(mudar).length === 0) return NextResponse.json({ error: 'Marque ao menos um campo para alterar.' }, { status: 400 });
+        if (mudar.modelo !== undefined && !mudar.modelo) return NextResponse.json({ error: 'O modelo não pode ficar vazio.' }, { status: 400 });
+
+        let anoNovo: { anoFabricacao: number | null; anoModelo: number } | null = null;
+        if (mudar.ano !== undefined) {
+            const lido = lerAnoTexto(mudar.ano);
+            if (!lido.anoModelo) return NextResponse.json({ error: 'Ano inválido. Use 26/27 ou 2027.' }, { status: 400 });
+            anoNovo = { anoFabricacao: lido.anoFabricacao ?? null, anoModelo: lido.anoModelo };
+        }
+        const acrescentar = body?.opcionaisModo === 'acrescentar';
+        if (acrescentar && !mudar.opcionais) return NextResponse.json({ error: 'Informe o opcional que vai ser acrescentado.' }, { status: 400 });
+
+        const variacoes = await VehicleVariation.find({ _id: { $in: ids } }).lean();
+        const nome = (v: any) => [v.marca, v.modelo, rotuloDoAno(v), v.cor].filter(Boolean).join(' · ');
+
+        const planos = variacoes.map(v => {
+            const set: Record<string, any> = {};
+            const unset: Record<string, ''> = {};
+            const texto = (campo: 'modelo' | 'combustivel' | 'transmissao', valor: string) => {
+                if (valor) set[campo] = valor; else unset[campo] = '';
+            };
+            if (mudar.modelo !== undefined) texto('modelo', mudar.modelo);
+            if (mudar.combustivel !== undefined) texto('combustivel', mudar.combustivel);
+            if (mudar.transmissao !== undefined) texto('transmissao', mudar.transmissao);
+            if (anoNovo) {
+                set.anoModelo = anoNovo.anoModelo;
+                set.anoFabricacao = anoNovo.anoFabricacao;
+                set.ano = textoDoAno(anoNovo.anoFabricacao, anoNovo.anoModelo);
+            }
+            if (mudar.opcionais !== undefined) {
+                const opcionais = acrescentar ? acrescentarOpcionais(v.opcionais, mudar.opcionais) : mudar.opcionais;
+                if (opcionais) set.opcionais = opcionais; else unset.opcionais = '';
+                set.opcionaisPadrao = parseOptionals(opcionais);
+            }
+            const final: Record<string, any> = { ...v, ...set };
+            for (const campo of Object.keys(unset)) delete final[campo];
+            return { v, set, unset, final };
+        });
+
+        const ignoradas: Array<{ id: string; nome: string; motivo: string }> = [];
+        let atualizadas = 0;
+        let pendentes = planos;
+
+        // Duas passadas: uma variação pode liberar a combinação que outra da seleção vai ocupar.
+        for (let passada = 0; passada < 2 && pendentes.length; passada += 1) {
+            const proximas: typeof planos = [];
+            for (const plano of pendentes) {
+                const id = String(plano.v._id);
+                const ultima = passada === 1;
+                if (plano.v.ativo) {
+                    const igual = await VehicleVariation.findOne({ _id: { $ne: plano.v._id }, ativo: true, ...chaveUnica(plano.final) }).select('_id').lean();
+                    const identidade = catalogFipeIdentity(plano.final);
+                    const mesmaFipe = !igual && identidade
+                        ? await VehicleVariation.findOne({ ...identidade, _id: { $ne: plano.v._id } }).select('_id').lean()
+                        : null;
+                    if (igual || mesmaFipe) {
+                        if (ultima) ignoradas.push({ id, nome: nome(plano.v), motivo: igual ? 'Ficaria igual a outra variação já cadastrada.' : 'Já existe outra variação com o mesmo código FIPE e ano.' });
+                        else proximas.push(plano);
+                        continue;
+                    }
+                }
+                try {
+                    const update: Record<string, any> = {};
+                    if (Object.keys(plano.set).length) update.$set = plano.set;
+                    if (Object.keys(plano.unset).length) update.$unset = plano.unset;
+                    await VehicleVariation.updateOne({ _id: plano.v._id }, update);
+                    atualizadas += 1;
+                } catch (error: any) {
+                    if (error?.code !== 11000) throw error;
+                    if (ultima) ignoradas.push({ id, nome: nome(plano.v), motivo: 'Ficaria igual a outra variação já cadastrada.' });
+                    else proximas.push(plano);
+                }
+            }
+            pendentes = proximas;
+        }
+
+        const naoEncontradas = ids.length - variacoes.length;
+        return NextResponse.json({ atualizadas, ignoradas, naoEncontradas });
+    } catch (error: any) {
+        console.error('Erro na edição em massa do catálogo:', error);
+        return NextResponse.json({ error: error?.message || 'Erro interno' }, { status: 500 });
     }
 }
