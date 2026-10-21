@@ -1,0 +1,31 @@
+.aceite {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: inherit;
+    cursor: pointer;
+}
+
+.aceite input {
+    flex: none;
+    width: 1.05rem;
+    height: 1.05rem;
+    margin-top: 0.12rem;
+    accent-color: #f6b73c;
+    cursor: pointer;
+}
+
+.link {
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    background: none;
+    border: 0;
+    cursor: pointer;
+}
+
+.link:hover { opacity: 0.8; }

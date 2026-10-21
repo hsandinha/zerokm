@@ -3,6 +3,7 @@ import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import { createFreeTrialWindow } from '@/lib/utils/freeTrial';
 import { validateDocumento } from '@/lib/utils/cpf';
+import { ERRO_INSTAGRAM, normalizarInstagram } from '@/lib/utils/instagram';
 import {
     createOrAdoptFirebaseUser,
     firebaseSignupErrorResponse,
@@ -35,10 +36,21 @@ export async function POST(request: Request) {
             // Acesso
             email,
             password,
+            instagram,
+            aceiteTermos,
+            versaoTermos,
         } = body;
 
         if (!nome || !documento || !email || !password) {
             return NextResponse.json({ error: 'Campos obrigatórios não preenchidos' }, { status: 400 });
+        }
+        // Instagram e aceite dos termos são obrigatórios para fechar o cadastro.
+        const instagramNormalizado = normalizarInstagram(instagram);
+        if (!instagramNormalizado) {
+            return NextResponse.json({ error: ERRO_INSTAGRAM }, { status: 400 });
+        }
+        if (aceiteTermos !== true) {
+            return NextResponse.json({ error: 'Para criar a conta, marque que leu e concorda com os termos.' }, { status: 400 });
         }
         if (typeof password !== 'string' || password.length < 6) {
             return NextResponse.json({ error: 'A senha deve ter pelo menos 6 caracteres' }, { status: 400 });
@@ -87,6 +99,9 @@ export async function POST(request: Request) {
             displayName: String(nome).trim(),
             phoneNumber: cleanDigits(celular || telefone || '') || undefined,
             cpf: docClean,     // stores CPF or CNPJ
+            instagram: instagramNormalizado,
+            termosAceitosEm: new Date(),
+            termosVersao: typeof versaoTermos === 'string' ? versaoTermos.slice(0, 20) : undefined,
             allowedProfiles: ['gratis'],
             defaultProfile: 'gratis',
             forcePasswordChange: false,

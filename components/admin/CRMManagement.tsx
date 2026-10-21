@@ -12,6 +12,7 @@ import {
 import { InlineNotice, useFeedback } from '@/components/ui/Feedback';
 import { ClienteFinanceiro } from './ClienteFinanceiro';
 import { ClienteLogoField } from './ClienteLogoField';
+import { linkInstagram, normalizarInstagram } from '@/lib/utils/instagram';
 import { getUserAccessStatus, updateUserProfiles, toggleUserStatus, deleteUser } from '@/app/dashboard/admin/users/actions';
 import { toggleProfileSelection, DIRETIVO_PROFILES, OPERACIONAL_PROFILES, CLIENT_PROFILES } from '@/lib/utils/userProfiles';
 import type { UserProfile } from '@/lib/types/auth';
@@ -22,6 +23,7 @@ interface CRMClient {
     email: string;
     phoneNumber: string;
     cpf: string;
+    instagram?: string;
     address: {
         street: string;
         number: string;
@@ -217,6 +219,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
         displayName: string;
         phoneNumber: string;
         cpf: string;
+        instagram: string;
         address: { street: string; number: string; complement: string; neighborhood: string; city: string; state: string; zipCode: string };
     } | null>(null);
 
@@ -303,6 +306,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
             displayName: client.displayName,
             phoneNumber: client.phoneNumber,
             cpf: client.cpf || '',
+            instagram: client.instagram || '',
             address: {
                 street: client.address?.street || '',
                 number: client.address?.number || '',
@@ -360,6 +364,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                     displayName: editForm.displayName,
                     phoneNumber: editForm.phoneNumber,
                     cpf: editForm.cpf,
+                    instagram: editForm.instagram,
                     address: editForm.address,
                 }),
             });
@@ -370,6 +375,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                     displayName: editForm.displayName,
                     phoneNumber: editForm.phoneNumber,
                     cpf: editForm.cpf,
+                    instagram: editForm.instagram.trim() ? (normalizarInstagram(editForm.instagram) || editForm.instagram) : '',
                     address: editForm.address,
                 };
                 setSelectedClient(updated);
@@ -1087,6 +1093,16 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                             <div className={styles.clientFormField}>
                                                 <label className={styles.clientFormLabel}>Email</label>
                                                 <span className={styles.clientFormValue} style={{ color: 'var(--color-text-muted)' }}>{selectedClient.email}</span>
+                                            </div>
+                                            <div className={styles.clientFormField}>
+                                                <label className={styles.clientFormLabel}>Instagram</label>
+                                                {editMode ? (
+                                                    <input className={styles.planSelect} value={editForm?.instagram || ''} onChange={e => setEditForm(f => f ? { ...f, instagram: e.target.value } : f)} placeholder="@loja" />
+                                                ) : linkInstagram(selectedClient.instagram) ? (
+                                                    <a className={styles.clientFormValue} href={linkInstagram(selectedClient.instagram)!} target="_blank" rel="noopener noreferrer">{selectedClient.instagram}</a>
+                                                ) : (
+                                                    <span className={styles.clientFormValue}>—</span>
+                                                )}
                                             </div>
                                         </div>
                                     </div>

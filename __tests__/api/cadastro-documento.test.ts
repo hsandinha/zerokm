@@ -37,6 +37,8 @@ const base = {
     email: 'bruno.teste@gmail.com',
     password: 'senha123',
     telefone: '31987118711',
+    instagram: '@brunobuiu',
+    aceiteTermos: true,
 };
 
 beforeAll(async () => {

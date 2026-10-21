@@ -54,6 +54,11 @@ export interface IUser extends Document {
     };
     mpCustomerId?: string;
     isInvitee?: boolean;
+    /** "@loja", obrigatório no cadastro do lojista (lib/utils/instagram.ts). */
+    instagram?: string;
+    /** Aceite dos termos no cadastro ("Li e concordo"). */
+    termosAceitosEm?: Date;
+    termosVersao?: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -111,7 +116,10 @@ const UserSchema: Schema = new Schema({
         mpCardId: String
     },
     mpCustomerId: { type: String },
-    isInvitee: { type: Boolean, default: false }
+    isInvitee: { type: Boolean, default: false },
+    instagram: { type: String, trim: true },
+    termosAceitosEm: { type: Date },
+    termosVersao: { type: String },
 }, {
     timestamps: true
 });

@@ -13,9 +13,12 @@ import { SubscriptionControls } from './SubscriptionControls';
 import { DashboardShell, shellStyles } from '@/components/dashboard/DashboardShell';
 import { Page, PageHeader, pageStyles } from '@/components/ui/Page';
 import { useFavoritos } from '@/lib/hooks/useFavoritos';
-import { AlertTriangle, CarFront, CheckCircle2, Clock3, Heart, UserRound, Wallet } from 'lucide-react';
+import { AlertTriangle, CarFront, CheckCircle2, Clock3, Heart, PlayCircle, UserRound, Wallet } from 'lucide-react';
 import { MeuPerfil } from '@/components/profile/MeuPerfil';
 import { Financeiro } from '@/components/profile/Financeiro';
+import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
+import { VideoTutorial } from '@/components/cliente/VideoTutorial';
+import { BoasVindas } from './BoasVindas';
 
 function PaymentBanner() {
     const searchParams = useSearchParams();
@@ -92,6 +95,15 @@ export default function ClientDashboard() {
     const [isInvitee, setIsInvitee] = useState<boolean>(false);
     const [showUpgradeModal, setShowUpgradeModal] = useState(false);
     const [renovar, setRenovar] = useState(false);
+    // Vídeo tutorial do teste grátis (Configurações). Vazio = sem vídeo.
+    const [videoTutorialUrl, setVideoTutorialUrl] = useState('');
+
+    useEffect(() => {
+        fetch('/api/config/sistema')
+            .then(res => (res.ok ? res.json() : null))
+            .then(data => { if (typeof data?.videoTutorialUrl === 'string') setVideoTutorialUrl(data.videoTutorialUrl); })
+            .catch(() => { /* sem vídeo */ });
+    }, []);
 
     useEffect(() => {
         getSession()
@@ -155,11 +167,13 @@ export default function ClientDashboard() {
                 <AutoUpgradeFromQuery />
             </Suspense>
             <FreeTrialGate userInfo={userInfo} />
+            <BoasVindas nome={userInfo.name} email={userInfo.email} videoUrl={videoTutorialUrl} />
             <ClienteShell
                 userInfo={userInfo}
                 isInvitee={isInvitee}
                 onUpgradeClick={userInfo.profile === 'gratis' ? () => setShowUpgradeModal(true) : undefined}
                 aviso={<ExpirationNotice userInfo={userInfo} onRenovar={() => setRenovar(true)} />}
+                videoTutorialUrl={videoTutorialUrl}
             />
 
             {showUpgradeModal && (
@@ -182,14 +196,17 @@ const ABAS_CLIENTE: AbaCliente[] = ['veiculos', 'favoritos', 'perfil', 'financei
  * abre pelo menu do usuário. Perfil e Financeiro abrem dentro do painel, sem
  * perder a consulta (ela fica montada, só oculta).
  */
-function ClienteShell({ userInfo, isInvitee, onUpgradeClick, aviso }: {
+function ClienteShell({ userInfo, isInvitee, onUpgradeClick, aviso, videoTutorialUrl }: {
     userInfo: { name?: string | null; email?: string | null; profile?: string | null; credits?: number };
     isInvitee: boolean;
     onUpgradeClick?: () => void;
     /** Aviso de vencimento, mostrado acima da consulta. */
     aviso?: ReactNode;
+    /** Vídeo tutorial (Configurações): vira item do menu do usuário. */
+    videoTutorialUrl?: string;
 }) {
     const [aba, setAba] = useState<AbaCliente>('veiculos');
+    const [verTutorial, setVerTutorial] = useState(false);
     // Consulta que fica montada por trás do perfil/financeiro (Veículos ou Favoritos).
     const [abaConsulta, setAbaConsulta] = useState<'veiculos' | 'favoritos'>('veiculos');
     const role = userInfo.profile === 'gratis' ? 'gratis' : 'client';
@@ -237,9 +254,22 @@ function ClienteShell({ userInfo, isInvitee, onUpgradeClick, aviso }: {
                 credits: userInfo.credits,
                 onUpgradeClick,
                 onProfileClick: () => abrir('perfil'),
-                menuItems: [{ id: 'financeiro', label: 'Financeiro', icon: <Wallet size={17} aria-hidden="true" />, onClick: () => abrir('financeiro') }],
+                menuItems: [
+                    { id: 'financeiro', label: 'Financeiro', icon: <Wallet size={17} aria-hidden="true" />, onClick: () => abrir('financeiro') },
+                    ...(videoTutorialUrl ? [{ id: 'tutorial', label: 'Vídeo tutorial', icon: <PlayCircle size={17} aria-hidden="true" />, onClick: () => setVerTutorial(true) }] : []),
+                ],
             }}
         >
+            {verTutorial && videoTutorialUrl && (
+                <AdminModal
+                    size="lg"
+                    title="Como usar o CNV"
+                    onClose={() => setVerTutorial(false)}
+                    footer={<button type="button" className={modalStyles.secondary} onClick={() => setVerTutorial(false)}>Fechar</button>}
+                >
+                    <VideoTutorial url={videoTutorialUrl} />
+                </AdminModal>
+            )}
             {abaAtual === 'perfil' && (
                 <Page>
                     <PageHeader title="Meu perfil" description="Seus dados pessoais e endereço." />

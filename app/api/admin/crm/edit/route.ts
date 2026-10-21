@@ -4,6 +4,7 @@ import { authOptions } from '../../../../../lib/authOptions';
 import connectDB from '../../../../../lib/mongodb';
 import User from '../../../../../models/User';
 import { adminAuth } from '../../../../../lib/firebase-admin';
+import { ERRO_INSTAGRAM, normalizarInstagram } from '@/lib/utils/instagram';
 
 export async function PATCH(request: Request) {
     const session = await getServerSession(authOptions);
@@ -19,7 +20,7 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: 'Body inválido.' }, { status: 400 });
     }
 
-    const { userId, displayName, phoneNumber, cpf, address } = body;
+    const { userId, displayName, phoneNumber, cpf, address, instagram } = body;
     if (!userId) {
         return NextResponse.json({ error: 'userId é obrigatório.' }, { status: 400 });
     }
@@ -30,6 +31,13 @@ export async function PATCH(request: Request) {
     if (displayName !== undefined) updateFields.displayName = displayName.trim();
     if (phoneNumber !== undefined) updateFields.phoneNumber = phoneNumber.trim();
     if (cpf !== undefined) updateFields.cpf = cpf.trim();
+    if (instagram !== undefined) {
+        // A equipe pode apagar (cliente antigo sem Instagram), mas não gravar inválido.
+        const texto = typeof instagram === 'string' ? instagram.trim() : '';
+        const normalizado = texto ? normalizarInstagram(texto) : '';
+        if (normalizado === null) return NextResponse.json({ error: ERRO_INSTAGRAM }, { status: 400 });
+        updateFields.instagram = normalizado;
+    }
     if (address !== undefined) {
         updateFields['address.street'] = address.street || '';
         updateFields['address.number'] = address.number || '';

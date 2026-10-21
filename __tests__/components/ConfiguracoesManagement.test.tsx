@@ -16,6 +16,8 @@ const MOCK_CONFIG = {
     cnpj: '12.345.678/0001-90',
 };
 
+const MOCK_SISTEMA = { videoTutorialUrl: '', diasEstoqueDesatualizado: 3, lembreteEstoqueWhatsApp: false };
+
 describe('ConfiguracoesManagement', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -33,7 +35,8 @@ describe('ConfiguracoesManagement', () => {
     it('should render the form after loading data from API', async () => {
         mockFetch
             .mockResolvedValueOnce({ ok: true, json: async () => MOCK_CONFIG })
-            .mockResolvedValueOnce({ ok: true, json: async () => ({ price_cents: 5000, duration_days: 7 }) });
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ price_cents: 5000, duration_days: 7 }) })
+            .mockResolvedValueOnce({ ok: true, json: async () => MOCK_SISTEMA });
 
         render(<ConfiguracoesManagement />);
 
@@ -46,7 +49,8 @@ describe('ConfiguracoesManagement', () => {
     it('should populate inputs with data fetched from API', async () => {
         mockFetch
             .mockResolvedValueOnce({ ok: true, json: async () => MOCK_CONFIG })
-            .mockResolvedValueOnce({ ok: true, json: async () => ({ price_cents: 5000, duration_days: 7 }) });
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ price_cents: 5000, duration_days: 7 }) })
+            .mockResolvedValueOnce({ ok: true, json: async () => MOCK_SISTEMA });
 
         render(<ConfiguracoesManagement />);
 
@@ -60,7 +64,8 @@ describe('ConfiguracoesManagement', () => {
     it('should strip non-numeric characters from WhatsApp input', async () => {
         mockFetch
             .mockResolvedValueOnce({ ok: true, json: async () => ({ ...MOCK_CONFIG, whatsapp: '' }) })
-            .mockResolvedValueOnce({ ok: true, json: async () => ({ price_cents: 5000, duration_days: 7 }) });
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ price_cents: 5000, duration_days: 7 }) })
+            .mockResolvedValueOnce({ ok: true, json: async () => MOCK_SISTEMA });
 
         render(<ConfiguracoesManagement />);
 
@@ -78,9 +83,11 @@ describe('ConfiguracoesManagement', () => {
     it('should call PATCH API when form is submitted', async () => {
         mockFetch
             .mockResolvedValueOnce({ ok: true, json: async () => MOCK_CONFIG }) // GET contato
-            .mockResolvedValueOnce({ ok: true, json: async () => ({ price_cents: 5000, duration_days: 7 }) }) // GET banners
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ price_cents: 5000, duration_days: 7 }) })
+            .mockResolvedValueOnce({ ok: true, json: async () => MOCK_SISTEMA }) // GET sistema
             .mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) }) // PATCH contato
-            .mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) }); // PATCH banners
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) }) // PATCH banners
+            .mockResolvedValueOnce({ ok: true, json: async () => MOCK_SISTEMA }); // PATCH sistema
 
         render(<ConfiguracoesManagement />);
 
@@ -91,13 +98,16 @@ describe('ConfiguracoesManagement', () => {
         fireEvent.click(screen.getByRole('button', { name: /Salvar alterações/ }));
 
         await waitFor(() => {
-            expect(mockFetch).toHaveBeenCalledTimes(4);
-            const patchCall = mockFetch.mock.calls[2]; // 3rd call is PATCH contato
+            expect(mockFetch).toHaveBeenCalledTimes(6);
+            const patchCall = mockFetch.mock.calls[3]; // 4th call is PATCH contato
             expect(patchCall[0]).toBe('/api/config/contato');
             expect(patchCall[1].method).toBe('PATCH');
-            const patchCall2 = mockFetch.mock.calls[3]; // 4th call is PATCH banners
+            const patchCall2 = mockFetch.mock.calls[4]; // 5th call is PATCH banners
             expect(patchCall2[0]).toBe('/api/config/banners');
             expect(patchCall2[1].method).toBe('PATCH');
+            const patchCall3 = mockFetch.mock.calls[5]; // 6th call is PATCH sistema
+            expect(patchCall3[0]).toBe('/api/config/sistema');
+            expect(JSON.parse(patchCall3[1].body)).toMatchObject({ diasEstoqueDesatualizado: 3 });
         });
     });
 
@@ -106,8 +116,10 @@ describe('ConfiguracoesManagement', () => {
         mockFetch
             .mockResolvedValueOnce({ ok: true, json: async () => MOCK_CONFIG })
             .mockResolvedValueOnce({ ok: true, json: async () => ({ price_cents: 5000, duration_days: 7 }) })
+            .mockResolvedValueOnce({ ok: true, json: async () => MOCK_SISTEMA })
             .mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) })
-            .mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) });
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) })
+            .mockResolvedValueOnce({ ok: true, json: async () => MOCK_SISTEMA });
 
         render(<ConfiguracoesManagement />);
 
@@ -127,8 +139,10 @@ describe('ConfiguracoesManagement', () => {
         mockFetch
             .mockResolvedValueOnce({ ok: true, json: async () => MOCK_CONFIG })
             .mockResolvedValueOnce({ ok: true, json: async () => ({ price_cents: 5000, duration_days: 7 }) })
+            .mockResolvedValueOnce({ ok: true, json: async () => MOCK_SISTEMA })
             .mockResolvedValueOnce({ ok: false, json: async () => ({ error: 'Sem permissão' }) }) // Erro no contato
-            .mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) });
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) })
+            .mockResolvedValueOnce({ ok: true, json: async () => MOCK_SISTEMA });
 
         render(<ConfiguracoesManagement />);
 
@@ -147,7 +161,8 @@ describe('ConfiguracoesManagement', () => {
     it('should have proper label elements for all inputs', async () => {
         mockFetch
             .mockResolvedValueOnce({ ok: true, json: async () => MOCK_CONFIG })
-            .mockResolvedValueOnce({ ok: true, json: async () => ({ price_cents: 5000, duration_days: 7 }) });
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ price_cents: 5000, duration_days: 7 }) })
+            .mockResolvedValueOnce({ ok: true, json: async () => MOCK_SISTEMA });
 
         render(<ConfiguracoesManagement />);
 
@@ -169,7 +184,8 @@ describe('ConfiguracoesManagement', () => {
     it('should match snapshot after loading', async () => {
         mockFetch
             .mockResolvedValueOnce({ ok: true, json: async () => MOCK_CONFIG })
-            .mockResolvedValueOnce({ ok: true, json: async () => ({ price_cents: 5000, duration_days: 7 }) });
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ price_cents: 5000, duration_days: 7 }) })
+            .mockResolvedValueOnce({ ok: true, json: async () => MOCK_SISTEMA });
 
         const { container } = render(<ConfiguracoesManagement />);
 

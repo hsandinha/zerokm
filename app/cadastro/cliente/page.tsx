@@ -5,7 +5,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { openSalesWhatsAppForLead } from '@/lib/utils/leadWhatsApp';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signIn } from 'next-auth/react';
+import { auth } from '@/lib/firebase';
+import { ERRO_INSTAGRAM, normalizarInstagram } from '@/lib/utils/instagram';
+import { guardarNovoCadastro } from '@/lib/utils/boasVindas';
+import { AceiteTermos, VERSAO_TERMOS } from '@/components/lp/AceiteTermos';
+import { LegalModals } from '@/components/lp/LegalModals';
 import styles from './page.module.css';
 
 type Step = 1 | 2 | 3;
@@ -19,6 +25,7 @@ interface FormData {
     documento: string;      // CPF (PF) ou CNPJ (PJ)
     telefone: string;
     celular: string;
+    instagram: string;
     // Step 2
     cep: string;
     endereco: string;
@@ -35,7 +42,7 @@ interface FormData {
 
 const EMPTY: FormData = {
     tipo: 'pf',
-    nome: '', razaoSocial: '', documento: '', telefone: '', celular: '',
+    nome: '', razaoSocial: '', documento: '', telefone: '', celular: '', instagram: '',
     cep: '', endereco: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '',
     email: '', password: '', confirm: '',
 };
@@ -79,6 +86,7 @@ export default function CadastroClientePage() {
     const [cepLoading, setCepLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
+    const [aceite, setAceite] = useState(false);
 
     function set(field: keyof FormData, value: string) {
         setForm(f => ({ ...f, [field]: value }));
@@ -120,6 +128,7 @@ export default function CadastroClientePage() {
             const docError = validateDocumento(form.tipo, form.documento);
             if (docError) return docError;
             if (!form.telefone.replace(/\D/g, '')) return 'Telefone é obrigatório.';
+            if (!normalizarInstagram(form.instagram)) return ERRO_INSTAGRAM;
         }
         if (step === 2) {
             if (!form.cep.replace(/\D/g, '')) return 'CEP é obrigatório.';
@@ -132,6 +141,7 @@ export default function CadastroClientePage() {
             if (!form.email.includes('@')) return 'E-mail inválido.';
             if (form.password.length < 6) return 'Senha deve ter pelo menos 6 caracteres.';
             if (form.password !== form.confirm) return 'As senhas não coincidem.';
+            if (!aceite) return 'Para criar a conta, marque que leu e concorda com os termos.';
         }
         return null;
     }
@@ -150,34 +160,40 @@ export default function CadastroClientePage() {
         if (err) { setError(err); return; }
         setLoading(true);
         setError('');
-        const salesTab = typeof window !== 'undefined' ? window.open('', '_blank') : null;
-        let salesTabUsed = false;
-        if (salesTab) salesTab.opener = null;
         try {
             const res = await fetch('/api/cadastro/cliente', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(form),
+                body: JSON.stringify({ ...form, instagram: normalizarInstagram(form.instagram), aceiteTermos: aceite, versaoTermos: VERSAO_TERMOS }),
             });
             const data = await res.json();
             if (!res.ok) {
-                salesTab?.close();
                 setError(data.error || 'Erro ao criar conta.');
-            } else {
-                await openSalesWhatsAppForLead({
-                    name: form.nome,
-                    email: form.email,
-                    phone: form.telefone,
-                    mobile: form.celular,
-                    document: form.documento,
-                    source: 'Cadastro gratis - pagina dedicada',
-                }, salesTab);
-                salesTabUsed = true;
+                return;
+            }
+
+            // O WhatsApp não abre mais sozinho: o sistema pergunta na primeira
+            // tela se a pessoa quer tirar dúvidas ou seguir sem conversar.
+            guardarNovoCadastro({
+                name: form.nome,
+                email: form.email,
+                phone: form.telefone,
+                mobile: form.celular,
+                document: form.documento,
+                source: 'Cadastro gratis - pagina dedicada',
+            });
+
+            try {
+                const credential = await signInWithEmailAndPassword(auth, form.email, form.password);
+                const token = await credential.user.getIdToken();
+                await signIn('credentials', { token, selectedProfile: 'gratis', redirect: false });
+                window.location.href = '/dashboard/cliente?boasVindas=1';
+            } catch {
+                // Conta criada, mas o login automático falhou: segue pelo login normal.
                 setSuccess(true);
                 setTimeout(() => router.push('/login'), 3000);
             }
         } catch {
-            if (!salesTabUsed) salesTab?.close();
             setError('Erro de conexão. Tente novamente.');
         } finally {
             setLoading(false);
@@ -191,7 +207,7 @@ export default function CadastroClientePage() {
                     <div className={styles.successIcon}>✓</div>
                     <h2 className={styles.successTitle}>Conta criada com sucesso!</h2>
                     <p className={styles.successMsg}>
-                        Bem-vindo à CNV.<br />Redirecionando para o login...
+                        Bem-vindo ao CNV.<br />Redirecionando para o login...
                     </p>
                 </div>
             </div>
@@ -289,12 +305,23 @@ export default function CadastroClientePage() {
                                 </div>
                             </div>
 
-                            <div className={styles.field}>
-                                <label className={styles.label}>WhatsApp / Celular</label>
-                                <input className={styles.input} type="tel"
-                                    value={form.celular}
-                                    onChange={e => set('celular', maskPhone(e.target.value))}
-                                    placeholder="(11) 99999-9999" />
+                            <div className={styles.row}>
+                                <div className={styles.field}>
+                                    <label className={styles.label}>WhatsApp / Celular</label>
+                                    <input className={styles.input} type="tel"
+                                        value={form.celular}
+                                        onChange={e => set('celular', maskPhone(e.target.value))}
+                                        placeholder="(11) 99999-9999" />
+                                </div>
+                                <div className={styles.field}>
+                                    <label className={styles.label}>Instagram da loja <span className={styles.required}>*</span></label>
+                                    <input className={styles.input} type="text" required
+                                        value={form.instagram}
+                                        onChange={e => set('instagram', e.target.value)}
+                                        autoCapitalize="none"
+                                        autoCorrect="off"
+                                        placeholder="@sualoja" />
+                                </div>
                             </div>
 
                             {error && <p className={styles.errorMsg}>{error}</p>}
@@ -415,6 +442,8 @@ export default function CadastroClientePage() {
                                 </div>
                             </div>
 
+                            <AceiteTermos checked={aceite} onChange={valor => { setAceite(valor); setError(''); }} />
+
                             {error && <p className={styles.errorMsg}>{error}</p>}
                             <div className={styles.btnRow}>
                                 <button type="button" className={styles.btnBack} onClick={() => setStep(2)}>← Voltar</button>
@@ -435,6 +464,7 @@ export default function CadastroClientePage() {
                     <Link href="/cadastro/concessionaria" className={styles.loginHintLink}>Cadastrar concessionária →</Link>
                 </p>
             </div>
+            <LegalModals />
         </div>
     );
 }

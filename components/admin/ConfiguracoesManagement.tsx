@@ -33,6 +33,10 @@ export function ConfiguracoesManagement() {
     // Texto, não número: com número controlado não dava para digitar centavos.
     const [precoBanner, setPrecoBanner] = useState('50,00');
     const [diasBanner, setDiasBanner] = useState('7');
+    // Ajustes do sistema (api/config/sistema).
+    const [videoTutorialUrl, setVideoTutorialUrl] = useState('');
+    const [diasEstoque, setDiasEstoque] = useState('3');
+    const [lembreteWhatsApp, setLembreteWhatsApp] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [erro, setErro] = useState<string | null>(null);
@@ -41,7 +45,13 @@ export function ConfiguracoesManagement() {
     useEffect(() => {
         const carregar = async () => {
             try {
-                const [res, resBanner] = await Promise.all([fetch('/api/config/contato'), fetch('/api/config/banners')]);
+                const [res, resBanner, resSistema] = await Promise.all([fetch('/api/config/contato'), fetch('/api/config/banners'), fetch('/api/config/sistema')]);
+                if (resSistema?.ok) {
+                    const sistema = await resSistema.json();
+                    setVideoTutorialUrl(sistema.videoTutorialUrl || '');
+                    setDiasEstoque(String(sistema.diasEstoqueDesatualizado || 3));
+                    setLembreteWhatsApp(sistema.lembreteEstoqueWhatsApp === true);
+                }
                 if (res.ok) {
                     const data = await res.json();
                     setConfig({
@@ -83,17 +93,24 @@ export function ConfiguracoesManagement() {
         const duration_days = Number.parseInt(diasBanner, 10);
         if (price_cents === null) { setErro('Informe um preço de anúncio válido (ex.: 50,00).'); return; }
         if (!Number.isInteger(duration_days) || duration_days < 1) { setErro('A duração do anúncio precisa ser de pelo menos 1 dia.'); return; }
+        const diasEstoqueNum = Number.parseInt(diasEstoque, 10);
+        if (!Number.isInteger(diasEstoqueNum) || diasEstoqueNum < 1 || diasEstoqueNum > 60) { setErro('Os dias para o aviso de estoque vão de 1 a 60.'); return; }
 
         setIsSaving(true);
         try {
-            const [res, resBanner] = await Promise.all([
+            const [res, resBanner, resSistema] = await Promise.all([
                 fetch('/api/config/contato', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(config) }),
                 fetch('/api/config/banners', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ price_cents, duration_days }) }),
+                fetch('/api/config/sistema', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ videoTutorialUrl: videoTutorialUrl.trim(), diasEstoqueDesatualizado: diasEstoqueNum, lembreteEstoqueWhatsApp: lembreteWhatsApp }),
+                }),
             ]);
-            if (res.ok && resBanner.ok) {
+            if (res.ok && resBanner.ok && resSistema?.ok) {
                 notify('Configurações salvas. O rodapé do site já usa os dados novos.', 'positive');
             } else {
-                const falhou = !res.ok ? res : resBanner;
+                const falhou = !res.ok ? res : !resBanner.ok ? resBanner : resSistema;
                 const body = await falhou.json().catch(() => ({}));
                 setErro(body?.error || 'Não foi possível salvar. Verifique se o seu perfil tem permissão.');
             }
@@ -140,6 +157,40 @@ export function ConfiguracoesManagement() {
                         <label className={modalStyles.field}>Horário de atendimento<input type="text" placeholder="Seg a sex, 9h às 18h" {...campo('business_hours')} /></label>
                         <label className={modalStyles.field}>Cidade e estado<input type="text" placeholder="Belo Horizonte, MG" {...campo('address')} /></label>
                         <label className={modalStyles.field}>CNPJ<input type="text" {...campo('cnpj')} /></label>
+                    </div>
+                </SectionCard>
+
+                <SectionCard title="Teste grátis" description="Vídeo mostrado na boas-vindas de quem acabou de se cadastrar e no menu do cliente.">
+                    <div className={modalStyles.row}>
+                        <label className={modalStyles.field}>
+                            Link do vídeo tutorial
+                            <input
+                                type="url"
+                                placeholder="https://youtu.be/..."
+                                value={videoTutorialUrl}
+                                onChange={e => setVideoTutorialUrl(e.target.value)}
+                                disabled={isLoading}
+                            />
+                            <span className={modalStyles.hint}>YouTube, Vimeo ou arquivo .mp4. Vazio: o cliente não vê vídeo.</span>
+                        </label>
+                    </div>
+                </SectionCard>
+
+                <SectionCard title="Estoque das concessionárias" description="Quando avisar a loja que está sem atualizar o estoque.">
+                    <div className={modalStyles.row}>
+                        <label className={modalStyles.field}>
+                            Dias sem atualizar até o aviso
+                            <input type="text" inputMode="numeric" value={diasEstoque} onChange={e => setDiasEstoque(e.target.value.replace(/\D/g, ''))} disabled={isLoading} />
+                            <span className={modalStyles.hint}>A concessionária vê um aviso ao entrar no painel.</span>
+                        </label>
+                        <label className={modalStyles.field}>
+                            Lembrete por WhatsApp (Vera)
+                            <select value={lembreteWhatsApp ? 'sim' : 'nao'} onChange={e => setLembreteWhatsApp(e.target.value === 'sim')} disabled={isLoading}>
+                                <option value="nao">Desligado</option>
+                                <option value="sim">Ligado: avisa a loja no WhatsApp quando passar do prazo</option>
+                            </select>
+                            <span className={modalStyles.hint}>Usa o número do WhatsApp do CNV e o modelo de mensagem aprovado na Meta.</span>
+                        </label>
                     </div>
                 </SectionCard>
 

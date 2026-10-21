@@ -6,7 +6,9 @@ import Image from 'next/image';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { signIn } from 'next-auth/react';
 import { auth } from '@/lib/firebase';
-import { openSalesWhatsAppForLead } from '@/lib/utils/leadWhatsApp';
+import { ERRO_INSTAGRAM, normalizarInstagram } from '@/lib/utils/instagram';
+import { guardarNovoCadastro } from '@/lib/utils/boasVindas';
+import { AceiteTermos, VERSAO_TERMOS } from './AceiteTermos';
 import modalStyles from './RegisterModals.module.css';
 import formStyles from '@/app/cadastro/concessionaria/page.module.css';
 
@@ -44,13 +46,13 @@ type CStep = 1 | 2 | 3;
 
 interface ClienteData {
     tipo: Tipo;
-    nome: string; razaoSocial: string; documento: string; telefone: string; celular: string;
+    nome: string; razaoSocial: string; documento: string; telefone: string; celular: string; instagram: string;
     cep: string; endereco: string; numero: string; complemento: string; bairro: string; cidade: string; uf: string;
     email: string; password: string; confirm: string;
 }
 
 const CLIENTE_EMPTY: ClienteData = {
-    tipo: 'pf', nome: '', razaoSocial: '', documento: '', telefone: '', celular: '',
+    tipo: 'pf', nome: '', razaoSocial: '', documento: '', telefone: '', celular: '', instagram: '',
     cep: '', endereco: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '',
     email: '', password: '', confirm: '',
 };
@@ -63,6 +65,7 @@ function ClienteForm({ onClose, planId, billing }: { onClose: () => void; planId
     const [loading, setLoading] = useState(false);
     const [cepLoading, setCepLoading] = useState(false);
     const [error, setError] = useState('');
+    const [aceite, setAceite] = useState(false);
 
     function set(field: keyof ClienteData, value: string) {
         setForm(f => ({ ...f, [field]: value }));
@@ -100,6 +103,7 @@ function ClienteForm({ onClose, planId, billing }: { onClose: () => void; planId
             const docError = validateDocumento(form.tipo, form.documento);
             if (docError) return docError;
             if (!form.telefone.replace(/\D/g, '')) return 'Telefone é obrigatório.';
+            if (!normalizarInstagram(form.instagram)) return ERRO_INSTAGRAM;
         }
         if (step === 2) {
             if (!form.cep.replace(/\D/g, '')) return 'CEP é obrigatório.';
@@ -112,6 +116,7 @@ function ClienteForm({ onClose, planId, billing }: { onClose: () => void; planId
             if (!form.email.includes('@')) return 'E-mail inválido.';
             if (form.password.length < 6) return 'Senha deve ter pelo menos 6 caracteres.';
             if (form.password !== form.confirm) return 'As senhas não coincidem.';
+            if (!aceite) return 'Para criar a conta, marque que leu e concorda com os termos.';
         }
         return null;
     }
@@ -129,32 +134,29 @@ function ClienteForm({ onClose, planId, billing }: { onClose: () => void; planId
         if (err) { setError(err); return; }
         setLoading(true);
         setError('');
-        const salesTab = typeof window !== 'undefined' ? window.open('', '_blank') : null;
-        let salesTabUsed = false;
-        if (salesTab) salesTab.opener = null;
         try {
             // 1. Criar conta no servidor
             const res = await fetch('/api/cadastro/cliente', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(form),
+                body: JSON.stringify({ ...form, instagram: normalizarInstagram(form.instagram), aceiteTermos: aceite, versaoTermos: VERSAO_TERMOS }),
             });
             const data = await res.json();
             if (!res.ok) {
-                salesTab?.close();
                 setError(data.error || 'Erro ao criar conta.');
                 return;
             }
 
-            await openSalesWhatsAppForLead({
+            // O WhatsApp não abre mais sozinho: a primeira tela do sistema
+            // pergunta se a pessoa quer tirar dúvidas ou seguir sem conversar.
+            guardarNovoCadastro({
                 name: form.nome,
                 email: form.email,
                 phone: form.telefone,
                 mobile: form.celular,
                 document: form.documento,
                 source: 'Cadastro gratis - landing page',
-            }, salesTab);
-            salesTabUsed = true;
+            });
 
             // 2. Login automático via Firebase
             const credential = await signInWithEmailAndPassword(auth, form.email, form.password);
@@ -179,10 +181,9 @@ function ClienteForm({ onClose, planId, billing }: { onClose: () => void; planId
                 return;
             }
 
-            // 5. Redirecionar para o dashboard
-            window.location.href = '/dashboard/cliente';
+            // 5. Redirecionar para o dashboard, com a mensagem de boas-vindas
+            window.location.href = '/dashboard/cliente?boasVindas=1';
         } catch {
-            if (!salesTabUsed) salesTab?.close();
             setError('Erro de conexão. Tente novamente.');
         } finally {
             setLoading(false);
@@ -241,9 +242,15 @@ function ClienteForm({ onClose, planId, billing }: { onClose: () => void; planId
                                 <input className={formStyles.input} type="tel" required value={form.telefone} onChange={e => set('telefone', maskPhone(e.target.value))} placeholder="(11) 3333-4444" />
                             </div>
                         </div>
-                        <div className={formStyles.field}>
-                            <label className={formStyles.label}>WhatsApp / Celular</label>
-                            <input className={formStyles.input} type="tel" value={form.celular} onChange={e => set('celular', maskPhone(e.target.value))} placeholder="(11) 99999-9999" />
+                        <div className={formStyles.row}>
+                            <div className={formStyles.field}>
+                                <label className={formStyles.label}>WhatsApp / Celular</label>
+                                <input className={formStyles.input} type="tel" value={form.celular} onChange={e => set('celular', maskPhone(e.target.value))} placeholder="(11) 99999-9999" />
+                            </div>
+                            <div className={formStyles.field}>
+                                <label className={formStyles.label}>Instagram da loja <span className={formStyles.required}>*</span></label>
+                                <input className={formStyles.input} type="text" required autoCapitalize="none" autoCorrect="off" value={form.instagram} onChange={e => set('instagram', e.target.value)} placeholder="@sualoja" />
+                            </div>
                         </div>
                         {error && <p className={formStyles.errorMsg}>{error}</p>}
                         <button type="button" className={formStyles.btnPrimary} onClick={nextStep}>Continuar →</button>
@@ -316,6 +323,7 @@ function ClienteForm({ onClose, planId, billing }: { onClose: () => void; planId
                                 <input className={formStyles.input} type="password" required value={form.confirm} onChange={e => set('confirm', e.target.value)} placeholder="Repita a senha" />
                             </div>
                         </div>
+                        <AceiteTermos checked={aceite} onChange={valor => { setAceite(valor); setError(''); }} />
                         {error && <p className={formStyles.errorMsg}>{error}</p>}
                         <div className={formStyles.btnRow}>
                             <button type="button" className={formStyles.btnBack} onClick={() => setStep(2)}>← Voltar</button>

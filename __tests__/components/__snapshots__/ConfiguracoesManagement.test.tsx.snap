@@ -202,6 +202,114 @@ exports[`ConfiguracoesManagement > should match snapshot after loading 1`] = `
             <h2
               class="sectionTitle"
             >
+              Teste grátis
+            </h2>
+            <p
+              class="sectionDescription"
+            >
+              Vídeo mostrado na boas-vindas de quem acabou de se cadastrar e no menu do cliente.
+            </p>
+          </div>
+        </header>
+        <div
+          class="sectionBody"
+        >
+          <div
+            class="row"
+          >
+            <label
+              class="field"
+            >
+              Link do vídeo tutorial
+              <input
+                placeholder="https://youtu.be/..."
+                type="url"
+                value=""
+              />
+              <span
+                class="hint"
+              >
+                YouTube, Vimeo ou arquivo .mp4. Vazio: o cliente não vê vídeo.
+              </span>
+            </label>
+          </div>
+        </div>
+      </section>
+      <section
+        class="section"
+      >
+        <header
+          class="sectionHead"
+        >
+          <div>
+            <h2
+              class="sectionTitle"
+            >
+              Estoque das concessionárias
+            </h2>
+            <p
+              class="sectionDescription"
+            >
+              Quando avisar a loja que está sem atualizar o estoque.
+            </p>
+          </div>
+        </header>
+        <div
+          class="sectionBody"
+        >
+          <div
+            class="row"
+          >
+            <label
+              class="field"
+            >
+              Dias sem atualizar até o aviso
+              <input
+                inputmode="numeric"
+                type="text"
+                value="3"
+              />
+              <span
+                class="hint"
+              >
+                A concessionária vê um aviso ao entrar no painel.
+              </span>
+            </label>
+            <label
+              class="field"
+            >
+              Lembrete por WhatsApp (Vera)
+              <select>
+                <option
+                  value="nao"
+                >
+                  Desligado
+                </option>
+                <option
+                  value="sim"
+                >
+                  Ligado: avisa a loja no WhatsApp quando passar do prazo
+                </option>
+              </select>
+              <span
+                class="hint"
+              >
+                Usa o número do WhatsApp do CNV e o modelo de mensagem aprovado na Meta.
+              </span>
+            </label>
+          </div>
+        </div>
+      </section>
+      <section
+        class="section"
+      >
+        <header
+          class="sectionHead"
+        >
+          <div>
+            <h2
+              class="sectionTitle"
+            >
               Anúncios em banner
             </h2>
             <p
