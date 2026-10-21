@@ -7,9 +7,13 @@
  * dado limpo. Antes de aplicar, rode sem --aplicar e confira a lista: em cada
  * linha o texto antigo é descartado e vale o número.
  *
- *   MONGODB_URI=... node scripts/sincronizar-ano-catalogo.cjs            # só lista
- *   MONGODB_URI=... node scripts/sincronizar-ano-catalogo.cjs --aplicar  # grava
+ * Lê o MONGODB_URI do .env.local (como os outros scripts), ou da variável de ambiente.
+ *
+ *   node scripts/sincronizar-ano-catalogo.cjs            # só lista
+ *   node scripts/sincronizar-ano-catalogo.cjs --aplicar  # grava
  */
+const path = require('path');
+require('dotenv').config({ path: path.resolve(process.cwd(), '.env.local'), quiet: true });
 const mongoose = require('mongoose');
 
 const doisDigitos = (ano) => String(ano).slice(-2);
@@ -17,6 +21,10 @@ const textoDoAno = (fab, mod) => (fab && mod ? `${doisDigitos(fab)}/${doisDigito
 
 async function main() {
     const aplicar = process.argv.includes('--aplicar');
+    if (!process.env.MONGODB_URI) {
+        console.error('MONGODB_URI não encontrado. Rode na raiz do projeto, com o .env.local preenchido.');
+        process.exit(1);
+    }
     await mongoose.connect(process.env.MONGODB_URI);
     const colecao = mongoose.connection.db.collection('vehiclevariations');
 
