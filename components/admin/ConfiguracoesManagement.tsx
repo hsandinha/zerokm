@@ -37,6 +37,7 @@ export function ConfiguracoesManagement() {
     const [videoTutorialUrl, setVideoTutorialUrl] = useState('');
     const [diasEstoque, setDiasEstoque] = useState('3');
     const [lembreteWhatsApp, setLembreteWhatsApp] = useState(false);
+    const [templateLembrete, setTemplateLembrete] = useState('lembrete_estoque');
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [erro, setErro] = useState<string | null>(null);
@@ -51,6 +52,7 @@ export function ConfiguracoesManagement() {
                     setVideoTutorialUrl(sistema.videoTutorialUrl || '');
                     setDiasEstoque(String(sistema.diasEstoqueDesatualizado || 3));
                     setLembreteWhatsApp(sistema.lembreteEstoqueWhatsApp === true);
+                    setTemplateLembrete(sistema.templateLembreteEstoque || 'lembrete_estoque');
                 }
                 if (res.ok) {
                     const data = await res.json();
@@ -104,7 +106,7 @@ export function ConfiguracoesManagement() {
                 fetch('/api/config/sistema', {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ videoTutorialUrl: videoTutorialUrl.trim(), diasEstoqueDesatualizado: diasEstoqueNum, lembreteEstoqueWhatsApp: lembreteWhatsApp }),
+                    body: JSON.stringify({ videoTutorialUrl: videoTutorialUrl.trim(), diasEstoqueDesatualizado: diasEstoqueNum, lembreteEstoqueWhatsApp: lembreteWhatsApp, templateLembreteEstoque: templateLembrete.trim() }),
                 }),
             ]);
             if (res.ok && resBanner.ok && resSistema?.ok) {
@@ -189,7 +191,12 @@ export function ConfiguracoesManagement() {
                                 <option value="nao">Desligado</option>
                                 <option value="sim">Ligado: avisa a loja no WhatsApp quando passar do prazo</option>
                             </select>
-                            <span className={modalStyles.hint}>Usa o número do WhatsApp do CNV e o modelo de mensagem aprovado na Meta.</span>
+                            <span className={modalStyles.hint}>Sai do número do WhatsApp do CNV, uma vez por dia às 9h, e repete a cada período sem atualização.</span>
+                        </label>
+                        <label className={modalStyles.field}>
+                            Modelo de mensagem (Meta)
+                            <input type="text" value={templateLembrete} onChange={e => setTemplateLembrete(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} disabled={isLoading} />
+                            <span className={modalStyles.hint}>Nome do modelo aprovado em WhatsApp › Templates. Variáveis: {'{{1}}'} nome da loja e {'{{2}}'} dias sem atualizar.</span>
                         </label>
                     </div>
                 </SectionCard>

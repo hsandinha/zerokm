@@ -104,7 +104,7 @@ export async function aplicarPagamentoNaAssinatura(params: {
             $set: {
                 userId: user._id,
                 type: plan.type === 'credits' ? 'credit' : 'subscription',
-                description: params.descricao || `Pagamento — ${plan.name} (${periodicidade === 'annual' ? 'Anual' : 'Mensal'}) via ${params.metodo}`,
+                description: params.descricao || `Pagamento: ${plan.name} (${periodicidade === 'annual' ? 'Anual' : 'Mensal'}) via ${params.metodo}`,
                 amount: pagamento.amount || plan.price,
                 referenceId: String(pagamento.mpPaymentId || pagamento._id),
                 month: mes,

@@ -116,7 +116,8 @@ const brl = (valor: number) => valor.toLocaleString('pt-BR', { minimumFractionDi
 export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsApp, onCreateBanner, onLocationClick, role = 'operator', canViewLocation = false, onUpdatePreco, onUpdateObservacoes, onUpdateQuantidade, isFavorite = false, onToggleFavorite, nomeCliente, getFreteTabela, onFreteTabelaClick }: VehicleCardProps) {
     const isRepasse = vehicle.origem === 'repasse';
     // Usado se edita no painel Repasse da concessionária, não aqui.
-    const canEditPriceAndNotes = !isRepasse && ['admin', 'administrador', 'administrativo', 'operator', 'operador', 'gerente'].includes(role || '');
+    // A concessionária ajusta preço e observações dos próprios veículos (Meus veículos).
+    const canEditPriceAndNotes = !isRepasse && ['admin', 'administrador', 'administrativo', 'operator', 'operador', 'gerente', 'dealership'].includes(role || '');
     // Mesma regra da tabela: UF e frete interessam a quem compra. Concessionária e
     // teste grátis não veem (o grátis não pode ver o estado do veículo).
     const showUfAndFrete = role !== 'dealership' && role !== 'gratis';

@@ -1,4 +1,7 @@
-// Camada de LLM — Gemini (REST v1beta, sem SDK), portada do whatsappsocila.
+// Camada de LLM da Vera: Gemini (REST v1beta, sem SDK), portada do
+// whatsappsocila, ou GPT da OpenAI (Chat Completions) quando
+// LLM_PROVIDER=openai. Os dois devolvem o mesmo formato (texto + chamadas de
+// ferramenta), então o resto do módulo não muda.
 // Erros classificados: transitório (429/5xx — resolve esperando) vs
 // autenticação (401/403/402/404 — retry não adianta).
 
@@ -74,12 +77,97 @@ function geminiRetryDelayMs(details: unknown): number | undefined {
   return undefined;
 }
 
+/** Qual motor responde: GPT só quando LLM_PROVIDER=openai (padrão continua Gemini). */
+export function llmProvider(): "openai" | "gemini" {
+  return (process.env.LLM_PROVIDER || "").trim().toLowerCase() === "openai" ? "openai" : "gemini";
+}
+
+const OPENAI_MODEL = process.env.OPENAI_MODEL ?? "gpt-4.1-mini";
+
+type OpenAiToolCall = { type?: string; function?: { name?: string; arguments?: string } };
+
+/** GPT (OpenAI Chat Completions) com function calling, no mesmo formato do Gemini. */
+async function runOpenAi(params: {
+  system: string;
+  messages: LlmMessage[];
+  tools: LlmTool[];
+  maxTokens?: number;
+}): Promise<LlmResult> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new LlmAuthError("OPENAI_API_KEY ausente");
+
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: OPENAI_MODEL,
+      messages: [
+        { role: "system", content: params.system },
+        ...params.messages.map((m) => ({ role: m.role, content: m.content })),
+      ],
+      ...(params.tools.length
+        ? {
+            tools: params.tools.map((t) => ({
+              type: "function",
+              function: { name: t.name, description: t.description, parameters: t.schema },
+            })),
+          }
+        : {}),
+      max_completion_tokens: params.maxTokens ?? 4096,
+    }),
+  });
+
+  const body = (await res.json().catch(() => ({}))) as {
+    error?: { message?: string };
+    choices?: Array<{ message?: { content?: string | null; tool_calls?: OpenAiToolCall[]; refusal?: string | null } }>;
+    usage?: { prompt_tokens?: number; completion_tokens?: number };
+  };
+  if (!res.ok) {
+    const retryAfter = Number(res.headers.get("retry-after"));
+    throw classifyHttp(
+      res.status,
+      body.error?.message ?? `OpenAI API ${res.status}`,
+      Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : undefined,
+    );
+  }
+
+  const message = body.choices?.[0]?.message;
+  if (!message?.content && !message?.tool_calls?.length && message?.refusal) {
+    throw new Error(`OpenAI recusou a resposta: ${message.refusal}`);
+  }
+  const toolCalls = (message?.tool_calls ?? [])
+    .filter((c) => c.function?.name)
+    .map((c) => {
+      let input: Record<string, unknown> = {};
+      try {
+        input = c.function?.arguments ? (JSON.parse(c.function.arguments) as Record<string, unknown>) : {};
+      } catch {
+        input = {};
+      }
+      return { name: c.function!.name!, input };
+    });
+
+  return {
+    text: (message?.content ?? "").trim(),
+    toolCalls,
+    usage: {
+      inputTokens: body.usage?.prompt_tokens ?? 0,
+      outputTokens: body.usage?.completion_tokens ?? 0,
+    },
+  };
+}
+
 export async function runLlm(params: {
   system: string;
   messages: LlmMessage[];
   tools: LlmTool[];
   maxTokens?: number;
 }): Promise<LlmResult> {
+  if (llmProvider() === "openai") return runOpenAi(params);
+
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new LlmAuthError("GEMINI_API_KEY ausente");
 

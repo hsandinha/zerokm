@@ -5,7 +5,8 @@ import { MaskedInput } from '../../components/operator/MaskedInput';
 import { ConcessionariaService } from '../../lib/services/concessionariaService';
 import styles from './ConcessionariasManagement.module.css';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
-import { AlertTriangle, BadgeCheck, Building2, CarFront, ChevronDown, Link2, Pencil, Plus, RefreshCw, Search, Trash2, UserRoundX } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Building2, CarFront, ChevronDown, Link2, Pencil, Plus, RefreshCw, Search, Trash2, UserRoundX, UsersRound } from 'lucide-react';
+import { UsuariosDaLojaModal } from './UsuariosDaLojaModal';
 import {
     Avatar, Button, EmptyState, IconAction, Page, PageHeader, Panel, PanelFooter, PanelToolbar, PrimaryCell, RowActions,
     SearchField, Segmented, ShowingCount, SkeletonRows, SortHeader, StatCard, StatGrid, StatusBadge, TwoLine, nextSort, pageStyles,
@@ -128,6 +129,9 @@ export function ConcessionariasManagement({ perfil = 'admin' }: { perfil?: Perfi
     // A rota PATCH do plano só aceita administrador — o gerente e o vendedor
     // enxergam a situação, mas não ativam nem desativam.
     const podeGerirRepasse = perfil === 'admin';
+    // Login da loja: admin e administrativo (as ações do servidor recusam os demais).
+    const podeGerirUsuarios = perfil === 'admin';
+    const [lojaDosUsuarios, setLojaDosUsuarios] = useState<ClienteData | null>(null);
     const [clienteDoPlano, setClienteDoPlano] = useState<ClienteData | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [segmento, setSegmento] = useState<Segmento>('todas');
@@ -932,6 +936,11 @@ export function ConcessionariasManagement({ perfil = 'admin' }: { perfil?: Perfi
                                                 <IconAction label="Editar concessionária" onClick={() => handleEdit(cliente)}>
                                                     <Pencil size={17} aria-hidden="true" />
                                                 </IconAction>
+                                                {podeGerirUsuarios && (
+                                                    <IconAction label="Usuários da loja (criar e vincular login)" onClick={() => setLojaDosUsuarios(cliente)}>
+                                                        <UsersRound size={17} aria-hidden="true" />
+                                                    </IconAction>
+                                                )}
                                                 {podeAssociarVeiculos && (
                                                     <IconAction label="Associar veículos" onClick={() => handleOpenAssociateModal(cliente)}>
                                                         <Link2 size={17} aria-hidden="true" />
@@ -1339,6 +1348,12 @@ export function ConcessionariasManagement({ perfil = 'admin' }: { perfil?: Perfi
                         </div>
                     )}
                 </AdminModal>
+            )}
+            {lojaDosUsuarios && (
+                <UsuariosDaLojaModal
+                    concessionaria={{ id: lojaDosUsuarios.id, nome: lojaDosUsuarios.nome }}
+                    onClose={() => setLojaDosUsuarios(null)}
+                />
             )}
             {clienteDoPlano && (
                 <AdminModal

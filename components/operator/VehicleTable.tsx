@@ -55,7 +55,10 @@ interface VehicleTableProps {
 }
 
 const ACTION_ROLES = ['admin', 'administrador', 'administrativo', 'gerente', 'operator', 'operador', 'dealership', 'client', 'gratis', 'vendedor'];
-const EDIT_ROLES = ['admin', 'administrador', 'administrativo', 'operator', 'operador', 'gerente'];
+// A concessionária edita preço, quantidade, prazo e observações dos próprios
+// veículos em "Meus veículos": o estoque que chega pela API vem com o preço
+// cheio e o gerente da loja ajusta aqui (o servidor confere que o anúncio é dela).
+const EDIT_ROLES = ['admin', 'administrador', 'administrativo', 'operator', 'operador', 'gerente', 'dealership'];
 
 const formatBRL = (value: number) => value.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 

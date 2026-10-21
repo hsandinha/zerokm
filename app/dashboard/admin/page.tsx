@@ -19,7 +19,8 @@ import { AdminDealershipVehicles } from '../../../components/admin/AdminDealersh
 import KanbanBoard from '../../../components/crm/KanbanBoard';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { Page, pageStyles } from '@/components/ui/Page';
-import { LayoutDashboard, Users, CarFront, Warehouse, BookOpen, Building2, Truck, Settings2, CreditCard, Receipt, ContactRound, Funnel, Plug, Images, MessageCircle } from 'lucide-react';
+import { LayoutDashboard, Users, CarFront, Warehouse, BookOpen, Building2, Truck, Settings2, CreditCard, Receipt, ContactRound, Funnel, Plug, Images, MessageCircle, Megaphone } from 'lucide-react';
+import { AvisosManagement } from '@/components/admin/AvisosManagement';
 import { useRouter } from 'next/navigation';
 
 const VehicleConsultation = dynamic<any>(
@@ -35,7 +36,7 @@ const VehicleConsultation = dynamic<any>(
     }
 );
 
-type TabType = 'visao-geral' | 'usuarios' | 'veiculos' | 'estoque-concessionarias' | 'catalogo' | 'concessionarias' | 'transportadoras' | 'margem' | 'configuracoes' | 'planos' | 'cobrancas' | 'crm' | 'funil' | 'integracoes' | 'banners';
+type TabType = 'visao-geral' | 'usuarios' | 'veiculos' | 'estoque-concessionarias' | 'catalogo' | 'concessionarias' | 'transportadoras' | 'margem' | 'configuracoes' | 'planos' | 'cobrancas' | 'crm' | 'funil' | 'integracoes' | 'banners' | 'avisos';
 
 export default function AdminDashboard() {
     const router = useRouter();
@@ -126,6 +127,7 @@ export default function AdminDashboard() {
         { id: 'funil', label: 'Leads', icon: <Funnel size={20} aria-hidden="true" /> },
         { id: 'integracoes', label: 'Integrações', icon: <Plug size={20} aria-hidden="true" /> },
         { id: 'banners', label: 'Banners', icon: <Images size={20} aria-hidden="true" /> },
+        { id: 'avisos', label: 'Avisos', icon: <Megaphone size={20} aria-hidden="true" /> },
         // O WhatsApp tem rotas próprias (/dashboard/admin/whatsapp/*), com a
         // navegação dele por dentro — por isso navega em vez de trocar de aba.
         { id: 'whatsapp', label: 'WhatsApp', icon: <MessageCircle size={20} aria-hidden="true" />, rota: '/dashboard/admin/whatsapp' }
@@ -134,7 +136,7 @@ export default function AdminDashboard() {
     // Gerente não vê equipe, planos, carteira de clientes, leads, cobranças nem
     // integrações. A API de cada uma também recusa o perfil: esconder o menu
     // sozinho não protege nada.
-    const OCULTAS_GERENTE = new Set(['usuarios', 'planos', 'crm', 'funil', 'cobrancas', 'integracoes', 'whatsapp']);
+    const OCULTAS_GERENTE = new Set(['usuarios', 'planos', 'crm', 'funil', 'cobrancas', 'integracoes', 'whatsapp', 'avisos']);
 
     const tabs = allTabs.filter(tab => {
         if (userInfo.profile === 'marketing') {
@@ -183,6 +185,8 @@ export default function AdminDashboard() {
                 return <IntegrationsPanel />;
             case 'banners':
                 return <BannersManagement />;
+            case 'avisos':
+                return <AvisosManagement />;
             default:
                 return null;
         }

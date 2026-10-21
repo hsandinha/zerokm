@@ -75,9 +75,16 @@ const TOM_PERFIL: Partial<Record<UserProfile, BadgeTone>> = {
 };
 
 const ehCliente = (u: AdminUser) => !!u.allowedProfiles?.some(p => p === 'cliente' || p === 'gratis');
+/**
+ * Usuário só de concessionária (o login da loja). Fica num filtro próprio: na
+ * Equipe eles se misturavam com a equipe interna. São criados e vinculados na
+ * tela Concessionárias.
+ */
+const ehLoja = (u: AdminUser) => !ehCliente(u) && (u.allowedProfiles?.length ?? 0) > 0
+    && u.allowedProfiles.every(p => p === 'concessionaria' || p === 'dealership');
 
 type Coluna = 'usuario' | 'perfis' | 'status' | 'acesso' | 'criado';
-type Segmento = 'todos' | 'equipe' | 'clientes' | 'inativos';
+type Segmento = 'todos' | 'equipe' | 'lojas' | 'clientes' | 'inativos';
 
 function dataCurta(valor?: string | null) {
     if (!valor) return '';
@@ -114,7 +121,8 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableP
     const [dealerships, setDealerships] = useState<Concessionaria[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [sort, setSort] = useState<{ column: Coluna | null; direction: SortDirection }>({ column: null, direction: 'asc' });
-    const [segmento, setSegmento] = useState<Segmento>('todos');
+    // Abre na equipe interna: os logins das concessionárias ficam no filtro próprio.
+    const [segmento, setSegmento] = useState<Segmento>('equipe');
     const [saving, setSaving] = useState(false);
     const { confirm, notify, feedback } = useFeedback();
 
@@ -284,7 +292,8 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableP
         segmento === 'todos' ? true
             : segmento === 'inativos' ? u.disabled
                 : segmento === 'clientes' ? ehCliente(u)
-                    : !ehCliente(u);
+                    : segmento === 'lojas' ? ehLoja(u)
+                        : !ehCliente(u) && !ehLoja(u);
     const filteredAndSorted = [...users]
         .filter(noSegmento)
         .filter(u => {
@@ -318,8 +327,9 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableP
         });
 
     const ativos = users.filter(u => !u.disabled).length;
-    const equipe = users.filter(u => !ehCliente(u)).length;
-    const clientes = users.length - equipe;
+    const lojas = users.filter(ehLoja).length;
+    const equipe = users.filter(u => !ehCliente(u) && !ehLoja(u)).length;
+    const clientes = users.filter(ehCliente).length;
     const inativos = users.length - ativos;
     const trintaDias = Date.now() - 30 * 86_400_000;
     const acessaram = users.filter(u => u.lastSignInTime && new Date(u.lastSignInTime).getTime() >= trintaDias).length;
@@ -372,6 +382,7 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableP
                         options={[
                             { value: 'todos', label: 'Todos', count: users.length },
                             { value: 'equipe', label: 'Equipe', count: equipe },
+                            { value: 'lojas', label: 'Concessionárias', count: lojas },
                             { value: 'clientes', label: 'Clientes', count: clientes },
                             { value: 'inativos', label: 'Inativos', count: inativos },
                         ]}

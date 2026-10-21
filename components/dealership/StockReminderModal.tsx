@@ -22,22 +22,39 @@ interface StockReminderModalProps {
     onUpdateStock: () => void;
 }
 
+/** Lê o localStorage sem quebrar em aba anônima ou com armazenamento bloqueado. */
+function lerLembrete(): string | null {
+    try { return localStorage.getItem(STORAGE_KEY); } catch { return null; }
+}
+function gravarLembrete(valor: string) {
+    try { localStorage.setItem(STORAGE_KEY, valor); } catch { /* sem armazenamento: mostra de novo amanhã */ }
+}
+
 export function StockReminderModal({ onUpdateStock }: StockReminderModalProps) {
     const [metrics, setMetrics] = useState<ReminderMetrics | null>(null);
     const [visible, setVisible] = useState(false);
+    // Prazo de Configurações: a partir dele o estoque conta como desatualizado.
+    const [limite, setLimite] = useState(3);
 
     useEffect(() => {
         const today = new Date().toLocaleDateString('en-CA');
-        if (localStorage.getItem(STORAGE_KEY) === today) return;
+        const jaViuHoje = lerLembrete() === today;
 
         let cancelled = false;
-        fetch('/api/dealership/metrics')
-            .then((res) => (res.ok ? res.json() : null))
-            .then((data) => {
+        Promise.all([
+            fetch('/api/dealership/metrics').then((res) => (res.ok ? res.json() : null)),
+            fetch('/api/config/sistema').then((res) => (res.ok ? res.json() : null)).catch(() => null),
+        ])
+            .then(([data, config]) => {
                 if (cancelled || !data) return;
+                const dias = Number(config?.diasEstoqueDesatualizado) || 3;
+                setLimite(dias);
+                // Em dia: um lembrete por dia. Passou do prazo: aparece toda vez que entrar.
+                const atrasado = data.daysSinceUpdate >= dias || data.veiculosCadastrados === 0;
+                if (jaViuHoje && !atrasado) return;
                 setMetrics(data);
                 setVisible(true);
-                localStorage.setItem(STORAGE_KEY, today);
+                gravarLembrete(today);
             })
             .catch(() => { });
 
@@ -55,9 +72,9 @@ export function StockReminderModal({ onUpdateStock }: StockReminderModalProps) {
         statusColor = 'yellow';
         statusMessage = 'Atenção: seu estoque não é atualizado há mais de 1 dia.';
     }
-    if (daysSinceUpdate > 3) {
+    if (daysSinceUpdate >= limite) {
         statusColor = 'red';
-        statusMessage = 'Crítico: seu estoque está desatualizado há mais de 3 dias.';
+        statusMessage = `Seu estoque está há ${daysSinceUpdate >= 999 ? 'muito tempo' : `${daysSinceUpdate} dias`} sem atualização. Atualize preços e quantidades para continuar aparecendo para os lojistas.`;
     }
     if (metrics.veiculosCadastrados === 0) {
         statusColor = 'red';
@@ -75,7 +92,7 @@ export function StockReminderModal({ onUpdateStock }: StockReminderModalProps) {
 
     return (
         <AdminModal
-            title="Lembrete diário"
+            title={statusColor === 'red' ? 'Atualize seu estoque' : 'Lembrete diário'}
             subtitle="Mantenha seu estoque atualizado para aparecer nas consultas."
             onClose={handleClose}
             size="md"

@@ -228,6 +228,107 @@ export async function createUser(data: {
     }
 }
 
+/** Login de uma concessionária, na tela Concessionárias. */
+export interface UsuarioDaLoja {
+    uid: string;
+    email: string;
+    displayName?: string;
+    disabled: boolean;
+    lastSignInTime?: string;
+}
+
+/**
+ * Usuários vinculados a uma concessionária. A tela Concessionárias lista e cria
+ * o login da loja sem passar pela Equipe (onde eles se misturavam com a equipe).
+ */
+export async function listarUsuariosDaLoja(dealershipId: string): Promise<{ success: boolean; usuarios?: UsuarioDaLoja[]; error?: string }> {
+    try {
+        if (!(await canManageUsers())) return { success: false, error: 'Unauthorized' };
+        await connectDB();
+        const docs = await User.find({ dealershipId }).select('firebaseUid email displayName').lean() as any[];
+        const usuarios: UsuarioDaLoja[] = [];
+        for (const doc of docs) {
+            const registro = doc.firebaseUid ? await adminAuth.getUser(doc.firebaseUid).catch(() => null) : null;
+            usuarios.push({
+                uid: doc.firebaseUid,
+                email: doc.email,
+                displayName: doc.displayName || registro?.displayName,
+                disabled: registro?.disabled ?? false,
+                lastSignInTime: registro?.metadata.lastSignInTime,
+            });
+        }
+        return { success: true, usuarios };
+    } catch (error: any) {
+        console.error('Error listing dealership users:', error);
+        return { success: false, error: error.message || 'Falha ao listar usuários da loja' };
+    }
+}
+
+/**
+ * Cria o login da concessionária já vinculado à loja. Se o e-mail já existe,
+ * só vincula (e garante o perfil concessionária), sem criar outra conta.
+ */
+export async function criarUsuarioDaLoja(data: { dealershipId: string; email: string; displayName?: string; password?: string }) {
+    try {
+        if (!(await canManageUsers())) return { success: false, error: 'Unauthorized' };
+        const email = (data.email || '').trim().toLowerCase();
+        if (!email.includes('@')) return { success: false, error: 'E-mail inválido.' };
+        if (data.password && data.password.length < 6) return { success: false, error: 'A senha precisa ter pelo menos 6 caracteres.' };
+        await connectDB();
+
+        const existente = await User.findOne({ email });
+        if (existente) {
+            if (existente.dealershipId && existente.dealershipId !== data.dealershipId) {
+                return { success: false, error: 'Este e-mail já é usuário de outra concessionária.' };
+            }
+            const perfis = Array.from(new Set([...(existente.allowedProfiles || []), 'concessionaria']));
+            await User.updateOne({ _id: existente._id }, { $set: { dealershipId: data.dealershipId, allowedProfiles: perfis } });
+            return { success: true, vinculado: true };
+        }
+
+        const senha = data.password || 'mudar123';
+        const userRecord = await adminAuth.createUser({
+            email,
+            password: senha,
+            displayName: data.displayName?.trim() || undefined,
+            emailVerified: true,
+            disabled: false,
+        });
+        await User.create({
+            firebaseUid: userRecord.uid,
+            email,
+            displayName: data.displayName?.trim() || undefined,
+            allowedProfiles: ['concessionaria'],
+            defaultProfile: 'concessionaria',
+            dealershipId: data.dealershipId,
+            forcePasswordChange: true,
+        });
+        return { success: true, vinculado: false, senhaProvisoria: data.password ? undefined : senha };
+    } catch (error: any) {
+        console.error('Error creating dealership user:', error);
+        const jaExiste = error?.code === 'auth/email-already-exists';
+        return { success: false, error: jaExiste ? 'Este e-mail já tem login no Firebase. Vincule pela tela Equipe.' : (error.message || 'Falha ao criar usuário') };
+    }
+}
+
+/** Tira o vínculo do usuário com a concessionária (e o perfil de loja). Não apaga o login. */
+export async function desvincularUsuarioDaLoja(uid: string) {
+    try {
+        if (!(await canManageUsers())) return { success: false, error: 'Unauthorized' };
+        await connectDB();
+        const doc = await User.findOne({ firebaseUid: uid });
+        if (!doc) return { success: false, error: 'Usuário não encontrado' };
+        const perfis = (doc.allowedProfiles || []).filter((p: string) => p !== 'concessionaria' && p !== 'dealership');
+        await User.updateOne({ _id: doc._id }, { $unset: { dealershipId: '' }, $set: { allowedProfiles: perfis } });
+        // Sem nenhum perfil, o login fica desativado para não entrar num painel vazio.
+        if (perfis.length === 0) await adminAuth.updateUser(uid, { disabled: true }).catch(() => undefined);
+        return { success: true };
+    } catch (error: any) {
+        console.error('Error unlinking dealership user:', error);
+        return { success: false, error: error.message || 'Falha ao desvincular' };
+    }
+}
+
 export async function deleteUser(uid: string) {
     try {
         if (!(await canManageUsers())) {

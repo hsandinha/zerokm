@@ -5,6 +5,7 @@ import VehicleVariation from '@/models/VehicleVariation';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { lerAnoTexto, rotuloAno, textoDoAno } from '@/lib/utils/anoVeiculo';
+import User from '@/models/User';
 
 const texto = (valor: unknown) => (typeof valor === 'string' ? valor.trim() : typeof valor === 'number' ? String(valor) : '');
 
@@ -86,14 +87,27 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
         const allowedProfiles = ['admin', 'administrador', 'administrativo', 'operator', 'operador', 'gerente'];
         const userProfile = session.user?.profile;
-        if (!allowedProfiles.includes(userProfile || '')) {
+        // Concessionária edita os números dos próprios anúncios (Meus veículos).
+        const ehConcessionaria = userProfile === 'concessionaria' || userProfile === 'dealership';
+        if (!allowedProfiles.includes(userProfile || '') && !ehConcessionaria) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
         const { id } = await params;
-        const body = await request.json();
+        const rawBody = await request.json();
 
         await connectDB();
+
+        let lojaDoUsuario: string | null = null;
+        if (ehConcessionaria) {
+            const usuario = await User.findOne({ email: session.user?.email }).select('dealershipId').lean() as any;
+            lojaDoUsuario = usuario?.dealershipId ? String(usuario.dealershipId) : null;
+            if (!lojaDoUsuario) return NextResponse.json({ error: 'Usuário sem concessionária vinculada' }, { status: 403 });
+        }
+        // A loja não mexe no catálogo mestre: só preço, quantidade, prazo, observações e status.
+        const body = ehConcessionaria
+            ? Object.fromEntries(Object.entries(rawBody || {}).filter(([campo]) => ['preco', 'quantidade', 'prazo', 'observacoes', 'status'].includes(campo)))
+            : rawBody;
 
         const updateData: any = {};
         
@@ -150,6 +164,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         const currentDoc = await DealerVehiclePrice.findById(id);
         if (!currentDoc) {
             return NextResponse.json({ error: 'Registro não encontrado' }, { status: 404 });
+        }
+        if (lojaDoUsuario && String(currentDoc.concessionariaId) !== lojaDoUsuario) {
+            return NextResponse.json({ error: 'Este veículo não é da sua concessionária' }, { status: 403 });
         }
 
         // O frete só muda se mudou de fato: a tela manda o veículo inteiro a

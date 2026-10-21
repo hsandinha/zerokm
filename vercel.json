@@ -5,6 +5,10 @@
       "schedule": "0 3 * * *"
     },
     {
+      "path": "/api/cron/lembrete-estoque",
+      "schedule": "0 12 * * *"
+    },
+    {
       "path": "/api/wa/workers/ai",
       "schedule": "* * * * *"
     },

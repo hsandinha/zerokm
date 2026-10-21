@@ -12,12 +12,15 @@ export interface ConfigSistema {
     diasEstoqueDesatualizado: number;
     /** Liga o lembrete automático por WhatsApp (Vera) para a concessionária atrasada. */
     lembreteEstoqueWhatsApp: boolean;
+    /** Modelo de mensagem aprovado na Meta usado no lembrete ({{1}} loja, {{2}} dias). */
+    templateLembreteEstoque: string;
 }
 
 export const CONFIG_SISTEMA_PADRAO: ConfigSistema = {
     videoTutorialUrl: '',
     diasEstoqueDesatualizado: 3,
     lembreteEstoqueWhatsApp: false,
+    templateLembreteEstoque: 'lembrete_estoque',
 };
 
 function colecao() {
@@ -30,6 +33,9 @@ export function normalizarConfigSistema(doc: any): ConfigSistema {
         videoTutorialUrl: typeof doc?.videoTutorialUrl === 'string' ? doc.videoTutorialUrl.trim() : CONFIG_SISTEMA_PADRAO.videoTutorialUrl,
         diasEstoqueDesatualizado: Number.isInteger(dias) && dias >= 1 && dias <= 60 ? dias : CONFIG_SISTEMA_PADRAO.diasEstoqueDesatualizado,
         lembreteEstoqueWhatsApp: doc?.lembreteEstoqueWhatsApp === true,
+        templateLembreteEstoque: typeof doc?.templateLembreteEstoque === 'string' && /^[a-z0-9_]{1,512}$/.test(doc.templateLembreteEstoque.trim())
+            ? doc.templateLembreteEstoque.trim()
+            : CONFIG_SISTEMA_PADRAO.templateLembreteEstoque,
     };
 }
 

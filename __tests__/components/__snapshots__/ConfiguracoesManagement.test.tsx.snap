@@ -294,7 +294,25 @@ exports[`ConfiguracoesManagement > should match snapshot after loading 1`] = `
               <span
                 class="hint"
               >
-                Usa o número do WhatsApp do CNV e o modelo de mensagem aprovado na Meta.
+                Sai do número do WhatsApp do CNV, uma vez por dia às 9h, e repete a cada período sem atualização.
+              </span>
+            </label>
+            <label
+              class="field"
+            >
+              Modelo de mensagem (Meta)
+              <input
+                type="text"
+                value="lembrete_estoque"
+              />
+              <span
+                class="hint"
+              >
+                Nome do modelo aprovado em WhatsApp › Templates. Variáveis: 
+                {{1}}
+                 nome da loja e 
+                {{2}}
+                 dias sem atualizar.
               </span>
             </label>
           </div>

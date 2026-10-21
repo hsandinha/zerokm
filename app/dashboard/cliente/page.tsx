@@ -19,6 +19,7 @@ import { Financeiro } from '@/components/profile/Financeiro';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
 import { VideoTutorial } from '@/components/cliente/VideoTutorial';
 import { BoasVindas } from './BoasVindas';
+import { AvisosAssinante } from '@/components/cliente/AvisosAssinante';
 
 function PaymentBanner() {
     const searchParams = useSearchParams();
@@ -168,6 +169,8 @@ export default function ClientDashboard() {
             </Suspense>
             <FreeTrialGate userInfo={userInfo} />
             <BoasVindas nome={userInfo.name} email={userInfo.email} videoUrl={videoTutorialUrl} />
+            {/* Avisos da equipe: depois da boas-vindas, para não abrir dois de uma vez. */}
+            {!(typeof window !== 'undefined' && window.location.search.includes('boasVindas=1')) && <AvisosAssinante />}
             <ClienteShell
                 userInfo={userInfo}
                 isInvitee={isInvitee}

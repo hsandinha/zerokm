@@ -9,6 +9,7 @@ import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { MeusAnuncios } from '@/components/dealership/MeusAnuncios';
 import { DealerInventory } from '@/components/dealership/DealerInventory';
 import { StockReminderModal } from '@/components/dealership/StockReminderModal';
+import { AvisosAssinante } from '@/components/cliente/AvisosAssinante';
 import { ConfigContext } from '@/lib/contexts/ConfigContext';
 import { Concessionaria } from '@/lib/services/concessionariaService';
 import { Button, EmptyState, Page, PageHeader, SectionCard, StatCard, StatGrid, pageStyles } from '@/components/ui/Page';
@@ -56,6 +57,7 @@ export default function DealershipDashboard() {
                 user={{ name: usuario.name || 'Concessionária', email: usuario.email, role: 'Concessionária' }}
             >
                 <StockReminderModal onUpdateStock={() => setAba('precos')} />
+                <AvisosAssinante />
                 {aba === 'visao-geral' && <VisaoGeral onAtualizar={() => setAba('precos')} />}
                 {aba === 'veiculos' && <VehicleConsultation role="dealership" />}
                 {aba === 'precos' && (

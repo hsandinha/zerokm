@@ -15,6 +15,7 @@ import dbConnect from "@/lib/mongodb";
 import { adminAuth, privateKeyShape } from "@/lib/firebase-admin";
 import { getWabaCredentials } from "@wa/lib/settings";
 import { fetchPhoneInfo } from "@wa/lib/meta";
+import { llmProvider } from "@wa/lib/llm";
 import { procobCredentials } from "@wa/lib/procob";
 
 export const dynamic = "force-dynamic";
@@ -94,7 +95,23 @@ export async function GET() {
       },
     ),
 
-    checar("gemini", "Gemini (cérebro da IA)", "responder as mensagens", async () => {
+    // Com LLM_PROVIDER=openai, quem responde é o GPT: confere a chave da OpenAI.
+    llmProvider() === "openai"
+      ? checar("gemini", "GPT da OpenAI (cérebro da IA)", "responder as mensagens", async () => {
+          const key = process.env.OPENAI_API_KEY;
+          if (!key) throw new Error("OPENAI_API_KEY ausente");
+          const res = await fetch("https://api.openai.com/v1/models", {
+            headers: { Authorization: `Bearer ${key}` },
+            signal: AbortSignal.timeout(10_000),
+            cache: "no-store",
+          });
+          if (!res.ok) {
+            const body = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+            throw new Error(body.error?.message ?? `HTTP ${res.status}`);
+          }
+          return `chave válida (modelo ${process.env.OPENAI_MODEL ?? "gpt-4.1-mini"})`;
+        })
+      : checar("gemini", "Gemini (cérebro da IA)", "responder as mensagens", async () => {
       const key = process.env.GEMINI_API_KEY;
       if (!key) throw new Error("GEMINI_API_KEY ausente");
       const res = await fetch(

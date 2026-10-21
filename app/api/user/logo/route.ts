@@ -9,7 +9,7 @@ import ClienteLogo from '@/models/ClienteLogo';
 export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/user/logo — logo da loja de quem está logado, para o orçamento.
+ * GET /api/user/logo: logo da loja de quem está logado, para o orçamento.
  * Tela extra (convidado) usa a logo da conta principal.
  */
 export async function GET() {

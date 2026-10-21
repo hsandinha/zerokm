@@ -6,7 +6,7 @@ import { embedDoVideo } from '@/lib/utils/video';
 
 export const dynamic = 'force-dynamic';
 
-/** GET /api/config/sistema — qualquer usuário logado (o cliente lê o vídeo tutorial). */
+/** GET /api/config/sistema: qualquer usuário logado (o cliente lê o vídeo tutorial). */
 export async function GET() {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -18,7 +18,7 @@ export async function GET() {
     }
 }
 
-/** PATCH /api/config/sistema — administração. */
+/** PATCH /api/config/sistema: administração. */
 export async function PATCH(request: Request) {
     const session = await getServerSession(authOptions);
     if (!session || !['admin', 'administrador', 'gerente'].includes(session.user?.profile as string)) {
@@ -42,6 +42,13 @@ export async function PATCH(request: Request) {
             parcial.diasEstoqueDesatualizado = dias;
         }
         if (typeof body.lembreteEstoqueWhatsApp === 'boolean') parcial.lembreteEstoqueWhatsApp = body.lembreteEstoqueWhatsApp;
+        if (typeof body.templateLembreteEstoque === 'string') {
+            const nome = body.templateLembreteEstoque.trim();
+            if (nome && !/^[a-z0-9_]{1,512}$/.test(nome)) {
+                return NextResponse.json({ error: 'Nome do modelo de mensagem inválido: use letras minúsculas, números e _ (como na Meta).' }, { status: 400 });
+            }
+            parcial.templateLembreteEstoque = nome || undefined;
+        }
         return NextResponse.json(await salvarConfigSistema(parcial));
     } catch (error: any) {
         console.error('[config/sistema] PATCH', error);
