@@ -158,7 +158,10 @@ export async function moverOfertas(origemId: mongoose.Types.ObjectId, destinoId:
             .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
         const unidades = ativas.reduce((soma, o) => soma + (o.quantidade || 0), 0);
         const ativo = ativas.length > 0;
+        const cores = [...new Set([...(existente.coresDisponiveis || []), ...(oferta.coresDisponiveis || [])])];
 
+        // Favoritos primeiro: se cair no meio, ninguém fica apontando para anúncio apagado.
+        await remapearFavoritos(String(oferta._id), String(existente._id));
         await DealerVehiclePrice.collection.updateOne({ _id: existente._id }, {
             $set: semIndefinidos({
                 preco: base.preco ?? null,
@@ -167,18 +170,40 @@ export async function moverOfertas(origemId: mongoose.Types.ObjectId, destinoId:
                 observacoes: base.observacoes,
                 statusVeiculo: base.statusVeiculo,
                 operador: base.operador,
-                coresDisponiveis: base.coresDisponiveis || [],
+                coresDisponiveis: cores,
                 ativo,
                 quantidade: ativo ? Math.max(1, unidades) : 0,
                 updatedAt: base.updatedAt,
             }),
         });
         await DealerVehiclePrice.deleteOne({ _id: oferta._id });
-        await remapearFavoritos(String(oferta._id), String(existente._id));
         resultado.juntadas += 1;
     }
 
     return resultado;
+}
+
+type Variacao = Record<string, any> & { _id: mongoose.Types.ObjectId };
+
+/**
+ * A variação já existe igual na marca de destino: os anúncios vão para a
+ * gêmea, a gêmea herda foto e FIPE se não tiver, e a repetida sai do catálogo.
+ */
+async function juntarNaGemea(variacao: Variacao, gemea: Variacao, destino: MarcaDoc) {
+    const ofertas = await moverOfertas(variacao._id, gemea._id);
+    const completar = semIndefinidos({
+        imagemUrl: !gemea.imagemUrl && variacao.imagemUrl ? variacao.imagemUrl : undefined,
+        codigoFipe: !gemea.codigoFipe && variacao.codigoFipe ? variacao.codigoFipe : undefined,
+        descricaoFipe: !gemea.codigoFipe && variacao.codigoFipe ? variacao.descricaoFipe : undefined,
+        // Gêmea antiga sem marca vinculada passa a ser da marca certa.
+        marcaId: !gemea.marcaId ? destino._id : undefined,
+    });
+    if (Object.keys(completar).length) {
+        await VehicleVariation.updateOne({ _id: gemea._id }, { $set: completar });
+        Object.assign(gemea, completar);
+    }
+    await VehicleVariation.updateOne({ _id: variacao._id }, { $set: { ativo: false, marcaId: destino._id, marca: destino.nome } });
+    return ofertas;
 }
 
 /** Repasse, estoque legado e favoritos guardam o nome da marca como texto. */
@@ -282,28 +307,15 @@ export async function unificarMarcas(origemId: string, destinoId: string): Promi
         variacoesMovidas: 0, variacoesJuntadas: 0, ofertasMovidas: 0, ofertasJuntadas: 0, lojas: 0, repasse: 0, favoritos: 0,
     };
 
-    type Variacao = Record<string, any> & { _id: mongoose.Types.ObjectId };
     const variacoes = await VehicleVariation.find(filtroDaMarca(origem)).lean() as Variacao[];
     const ativasNoDestino = await VehicleVariation.find({ ativo: true, marca: destino.nome }).lean() as Variacao[];
     const chave = (v: Variacao) => JSON.stringify(chaveUnica(v, destino.nome));
     const gemeas = new Map(ativasNoDestino.map(v => [chave(v), v]));
 
-    /** A variação já existe igual no destino: anúncios vão para a gêmea e a repetida sai. */
     const juntar = async (variacao: Variacao, gemea: Variacao) => {
-        const ofertas = await moverOfertas(variacao._id, gemea._id);
+        const ofertas = await juntarNaGemea(variacao, gemea, destino);
         resultado.ofertasMovidas += ofertas.movidas;
         resultado.ofertasJuntadas += ofertas.juntadas;
-        // A gêmea herda foto e FIPE se não tiver.
-        const completar = semIndefinidos({
-            imagemUrl: !gemea.imagemUrl && variacao.imagemUrl ? variacao.imagemUrl : undefined,
-            codigoFipe: !gemea.codigoFipe && variacao.codigoFipe ? variacao.codigoFipe : undefined,
-            descricaoFipe: !gemea.codigoFipe && variacao.codigoFipe ? variacao.descricaoFipe : undefined,
-        });
-        if (Object.keys(completar).length) {
-            await VehicleVariation.updateOne({ _id: gemea._id }, { $set: completar });
-            Object.assign(gemea, completar);
-        }
-        await VehicleVariation.updateOne({ _id: variacao._id }, { $set: { ativo: false, marcaId: destino._id, marca: destino.nome } });
         resultado.variacoesJuntadas += 1;
     };
 
@@ -355,22 +367,28 @@ export async function renomearMarca(id: string, dados: { nome?: unknown; tipoVei
     if (outra) throw new ErroMarca(`Já existe a marca ${outra.nome}. Use Unificar para juntar as duas.`, 409);
 
     const nomeAntigo = marca.nome;
-    marca.nome = nome;
-    marca.tipoVeiculo = tipo as typeof marca.tipoVeiculo;
-    await marca.save();
+    const resultado = { nome, variacoes: 0, juntadas: 0, lojas: 0, repasse: 0, favoritos: 0 };
 
-    const resultado = { nome, variacoes: 0, conflitos: 0, lojas: 0, repasse: 0, favoritos: 0 };
-    if (nome === nomeAntigo) return resultado;
+    if (nome === nomeAntigo) {
+        marca.tipoVeiculo = tipo as typeof marca.tipoVeiculo;
+        await marca.save();
+        return resultado;
+    }
 
-    const variacoes = await VehicleVariation.find(filtroDaMarca({ _id: marca._id, nome: nomeAntigo })).select('_id').lean();
+    // Propaga antes de gravar o nome na marca: se cair no meio, repetir refaz tudo.
+    const novo: MarcaDoc = { _id: marca._id as mongoose.Types.ObjectId, nome };
+    const variacoes = await VehicleVariation.find(filtroDaMarca({ _id: marca._id as mongoose.Types.ObjectId, nome: nomeAntigo })).lean() as Variacao[];
     for (const variacao of variacoes) {
         try {
             await VehicleVariation.updateOne({ _id: variacao._id }, { $set: { marca: nome, marcaId: marca._id } });
             resultado.variacoes += 1;
         } catch (error) {
-            // Variação antiga, sem marca vinculada, já usava o nome novo: fica como está.
+            // Variação antiga, sem marca vinculada, já usava o nome novo: as duas viram uma.
             if (!ehDuplicidade(error)) throw error;
-            resultado.conflitos += 1;
+            const gemea = await VehicleVariation.findOne({ _id: { $ne: variacao._id }, ativo: true, ...chaveUnica(variacao, nome) }).lean() as Variacao | null;
+            if (!gemea) throw error;
+            await juntarNaGemea(variacao, gemea, novo);
+            resultado.juntadas += 1;
         }
     }
 
@@ -386,6 +404,10 @@ export async function renomearMarca(id: string, dados: { nome?: unknown; tipoVei
     const referencias = await trocarNomeNasReferencias(nomeAntigo, nome);
     resultado.repasse = referencias.repasse;
     resultado.favoritos = referencias.favoritos;
+
+    marca.nome = nome;
+    marca.tipoVeiculo = tipo as typeof marca.tipoVeiculo;
+    await marca.save();
     return resultado;
 }
 

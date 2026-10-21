@@ -137,8 +137,8 @@ export function MarcasCatalogoModal({ onClose, onChanged }: { onClose: () => voi
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(data.error || 'Não foi possível salvar a marca.');
-            notify(data.conflitos
-                ? `Marca salva. ${plural(data.conflitos, 'variação antiga ficou', 'variações antigas ficaram')} com o nome anterior por já existir igual.`
+            notify(data.juntadas
+                ? `Marca salva. ${plural(data.juntadas, 'variação repetida foi juntada', 'variações repetidas foram juntadas')} com a que já tinha o nome novo.`
                 : 'Marca salva.', 'positive');
             setVista({ tipo: 'lista' });
             await carregar();

@@ -224,6 +224,11 @@ export function CatalogVariationsManagement() {
     }, [brandFilter, tipoFilter, search]);
 
 
+    // Trocou o filtro: a seleção antiga sai, para a ação em massa valer só para o que está na tela.
+    useEffect(() => {
+        setSelectedVariations([]);
+    }, [search, brandFilter, tipoFilter]);
+
     // Marcas uma vez; variações a cada filtro, com espera para não consultar a cada tecla.
     useEffect(() => {
         loadMarcas().catch((error: any) => setAviso({ type: 'error', message: error?.message || 'Erro ao carregar marcas' }));

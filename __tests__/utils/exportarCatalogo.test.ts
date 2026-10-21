@@ -18,6 +18,8 @@ describe('exportação do catálogo', () => {
         expect(celulaCsv('Teto "solar"')).toBe('"Teto ""solar"""');
         expect(celulaCsv('=HYPERLINK("x")')).toBe('"\'=HYPERLINK(""x"")"');
         expect(celulaCsv(12)).toBe('12');
+        expect(celulaCsv('-cmd')).toBe("'-cmd");
+        expect(celulaCsv('-5')).toBe('-5');
     });
 
     it('monta linhas com ponto e vírgula e quebra do Windows', () => {

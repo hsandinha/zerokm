@@ -29,7 +29,8 @@ export function linhaDaExportacao(v: VariacaoExportada, anunciosAtivos: number):
         v.combustivel || '',
         v.cor || '',
         v.transmissao || '',
-        v.opcionais || (v.opcionaisPadrao || []).join(', '),
+        // Só o texto gravado: é ele que entra na chave de duplicidade da importação.
+        v.opcionais || '',
         v.tipoVeiculo || 'carro',
         v.cilindrada ?? '',
         v.codigoFipe || '',
@@ -45,7 +46,7 @@ export function linhaDaExportacao(v: VariacaoExportada, anunciosAtivos: number):
 /** Célula do CSV: aspas quando precisa e sem virar fórmula no Excel. */
 export function celulaCsv(valor: string | number): string {
     let texto = String(valor ?? '');
-    if (/^[=+@]/.test(texto)) texto = `'${texto}`;
+    if (/^[=+@\t\r]/.test(texto) || /^-[^\s\d]/.test(texto)) texto = `'${texto}`;
     if (/[";\r\n]/.test(texto) || texto !== texto.trim()) return `"${texto.replace(/"/g, '""')}"`;
     return texto;
 }

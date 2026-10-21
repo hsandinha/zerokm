@@ -27,7 +27,7 @@ export async function GET(request: Request) {
         await connectDB();
         const { searchParams } = new URL(request.url);
         const pagina = Math.max(1, parseInt(searchParams.get('pagina') || '1', 10) || 1);
-        const query = filtroDoCatalogo(searchParams);
+        const query = await filtroDoCatalogo(searchParams);
 
         const [variacoes, total] = await Promise.all([
             VehicleVariation.find(query).sort(ORDEM_DO_CATALOGO).skip((pagina - 1) * POR_PAGINA).limit(POR_PAGINA).lean(),

@@ -6,6 +6,7 @@ import { ErroMarca, excluirMarca, renomearMarca } from '@/lib/services/catalogoM
 import { PERFIS_MARCAS } from '@/lib/utils/permissoesCatalogo';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 async function acesso() {
     const session = await getServerSession(authOptions);

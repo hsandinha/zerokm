@@ -11,6 +11,7 @@ import { lerAnoTexto, rotuloAno as rotuloDoAno, textoDoAno } from '@/lib/utils/a
 import { filtroDoCatalogo, ORDEM_DO_CATALOGO } from '@/lib/services/catalogoFiltro';
 import { PERFIS_CATALOGO } from '@/lib/utils/permissoesCatalogo';
 import mongoose from 'mongoose';
+import { acrescentarOpcionais } from '@/lib/utils/opcionaisCatalogo';
 
 const MASTER_CATALOG_PROFILES = PERFIS_CATALOGO;
 
@@ -109,7 +110,7 @@ export async function GET(request: Request) {
         const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
         const limit = Math.min(500, Math.max(1, parseInt(searchParams.get('limit') || '100', 10)));
         const skip = (page - 1) * limit;
-        const query = filtroDoCatalogo(searchParams);
+        const query = await filtroDoCatalogo(searchParams);
 
         const [data, total] = await Promise.all([
             VehicleVariation.find(query)
@@ -257,14 +258,6 @@ function chaveUnica(v: Record<string, any>) {
     };
 }
 
-/** "Taxa zero" acrescentado a "Ar, Direção" vira "Ar, Direção, Taxa zero" (sem repetir). */
-function acrescentarOpcionais(atual: string | undefined, novo: string) {
-    const base = (atual || '').trim();
-    if (!base) return novo;
-    if (base.toLowerCase().includes(novo.toLowerCase())) return base;
-    return `${base.replace(/[,;|]\s*$/, '')}, ${novo}`;
-}
-
 /**
  * Altera os mesmos campos em várias variações de uma vez. A variação que
  * ficaria igual a outra já cadastrada não é alterada e volta na lista de
@@ -298,7 +291,7 @@ export async function PATCH(request: Request) {
             if (!lido.anoModelo) return NextResponse.json({ error: 'Ano inválido. Use 26/27 ou 2027.' }, { status: 400 });
             anoNovo = { anoFabricacao: lido.anoFabricacao ?? null, anoModelo: lido.anoModelo };
         }
-        const acrescentar = body?.opcionaisModo === 'acrescentar';
+        const acrescentar = mudar.opcionais !== undefined && body?.opcionaisModo === 'acrescentar';
         if (acrescentar && !mudar.opcionais) return NextResponse.json({ error: 'Informe o opcional que vai ser acrescentado.' }, { status: 400 });
 
         const variacoes = await VehicleVariation.find({ _id: { $in: ids } }).lean();
@@ -318,16 +311,24 @@ export async function PATCH(request: Request) {
                 set.anoFabricacao = anoNovo.anoFabricacao;
                 set.ano = textoDoAno(anoNovo.anoFabricacao, anoNovo.anoModelo);
             }
-            if (mudar.opcionais !== undefined) {
-                const opcionais = acrescentar ? acrescentarOpcionais(v.opcionais, mudar.opcionais) : mudar.opcionais;
-                if (opcionais) set.opcionais = opcionais; else unset.opcionais = '';
-                set.opcionaisPadrao = parseOptionals(opcionais);
+            if (mudar.opcionais !== undefined && acrescentar) {
+                const resultado = acrescentarOpcionais(v, mudar.opcionais);
+                if (resultado.mudou) {
+                    set.opcionais = resultado.opcionais;
+                    set.opcionaisPadrao = resultado.padrao;
+                }
+            } else if (mudar.opcionais !== undefined) {
+                if (mudar.opcionais) set.opcionais = mudar.opcionais; else unset.opcionais = '';
+                set.opcionaisPadrao = parseOptionals(mudar.opcionais);
             }
             const final: Record<string, any> = { ...v, ...set };
             for (const campo of Object.keys(unset)) delete final[campo];
             return { v, set, unset, final };
         });
 
+        // A identidade FIPE só muda com ano, combustível, câmbio ou opcionais. Trocar só o
+        // nome do modelo não deve esbarrar numa duplicata FIPE antiga.
+        const mexeNaIdentidadeFipe = ['ano', 'combustivel', 'transmissao', 'opcionais'].some(campo => mudar[campo as keyof typeof mudar] !== undefined);
         const ignoradas: Array<{ id: string; nome: string; motivo: string }> = [];
         let atualizadas = 0;
         let pendentes = planos;
@@ -340,7 +341,7 @@ export async function PATCH(request: Request) {
                 const ultima = passada === 1;
                 if (plano.v.ativo) {
                     const igual = await VehicleVariation.findOne({ _id: { $ne: plano.v._id }, ativo: true, ...chaveUnica(plano.final) }).select('_id').lean();
-                    const identidade = catalogFipeIdentity(plano.final);
+                    const identidade = mexeNaIdentidadeFipe ? catalogFipeIdentity(plano.final) : null;
                     const mesmaFipe = !igual && identidade
                         ? await VehicleVariation.findOne({ ...identidade, _id: { $ne: plano.v._id } }).select('_id').lean()
                         : null;
@@ -354,6 +355,8 @@ export async function PATCH(request: Request) {
                     const update: Record<string, any> = {};
                     if (Object.keys(plano.set).length) update.$set = plano.set;
                     if (Object.keys(plano.unset).length) update.$unset = plano.unset;
+                    // Nada a mudar (ex.: o opcional acrescentado já estava lá).
+                    if (Object.keys(update).length === 0) continue;
                     await VehicleVariation.updateOne({ _id: plano.v._id }, update);
                     atualizadas += 1;
                 } catch (error: any) {
