@@ -53,6 +53,8 @@ async function createStore(data: Partial<IWaStore>): Promise<IWaStore> {
     return await WaStore.create({
       ...data,
       trialEndsAt: new Date(Date.now() + STORE_TRIAL_DAYS * 86400_000),
+      // Lojista revende a rede do CNV; a concessionária vende o próprio estoque.
+      ai: { vendeEstoqueCnv: data.kind === "lojista" },
     });
   } catch (err) {
     // Dois acessos simultâneos criaram juntos: fica o primeiro.

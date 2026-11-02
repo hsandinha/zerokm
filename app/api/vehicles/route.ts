@@ -43,7 +43,8 @@ const getEffectiveProfile = (session: any, requestedProfile?: string | null) => 
  */
 function repasseAsVitrineStages(now: Date = new Date()) {
     return [
-        { $match: { ativo: true, status: { $in: REPASSE_STATUS_VITRINE } } },
+        // Estoque local de lojista (lojistaId) é só da IA da loja, nunca da vitrine.
+        { $match: { ativo: true, status: { $in: REPASSE_STATUS_VITRINE }, lojistaId: null } },
         {
             $lookup: {
                 from: Concessionaria.collection.name,
