@@ -2,7 +2,7 @@
 // status e motivo da falha, e as ações de controle (iniciar, pausar, cancelar).
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin, requirePanelUser } from "@wa/lib/auth";
+import { requireScope, requireScopeAdmin, sameTenant, type Scope } from "@wa/lib/scope";
 import dbConnect from "@/lib/mongodb";
 import { WaCampaign, WaCampaignRecipient } from "@wa/models/wa";
 import { describeWindow, isWithinSendWindow } from "@wa/lib/send-window";
@@ -13,8 +13,9 @@ const MAX_LISTA = 300;
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(req: NextRequest, { params }: Params) {
+  let scope: Scope;
   try {
-    await requirePanelUser();
+    scope = await requireScope();
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   await dbConnect();
 
   const c = await WaCampaign.findById(id).lean();
-  if (!c) return NextResponse.json({ error: "Campanha não encontrada" }, { status: 404 });
+  if (!c || !sameTenant(scope, c)) return NextResponse.json({ error: "Campanha não encontrada" }, { status: 404 });
 
   const filtro = req.nextUrl.searchParams.get("status");
   const query: Record<string, unknown> = { campaignId: c._id };
@@ -112,8 +113,9 @@ export async function GET(req: NextRequest, { params }: Params) {
 
 /** Controle do disparo. Cancelar é definitivo: o que não saiu não sai mais. */
 export async function PATCH(req: NextRequest, { params }: Params) {
+  let scope: Scope;
   try {
-    await requireAdmin();
+    scope = await requireScopeAdmin();
   } catch (err) {
     const status = (err as { status?: number }).status ?? 403;
     return NextResponse.json({ error: "Acesso restrito a administradores" }, { status });
@@ -124,7 +126,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   await dbConnect();
   const campaign = await WaCampaign.findById(id);
-  if (!campaign) return NextResponse.json({ error: "Campanha não encontrada" }, { status: 404 });
+  if (!campaign || !sameTenant(scope, campaign)) return NextResponse.json({ error: "Campanha não encontrada" }, { status: 404 });
   if (campaign.status === "completed" || campaign.status === "cancelled") {
     return NextResponse.json({ error: `Campanha já ${campaign.status}` }, { status: 400 });
   }

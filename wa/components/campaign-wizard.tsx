@@ -44,6 +44,7 @@ import {
   type ParamMapItem,
   type ParamType,
 } from "@wa/lib/campaign-params";
+import { useWaPanel } from "@wa/components/wa-panel";
 
 const STEPS = ["Audiência", "Template", "Configuração", "Revisar"];
 
@@ -143,6 +144,7 @@ function Stepper({ step, goTo }: { step: number; goTo: (s: number) => void }) {
 }
 
 export function CampaignWizard() {
+  const { base: painel, store } = useWaPanel();
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [erro, setErro] = useState<string | null>(null);
@@ -150,7 +152,8 @@ export function CampaignWizard() {
   const [salvando, setSalvando] = useState(false);
 
   // ── Passo 1: audiência ──────────────────────────────────────
-  const [source, setSource] = useState<Source>("cnpja");
+  // Loja dispara só para a própria lista: CNPJá, base e Procob são do CNV.
+  const [source, setSource] = useState<Source>(store ? "csv" : "cnpja");
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [buscando, setBuscando] = useState(false);
 
@@ -414,7 +417,7 @@ export function CampaignWizard() {
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Falha ao criar a campanha");
-      router.push(`/dashboard/admin/whatsapp/campanhas/${body.campaignId}`);
+      router.push(`${painel}/campanhas/${body.campaignId}`);
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Falha ao criar a campanha");
     } finally {
@@ -432,7 +435,7 @@ export function CampaignWizard() {
   return (
     <div className="mx-auto max-w-4xl space-y-5">
       <div className="flex items-center gap-3">
-        <Link href="/dashboard/admin/whatsapp/campanhas" className="rounded-full p-2 text-muted hover:bg-canvas">
+        <Link href={`${painel}/campanhas`} className="rounded-full p-2 text-muted hover:bg-canvas">
           <ArrowLeft size={18} />
         </Link>
         <div>
@@ -466,7 +469,7 @@ export function CampaignWizard() {
                 ["pessoa", "Por pessoa (Procob)"],
                 ["csv", "Importar CSV"],
               ] as Array<[Source, string]>
-            ).map(([id, label]) => (
+            ).filter(([id]) => !store || id === "csv").map(([id, label]) => (
               <button
                 key={id}
                 onClick={() => {
@@ -553,7 +556,7 @@ export function CampaignWizard() {
                   {formatNumber(base?.total ?? 0)} prontas
                 </span>
                 {(base?.pending ?? 0) > 0 && (
-                  <Link href="/dashboard/admin/whatsapp/contatos/enriquecer" className="text-xs text-brand-700 hover:underline">
+                  <Link href={`${painel}/contatos/enriquecer`} className="text-xs text-brand-700 hover:underline">
                     {formatNumber(base!.pending)} sem telefone — enriquecer →
                   </Link>
                 )}
@@ -605,7 +608,7 @@ export function CampaignWizard() {
                 {people.length === 0 && (
                   <p className="py-6 text-center text-xs text-muted">
                     Nenhum sócio com celular guardado. Use{" "}
-                    <Link href="/dashboard/admin/whatsapp/contatos/enriquecer" className="text-brand-700 hover:underline">
+                    <Link href={`${painel}/contatos/enriquecer`} className="text-brand-700 hover:underline">
                       Enriquecer
                     </Link>{" "}
                     para buscar na Procob.
@@ -746,7 +749,7 @@ export function CampaignWizard() {
             {templates?.length === 0 && (
               <p className="text-xs text-amber-700">
                 Nenhum template aprovado neste WABA.{" "}
-                <Link href="/dashboard/admin/whatsapp/templates" className="underline">
+                <Link href={`${painel}/templates`} className="underline">
                   Criar um agora
                 </Link>
                 .

@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
-import { CarFront, ChevronLeft, CreditCard, Inbox, Kanban, Settings2, Users } from "lucide-react";
+import { CarFront, ChevronLeft, CreditCard, Inbox, Kanban, LayoutTemplate, Megaphone, Settings2, Users } from "lucide-react";
 import { WaPanelProvider, STORE_PANEL } from "@wa/components/wa-panel";
 
 export type StoreShellInfo = {
@@ -53,8 +53,10 @@ export function StoreShell({ store, children }: { store: StoreShellInfo; childre
     { href: `${BASE}/pipeline`, label: "Funil", icon: Kanban },
     { href: `${BASE}/contatos`, label: "Contatos", icon: Users },
     ...(store.kind === "lojista" ? [{ href: `${BASE}/estoque`, label: "Estoque do pátio", icon: CarFront }] : []),
+    { href: `${BASE}/campanhas`, label: "Campanhas", icon: Megaphone },
     ...(gestor
       ? [
+          { href: `${BASE}/templates`, label: "Templates", icon: LayoutTemplate },
           { href: `${BASE}/configuracao`, label: "Configuração", icon: Settings2 },
           { href: `${BASE}/assinatura`, label: "Assinatura", icon: CreditCard },
         ]

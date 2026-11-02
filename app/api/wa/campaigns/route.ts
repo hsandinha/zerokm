@@ -6,12 +6,12 @@
 // descobriria com a campanha já rodando.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin, requirePanelUser } from "@wa/lib/auth";
+import { requireScope, requireScopeAdmin, type Scope } from "@wa/lib/scope";
 import dbConnect from "@/lib/mongodb";
 import { WaCampaign, WaCampaignRecipient, WaContact } from "@wa/models/wa";
 import { WaPartner, WaTarget } from "@wa/models/base";
 import { parsePhoneBr } from "@wa/lib/phone";
-import { getWabaCredentials } from "@wa/lib/settings";
+import { wabaCredentialsOf } from "@wa/lib/channels";
 import { listTemplates, templateVariables } from "@wa/lib/meta";
 import {
   defaultParamMap,
@@ -23,15 +23,19 @@ import {
 export const maxDuration = 60;
 
 export async function GET() {
+  let scope: Scope;
   try {
     // Leitura dos números liberada para o operador; criar e disparar, não.
-    await requirePanelUser();
+    scope = await requireScope();
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   await dbConnect();
-  const campaigns = await WaCampaign.find().sort({ createdAt: -1 }).limit(100).lean();
+  const campaigns = await WaCampaign.find({ tenantId: scope.tenantId })
+    .sort({ createdAt: -1 })
+    .limit(100)
+    .lean();
   return NextResponse.json({
     campaigns: campaigns.map((c) => ({
       id: String(c._id),
@@ -74,21 +78,22 @@ type Linha = {
 };
 
 /** Telefones que pediram para sair — conferidos em bloco antes de montar a fila. */
-async function optedOutSet(phones: string[]): Promise<Set<string>> {
+async function optedOutSet(phones: string[], tenantId: string | null): Promise<Set<string>> {
   if (phones.length === 0) return new Set();
-  const rows = await WaContact.find({ phone: { $in: phones }, optOut: true })
+  // Opt-out é por loja: quem pediu para a loja parar não pediu para o CNV.
+  const rows = await WaContact.find({ tenantId, phone: { $in: phones }, optOut: true })
     .select("phone")
     .lean();
   return new Set(rows.map((r) => r.phone));
 }
 
 export async function POST(req: NextRequest) {
-  let user;
+  let user: Scope;
   try {
-    user = await requireAdmin();
+    user = await requireScopeAdmin();
   } catch (err) {
     const status = (err as { status?: number }).status ?? 403;
-    return NextResponse.json({ error: "Acesso restrito a administradores" }, { status });
+    return NextResponse.json({ error: "Acesso restrito a gestores" }, { status });
   }
 
   const body = (await req.json().catch(() => ({}))) as {
@@ -130,13 +135,19 @@ export async function POST(req: NextRequest) {
 
   await dbConnect();
 
+  // Loja dispara só para a lista dela (CSV/contatos): a prospecção por
+  // CNPJá, Procob e base de empresas é do CNV.
+  if (user.tenantId && (body.partners?.length || body.targetIds?.length || body.source === "cnpja")) {
+    return NextResponse.json({ error: "Fonte de público indisponível para lojas" }, { status: 400 });
+  }
+
   // O template manda no número de variáveis. Sem conferir isto, o disparo
   // falharia na Meta em 100% das mensagens ("number of parameters does not
   // match") — com a campanha já rodando.
-  const creds = await getWabaCredentials();
+  const creds = await wabaCredentialsOf(user.tenantId);
   if (!creds?.wabaId) {
     return NextResponse.json(
-      { error: "WABA não configurado — preencha em IA & WABA." },
+      { error: "WhatsApp não conectado — conecte o número na Configuração." },
       { status: 400 },
     );
   }
@@ -207,7 +218,7 @@ export async function POST(req: NextRequest) {
     const todosFones = body.partners.flatMap((p) =>
       p.phones.map((x) => parsePhoneBr(x).e164).filter((x): x is string => Boolean(x)),
     );
-    const optOut = await optedOutSet(todosFones);
+    const optOut = await optedOutSet(todosFones, user.tenantId);
 
     for (const entry of body.partners) {
       const partner = partnerById.get(entry.partnerId);
@@ -246,7 +257,7 @@ export async function POST(req: NextRequest) {
     const fones = body.recipients
       .map((r) => parsePhoneBr(r.phone).e164)
       .filter((x): x is string => Boolean(x));
-    const optOut = await optedOutSet(fones);
+    const optOut = await optedOutSet(fones, user.tenantId);
 
     for (const r of body.recipients) {
       const parsed = parsePhoneBr(r.phone);
@@ -290,7 +301,7 @@ export async function POST(req: NextRequest) {
     const fones = targets
       .map((t) => parsePhoneBr(t.phone ?? "").e164)
       .filter((x): x is string => Boolean(x));
-    const optOut = await optedOutSet(fones);
+    const optOut = await optedOutSet(fones, user.tenantId);
 
     for (const target of targets) {
       const parsed = parsePhoneBr(target.phone ?? "");
@@ -342,6 +353,7 @@ export async function POST(req: NextRequest) {
   const throttleSeconds = Math.min(Math.max(body.throttleSeconds ?? 4, 1), 60);
 
   const campaign = await WaCampaign.create({
+    tenantId: user.tenantId,
     name: body.name.trim(),
     templateName: body.templateName.trim(),
     templateLanguage: body.templateLanguage?.trim() || "pt_BR",
@@ -371,6 +383,7 @@ export async function POST(req: NextRequest) {
     await WaCampaignRecipient.insertMany(
       linhas.slice(i, i + 500).map((r) => ({
         campaignId: campaign._id,
+        tenantId: user.tenantId,
         phone: r.phone,
         name: r.name ?? undefined,
         params: r.params,
