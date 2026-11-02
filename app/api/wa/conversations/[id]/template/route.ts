@@ -1,7 +1,7 @@
 // Fora da janela de 24h: reabre a conversa com um template aprovado.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requirePanelUser, type PanelUser } from "@wa/lib/auth";
+import { requireScope, type Scope } from "@wa/lib/scope";
 import { MetaApiError } from "@wa/lib/meta";
 import { OutreachError, sendTemplateOutreach } from "@wa/lib/outreach";
 
@@ -10,9 +10,9 @@ export const maxDuration = 60;
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(req: NextRequest, { params }: Params) {
-  let user: PanelUser;
+  let user: Scope;
   try {
-    user = await requirePanelUser();
+    user = await requireScope();
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
@@ -34,6 +34,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       language: body.language,
       params: Array.isArray(body.params) ? body.params : [],
       userEmail: user.email,
+      tenantId: user.tenantId,
     });
     return NextResponse.json(result);
   } catch (err) {

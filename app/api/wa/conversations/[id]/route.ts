@@ -2,7 +2,7 @@
 // assumir, devolver para a IA, encerrar, mover de etapa, atribuir.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requirePanelUser, type PanelUser } from "@wa/lib/auth";
+import { requireScope, sameTenant, type Scope } from "@wa/lib/scope";
 import dbConnect from "@/lib/mongodb";
 import { WaAiJob, WaCampaign, WaContact, WaConversation, WaMessage } from "@wa/models/wa";
 import { getDossier } from "@wa/lib/dossier";
@@ -14,8 +14,9 @@ import { channelForConversation } from "@wa/lib/channels";
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, { params }: Params) {
+  let scope: Scope;
   try {
-    await requirePanelUser();
+    scope = await requireScope();
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
@@ -24,7 +25,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   await dbConnect();
 
   const conversation = await WaConversation.findById(id).lean();
-  if (!conversation) {
+  if (!conversation || !sameTenant(scope, conversation)) {
     return NextResponse.json({ error: "Conversa não encontrada" }, { status: 404 });
   }
 
@@ -93,9 +94,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 export async function PATCH(req: NextRequest, { params }: Params) {
-  let user: PanelUser;
+  let user: Scope;
   try {
-    user = await requirePanelUser();
+    user = await requireScope();
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
@@ -108,6 +109,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   };
 
   await dbConnect();
+  const own = await WaConversation.findById(id).select("tenantId").lean();
+  if (!own || !sameTenant(user, own)) {
+    return NextResponse.json({ error: "Conversa não encontrada" }, { status: 404 });
+  }
   const patch: Record<string, unknown> = {};
   let event: "conversa.atribuida" | "conversa.resolvida" | null = null;
 

@@ -251,7 +251,7 @@ export async function listPartnerContacts(
   const rows = await WaPartnerContact.find({ partnerId: { $in: partnerIds } }).lean();
   const phones = [...new Set(rows.map((r) => r.e164).filter(Boolean))] as string[];
   const contacts = phones.length
-    ? await WaContact.find({ phone: { $in: phones } }).select("phone targetId").lean()
+    ? await WaContact.find({ tenantId: null, phone: { $in: phones } }).select("phone targetId").lean()
     : [];
   const contactByPhone = new Map(contacts.map((c) => [c.phone, c]));
 

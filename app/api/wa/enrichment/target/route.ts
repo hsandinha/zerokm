@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   if (!target.phone) {
     const partner = await WaPartner.findById(body.partnerId).select("taxId").lean();
     if (partner?.taxId) {
-      const contact = await WaContact.findOne({ document: partner.taxId, optOut: false })
+      const contact = await WaContact.findOne({ tenantId: null, document: partner.taxId, optOut: false })
         .select("phone name")
         .lean();
       if (contact) {

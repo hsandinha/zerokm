@@ -2,15 +2,15 @@
 // jobs de IA pendentes (regra de ouro: nunca IA e humano ao mesmo tempo).
 
 import { NextRequest, NextResponse } from "next/server";
-import { requirePanelUser, type PanelUser } from "@wa/lib/auth";
+import { requireScope, sameTenant, type Scope } from "@wa/lib/scope";
 import dbConnect from "@/lib/mongodb";
 import { WaAiJob, WaContact, WaConversation } from "@wa/models/wa";
 import { sendAndLogText } from "@wa/lib/send";
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
-  let user: PanelUser;
+  let user: Scope;
   try {
-    user = await requirePanelUser();
+    user = await requireScope();
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   await dbConnect();
   const conv = await WaConversation.findById(id);
-  if (!conv) return NextResponse.json({ error: "Conversa não encontrada" }, { status: 404 });
+  if (!conv || !sameTenant(user, conv)) return NextResponse.json({ error: "Conversa não encontrada" }, { status: 404 });
   const contact = await WaContact.findById(conv.contactId);
   if (!contact) return NextResponse.json({ error: "Contato não encontrado" }, { status: 404 });
 

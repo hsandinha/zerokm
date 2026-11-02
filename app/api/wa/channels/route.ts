@@ -1,23 +1,27 @@
-// Canais do CNV (Vera) para a tela de Configuração. Segredos nunca saem.
+// Canais de quem está operando (o CNV ou a loja) para a tela de Configuração.
+// Segredos nunca saem.
 
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
-import { requireAdmin } from "@wa/lib/auth";
+import { requireScopeAdmin, type Scope } from "@wa/lib/scope";
 import { WaChannel } from "@wa/models/channel";
 import { cnvWhatsappChannel } from "@wa/lib/channels";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  let scope: Scope;
   try {
-    await requireAdmin();
+    scope = await requireScopeAdmin();
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   await dbConnect();
-  await cnvWhatsappChannel(); // migra o WABA antigo, se ainda não migrou
-  const channels = await WaChannel.find({ tenantId: null }).sort({ kind: -1, createdAt: 1 }).lean();
+  if (!scope.tenantId) await cnvWhatsappChannel(); // migra o WABA antigo, se ainda não migrou
+  const channels = await WaChannel.find({ tenantId: scope.tenantId })
+    .sort({ kind: -1, createdAt: 1 })
+    .lean();
 
   return NextResponse.json({
     channels: channels.map((c) => ({

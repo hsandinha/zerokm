@@ -138,7 +138,7 @@ export async function ingestRows(
       if (phone && parsed.kind === "movel" && !seenPhone.has(phone)) {
         seenPhone.add(phone);
         await WaContact.findOneAndUpdate(
-          { phone },
+          { tenantId: null, phone },
           {
             $setOnInsert: { phone, source: source === "cnpja" ? "cnpja" : "csv" },
             $set: {

@@ -1,29 +1,27 @@
-// "Conectar Instagram": manda o admin para a autorização do Instagram Login.
-// O `state` assinado diz de quem será o canal — hoje o CNV (Vera); a loja
-// que assinar o atendimento passa o id dela pelo mesmo caminho.
+// "Conectar Instagram": manda o gestor para a autorização do Instagram Login.
+// O `state` assinado diz de quem será o canal — o CNV (Vera) ou a loja.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@wa/lib/auth";
-import { signConnectState } from "@wa/lib/channels";
+import { requireScopeAdmin } from "@wa/lib/scope";
+import { configPathOf, signConnectState } from "@wa/lib/channels";
 import { igAuthorizeUrl } from "@wa/lib/instagram";
 import { siteUrl } from "@wa/lib/site-url";
-
-const CONFIG_PATH = "/dashboard/admin/whatsapp/configuracao";
 
 export async function GET(req: NextRequest) {
   const base = siteUrl(req);
   let email: string;
+  let tenantId: string | null;
   try {
-    ({ email } = await requireAdmin());
+    ({ email, tenantId } = await requireScopeAdmin());
   } catch {
-    return NextResponse.redirect(`${base}${CONFIG_PATH}?instagram=forbidden`);
+    return NextResponse.redirect(`${base}/dashboard?instagram=forbidden`);
   }
 
   try {
-    const state = signConnectState({ tenantId: null, by: email });
+    const state = signConnectState({ tenantId, by: email });
     return NextResponse.redirect(igAuthorizeUrl(state, `${base}/api/wa/instagram/callback`));
   } catch (err) {
     console.error("[instagram] conexão indisponível:", err);
-    return NextResponse.redirect(`${base}${CONFIG_PATH}?instagram=config`);
+    return NextResponse.redirect(`${base}${configPathOf(tenantId)}?instagram=config`);
   }
 }

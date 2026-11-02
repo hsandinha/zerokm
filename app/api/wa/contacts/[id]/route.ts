@@ -2,7 +2,7 @@
 // mão — corrigir nome/empresa e ligar ou desligar o opt-out.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requirePanelUser, type PanelUser } from "@wa/lib/auth";
+import { requireScope, sameTenant, type Scope } from "@wa/lib/scope";
 import dbConnect from "@/lib/mongodb";
 import { WaContact, WaConversation } from "@wa/models/wa";
 import { getDossier } from "@wa/lib/dossier";
@@ -11,8 +11,9 @@ import { emitEvent } from "@wa/lib/webhooks";
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, { params }: Params) {
+  let scope: Scope;
   try {
-    await requirePanelUser();
+    scope = await requireScope();
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
@@ -20,7 +21,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const { id } = await params;
   await dbConnect();
   const contact = await WaContact.findById(id);
-  if (!contact) return NextResponse.json({ error: "Contato não encontrado" }, { status: 404 });
+  if (!contact || !sameTenant(scope, contact)) return NextResponse.json({ error: "Contato não encontrado" }, { status: 404 });
 
   const [conversation, dossier] = await Promise.all([
     WaConversation.findOne({ contactId: contact._id }).lean(),
@@ -56,9 +57,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 export async function PATCH(req: NextRequest, { params }: Params) {
-  let user: PanelUser;
+  let user: Scope;
   try {
-    user = await requirePanelUser();
+    user = await requireScope();
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
@@ -73,7 +74,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   await dbConnect();
   const contact = await WaContact.findById(id);
-  if (!contact) return NextResponse.json({ error: "Contato não encontrado" }, { status: 404 });
+  if (!contact || !sameTenant(user, contact)) return NextResponse.json({ error: "Contato não encontrado" }, { status: 404 });
 
   if (body.name !== undefined) contact.name = body.name.trim() || undefined;
   if (body.email !== undefined) contact.email = body.email.trim().toLowerCase() || undefined;

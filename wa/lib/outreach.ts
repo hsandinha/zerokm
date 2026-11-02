@@ -10,7 +10,7 @@ import dbConnect from "@/lib/mongodb";
 import { WaContact, WaConversation, WaFollowup, type IWaContact } from "@wa/models/wa";
 import { WaTarget } from "@wa/models/base";
 import { parsePhoneBr } from "@wa/lib/phone";
-import { getWabaCredentials } from "@wa/lib/settings";
+import { wabaCredentialsOf, whatsappChannelOf } from "@wa/lib/channels";
 import { listTemplates, templateVariables } from "@wa/lib/meta";
 import { sendAndLogTemplate } from "@wa/lib/send";
 import { renderTemplateBody } from "@wa/lib/campaign-params";
@@ -35,14 +35,19 @@ export async function sendTemplateOutreach(params: {
   language?: string;
   params: string[];
   userEmail: string;
+  /** Loja que aborda (null = CNV). Contato, conversa e número são dela. */
+  tenantId?: string | null;
 }): Promise<{ conversationId: string; contactId: string; created: boolean; text: string }> {
   await dbConnect();
+  const tenantId = params.tenantId ?? null;
 
   // ── 1. Contato ─────────────────────────────────────────────
   let contact: IWaContact | null = null;
   if (params.conversationId) {
     const conv = await WaConversation.findById(params.conversationId);
-    if (!conv) throw new OutreachError("Conversa não encontrada", 404);
+    if (!conv || (conv.tenantId ?? null) !== tenantId) {
+      throw new OutreachError("Conversa não encontrada", 404);
+    }
     contact = await WaContact.findById(conv.contactId);
   } else {
     const parsed = parsePhoneBr(params.phone);
@@ -53,16 +58,20 @@ export async function sendTemplateOutreach(params: {
       throw new OutreachError("Só celular recebe WhatsApp — este número é fixo");
     }
 
-    contact = await WaContact.findOne({ phone: parsed.e164 });
+    contact = await WaContact.findOne({ tenantId, phone: parsed.e164 });
     if (contact) {
       if (!contact.name && params.name?.trim()) {
         contact.name = params.name.trim();
         await contact.save();
       }
     } else {
-      // Se o número já é de uma empresa da base, o contato nasce com o vínculo.
-      const target = await WaTarget.findOne({ phone: parsed.e164 }).sort({ priority: -1 });
+      // Se o número já é de uma empresa da base (prospecção do CNV), o contato
+      // nasce com o vínculo. Loja não enxerga a base do CNV.
+      const target = tenantId
+        ? null
+        : await WaTarget.findOne({ phone: parsed.e164 }).sort({ priority: -1 });
       contact = await WaContact.create({
+        tenantId,
         phone: parsed.e164,
         name: params.name?.trim() || undefined,
         source: "manual",
@@ -80,8 +89,11 @@ export async function sendTemplateOutreach(params: {
   }
 
   // ── 2. Template: precisa existir, estar aprovado e ter as variáveis ──
-  const creds = await getWabaCredentials();
-  if (!creds?.wabaId) throw new OutreachError("WABA não configurado — preencha em IA & WABA.");
+  const creds = await wabaCredentialsOf(tenantId);
+  if (!creds?.wabaId) {
+    throw new OutreachError("WhatsApp não conectado — conecte o número na Configuração.");
+  }
+  const channel = await whatsappChannelOf(tenantId);
 
   const templates = await listTemplates(creds);
   const tpl =
@@ -111,6 +123,8 @@ export async function sendTemplateOutreach(params: {
   if (!conversation) {
     conversation = await WaConversation.create({
       contactId: contact._id,
+      tenantId,
+      ...(channel?.id ? { channelId: channel.id } : {}),
       status: "ai_active",
       stage: "abordado",
       stageChangedAt: new Date(),

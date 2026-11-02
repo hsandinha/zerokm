@@ -16,7 +16,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
     await dbConnect();
     const conv = await WaConversation.findById(id).lean();
-    if (!conv) return NextResponse.json({ error: "Conversa não encontrada" }, { status: 404 });
+    if (!conv || conv.tenantId) return NextResponse.json({ error: "Conversa não encontrada" }, { status: 404 });
 
     const contact = await WaContact.findById(conv.contactId);
     const messages = await WaMessage.find({ conversationId: id })

@@ -49,6 +49,9 @@ export interface IWaContact extends Document {
   // a chave vira "ig:<IGSID>", igual ao Chatrun — unicidade e todo caminho
   // que já usa `phone` continuam valendo.
   phone: string;
+  /** Loja dona do contato (WaStore). null/ausente = CNV. O mesmo telefone
+   *  pode ser contato de várias lojas — cada uma tem o seu. */
+  tenantId?: string | null;
   name?: string;
   email?: string;
   document?: string; // CPF/CNPJ (dígitos)
@@ -73,7 +76,8 @@ export interface IWaContact extends Document {
 
 const WaContactSchema: Schema = new Schema(
   {
-    phone: { type: String, required: true, unique: true },
+    phone: { type: String, required: true },
+    tenantId: { type: String, default: null },
     name: { type: String },
     email: { type: String },
     document: { type: String },
@@ -96,6 +100,10 @@ const WaContactSchema: Schema = new Schema(
   },
   { timestamps: true, collection: "wa_contacts" },
 );
+// Unicidade por loja. O índice antigo `phone_1` (único global) é removido
+// pelo scripts/migrar-atendimento-lojas.mjs — sem isso, o mesmo telefone não
+// conseguiria ser contato do CNV e de uma loja ao mesmo tempo.
+WaContactSchema.index({ tenantId: 1, phone: 1 }, { unique: true });
 WaContactSchema.index({ name: 1 });
 WaContactSchema.index({ document: 1 });
 
@@ -114,6 +122,8 @@ export type WaStage =
 
 export interface IWaConversation extends Document {
   contactId: mongoose.Types.ObjectId;
+  /** Loja (WaStore). null/ausente = CNV. Igual ao do contato. */
+  tenantId?: string | null;
   /** Canal por onde a conversa acontece. Ausente = WhatsApp do CNV (conversas
    *  de antes dos canais). */
   channelId?: mongoose.Types.ObjectId;
@@ -138,6 +148,7 @@ export interface IWaConversation extends Document {
 const WaConversationSchema: Schema = new Schema(
   {
     contactId: { type: Schema.Types.ObjectId, ref: "WaContact", required: true, unique: true },
+    tenantId: { type: String, default: null },
     channelId: { type: Schema.Types.ObjectId, ref: "WaChannel" },
     status: {
       type: String,
@@ -167,6 +178,7 @@ const WaConversationSchema: Schema = new Schema(
   { timestamps: true, collection: "wa_conversations" },
 );
 WaConversationSchema.index({ lastMessageAt: -1 });
+WaConversationSchema.index({ tenantId: 1, lastMessageAt: -1 });
 WaConversationSchema.index({ stage: 1, stageChangedAt: -1 });
 WaConversationSchema.index({ status: 1, waitingSince: 1 });
 WaConversationSchema.index({ assignedTo: 1, status: 1 });
@@ -247,6 +259,8 @@ export type WaCampaignStatus =
   | "failed";
 
 export interface IWaCampaign extends Document {
+  /** Loja que dispara (WaStore). null/ausente = CNV. */
+  tenantId?: string | null;
   name: string;
   templateName: string;
   templateLanguage: string;
@@ -288,6 +302,7 @@ export interface IWaCampaign extends Document {
 
 const WaCampaignSchema: Schema = new Schema(
   {
+    tenantId: { type: String, default: null },
     name: { type: String, required: true },
     templateName: { type: String, required: true },
     templateLanguage: { type: String, default: "pt_BR" },
@@ -332,6 +347,8 @@ WaCampaignSchema.index({ status: 1, createdAt: -1 });
 // ── Destinatário de campanha ─────────────────────────────────
 export interface IWaCampaignRecipient extends Document {
   campaignId: mongoose.Types.ObjectId;
+  /** Mesma loja da campanha — a resposta só é atribuída dentro da loja. */
+  tenantId?: string | null;
   targetId?: mongoose.Types.ObjectId;
   /** Sócio dono deste número. Vários destinatários com o mesmo partnerId são
    *  a MESMA pessoa — quando um responde, os outros são cancelados. */
@@ -353,6 +370,7 @@ export interface IWaCampaignRecipient extends Document {
 const WaCampaignRecipientSchema: Schema = new Schema(
   {
     campaignId: { type: Schema.Types.ObjectId, ref: "WaCampaign", required: true },
+    tenantId: { type: String, default: null },
     targetId: { type: Schema.Types.ObjectId, ref: "WaTarget" },
     partnerId: { type: Schema.Types.ObjectId, ref: "WaPartner" },
     attempt: { type: Number, default: 1 },

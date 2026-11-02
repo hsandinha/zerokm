@@ -81,7 +81,10 @@ async function handleEcho(m: IgMessaging) {
 
   // Só reflete eco de conversa que já existe: a primeira mensagem partindo do
   // app não tem por que abrir conversa no funil da Vera.
-  const contact = await WaContact.findOne({ phone: `${IG_PREFIX}${m.recipient.id}` });
+  const contact = await WaContact.findOne({
+    tenantId: channel.tenantId ?? null,
+    phone: `${IG_PREFIX}${m.recipient.id}`,
+  });
   if (!contact) return;
   const conv = await WaConversation.findOne({ contactId: contact._id });
   if (!conv) return;
@@ -142,7 +145,10 @@ async function handleMessaging(m: IgMessaging): Promise<boolean> {
   // Nome/@ da pessoa: uma busca na Meta por contato novo, não por mensagem.
   let contactName: string | null = null;
   let igUsername: string | null = null;
-  const known = await WaContact.findOne({ phone: `${IG_PREFIX}${m.sender.id}` })
+  const known = await WaContact.findOne({
+    tenantId: channel.tenantId ?? null,
+    phone: `${IG_PREFIX}${m.sender.id}`,
+  })
     .select("name")
     .lean();
   if (!known?.name && channel.ig) {

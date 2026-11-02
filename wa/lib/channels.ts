@@ -128,6 +128,21 @@ export async function getWabaCredentials(): Promise<MetaCredentials | null> {
   return (await resolveCnvWhatsapp()).whatsapp;
 }
 
+/** WhatsApp de uma loja (o primeiro número conectado). null = CNV. */
+export async function whatsappChannelOf(tenantId: string | null): Promise<ResolvedChannel | null> {
+  if (!tenantId) return resolveCnvWhatsapp();
+  await dbConnect();
+  const doc = await WaChannel.findOne({ tenantId, kind: "whatsapp", status: "connected" }).sort({
+    createdAt: 1,
+  });
+  return doc ? resolve(doc) : null;
+}
+
+/** Credenciais da Cloud API da loja (templates, campanhas, nova conversa). */
+export async function wabaCredentialsOf(tenantId: string | null): Promise<MetaCredentials | null> {
+  return (await whatsappChannelOf(tenantId))?.whatsapp ?? null;
+}
+
 export async function getVerifyToken(): Promise<string | undefined> {
   const doc = await cnvWhatsappChannel();
   return doc?.verifyToken || process.env.META_VERIFY_TOKEN;
@@ -175,6 +190,11 @@ export function isInstagramPhone(phone: string | null | undefined): boolean {
 /** IGSID guardado na chave "ig:<id>" do contato. */
 export function igRecipientOf(phone: string): string {
   return phone.slice(IG_PREFIX.length);
+}
+
+/** Tela de Configuração de quem conectou (o login volta para ela). */
+export function configPathOf(tenantId: string | null): string {
+  return tenantId ? "/dashboard/atendimento/configuracao" : "/dashboard/admin/whatsapp/configuracao";
 }
 
 // ── `state` assinado do OAuth ────────────────────────────────

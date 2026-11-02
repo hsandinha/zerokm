@@ -49,6 +49,8 @@ export async function processInbound(channel: ResolvedChannel, msg: NormalizedIn
   await dbConnect();
   const instagram = channel.kind === "instagram";
   const phone = instagram ? `${IG_PREFIX}${msg.from}` : canonicalPhone(msg.from);
+  // Contato e conversa são da loja dona do canal (null = CNV).
+  const tenantId = channel.tenantId ?? null;
   const textContent = msg.text ?? msg.mediaCaption ?? null;
 
   // 0. Reação: não vira mensagem — reflete o emoji na mensagem alvo e sai.
@@ -66,10 +68,11 @@ export async function processInbound(channel: ResolvedChannel, msg: NormalizedIn
 
   // 1. Contato
   const contact = await WaContact.findOneAndUpdate(
-    { phone },
+    { tenantId, phone },
     {
       $setOnInsert: {
         phone,
+        tenantId,
         source: instagram ? "instagram" : "whatsapp",
         ...(instagram ? { igUserId: msg.from } : {}),
       },
@@ -92,6 +95,7 @@ export async function processInbound(channel: ResolvedChannel, msg: NormalizedIn
     {
       $setOnInsert: {
         contactId: contact._id,
+        tenantId,
         ...(channel.id ? { channelId: channel.id } : {}),
         status: "ai_active",
         stage: "conversa",
@@ -112,6 +116,7 @@ export async function processInbound(channel: ResolvedChannel, msg: NormalizedIn
   // Campanha é disparo de template, e template só existe no WhatsApp.
   if (!conversation.campaignId && !instagram) {
     const recipient = await WaCampaignRecipient.findOne({
+      tenantId,
       phone,
       status: { $in: ["sent", "delivered", "read"] },
       sentAt: { $gte: new Date(Date.now() - 7 * 86400000) },

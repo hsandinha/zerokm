@@ -3,25 +3,33 @@
 // por isso é só a linha de configuração e uma agregação.
 
 import { NextResponse } from "next/server";
-import { requirePanelUser, type PanelUser } from "@wa/lib/auth";
+import { requireScope, type Scope } from "@wa/lib/scope";
 import { getSettings } from "@wa/lib/settings";
 import { conversationCounts } from "@wa/lib/inbox";
+import { whatsappChannelOf } from "@wa/lib/channels";
+import { getStore } from "@wa/lib/store";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  let user: PanelUser;
+  let user: Scope;
   try {
-    user = await requirePanelUser();
+    user = await requireScope();
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
-  const [settings, counts] = await Promise.all([getSettings(), conversationCounts(user.email)]);
+  const [aiActive, whatsapp, counts] = await Promise.all([
+    user.tenantId
+      ? getStore(user.tenantId).then((s) => Boolean(s?.ai?.active))
+      : getSettings().then((s) => s.aiActive ?? false),
+    whatsappChannelOf(user.tenantId).catch(() => null),
+    conversationCounts(user.email, undefined, user.tenantId),
+  ]);
 
   return NextResponse.json({
-    aiActive: settings.aiActive ?? false,
-    displayPhone: settings.wabaDisplayPhone ?? null,
+    aiActive,
+    displayPhone: whatsapp?.label ?? null,
     counts: { waiting: counts.waiting, sla: counts.sla, mine: counts.mine },
   });
 }

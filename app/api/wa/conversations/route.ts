@@ -2,20 +2,20 @@
 // contadores de cada filtro (uma agregação só).
 
 import { NextRequest, NextResponse } from "next/server";
-import { requirePanelUser, type PanelUser } from "@wa/lib/auth";
+import { requireScope, type Scope } from "@wa/lib/scope";
 import dbConnect from "@/lib/mongodb";
 import { WaContact, WaConversation } from "@wa/models/wa";
 import { WaChannel } from "@wa/models/channel";
-import { cnvWhatsappChannel } from "@wa/lib/channels";
+import { whatsappChannelOf } from "@wa/lib/channels";
 import { conversationCounts } from "@wa/lib/inbox";
 import { SLA_MINUTES, isSlaViolated, type ConversationStatus } from "@wa/lib/stages";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  let user: PanelUser;
+  let user: Scope;
   try {
-    user = await requirePanelUser();
+    user = await requireScope();
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(Number(sp.get("limit") ?? 300), 500);
 
   await dbConnect();
-  const query: Record<string, unknown> = {};
+  const query: Record<string, unknown> = { tenantId: user.tenantId };
   if (filtro === "minhas") {
     query.assignedTo = user.email;
     query.status = { $ne: "closed" };
@@ -36,11 +36,11 @@ export async function GET(req: NextRequest) {
     query.status = filtro;
   }
 
-  const [conversations, counts, cnvWhatsapp, channels] = await Promise.all([
+  const [conversations, counts, whatsapp, channels] = await Promise.all([
     WaConversation.find(query).sort({ lastMessageAt: -1 }).limit(limit).lean(),
-    conversationCounts(user.email),
-    cnvWhatsappChannel().catch(() => null),
-    WaChannel.find({ tenantId: null, status: { $ne: "disconnected" } })
+    conversationCounts(user.email, undefined, user.tenantId),
+    whatsappChannelOf(user.tenantId).catch(() => null),
+    WaChannel.find({ tenantId: user.tenantId, status: { $ne: "disconnected" } })
       .select("kind displayPhone igUsername status")
       .lean(),
   ]);
@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
       };
     }),
     counts,
-    channel: { phone: cnvWhatsapp?.displayPhone ?? null },
+    channel: { phone: whatsapp?.label ?? null },
     channels: channels.map((ch) => ({
       kind: ch.kind,
       status: ch.status,

@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   const target = body.targetId ? await WaTarget.findById(body.targetId) : null;
   const email = body.email?.trim().toLowerCase() || undefined;
 
-  const existing = await WaContact.findOne({ phone: parsed.e164 });
+  const existing = await WaContact.findOne({ tenantId: null, phone: parsed.e164 });
   let contactId: string;
   let created = false;
 

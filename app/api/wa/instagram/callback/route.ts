@@ -6,11 +6,9 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { WaChannel } from "@wa/models/channel";
 import { encrypt } from "@wa/lib/crypto";
-import { readConnectState } from "@wa/lib/channels";
+import { configPathOf, readConnectState } from "@wa/lib/channels";
 import { igExchangeCode, igLongLivedToken, igMe, igSubscribeApp } from "@wa/lib/instagram";
 import { siteUrl } from "@wa/lib/site-url";
-
-const CONFIG_PATH = "/dashboard/admin/whatsapp/configuracao";
 
 export async function GET(req: NextRequest) {
   const base = siteUrl(req);
@@ -18,7 +16,7 @@ export async function GET(req: NextRequest) {
   const code = sp.get("code");
   const state = readConnectState(sp.get("state"));
   if (sp.get("error") || !code || !state) {
-    return NextResponse.redirect(`${base}${CONFIG_PATH}?instagram=erro`);
+    return NextResponse.redirect(`${base}${configPathOf(state?.tenantId ?? null)}?instagram=erro`);
   }
 
   const qs = new URLSearchParams({ instagram: "erro" });
@@ -33,7 +31,7 @@ export async function GET(req: NextRequest) {
     const existing = await WaChannel.findOne({ kind: "instagram", igUserId });
     // A mesma conta não troca de dono por um login: quem conectou primeiro
     // precisa desconectar antes.
-    if (existing && existing.tenantId !== state.tenantId && existing.status !== "disconnected") {
+    if (existing && (existing.tenantId ?? null) !== state.tenantId && existing.status !== "disconnected") {
       throw new Error("esta conta do Instagram já está conectada a outra loja");
     }
     await WaChannel.findOneAndUpdate(
@@ -69,5 +67,5 @@ export async function GET(req: NextRequest) {
     // permissão ou banco.
     qs.set("why", (err instanceof Error ? err.message : String(err)).slice(0, 140));
   }
-  return NextResponse.redirect(`${base}${CONFIG_PATH}?${qs.toString()}`);
+  return NextResponse.redirect(`${base}${configPathOf(state.tenantId)}?${qs.toString()}`);
 }
