@@ -7,7 +7,7 @@ import dbConnect from "@/lib/mongodb";
 import { WaContact, WaConversation, WaMessage, type IWaSettings } from "@wa/models/wa";
 import { getSettings } from "@wa/lib/settings";
 import { reactOnChannel, sendAndLogText, showTyping } from "@wa/lib/send";
-import { channelForConversation, isInstagramPhone, type ResolvedChannel } from "@wa/lib/channels";
+import { channelForConversation, isProfilePhone, type ResolvedChannel } from "@wa/lib/channels";
 import { parsePhoneBr } from "@wa/lib/phone";
 import { runLlm, type LlmMessage, type LlmTool, type LlmToolCall } from "@wa/lib/llm";
 import { registerClient, getFunnelStatus, type RegisterErrorCode } from "@wa/lib/register";
@@ -280,6 +280,14 @@ export function channelBlock(channel?: Pick<ResolvedChannel, "kind" | "label">):
       `- A pessoa escreveu no Direct do Instagram do CNV (${channel.label}). Você NÃO tem o celular dela;`,
       "- Para criar o cadastro, além de nome e e-mail, peça o CELULAR com DDD (de preferência o WhatsApp) e passe no campo telefone de criar_cadastro;",
       "- O Direct não formata *negrito*: escreva texto simples.",
+    ].join("\n");
+  }
+  if (channel?.kind === "messenger") {
+    return [
+      "## Canal desta conversa: Messenger (Página do Facebook)",
+      `- A pessoa escreveu no Messenger da Página do CNV (${channel.label}). Você NÃO tem o celular dela;`,
+      "- Para criar o cadastro, além de nome e e-mail, peça o CELULAR com DDD (de preferência o WhatsApp) e passe no campo telefone de criar_cadastro;",
+      "- O Messenger não formata *negrito*: escreva texto simples.",
     ].join("\n");
   }
   return [
@@ -608,7 +616,7 @@ export async function runAiForConversation(conversationId: string) {
       // celular válido o cadastro não sai, e a pergunta é fixa — deixar a IA
       // improvisar aqui já fez ela prometer conta que não existia.
       let telefone = contact.phone;
-      if (isInstagramPhone(contact.phone)) {
+      if (isProfilePhone(contact.phone)) {
         const informado = parsePhoneBr(input.telefone ?? contact.whatsappPhone ?? "");
         if (!informado.valid || !informado.e164) {
           await sendAndLogText({

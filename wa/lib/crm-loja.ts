@@ -10,12 +10,16 @@ import LeadEvent from "@/models/LeadEvent";
 import LeadTask from "@/models/LeadTask";
 import type { IWaStore } from "@wa/models/store";
 import type { IWaContact } from "@wa/models/wa";
+import { isProfilePhone } from "@wa/lib/channels";
 
 export const LEAD_SOURCE_ATENDIMENTO = "Atendimento IA";
 
 function telefoneDoLead(contact: Pick<IWaContact, "phone" | "whatsappPhone" | "igUsername">): string {
-  if (contact.phone.startsWith("ig:")) {
-    return contact.whatsappPhone || (contact.igUsername ? `@${contact.igUsername}` : contact.phone);
+  if (isProfilePhone(contact.phone)) {
+    return (
+      contact.whatsappPhone ||
+      (contact.igUsername ? `@${contact.igUsername}` : contact.phone.startsWith("fb:") ? "Messenger" : contact.phone)
+    );
   }
   return contact.phone;
 }

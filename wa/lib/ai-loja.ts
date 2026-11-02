@@ -21,7 +21,7 @@ import dbConnect from "@/lib/mongodb";
 import { WaContact, WaConversation, WaMessage, type IWaContact } from "@wa/models/wa";
 import type { IWaStore } from "@wa/models/store";
 import { reactOnChannel, sendAndLogText, showTyping } from "@wa/lib/send";
-import { channelForConversation, isInstagramPhone, safeDecrypt, type ResolvedChannel } from "@wa/lib/channels";
+import { channelForConversation, isProfilePhone, safeDecrypt, type ResolvedChannel } from "@wa/lib/channels";
 import { runLlm, type LlmCreds, type LlmMessage, type LlmTool, type LlmToolCall } from "@wa/lib/llm";
 import { sanitizeAssistantText } from "@wa/lib/ai";
 import { getStore, storeIsActive } from "@wa/lib/store";
@@ -219,6 +219,13 @@ function blocoDoCanal(channel: Pick<ResolvedChannel, "kind" | "label">): string 
       "## Canal desta conversa: Direct do Instagram",
       "- Você NÃO tem o celular do cliente. Para agendar visita/test drive, peça o celular com DDD e passe em telefone;",
       "- O Direct não formata *negrito*: escreva texto simples.",
+    ].join("\n");
+  }
+  if (channel.kind === "messenger") {
+    return [
+      "## Canal desta conversa: Messenger (Página do Facebook)",
+      "- Você NÃO tem o celular do cliente. Para agendar visita/test drive, peça o celular com DDD e passe em telefone;",
+      "- O Messenger não formata *negrito*: escreva texto simples.",
     ].join("\n");
   }
   return "## Canal desta conversa: WhatsApp\n- O celular do cliente é o deste WhatsApp.";
@@ -476,7 +483,7 @@ export async function runStoreAiForConversation(conversationId: string): Promise
   if (acao.name === "agendar_visita") {
     // No Direct não há telefone: sem um celular válido, a visita não sai.
     let celular: string | null = null;
-    if (isInstagramPhone(contact.phone)) {
+    if (isProfilePhone(contact.phone)) {
       const p = parsePhoneBr(str(input.telefone) || contact.whatsappPhone || "");
       if (!p.valid || !p.e164) {
         await send("Para a equipe confirmar o horário com você, me passa seu celular com DDD? 😊");

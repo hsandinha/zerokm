@@ -6,7 +6,7 @@ import { requireScope, type Scope } from "@wa/lib/scope";
 import dbConnect from "@/lib/mongodb";
 import { WaContact, WaConversation } from "@wa/models/wa";
 import { WaChannel } from "@wa/models/channel";
-import { whatsappChannelOf } from "@wa/lib/channels";
+import { channelLabelOf, whatsappChannelOf } from "@wa/lib/channels";
 import { conversationCounts } from "@wa/lib/inbox";
 import { SLA_MINUTES, isSlaViolated, type ConversationStatus } from "@wa/lib/stages";
 
@@ -40,12 +40,15 @@ export async function GET(req: NextRequest) {
     WaConversation.find(query).sort({ lastMessageAt: -1 }).limit(limit).lean(),
     conversationCounts(user.email, undefined, user.tenantId),
     whatsappChannelOf(user.tenantId).catch(() => null),
-    WaChannel.find({ tenantId: user.tenantId, status: { $ne: "disconnected" } })
-      .select("kind displayPhone igUsername status")
+    // Todos os canais (também os desconectados): a conversa de um canal
+    // desligado continua sendo do Messenger/SMS/Instagram na lista.
+    WaChannel.find({ tenantId: user.tenantId })
+      .select("kind displayPhone displayName igUsername fbPageName smsProvider rcsAgentId status")
       .lean(),
   ]);
   // Conversa sem canal é do WhatsApp do CNV (anterior aos canais).
   const kindById = new Map(channels.map((ch) => [String(ch._id), ch.kind]));
+  const activeChannels = channels.filter((ch) => ch.status !== "disconnected");
 
   const contacts = await WaContact.find({
     _id: { $in: conversations.map((c) => c.contactId) },
@@ -86,10 +89,10 @@ export async function GET(req: NextRequest) {
     }),
     counts,
     channel: { phone: whatsapp?.label ?? null },
-    channels: channels.map((ch) => ({
+    channels: activeChannels.map((ch) => ({
       kind: ch.kind,
       status: ch.status,
-      label: ch.kind === "instagram" ? (ch.igUsername ? `@${ch.igUsername}` : "Instagram") : ch.displayPhone ?? "WhatsApp",
+      label: ch.kind === "whatsapp" ? ch.displayPhone ?? "WhatsApp" : channelLabelOf(ch),
     })),
     me: user.email,
   });

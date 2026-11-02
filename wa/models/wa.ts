@@ -45,9 +45,10 @@ const WaSettingsSchema: Schema = new Schema(
 
 // ── Contato ──────────────────────────────────────────────────
 export interface IWaContact extends Document {
-  // formato +5531999999999 (canônico). Contato do Instagram não tem telefone:
-  // a chave vira "ig:<IGSID>", igual ao Chatrun — unicidade e todo caminho
-  // que já usa `phone` continuam valendo.
+  // formato +5531999999999 (canônico). Contato do Instagram e do Messenger
+  // não tem telefone: a chave vira "ig:<IGSID>" ou "fb:<PSID>", igual ao
+  // Chatrun — unicidade e todo caminho que já usa `phone` continuam valendo.
+  // O SMS usa o telefone canônico: é o mesmo contato do WhatsApp.
   phone: string;
   /** Loja dona do contato (WaStore). null/ausente = CNV. O mesmo telefone
    *  pode ser contato de várias lojas — cada uma tem o seu. */
@@ -59,10 +60,12 @@ export interface IWaContact extends Document {
   city?: string;
   state?: string;
   cnae?: string;
-  source: "whatsapp" | "instagram" | "cnpja" | "csv" | "manual" | "procob";
+  source: "whatsapp" | "instagram" | "messenger" | "sms" | "cnpja" | "csv" | "manual" | "procob";
   optOut: boolean;
   igUserId?: string;
   igUsername?: string;
+  /** Id da pessoa na Página do Facebook (PSID). Contato do Messenger. */
+  fbPsid?: string;
   /** Celular que a pessoa informou fora do WhatsApp (ex.: no Direct, para o cadastro). */
   whatsappPhone?: string;
   userId?: string; // _id do User da zerokm quando o cadastro foi criado
@@ -87,12 +90,13 @@ const WaContactSchema: Schema = new Schema(
     cnae: { type: String },
     source: {
       type: String,
-      enum: ["whatsapp", "instagram", "cnpja", "csv", "manual", "procob"],
+      enum: ["whatsapp", "instagram", "messenger", "sms", "cnpja", "csv", "manual", "procob"],
       default: "whatsapp",
     },
     optOut: { type: Boolean, default: false },
     igUserId: { type: String },
     igUsername: { type: String },
+    fbPsid: { type: String },
     whatsappPhone: { type: String },
     userId: { type: String },
     firebaseUid: { type: String },
@@ -196,6 +200,9 @@ export interface IWaMessage extends Document {
   /** Motivo devolvido pela Meta quando o status vira failed ("130472: …"). */
   error?: string;
   reaction?: string;
+  /** Canal SMS: por onde a mensagem foi de fato. Com agente RCS sai "rcs", e
+   *  o status da Zenvia corrige para "sms" quando ela caiu para SMS. */
+  via?: "sms" | "rcs";
   createdAt: Date;
   updatedAt: Date;
 }
@@ -212,6 +219,7 @@ const WaMessageSchema: Schema = new Schema(
     status: { type: String },
     error: { type: String },
     reaction: { type: String },
+    via: { type: String, enum: ["sms", "rcs"] },
   },
   { timestamps: true, collection: "wa_messages" },
 );
