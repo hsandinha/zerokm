@@ -13,7 +13,8 @@ export interface IWaSettings extends Document {
   knowledgeBase?: string; // explicativo institucional do CNV ({{conhecimento}})
   greeting?: string;
   extraInstructions?: string;
-  // WABA (token/appSecret criptografados com APP_ENCRYPTION_KEY)
+  // Legado: o WABA do CNV migra sozinho para wa_channels na primeira leitura
+  // (ver channels.ts). Ficam no schema só para essa migração conseguir ler.
   wabaPhoneNumberId?: string;
   wabaId?: string;
   wabaToken?: string;
@@ -44,7 +45,10 @@ const WaSettingsSchema: Schema = new Schema(
 
 // ── Contato ──────────────────────────────────────────────────
 export interface IWaContact extends Document {
-  phone: string; // formato +5531999999999 (canônico)
+  // formato +5531999999999 (canônico). Contato do Instagram não tem telefone:
+  // a chave vira "ig:<IGSID>", igual ao Chatrun — unicidade e todo caminho
+  // que já usa `phone` continuam valendo.
+  phone: string;
   name?: string;
   email?: string;
   document?: string; // CPF/CNPJ (dígitos)
@@ -52,8 +56,12 @@ export interface IWaContact extends Document {
   city?: string;
   state?: string;
   cnae?: string;
-  source: "whatsapp" | "cnpja" | "csv" | "manual" | "procob";
+  source: "whatsapp" | "instagram" | "cnpja" | "csv" | "manual" | "procob";
   optOut: boolean;
+  igUserId?: string;
+  igUsername?: string;
+  /** Celular que a pessoa informou fora do WhatsApp (ex.: no Direct, para o cadastro). */
+  whatsappPhone?: string;
   userId?: string; // _id do User da zerokm quando o cadastro foi criado
   firebaseUid?: string;
   // A empresa que originou a abordagem. Um sócio com 5 empresas tem UM
@@ -75,10 +83,13 @@ const WaContactSchema: Schema = new Schema(
     cnae: { type: String },
     source: {
       type: String,
-      enum: ["whatsapp", "cnpja", "csv", "manual", "procob"],
+      enum: ["whatsapp", "instagram", "cnpja", "csv", "manual", "procob"],
       default: "whatsapp",
     },
     optOut: { type: Boolean, default: false },
+    igUserId: { type: String },
+    igUsername: { type: String },
+    whatsappPhone: { type: String },
     userId: { type: String },
     firebaseUid: { type: String },
     targetId: { type: Schema.Types.ObjectId, ref: "WaTarget" },
@@ -103,6 +114,9 @@ export type WaStage =
 
 export interface IWaConversation extends Document {
   contactId: mongoose.Types.ObjectId;
+  /** Canal por onde a conversa acontece. Ausente = WhatsApp do CNV (conversas
+   *  de antes dos canais). */
+  channelId?: mongoose.Types.ObjectId;
   status: WaConversationStatus;
   stage: WaStage;
   stageChangedAt: Date;
@@ -124,6 +138,7 @@ export interface IWaConversation extends Document {
 const WaConversationSchema: Schema = new Schema(
   {
     contactId: { type: Schema.Types.ObjectId, ref: "WaContact", required: true, unique: true },
+    channelId: { type: Schema.Types.ObjectId, ref: "WaChannel" },
     status: {
       type: String,
       enum: ["ai_active", "waiting_human", "human_active", "closed"],

@@ -1,9 +1,9 @@
 "use client";
 
-// Tela 1 — Configuração da IA + WABA + Simulador, lado a lado.
+// Tela 1 — Configuração da IA + canais (WhatsApp e Instagram) + Simulador.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bot, PhoneCall, RotateCcw, Save, SendHorizonal, Sparkles } from "lucide-react";
+import { Bot, Instagram, PhoneCall, RotateCcw, Save, SendHorizonal, Sparkles } from "lucide-react";
 import clsx from "clsx";
 
 type SettingsPayload = {
@@ -283,6 +283,8 @@ export function ConfigScreen() {
           </p>
         </section>
 
+        <InstagramChannels />
+
         <div className="flex items-center gap-3">
           <button className="btn-primary" onClick={save} disabled={saving}>
             <Save size={16} /> {saving ? "Salvando…" : "Salvar configurações"}
@@ -296,6 +298,143 @@ export function ConfigScreen() {
   );
 }
 
+// ── Instagram ────────────────────────────────────────────────
+// Mesmo padrão de conexão do Chatrun: login do Instagram, o canal nasce
+// sozinho e o Direct cai na mesma Central e na mesma Vera.
+type ChannelRow = {
+  id: string;
+  kind: "whatsapp" | "instagram";
+  status: "connected" | "error" | "disconnected";
+  label: string;
+  tokenExpiresAt: string | null;
+  lastError: string | null;
+};
+
+const IG_NOTICE: Record<string, string> = {
+  ok: "✅ Instagram conectado. As mensagens do Direct já chegam na Central.",
+  erro: "❌ Não foi possível conectar o Instagram.",
+  config: "❌ Faltam INSTAGRAM_APP_ID / INSTAGRAM_APP_SECRET no deploy.",
+  forbidden: "❌ Só administradores conectam canais.",
+};
+
+function InstagramChannels() {
+  const [rows, setRows] = useState<ChannelRow[] | null>(null);
+  const [ready, setReady] = useState(true);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    fetch("/api/wa/channels")
+      .then((r) => r.json())
+      .then((d: { channels?: ChannelRow[]; instagramReady?: boolean }) => {
+        setRows((d.channels ?? []).filter((c) => c.kind === "instagram"));
+        setReady(d.instagramReady !== false);
+      })
+      .catch(() => setRows([]));
+  }, []);
+
+  useEffect(() => {
+    load();
+    // Volta do login do Instagram: o resultado vem na URL.
+    const sp = new URLSearchParams(window.location.search);
+    const result = sp.get("instagram");
+    if (result) {
+      const why = sp.get("why");
+      const who = sp.get("ig");
+      setNotice(
+        `${IG_NOTICE[result] ?? result}${who ? ` (@${who})` : ""}${why ? ` Motivo: ${why}` : ""}`,
+      );
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, [load]);
+
+  async function disconnect(id: string) {
+    if (!confirm("Desconectar este Instagram? A Vera para de responder o Direct.")) return;
+    const res = await fetch(`/api/wa/channels/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setNotice(`❌ ${body.error ?? "Falha ao desconectar"}`);
+    }
+    load();
+  }
+
+  const active = (rows ?? []).filter((c) => c.status !== "disconnected");
+
+  return (
+    <section className="card space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-lg font-bold">
+          <Instagram size={18} className="text-brand-700" /> Instagram (Direct)
+        </h2>
+        <a
+          className={clsx("btn-dark px-3 py-1.5 text-xs", !ready && "pointer-events-none opacity-50")}
+          href="/api/wa/instagram/connect"
+        >
+          {active.length ? "Conectar outra conta" : "Conectar Instagram"}
+        </a>
+      </div>
+      {notice && <p className="text-sm text-ink-800">{notice}</p>}
+      {rows === null ? (
+        <p className="text-xs text-muted">Carregando…</p>
+      ) : active.length === 0 ? (
+        <p className="text-xs text-muted">
+          Nenhuma conta conectada. Conecte a conta profissional do Instagram do CNV para a Vera
+          vender a assinatura também pelo Direct.
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {active.map((c) => (
+            <li key={c.id} className="flex items-center justify-between gap-3 rounded-xl bg-canvas p-3 text-sm">
+              <span className="min-w-0">
+                <span className="font-semibold">{c.label}</span>{" "}
+                {c.status === "connected" ? (
+                  <span className="text-xs text-brand-800">● conectado</span>
+                ) : (
+                  <span className="text-xs text-red-500">
+                    ● precisa reconectar{c.lastError ? ` — ${c.lastError}` : ""}
+                  </span>
+                )}
+                {c.tokenExpiresAt && (
+                  <span className="block text-[11px] text-muted">
+                    Acesso renovado sozinho; vence em{" "}
+                    {new Date(c.tokenExpiresAt).toLocaleDateString("pt-BR")}
+                  </span>
+                )}
+              </span>
+              <span className="flex shrink-0 gap-2">
+                {c.status !== "connected" && (
+                  <a className="btn-ghost px-2 py-1 text-xs" href="/api/wa/instagram/connect">
+                    Reconectar
+                  </a>
+                )}
+                <button className="btn-ghost px-2 py-1 text-xs" onClick={() => disconnect(c.id)}>
+                  Desconectar
+                </button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {!ready && (
+        <p className="rounded-xl bg-canvas p-3 text-xs text-muted">
+          Para conectar, o deploy precisa de <code>INSTAGRAM_APP_ID</code> e{" "}
+          <code>INSTAGRAM_APP_SECRET</code> (produto Instagram do app da Meta).
+        </p>
+      )}
+      <p className="rounded-xl bg-canvas p-3 text-xs text-muted">
+        No app da Meta (produto Instagram), cadastre o redirect{" "}
+        <code className="text-brand-800">
+          {typeof window !== "undefined" ? window.location.origin : ""}/api/wa/instagram/callback
+        </code>{" "}
+        e o webhook{" "}
+        <code className="text-brand-800">
+          {typeof window !== "undefined" ? window.location.origin : ""}/api/webhooks/instagram
+        </code>{" "}
+        com o mesmo verify token do WhatsApp (ou <code>INSTAGRAM_WEBHOOK_VERIFY_TOKEN</code>).
+      </p>
+    </section>
+  );
+}
+
 // ── Simulador ────────────────────────────────────────────────
 type SimMsg = { role: "user" | "assistant" | "event"; content: string };
 
@@ -303,6 +442,7 @@ function Simulator() {
   const [messages, setMessages] = useState<SimMsg[]>([]);
   const [input, setInput] = useState("");
   const [funnel, setFunnel] = useState<"novo" | "cadastrado" | "assinante">("novo");
+  const [canal, setCanal] = useState<"whatsapp" | "instagram">("whatsapp");
   const [busy, setBusy] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -323,6 +463,7 @@ function Simulator() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           funnel,
+          canal,
           messages: nextMessages
             .filter((m) => m.role !== "event")
             .map((m) => ({ role: m.role, content: m.content })),
@@ -343,7 +484,7 @@ function Simulator() {
     } finally {
       setBusy(false);
     }
-  }, [input, busy, messages, funnel]);
+  }, [input, busy, messages, funnel, canal]);
 
   return (
     <section className="card flex h-[calc(100vh-8rem)] flex-col lg:sticky lg:top-20">
@@ -352,6 +493,14 @@ function Simulator() {
           <Sparkles size={18} className="text-brand-700" /> Simulador
         </h2>
         <div className="flex items-center gap-2">
+          <select
+            className="input w-auto py-1 text-xs"
+            value={canal}
+            onChange={(e) => setCanal(e.target.value as typeof canal)}
+          >
+            <option value="whatsapp">WhatsApp</option>
+            <option value="instagram">Instagram</option>
+          </select>
           <select
             className="input w-auto py-1 text-xs"
             value={funnel}

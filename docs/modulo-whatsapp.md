@@ -57,6 +57,47 @@ automático. A cobrança usa `external_reference` no formato
 `firebaseUid:planId:billingType` e `notification_url` apontando para
 `/api/webhooks/mercadopago` — a ativação da assinatura continua centralizada lá.
 
+## Canais (WhatsApp e Instagram)
+
+A conexão segue o padrão do Chatrun: cada número de WhatsApp e cada conta do
+Instagram é um **canal** (`wa_channels`), com as próprias credenciais
+(cifradas com `APP_ENCRYPTION_KEY`) e um dono — `tenantId: null` é o CNV (a
+Vera). É o mesmo modelo que as lojas vão usar quando assinarem o atendimento.
+
+- **WhatsApp do CNV:** continua no formulário da tela IA & WABA. O que antes
+  ficava em `wa_settings` é copiado para o canal na primeira leitura e os
+  campos antigos são apagados — uma fonte só. Sem nada no banco, valem as
+  `META_*` do deploy;
+- **Instagram:** botão "Conectar Instagram" na mesma tela → login da conta
+  profissional → o canal nasce sozinho e a conta é inscrita no webhook. O
+  token dura 60 dias e é renovado pelo cron diário `/api/wa/workers/instagram-tokens`;
+- Cada conversa guarda o `channelId`. Quem envia (`sendAndLogText`) descobre o
+  canal pela conversa — a IA, a Central e a API não precisam saber qual é.
+  Conversa antiga, sem canal, é do WhatsApp do CNV.
+
+O que muda no Direct:
+
+- Contato do Instagram não tem telefone: a chave `phone` vira `ig:<IGSID>` e
+  `igUserId`/`igUsername` guardam a identidade;
+- A Vera recebe no prompt o bloco `{{canal}}` (entra sozinho mesmo em prompt
+  personalizado sem o marcador): no Direct ela pede também o **celular**, e o
+  `criar_cadastro` recusa com uma pergunta fixa enquanto ele não vier. O
+  celular fica em `whatsappPhone` e vai para o usuário da zerokm;
+- Não existe template no Instagram. A IA responde dentro das 24h; a equipe na
+  Central ainda fala até 7 dias depois (tag `HUMAN_AGENT`), e passado isso só
+  quando a pessoa escrever de novo;
+- Se a equipe responder pelo app do Instagram, o eco chega no webhook: a
+  conversa vai para "Em atendimento" e a IA para;
+- O `*negrito*` das mensagens fixas é tirado no envio — o Direct mostraria cru.
+
+No app da Meta (produto Instagram):
+
+- Redirect do login: `https://www.cnv0km.com.br/api/wa/instagram/callback`;
+- Webhook: `https://www.cnv0km.com.br/api/webhooks/instagram`, campos
+  `messages`, `messaging_postbacks`, `messaging_seen`, `message_reactions`,
+  `message_echoes`;
+- Permissões: `instagram_business_basic` e `instagram_business_manage_messages`.
+
 ## As telas
 
 | Grupo | Tela | O que faz |

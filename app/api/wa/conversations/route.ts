@@ -5,7 +5,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requirePanelUser, type PanelUser } from "@wa/lib/auth";
 import dbConnect from "@/lib/mongodb";
 import { WaContact, WaConversation } from "@wa/models/wa";
-import { getSettings } from "@wa/lib/settings";
+import { WaChannel } from "@wa/models/channel";
+import { cnvWhatsappChannel } from "@wa/lib/channels";
 import { conversationCounts } from "@wa/lib/inbox";
 import { SLA_MINUTES, isSlaViolated, type ConversationStatus } from "@wa/lib/stages";
 
@@ -35,11 +36,16 @@ export async function GET(req: NextRequest) {
     query.status = filtro;
   }
 
-  const [conversations, counts, settings] = await Promise.all([
+  const [conversations, counts, cnvWhatsapp, channels] = await Promise.all([
     WaConversation.find(query).sort({ lastMessageAt: -1 }).limit(limit).lean(),
     conversationCounts(user.email),
-    getSettings().catch(() => null),
+    cnvWhatsappChannel().catch(() => null),
+    WaChannel.find({ tenantId: null, status: { $ne: "disconnected" } })
+      .select("kind displayPhone igUsername status")
+      .lean(),
   ]);
+  // Conversa sem canal é do WhatsApp do CNV (anterior aos canais).
+  const kindById = new Map(channels.map((ch) => [String(ch._id), ch.kind]));
 
   const contacts = await WaContact.find({
     _id: { $in: conversations.map((c) => c.contactId) },
@@ -66,10 +72,12 @@ export async function GET(req: NextRequest) {
         waitingSince,
         slaViolated: isSlaViolated(c.status as ConversationStatus, waitingSince),
         campaignId: c.campaignId ? String(c.campaignId) : null,
+        channelKind: (c.channelId && kindById.get(String(c.channelId))) || "whatsapp",
         contact: {
           id: contact ? String(contact._id) : null,
           phone: contact?.phone ?? "",
           name: contact?.name ?? null,
+          igUsername: contact?.igUsername ?? null,
           company: contact?.company ?? null,
           registered: Boolean(contact?.userId || contact?.firebaseUid),
           optOut: contact?.optOut ?? false,
@@ -77,7 +85,12 @@ export async function GET(req: NextRequest) {
       };
     }),
     counts,
-    channel: { phone: settings?.wabaDisplayPhone ?? null },
+    channel: { phone: cnvWhatsapp?.displayPhone ?? null },
+    channels: channels.map((ch) => ({
+      kind: ch.kind,
+      status: ch.status,
+      label: ch.kind === "instagram" ? (ch.igUsername ? `@${ch.igUsername}` : "Instagram") : ch.displayPhone ?? "WhatsApp",
+    })),
     me: user.email,
   });
 }

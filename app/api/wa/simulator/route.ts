@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as {
     messages?: SimMessage[];
     funnel?: "novo" | "cadastrado" | "assinante";
+    canal?: "whatsapp" | "instagram";
   };
   const messages = (body.messages ?? []).filter(
     (m): m is SimMessage =>
@@ -48,7 +49,15 @@ export async function POST(req: NextRequest) {
         : "- Cliente AINDA NÃO TEM CADASTRO no CNV. Objetivo: criar o cadastro nesta conversa.";
 
   const [settings, plans] = await Promise.all([getSettings(), getActivePlans()]);
-  const systemPrompt = buildSystemPrompt({ settings, plans, funnelStatus: funnelText });
+  const systemPrompt = buildSystemPrompt({
+    settings,
+    plans,
+    funnelStatus: funnelText,
+    channel:
+      body.canal === "instagram"
+        ? { kind: "instagram", label: "Instagram do CNV" }
+        : { kind: "whatsapp", label: "WhatsApp" },
+  });
 
   try {
     // Mesmo cérebro do WhatsApp real, incluindo a proteção contra "só reagiu

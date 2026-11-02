@@ -7,6 +7,7 @@ import { WaCampaign, WaCampaignRecipient, WaMessage } from "@wa/models/wa";
 import { getVerifyToken, getWabaCredentials } from "@wa/lib/settings";
 import { verifyWebhookSignature, type MetaWebhookValue } from "@wa/lib/meta";
 import { processInbound, type NormalizedInbound } from "@wa/lib/inbound";
+import { channelForWhatsappNumber } from "@wa/lib/channels";
 import { isLocalUrl, siteUrl } from "@wa/lib/site-url";
 
 export const maxDuration = 60;
@@ -112,9 +113,14 @@ export async function POST(req: NextRequest) {
     for (const change of entry.changes ?? []) {
       const value = change.value;
       if (!value) continue;
-      for (const msg of normalize(value)) {
+      const inbound = normalize(value);
+      // O número que recebeu diz de qual canal (e de qual dono) é a conversa.
+      const channel = inbound.length
+        ? await channelForWhatsappNumber(value.metadata?.phone_number_id)
+        : null;
+      for (const msg of inbound) {
         try {
-          await processInbound(msg);
+          await processInbound(channel!, msg);
           hadInbound = true;
         } catch (err) {
           console.error("[webhook] processInbound falhou:", err);

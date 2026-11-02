@@ -46,6 +46,7 @@ export async function getDossier(contact: IWaContact): Promise<Dossier> {
     userId: contact.userId,
     firebaseUid: contact.firebaseUid,
     phone: contact.phone,
+    whatsappPhone: contact.whatsappPhone,
     email: contact.email,
   });
 

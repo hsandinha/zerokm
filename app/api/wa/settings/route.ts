@@ -1,9 +1,13 @@
 // Configuração da IA + WABA (tela 1). Token/app secret são criptografados
-// antes de ir para o banco e NUNCA voltam em claro na leitura.
+// antes de ir para o banco e NUNCA voltam em claro na leitura. O WABA é o
+// canal de WhatsApp do CNV em wa_channels (mesmo padrão das lojas).
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@wa/lib/auth";
+import dbConnect from "@/lib/mongodb";
 import { getSettings, encryptSecret, getWabaCredentials } from "@wa/lib/settings";
+import { cnvWhatsappChannel } from "@wa/lib/channels";
+import { WaChannel } from "@wa/models/channel";
 import { fetchPhoneInfo } from "@wa/lib/meta";
 import { DEFAULT_SYSTEM_PROMPT, DEFAULT_KNOWLEDGE_BASE, PROMPT_VARS } from "@wa/lib/ai";
 
@@ -15,13 +19,14 @@ export async function GET() {
   }
 
   const s = await getSettings();
+  const ch = await cnvWhatsappChannel();
 
   // Os IDs seguem a MESMA precedência do getWabaCredentials() (banco → env).
   // Sem isso um canal configurado só por env aparece vazio na tela, dando a
   // impressão errada de que o número não está conectado.
-  const wabaPhoneNumberId = s.wabaPhoneNumberId || process.env.META_PHONE_NUMBER_ID || "";
-  const wabaId = s.wabaId || process.env.META_WABA_ID || "";
-  const wabaVerifyToken = s.wabaVerifyToken || process.env.META_VERIFY_TOKEN || "";
+  const wabaPhoneNumberId = ch?.phoneNumberId || process.env.META_PHONE_NUMBER_ID || "";
+  const wabaId = ch?.wabaId || process.env.META_WABA_ID || "";
+  const wabaVerifyToken = ch?.verifyToken || process.env.META_VERIFY_TOKEN || "";
 
   // Estado real do canal, consultado na Meta a cada carregamento da tela.
   const creds = await getWabaCredentials().catch(() => null);
@@ -55,10 +60,10 @@ export async function GET() {
     wabaPhoneNumberId,
     wabaId,
     wabaVerifyToken,
-    wabaDisplayPhone: s.wabaDisplayPhone ?? "",
+    wabaDisplayPhone: ch?.displayPhone ?? "",
     connection,
-    hasToken: Boolean(s.wabaToken || process.env.META_TOKEN),
-    hasAppSecret: Boolean(s.wabaAppSecret || process.env.META_APP_SECRET),
+    hasToken: Boolean(ch?.token || process.env.META_TOKEN),
+    hasAppSecret: Boolean(ch?.appSecret || process.env.META_APP_SECRET),
     defaults: {
       systemPrompt: DEFAULT_SYSTEM_PROMPT,
       knowledgeBase: DEFAULT_KNOWLEDGE_BASE,
@@ -87,18 +92,36 @@ export async function PUT(req: NextRequest) {
   if (typeof body.greeting === "string") s.greeting = body.greeting;
   if (typeof body.extraInstructions === "string") s.extraInstructions = body.extraInstructions;
 
-  if (typeof body.wabaPhoneNumberId === "string") s.wabaPhoneNumberId = body.wabaPhoneNumberId.trim();
-  if (typeof body.wabaId === "string") s.wabaId = body.wabaId.trim();
-  if (typeof body.wabaVerifyToken === "string") s.wabaVerifyToken = body.wabaVerifyToken.trim();
+  await s.save();
+
+  // Canal de WhatsApp do CNV: cria na primeira gravação, depois só atualiza.
+  const waba: Record<string, string> = {};
+  if (typeof body.wabaPhoneNumberId === "string") waba.phoneNumberId = body.wabaPhoneNumberId.trim();
+  if (typeof body.wabaId === "string") waba.wabaId = body.wabaId.trim();
+  if (typeof body.wabaVerifyToken === "string") waba.verifyToken = body.wabaVerifyToken.trim();
   // Token/secret: só sobrescreve quando um valor novo é enviado
   if (typeof body.wabaToken === "string" && body.wabaToken.trim()) {
-    s.wabaToken = encryptSecret(body.wabaToken.trim());
+    waba.token = encryptSecret(body.wabaToken.trim());
   }
   if (typeof body.wabaAppSecret === "string" && body.wabaAppSecret.trim()) {
-    s.wabaAppSecret = encryptSecret(body.wabaAppSecret.trim());
+    waba.appSecret = encryptSecret(body.wabaAppSecret.trim());
   }
-
-  await s.save();
+  // Campo vazio não vira string vazia no banco: o env do deploy volta a valer.
+  const unset = Object.keys(waba).filter((k) => !waba[k]);
+  for (const k of unset) delete waba[k];
+  await dbConnect();
+  const existing = await cnvWhatsappChannel();
+  if (existing || Object.keys(waba).length > 0) {
+    await WaChannel.updateOne(
+      { tenantId: null, kind: "whatsapp" },
+      {
+        $set: { ...waba, status: "connected" },
+        ...(unset.length ? { $unset: Object.fromEntries(unset.map((k) => [k, 1])) } : {}),
+        $setOnInsert: { kind: "whatsapp", tenantId: null },
+      },
+      { upsert: true },
+    );
+  }
 
   // Valida o canal na Meta (best-effort) e guarda o número exibido
   let phoneInfo: { display_phone_number?: string; verified_name?: string; quality_rating?: string } | null = null;
@@ -107,8 +130,10 @@ export async function PUT(req: NextRequest) {
     try {
       phoneInfo = await fetchPhoneInfo(creds);
       if (phoneInfo.display_phone_number) {
-        s.wabaDisplayPhone = phoneInfo.display_phone_number;
-        await s.save();
+        await WaChannel.updateOne(
+          { tenantId: null, kind: "whatsapp" },
+          { displayPhone: phoneInfo.display_phone_number },
+        );
       }
     } catch (err) {
       phoneInfo = null;

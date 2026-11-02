@@ -25,6 +25,7 @@ export default defineConfig({
     },
     resolve: {
         alias: {
+            '@wa': path.resolve(__dirname, 'wa'),
             '@': path.resolve(__dirname, '.'),
         },
     },

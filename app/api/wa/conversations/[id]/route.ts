@@ -9,6 +9,7 @@ import { getDossier } from "@wa/lib/dossier";
 import { isStage } from "@wa/lib/stages";
 import { setConversationStage } from "@wa/lib/conversation-stage";
 import { emitEvent } from "@wa/lib/webhooks";
+import { channelForConversation } from "@wa/lib/channels";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -38,7 +39,10 @@ export async function GET(_req: NextRequest, { params }: Params) {
   // Zera o não lido ao abrir
   await WaConversation.updateOne({ _id: id }, { unreadCount: 0 });
 
-  const dossier = contactDoc ? await getDossier(contactDoc) : null;
+  const [dossier, channel] = await Promise.all([
+    contactDoc ? getDossier(contactDoc) : Promise.resolve(null),
+    channelForConversation(conversation),
+  ]);
 
   return NextResponse.json({
     conversation: {
@@ -54,12 +58,15 @@ export async function GET(_req: NextRequest, { params }: Params) {
       waitingSince: conversation.waitingSince ?? null,
       createdAt: conversation.createdAt,
       campaign: campaign ? { id: String(campaign._id), name: campaign.name } : null,
+      channel: { kind: channel.kind, label: channel.label },
     },
     contact: contactDoc
       ? {
           id: String(contactDoc._id),
           phone: contactDoc.phone,
           name: contactDoc.name ?? null,
+          igUsername: contactDoc.igUsername ?? null,
+          whatsappPhone: contactDoc.whatsappPhone ?? null,
           email: contactDoc.email ?? null,
           document: contactDoc.document ?? null,
           company: contactDoc.company ?? null,

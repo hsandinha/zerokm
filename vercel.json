@@ -23,6 +23,10 @@
     {
       "path": "/api/wa/workers/webhooks",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/wa/workers/instagram-tokens",
+      "schedule": "0 6 * * *"
     }
   ]
 }

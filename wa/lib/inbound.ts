@@ -1,5 +1,6 @@
 // Pipeline de mensagem recebida: contato → conversa → mensagem → fila da IA
-// (com debounce). Portado do whatsappsocila, single-tenant e em Mongo.
+// (com debounce). Portado do whatsappsocila (Chatrun) e em Mongo. Serve os
+// dois canais: o WhatsApp e o Direct do Instagram entram aqui já normalizados.
 
 import dbConnect from "@/lib/mongodb";
 import {
@@ -12,6 +13,7 @@ import {
   WaMessage,
 } from "@wa/models/wa";
 import { canonicalPhone } from "@wa/lib/phone";
+import { IG_PREFIX, type ResolvedChannel } from "@wa/lib/channels";
 import { emitEvent } from "@wa/lib/webhooks";
 import { advanceConversationStage } from "@wa/lib/conversation-stage";
 
@@ -32,8 +34,9 @@ const AI_DEBOUNCE_SECONDS = 10;
 const AI_REACTIVATION_SILENCE_MS = 3600_000; // 1h
 
 export type NormalizedInbound = {
-  from: string; // dígitos, ex 5531999999999
+  from: string; // dígitos, ex 5531999999999 — no Instagram, o IGSID
   contactName?: string | null;
+  igUsername?: string | null;
   type: string;
   text?: string | null;
   externalId: string;
@@ -42,9 +45,10 @@ export type NormalizedInbound = {
   reaction?: { targetExternalId: string; emoji: string } | null;
 };
 
-export async function processInbound(msg: NormalizedInbound) {
+export async function processInbound(channel: ResolvedChannel, msg: NormalizedInbound) {
   await dbConnect();
-  const phone = canonicalPhone(msg.from);
+  const instagram = channel.kind === "instagram";
+  const phone = instagram ? `${IG_PREFIX}${msg.from}` : canonicalPhone(msg.from);
   const textContent = msg.text ?? msg.mediaCaption ?? null;
 
   // 0. Reação: não vira mensagem — reflete o emoji na mensagem alvo e sai.
@@ -64,19 +68,31 @@ export async function processInbound(msg: NormalizedInbound) {
   const contact = await WaContact.findOneAndUpdate(
     { phone },
     {
-      $setOnInsert: { phone, source: "whatsapp" },
-      ...(msg.contactName ? { $set: { name: msg.contactName } } : {}),
+      $setOnInsert: {
+        phone,
+        source: instagram ? "instagram" : "whatsapp",
+        ...(instagram ? { igUserId: msg.from } : {}),
+      },
+      ...(msg.contactName || msg.igUsername
+        ? {
+            $set: {
+              ...(msg.contactName ? { name: msg.contactName } : {}),
+              ...(msg.igUsername ? { igUsername: msg.igUsername } : {}),
+            },
+          }
+        : {}),
     },
     { new: true, upsert: true },
   );
 
-  // 2. Conversa (uma por contato)
+  // 2. Conversa (uma por contato — e o contato do Instagram é outro contato)
   const conversationExisted = await WaConversation.exists({ contactId: contact._id });
   let conversation = await WaConversation.findOneAndUpdate(
     { contactId: contact._id },
     {
       $setOnInsert: {
         contactId: contact._id,
+        ...(channel.id ? { channelId: channel.id } : {}),
         status: "ai_active",
         stage: "conversa",
         stageChangedAt: new Date(),
@@ -87,13 +103,14 @@ export async function processInbound(msg: NormalizedInbound) {
   if (!conversationExisted) {
     await emitEvent(
       "conversa.criada",
-      { origin: "inbound" },
+      { origin: "inbound", channel: channel.kind },
       { conversationId: String(conversation._id) },
     );
   }
 
   // 2b. Atribuição de campanha: resposta em até 7 dias após um disparo.
-  if (!conversation.campaignId) {
+  // Campanha é disparo de template, e template só existe no WhatsApp.
+  if (!conversation.campaignId && !instagram) {
     const recipient = await WaCampaignRecipient.findOne({
       phone,
       status: { $in: ["sent", "delivered", "read"] },

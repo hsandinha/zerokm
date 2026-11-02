@@ -18,6 +18,7 @@ import {
   AlertCircle,
   AlertTriangle,
   BadgeCheck,
+  Instagram,
   Bot,
   Building2,
   CreditCard,
@@ -88,7 +89,14 @@ type Row = {
   waitingSince: string | null;
   slaViolated: boolean;
   campaignId: string | null;
-  contact: { id: string | null; phone: string; name: string | null; company: string | null };
+  channelKind: "whatsapp" | "instagram";
+  contact: {
+    id: string | null;
+    phone: string;
+    name: string | null;
+    igUsername: string | null;
+    company: string | null;
+  };
 };
 
 type Message = {
@@ -117,11 +125,14 @@ type Detail = {
     waitingSince: string | null;
     createdAt: string;
     campaign: { id: string; name: string } | null;
+    channel: { kind: "whatsapp" | "instagram"; label: string };
   };
   contact: {
     id: string;
     phone: string;
     name: string | null;
+    igUsername: string | null;
+    whatsappPhone: string | null;
     email: string | null;
     document: string | null;
     company: string | null;
@@ -181,6 +192,20 @@ function within24h(lastInboundAt: string | null | undefined): boolean {
   return Date.now() - new Date(lastInboundAt).getTime() < 24 * 3600_000;
 }
 
+/** No Direct a equipe ainda fala até 7 dias depois (tag HUMAN_AGENT). */
+function within7d(lastInboundAt: string | null | undefined): boolean {
+  if (!lastInboundAt) return false;
+  return Date.now() - new Date(lastInboundAt).getTime() < 7 * 24 * 3600_000;
+}
+
+/** Telefone formatado; contato do Instagram mostra o @ (não tem telefone). */
+function contactHandle(contact: { phone: string; igUsername?: string | null }): string {
+  if (contact.phone.startsWith("ig:")) {
+    return contact.igUsername ? `@${contact.igUsername}` : "Instagram";
+  }
+  return formatPhoneBr(contact.phone);
+}
+
 function personLabel(email: string | null): string {
   if (!email) return "";
   return email.split("@")[0].replace(/[._-]/g, " ");
@@ -227,6 +252,7 @@ function CentralInner({ currentEmail }: { currentEmail: string }) {
   const [conversations, setConversations] = useState<Row[]>([]);
   const [counts, setCounts] = useState<Counts | null>(null);
   const [channelPhone, setChannelPhone] = useState<string | null>(null);
+  const [channelList, setChannelList] = useState<Array<{ kind: string; label: string }>>([]);
   const [selectedId, setSelectedId] = useState<string | null>(params?.get("c") ?? null);
   const [detail, setDetail] = useState<Detail | null>(null);
   const [input, setInput] = useState("");
@@ -290,6 +316,7 @@ function CentralInner({ currentEmail }: { currentEmail: string }) {
       setConversations(body.conversations ?? []);
       setCounts(body.counts ?? null);
       setChannelPhone(body.channel?.phone ?? null);
+      setChannelList(body.channels ?? []);
     } catch {
       /* rede oscilou — o próximo poll resolve */
     }
@@ -390,7 +417,8 @@ function CentralInner({ currentEmail }: { currentEmail: string }) {
   );
 
   const conv = detail?.conversation;
-  const canText = within24h(conv?.lastInboundAt);
+  const isInstagram = conv?.channel?.kind === "instagram";
+  const canText = isInstagram ? within7d(conv?.lastInboundAt) : within24h(conv?.lastInboundAt);
 
   function select(id: string) {
     setSelectedId(id);
@@ -473,6 +501,13 @@ function CentralInner({ currentEmail }: { currentEmail: string }) {
             <MessageCircle size={12} className="text-emerald-600" /> WhatsApp
           </p>
           <p className="truncate text-[10px] text-muted">{channelPhone ?? "número do CNV"}</p>
+          {channelList
+            .filter((ch) => ch.kind === "instagram")
+            .map((ch) => (
+              <p key={ch.label} className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-ink-700">
+                <Instagram size={12} className="text-pink-600" /> {ch.label}
+              </p>
+            ))}
         </div>
       </aside>
 
@@ -561,7 +596,10 @@ function CentralInner({ currentEmail }: { currentEmail: string }) {
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center justify-between gap-2">
                     <span className={clsx("truncate text-sm", c.unread > 0 ? "font-bold" : "font-semibold")}>
-                      {c.contact.name || formatPhoneBr(c.contact.phone)}
+                      {c.channelKind === "instagram" && (
+                        <Instagram size={12} className="mr-1 inline text-pink-600" aria-label="Instagram" />
+                      )}
+                      {c.contact.name || contactHandle(c.contact)}
                     </span>
                     <span className={clsx("shrink-0 text-[11px]", c.unread > 0 ? "font-semibold text-brand-700" : "text-muted")}>
                       {shortTime(c.lastMessageAt)}
@@ -644,10 +682,14 @@ function CentralInner({ currentEmail }: { currentEmail: string }) {
               </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-bold">
-                  {detail?.contact?.name || formatPhoneBr(detail?.contact?.phone ?? "")}
+                  {detail?.contact?.name || (detail?.contact ? contactHandle(detail.contact) : "")}
                 </p>
                 <p className="truncate text-xs text-muted">
-                  {detail?.contact?.name ? formatPhoneBr(detail.contact.phone) : ""}
+                  {isInstagram ? "Instagram · " : ""}
+                  {detail?.contact?.name ? contactHandle(detail.contact) : ""}
+                  {isInstagram && detail?.contact?.whatsappPhone
+                    ? ` · ${formatPhoneBr(detail.contact.whatsappPhone)}`
+                    : ""}
                   {detail?.contact?.company ? ` · ${detail.contact.company}` : ""}
                   {conv.transferReason
                     ? ` · ${TRANSFER_REASON_LABEL[conv.transferReason] ?? conv.transferReason}`
@@ -777,7 +819,13 @@ function CentralInner({ currentEmail }: { currentEmail: string }) {
                 </div>
 
                 <div className="border-t border-line p-3">
-                  {!canText ? (
+                  {!canText && isInstagram ? (
+                    <p className="flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-[11px] leading-snug text-amber-700">
+                      <Clock size={13} className="mt-0.5 shrink-0" />
+                      Passaram 7 dias desde a última mensagem no Direct: o Instagram não deixa
+                      escrever até a pessoa mandar de novo (e lá não existe template).
+                    </p>
+                  ) : !canText ? (
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                       <p className="flex flex-1 items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-[11px] leading-snug text-amber-700">
                         <Clock size={13} className="mt-0.5 shrink-0" />

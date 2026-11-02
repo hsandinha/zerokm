@@ -210,6 +210,8 @@ export async function getFunnelStatus(contact: {
   userId?: string;
   firebaseUid?: string;
   phone: string;
+  /** Celular informado fora do WhatsApp (contato do Instagram). */
+  whatsappPhone?: string;
   email?: string;
 }): Promise<{
   registered: boolean;
@@ -223,7 +225,10 @@ export async function getFunnelStatus(contact: {
   };
 }> {
   await dbConnect();
-  const digits = contact.phone.replace(/\D/g, "");
+  // Contato do Instagram tem "ig:<id>" no lugar do telefone: esses dígitos
+  // não são celular de ninguém. Vale o celular que a pessoa informou.
+  const telefone = contact.phone.startsWith("ig:") ? (contact.whatsappPhone ?? "") : contact.phone;
+  const digits = telefone.replace(/\D/g, "");
   const query: Record<string, unknown>[] = [];
   if (contact.firebaseUid) query.push({ firebaseUid: contact.firebaseUid });
   if (contact.email) query.push({ email: contact.email });
