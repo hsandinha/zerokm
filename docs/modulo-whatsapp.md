@@ -299,3 +299,52 @@ No app da Meta, o webhook do WhatsApp é:
 - **`scripts/fix-firebase-key.sh` não veio.** Ele rodava `vercel env rm` num
   loop e já zerou as 20 variáveis do projeto uma vez; o próprio cabeçalho dele
   mandava usar `firebase-key-base64.mjs`, que veio.
+
+## Atendimento das lojas (Chatrun dentro da zerokm)
+
+O mesmo motor da Vera atende as **lojas** — concessionárias e lojistas — em
+`/dashboard/atendimento` (botão "Atendimento" no painel de cada uma). Cada
+loja é um `WaStore` (`wa_stores`) e tudo do atendimento carrega `tenantId`:
+`null` é o CNV (a Vera), qualquer outro valor é a loja. As rotas compartilhadas
+(`/api/wa/conversations`, contatos, funil, campanhas, templates, canais, mídia)
+filtram por `tenantId` via `wa/lib/scope.ts`; as que só existem para o CNV
+(enriquecimento, importação, Procob, integrações, usuários) continuam fechadas
+para lojas.
+
+- **Quem entra:** o usuário da concessionária (gestor da loja dela), o lojista
+  titular (gestor), os sub-usuários convidados pelo lojista (atendentes) e quem
+  o gestor puser na equipe (por e-mail, com login da zerokm). A loja nasce no
+  primeiro acesso, com 7 dias de teste;
+- **Canais:** WhatsApp pelo popup da Meta (Embedded Signup) ou cadastro manual,
+  inclusive coexistência com o app do celular (o eco pausa a IA); Instagram
+  pelo mesmo login do Instagram da Vera;
+- **IA de vendas** (`wa/lib/ai-loja.ts`): chave da própria loja (Gemini,
+  OpenAI ou Claude), prompt editável, e as ferramentas `buscar_estoque`,
+  `simular_financiamento`, `registrar_interesse`, `agendar_visita`,
+  `registrar_captacao`, `transferir_para_vendedor`, `enviar_localizacao`;
+- **Estoque:** sempre o da zerokm (`wa/lib/estoque.ts`). Concessionária vende o
+  0km e o repasse dela. Lojista vende o **estoque do pátio** (cadastrado em
+  "Estoque do pátio", gravado na `RepasseVehicle` com `lojistaId` — fora da
+  vitrine) e, com "vender estoque da rede" ligado e a assinatura da zerokm em
+  dia, o 0km e o repasse da rede com a margem dele aplicada;
+- **CRM:** na concessionária, interesse, visita/test drive, captação e
+  transferência viram lead (e tarefa) no CRM que ela já usa;
+- **Funil:** as mesmas etapas da Vera com nomes de venda de carro
+  (Em atendimento → Visita / test drive → Proposta → Vendido);
+- **Campanhas e templates:** saem do WhatsApp da loja, para a lista dela (CSV);
+- **Assinatura:** planos com público "Atendimento" (Configurações → Planos),
+  PIX no Mercado Pago com referência `ATEND:` e ativação pelo webhook; o CNV
+  ativa à mão em WhatsApp → Lojas (atendimento). Sem assinatura (nem teste) a
+  IA para e as conversas vão direto para a equipe. A IA e os disparos a loja
+  paga direto aos provedores.
+
+**Antes de abrir para as lojas**, rode no banco de produção:
+
+```bash
+node scripts/wa/migrar-atendimento-lojas.cjs           # mostra
+node scripts/wa/migrar-atendimento-lojas.cjs --aplicar # grava
+```
+
+Ele troca o índice único de telefone dos contatos (`phone_1`) por
+`{ tenantId, phone }` — sem isso o mesmo cliente não pode ser contato do CNV e
+de uma loja — e cria os índices novos.
