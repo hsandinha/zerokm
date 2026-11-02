@@ -3,7 +3,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
-import { WaCampaign, WaCampaignRecipient, WaMessage } from "@wa/models/wa";
+import { WaAiJob, WaCampaign, WaCampaignRecipient, WaContact, WaConversation, WaMessage } from "@wa/models/wa";
+import { canonicalPhone } from "@wa/lib/phone";
+import type { ResolvedChannel } from "@wa/lib/channels";
 import { getVerifyToken, getWabaCredentials } from "@wa/lib/settings";
 import { verifyWebhookSignature, type MetaWebhookValue } from "@wa/lib/meta";
 import { processInbound, type NormalizedInbound } from "@wa/lib/inbound";
@@ -87,6 +89,50 @@ async function handleStatuses(value: MetaWebhookValue) {
   }
 }
 
+/**
+ * Coexistência: a loja respondeu pelo app WhatsApp Business do celular. A
+ * mensagem não passou pela plataforma — sem isto a IA continuaria falando por
+ * cima. Vira mensagem humana na conversa e a IA para (regra de ouro).
+ */
+async function handleEchoes(channel: ResolvedChannel, value: MetaWebhookValue) {
+  await dbConnect();
+  for (const echo of value.message_echoes ?? []) {
+    if (await WaMessage.exists({ externalId: echo.id })) continue; // foi a plataforma
+    const contact = await WaContact.findOne({
+      tenantId: channel.tenantId ?? null,
+      phone: canonicalPhone(echo.to),
+    });
+    if (!contact) continue;
+    const conv = await WaConversation.findOne({ contactId: contact._id });
+    if (!conv) continue;
+    const text = echo.text?.body ?? null;
+    await WaMessage.create({
+      conversationId: conv._id,
+      direction: "outbound",
+      sender: "human",
+      content: text ?? undefined,
+      mediaType: echo.type === "text" ? "text" : echo.type,
+      externalId: echo.id,
+      status: "sent",
+    }).catch((err) => {
+      if ((err as { code?: number })?.code !== 11000) throw err;
+    });
+    await WaConversation.updateOne(
+      { _id: conv._id },
+      {
+        status: "human_active",
+        waitingSince: null,
+        lastMessageAt: new Date(),
+        lastMessagePreview: (text ?? `[${echo.type}]`).slice(0, 120),
+      },
+    );
+    await WaAiJob.updateMany(
+      { conversationId: conv._id, status: "pending" },
+      { status: "done", lastError: "cancelado: a loja respondeu pelo celular" },
+    );
+  }
+}
+
 export async function POST(req: NextRequest) {
   const raw = await req.text();
 
@@ -125,6 +171,12 @@ export async function POST(req: NextRequest) {
         } catch (err) {
           console.error("[webhook] processInbound falhou:", err);
         }
+      }
+      if (value.message_echoes?.length) {
+        const echoChannel = await channelForWhatsappNumber(value.metadata?.phone_number_id);
+        await handleEchoes(echoChannel, value).catch((err) =>
+          console.error("[webhook] ecos falharam:", err),
+        );
       }
       if (value.statuses?.length) {
         await handleStatuses(value).catch((err) =>

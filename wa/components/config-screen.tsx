@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Bot, Instagram, PhoneCall, RotateCcw, Save, SendHorizonal, Sparkles } from "lucide-react";
 import clsx from "clsx";
+import { useWaPanel } from "@wa/components/wa-panel";
 
 type SettingsPayload = {
   assistantName: string;
@@ -317,7 +318,8 @@ const IG_NOTICE: Record<string, string> = {
   forbidden: "❌ Só administradores conectam canais.",
 };
 
-function InstagramChannels() {
+export function InstagramChannels() {
+  const { store } = useWaPanel();
   const [rows, setRows] = useState<ChannelRow[] | null>(null);
   const [ready, setReady] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
@@ -348,7 +350,7 @@ function InstagramChannels() {
   }, [load]);
 
   async function disconnect(id: string) {
-    if (!confirm("Desconectar este Instagram? A Vera para de responder o Direct.")) return;
+    if (!confirm("Desconectar este Instagram? A IA para de responder o Direct.")) return;
     const res = await fetch(`/api/wa/channels/${id}`, { method: "DELETE" });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -377,8 +379,9 @@ function InstagramChannels() {
         <p className="text-xs text-muted">Carregando…</p>
       ) : active.length === 0 ? (
         <p className="text-xs text-muted">
-          Nenhuma conta conectada. Conecte a conta profissional do Instagram do CNV para a Vera
-          vender a assinatura também pelo Direct.
+          {store
+            ? "Nenhuma conta conectada. Conecte a conta profissional do Instagram da loja para a IA atender o Direct."
+            : "Nenhuma conta conectada. Conecte a conta profissional do Instagram do CNV para a Vera vender a assinatura também pelo Direct."}
         </p>
       ) : (
         <ul className="space-y-2">

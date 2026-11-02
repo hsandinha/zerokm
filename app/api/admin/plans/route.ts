@@ -11,7 +11,7 @@ import Plan from '@/models/Plan';
 function normalizarPublico(body: any) {
     if (!body || typeof body !== 'object') return body;
     if (!Object.prototype.hasOwnProperty.call(body, 'publico')) return body;
-    const publico = body.publico === 'concessionaria' ? 'concessionaria' : 'cliente';
+    const publico = body.publico === 'concessionaria' || body.publico === 'atendimento' ? body.publico : 'cliente';
     // Plano especial (só pelo CRM) não aparece na landing: não pode ser o destaque.
     if (publico === 'cliente') return body.especial === true ? { ...body, publico, popular: false } : { ...body, publico };
     return { ...body, publico, type: 'monthly', credits: null, invitePrice: 0, popular: false, especial: false };

@@ -159,7 +159,7 @@ export function UpgradeModal({ onClose, initialPlanId, initialBilling, locked = 
                 // especial só aparece para quem já está nele (renovação).
                 setPlans(Array.isArray(data)
                     ? data
-                        .filter(p => p.active && (p as any).publico !== 'concessionaria' && (!(p as any).especial || p.id === initialPlanId))
+                        .filter(p => p.active && !['concessionaria', 'atendimento'].includes((p as any).publico) && (!(p as any).especial || p.id === initialPlanId))
                         .map(p => {
                             if (!vc || p.id !== vc.planId) return p;
                             return vc.periodicidade === 'annual' ? { ...p, annualPrice: vc.valor } : { ...p, price: vc.valor };

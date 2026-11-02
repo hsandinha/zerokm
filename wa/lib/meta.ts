@@ -480,6 +480,14 @@ export type MetaWebhookStatus = {
 
 export type MetaWebhookValue = {
   metadata?: { phone_number_id: string; display_phone_number: string };
+  /** Coexistência: o que a loja mandou pelo app do celular (campo smb_message_echoes). */
+  message_echoes?: Array<{
+    from: string;
+    to: string;
+    id: string;
+    type: string;
+    text?: { body: string };
+  }>;
   contacts?: Array<{ profile: { name: string }; wa_id: string }>;
   messages?: MetaWebhookMessage[];
   statuses?: MetaWebhookStatus[];

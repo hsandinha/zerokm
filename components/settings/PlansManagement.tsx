@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/Page';
 import { InlineNotice, useFeedback } from '@/components/ui/Feedback';
 
-type Publico = 'cliente' | 'concessionaria';
+type Publico = 'cliente' | 'concessionaria' | 'atendimento';
 type FiltroPublico = 'todos' | Publico;
 
 const moeda = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -66,7 +66,7 @@ const emptyForm: PlanForm = {
 const planToForm = (p: Plan): PlanForm => ({
     name: p.name ?? '',
     description: p.description ?? '',
-    publico: p.publico === 'concessionaria' ? 'concessionaria' : 'cliente',
+    publico: p.publico === 'concessionaria' || p.publico === 'atendimento' ? p.publico : 'cliente',
     type: p.type,
     credits: p.credits != null ? String(p.credits) : '',
     price: p.price != null ? String(p.price) : '',
@@ -90,6 +90,7 @@ function parseAmount(raw: string): number | null {
 /** Segunda linha da coluna Cobrança: anual, convidado ou uso do plano. */
 function cobrancaDetalhe(plan: Plan) {
     if (plan.publico === 'concessionaria') return plan.annualPrice ? `Anual ${moeda(plan.annualPrice)} · anúncio de repasse` : 'Anúncio de repasse';
+    if (plan.publico === 'atendimento') return plan.annualPrice ? `Anual ${moeda(plan.annualPrice)} · atendimento com IA` : 'Atendimento com IA';
     const partes: string[] = [];
     if (plan.type === 'monthly') partes.push(plan.annualPrice ? `Anual ${moeda(plan.annualPrice)}` : 'Sem plano anual');
     else partes.push('Pacote avulso');
@@ -169,7 +170,8 @@ export function PlansManagement() {
             return;
         }
 
-        const isConcessionaria = form.publico === 'concessionaria';
+        // Plano de loja (repasse ou atendimento): sempre mensal, sem crédito nem convidado.
+        const isConcessionaria = form.publico === 'concessionaria' || form.publico === 'atendimento';
         const payload = {
             name: form.name.trim(),
             description: form.description.trim(),
@@ -236,7 +238,7 @@ export function PlansManagement() {
         fetchPlans();
     };
 
-    const doPublico = (p: Plan): Publico => (p.publico === 'concessionaria' ? 'concessionaria' : 'cliente');
+    const doPublico = (p: Plan): Publico => (p.publico === 'concessionaria' || p.publico === 'atendimento' ? p.publico : 'cliente');
     const termo = busca.trim().toLocaleLowerCase('pt-BR');
     const visiveis = plans
         .filter(p => filtro === 'todos' || doPublico(p) === filtro)
@@ -281,6 +283,7 @@ export function PlansManagement() {
                             { value: 'todos', label: 'Todos', count: plans.length },
                             { value: 'cliente', label: 'Lojista', count: lojista },
                             { value: 'concessionaria', label: 'Concessionária', count: concessionaria },
+                            { value: 'atendimento', label: 'Atendimento', count: plans.filter(p => doPublico(p) === 'atendimento').length },
                         ]}
                     />
                     <SearchField value={busca} onChange={setBusca} placeholder="Buscar plano" />
@@ -316,7 +319,9 @@ export function PlansManagement() {
                                     <td>
                                         {doPublico(plan) === 'concessionaria'
                                             ? <StatusBadge tone="info" dot={false}>Concessionária</StatusBadge>
-                                            : <StatusBadge dot={false}>Lojista</StatusBadge>}
+                                            : doPublico(plan) === 'atendimento'
+                                                ? <StatusBadge tone="accent" dot={false}>Atendimento</StatusBadge>
+                                                : <StatusBadge dot={false}>Lojista</StatusBadge>}
                                     </td>
                                     <td>
                                         <TwoLine
@@ -404,12 +409,18 @@ export function PlansManagement() {
                                 value={form.publico}
                                 onChange={e => {
                                     const publico = e.target.value as Publico;
-                                    setForm(f => ({ ...f, publico, ...(publico === 'concessionaria' ? { type: 'monthly' as const } : {}) }));
+                                    setForm(f => ({ ...f, publico, ...(publico !== 'cliente' ? { type: 'monthly' as const } : {}) }));
                                 }}
                             >
                                 <option value="cliente">Lojista (acesso à vitrine)</option>
                                 <option value="concessionaria">Concessionária (anunciar repasse)</option>
+                                <option value="atendimento">Atendimento com IA (concessionária ou lojista)</option>
                             </select>
+                            {form.publico === 'atendimento' && (
+                                <span className={modalStyles.hint}>
+                                    A loja contrata no painel Atendimento → Assinatura e paga por PIX. Sempre mensal, com opção anual. A IA e os disparos são pagos pela loja direto aos provedores.
+                                </span>
+                            )}
                             {form.publico === 'concessionaria' && (
                                 <span className={modalStyles.hint}>
                                     A concessionária contrata no painel Estoque e Preços, aba Repasse, e paga por PIX. Sempre mensal, com opção anual. Não aparece na landing nem para o lojista.

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getSession } from 'next-auth/react';
-import { Building2, CarFront, CircleCheck, Clock, ContactRound, Images, LayoutDashboard, Plus, Tag, TriangleAlert } from 'lucide-react';
+import { Building2, CarFront, CircleCheck, Clock, ContactRound, Images, LayoutDashboard, MessagesSquare, Plus, Tag, TriangleAlert } from 'lucide-react';
 import { VehicleConsultation } from '@/components/operator/VehicleConsultation';
 import KanbanBoard from '@/components/crm/KanbanBoard';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
@@ -31,6 +31,8 @@ const TABS = [
     { id: 'perfil', label: 'Meu perfil', icon: <Building2 size={20} aria-hidden="true" /> },
     { id: 'crm', label: 'CRM', icon: <ContactRound size={20} aria-hidden="true" /> },
     { id: 'anuncios', label: 'Meus anúncios', icon: <Images size={20} aria-hidden="true" /> },
+    // Atendimento com IA (WhatsApp/Instagram) da loja: área própria, fora das abas.
+    { id: 'atendimento', label: 'Atendimento', icon: <MessagesSquare size={20} aria-hidden="true" /> },
 ];
 
 // Concessionária não usa margem: a consulta mostra o preço da própria loja.
@@ -52,8 +54,8 @@ export default function DealershipDashboard() {
                 sectionLabel="Concessionária"
                 tabs={TABS}
                 activeId={aba}
-                onSelect={id => setAba(id as Aba)}
-                primaryIds={['visao-geral', 'veiculos', 'precos', 'crm']}
+                onSelect={id => (id === 'atendimento' ? window.location.assign('/dashboard/atendimento') : setAba(id as Aba))}
+                primaryIds={['visao-geral', 'veiculos', 'precos', 'crm', 'atendimento']}
                 user={{ name: usuario.name || 'Concessionária', email: usuario.email, role: 'Concessionária' }}
             >
                 <StockReminderModal onUpdateStock={() => setAba('precos')} />

@@ -37,6 +37,11 @@ export function isPlanoConcessionaria(plan: { publico?: unknown } | null | undef
     return plan?.publico === 'concessionaria';
 }
 
+/** Plano do atendimento com IA das lojas (Chatrun). Nunca vale como assinatura de lojista. */
+export function isPlanoAtendimento(plan: { publico?: unknown } | null | undefined): boolean {
+    return plan?.publico === 'atendimento';
+}
+
 export function isPlanoRepasseAtivo(plano: PlanoRepasse | null | undefined, now: Date = new Date()): boolean {
     if (!plano || plano.status !== 'active' || !plano.expiresAt) return false;
     const expira = new Date(plano.expiresAt);

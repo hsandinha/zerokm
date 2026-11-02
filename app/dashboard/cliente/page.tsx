@@ -13,7 +13,7 @@ import { SubscriptionControls } from './SubscriptionControls';
 import { DashboardShell, shellStyles } from '@/components/dashboard/DashboardShell';
 import { Page, PageHeader, pageStyles } from '@/components/ui/Page';
 import { useFavoritos } from '@/lib/hooks/useFavoritos';
-import { AlertTriangle, CarFront, CheckCircle2, Clock3, Heart, PlayCircle, UserRound, Wallet } from 'lucide-react';
+import { AlertTriangle, CarFront, CheckCircle2, Clock3, Heart, MessagesSquare, PlayCircle, UserRound, Wallet } from 'lucide-react';
 import { MeuPerfil } from '@/components/profile/MeuPerfil';
 import { Financeiro } from '@/components/profile/Financeiro';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
@@ -237,6 +237,8 @@ function ClienteShell({ userInfo, isInvitee, onUpgradeClick, aviso, videoTutoria
         { id: 'veiculos', label: 'Veículos', icon: <CarFront size={20} aria-hidden="true" /> },
         ...(podeFavoritar ? [{ id: 'favoritos', label: 'Favoritos', icon: <Heart size={20} aria-hidden="true" />, badge: aba === 'favoritos' ? 0 : totalNovos }] : []),
         { id: 'perfil', label: 'Meu perfil', icon: <UserRound size={20} aria-hidden="true" /> },
+        // Atendimento com IA (WhatsApp/Instagram) da loja: área própria, fora das abas.
+        { id: 'atendimento', label: 'Atendimento', icon: <MessagesSquare size={20} aria-hidden="true" /> },
     ];
     const abaAtual: AbaCliente = aba === 'favoritos' && !podeFavoritar ? 'veiculos' : aba;
     const consultaAtual = abaConsulta === 'favoritos' && !podeFavoritar ? 'veiculos' : abaConsulta;
@@ -247,7 +249,7 @@ function ClienteShell({ userInfo, isInvitee, onUpgradeClick, aviso, videoTutoria
             sectionLabel="Cliente"
             tabs={tabs}
             activeId={abaAtual}
-            onSelect={id => abrir(id as AbaCliente)}
+            onSelect={id => (id === 'atendimento' ? window.location.assign('/dashboard/atendimento') : abrir(id as AbaCliente))}
             primaryIds={tabs.map(tab => tab.id)}
             trail={abaAtual === 'financeiro' ? ['Cliente', 'Financeiro'] : undefined}
             user={{
