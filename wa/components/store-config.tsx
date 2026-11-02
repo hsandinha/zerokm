@@ -9,6 +9,7 @@ import clsx from "clsx";
 import { Bot, Calculator, MessageCircle, Save, SendHorizonal, Sparkles, Users } from "lucide-react";
 import { InstagramChannels } from "@wa/components/config-screen";
 import { ConectarWhatsApp } from "@wa/components/conectar-whatsapp";
+import { CanaisExtras } from "@wa/components/canais-extras";
 
 type Member = { email: string; name: string | null; role: "gestor" | "atendente" };
 type Loja = {
@@ -105,6 +106,7 @@ export function StoreConfig() {
       <div className="space-y-6">
         <ConectarWhatsApp />
         <InstagramChannels />
+        <CanaisExtras />
 
         {/* IA */}
         <section className="card space-y-4">

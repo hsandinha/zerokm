@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Bot, Instagram, PhoneCall, RotateCcw, Save, SendHorizonal, Sparkles } from "lucide-react";
 import clsx from "clsx";
 import { useWaPanel } from "@wa/components/wa-panel";
+import { CanaisExtras } from "@wa/components/canais-extras";
 
 type SettingsPayload = {
   assistantName: string;
@@ -285,6 +286,7 @@ export function ConfigScreen() {
         </section>
 
         <InstagramChannels />
+        <CanaisExtras />
 
         <div className="flex items-center gap-3">
           <button className="btn-primary" onClick={save} disabled={saving}>

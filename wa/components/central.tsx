@@ -18,7 +18,6 @@ import {
   AlertCircle,
   AlertTriangle,
   BadgeCheck,
-  Instagram,
   Bot,
   Building2,
   CreditCard,
@@ -89,7 +88,7 @@ type Row = {
   waitingSince: string | null;
   slaViolated: boolean;
   campaignId: string | null;
-  channelKind: "whatsapp" | "instagram";
+  channelKind: ChannelKind;
   contact: {
     id: string | null;
     phone: string;
@@ -125,7 +124,7 @@ type Detail = {
     waitingSince: string | null;
     createdAt: string;
     campaign: { id: string; name: string } | null;
-    channel: { kind: "whatsapp" | "instagram"; label: string };
+    channel: { kind: ChannelKind; label: string };
   };
   contact: {
     id: string;
@@ -193,6 +192,15 @@ function within24h(lastInboundAt: string | null | undefined): boolean {
 }
 
 /** No Direct a equipe ainda fala até 7 dias depois (tag HUMAN_AGENT). */
+type ChannelKind = "whatsapp" | "instagram" | "messenger" | "sms";
+
+/** Ícone e nome curto de cada canal na fila. */
+const CHANNEL_BADGE: Partial<Record<ChannelKind, { label: string; cls: string }>> = {
+  instagram: { label: "Instagram", cls: "text-pink-600" },
+  messenger: { label: "Messenger", cls: "text-blue-600" },
+  sms: { label: "SMS", cls: "text-amber-600" },
+};
+
 function within7d(lastInboundAt: string | null | undefined): boolean {
   if (!lastInboundAt) return false;
   return Date.now() - new Date(lastInboundAt).getTime() < 7 * 24 * 3600_000;
@@ -203,6 +211,7 @@ function contactHandle(contact: { phone: string; igUsername?: string | null }): 
   if (contact.phone.startsWith("ig:")) {
     return contact.igUsername ? `@${contact.igUsername}` : "Instagram";
   }
+  if (contact.phone.startsWith("fb:")) return "Messenger";
   return formatPhoneBr(contact.phone);
 }
 
@@ -420,8 +429,12 @@ function CentralInner({ currentEmail }: { currentEmail: string }) {
   );
 
   const conv = detail?.conversation;
-  const isInstagram = conv?.channel?.kind === "instagram";
-  const canText = isInstagram ? within7d(conv?.lastInboundAt) : within24h(conv?.lastInboundAt);
+  const channelKind = conv?.channel?.kind ?? "whatsapp";
+  // Direct e Messenger: a equipe fala até 7 dias depois (tag HUMAN_AGENT), e
+  // lá não existe template. SMS não tem janela nenhuma.
+  const isInstagram = channelKind === "instagram" || channelKind === "messenger";
+  const canText =
+    channelKind === "sms" ? true : isInstagram ? within7d(conv?.lastInboundAt) : within24h(conv?.lastInboundAt);
 
   function select(id: string) {
     setSelectedId(id);
@@ -505,10 +518,11 @@ function CentralInner({ currentEmail }: { currentEmail: string }) {
           </p>
           <p className="truncate text-[10px] text-muted">{channelPhone ?? "número do CNV"}</p>
           {channelList
-            .filter((ch) => ch.kind === "instagram")
+            .filter((ch) => ch.kind !== "whatsapp")
             .map((ch) => (
-              <p key={ch.label} className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-ink-700">
-                <Instagram size={12} className="text-pink-600" /> {ch.label}
+              <p key={`${ch.kind}-${ch.label}`} className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-ink-700">
+                <MessageCircle size={12} className={CHANNEL_BADGE[ch.kind as ChannelKind]?.cls ?? "text-muted"} />{" "}
+                {CHANNEL_BADGE[ch.kind as ChannelKind]?.label ?? ch.kind} · {ch.label}
               </p>
             ))}
         </div>
@@ -599,8 +613,10 @@ function CentralInner({ currentEmail }: { currentEmail: string }) {
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center justify-between gap-2">
                     <span className={clsx("truncate text-sm", c.unread > 0 ? "font-bold" : "font-semibold")}>
-                      {c.channelKind === "instagram" && (
-                        <Instagram size={12} className="mr-1 inline text-pink-600" aria-label="Instagram" />
+                      {CHANNEL_BADGE[c.channelKind] && (
+                        <span className={clsx("mr-1 text-[10px] font-bold uppercase", CHANNEL_BADGE[c.channelKind]!.cls)}>
+                          {CHANNEL_BADGE[c.channelKind]!.label}
+                        </span>
                       )}
                       {c.contact.name || contactHandle(c.contact)}
                     </span>
@@ -688,7 +704,7 @@ function CentralInner({ currentEmail }: { currentEmail: string }) {
                   {detail?.contact?.name || (detail?.contact ? contactHandle(detail.contact) : "")}
                 </p>
                 <p className="truncate text-xs text-muted">
-                  {isInstagram ? "Instagram · " : ""}
+                  {CHANNEL_BADGE[channelKind] ? `${CHANNEL_BADGE[channelKind]!.label} · ` : ""}
                   {detail?.contact?.name ? contactHandle(detail.contact) : ""}
                   {isInstagram && detail?.contact?.whatsappPhone
                     ? ` · ${formatPhoneBr(detail.contact.whatsappPhone)}`
@@ -825,8 +841,8 @@ function CentralInner({ currentEmail }: { currentEmail: string }) {
                   {!canText && isInstagram ? (
                     <p className="flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-[11px] leading-snug text-amber-700">
                       <Clock size={13} className="mt-0.5 shrink-0" />
-                      Passaram 7 dias desde a última mensagem no Direct: o Instagram não deixa
-                      escrever até a pessoa mandar de novo (e lá não existe template).
+                      Passaram 7 dias desde a última mensagem: o {CHANNEL_BADGE[channelKind]?.label ?? "canal"} não
+                      deixa escrever até a pessoa mandar de novo (e lá não existe template).
                     </p>
                   ) : !canText ? (
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
