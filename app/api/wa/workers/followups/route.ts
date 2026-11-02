@@ -10,7 +10,7 @@ import dbConnect from "@/lib/mongodb";
 import { WaCampaign, WaContact, WaConversation, WaFollowup } from "@wa/models/wa";
 import { sendAndLogTemplate } from "@wa/lib/send";
 import { isWithinSendWindow, type SendWindow } from "@wa/lib/send-window";
-import { getWabaCredentials } from "@wa/lib/settings";
+import { wabaCredentialsOf } from "@wa/lib/channels";
 import { listTemplates } from "@wa/lib/meta";
 import { advanceConversationStage } from "@wa/lib/conversation-stage";
 
@@ -37,19 +37,27 @@ export async function GET(req: NextRequest) {
   let cancelled = 0;
   let outsideWindow = 0;
 
-  // Uma leitura de templates por rodada, para gravar o texto real da mensagem
-  // em vez de "[template x]".
-  const corpoPorTemplate = new Map<string, string>();
-  try {
-    const creds = await getWabaCredentials();
-    if (creds) {
-      for (const t of await listTemplates(creds)) {
-        const corpo = t.components?.find((c) => c.type === "BODY")?.text;
-        if (corpo) corpoPorTemplate.set(t.name, corpo);
+  // Uma leitura de templates por WABA (CNV ou loja) por rodada, para gravar o
+  // texto real da mensagem em vez de "[template x]".
+  const corposPorLoja = new Map<string, Map<string, string>>();
+  async function corposDe(tenantId: string | null): Promise<Map<string, string>> {
+    const chave = tenantId ?? "cnv";
+    const pronto = corposPorLoja.get(chave);
+    if (pronto) return pronto;
+    const corpos = new Map<string, string>();
+    try {
+      const creds = await wabaCredentialsOf(tenantId);
+      if (creds) {
+        for (const t of await listTemplates(creds)) {
+          const corpo = t.components?.find((c) => c.type === "BODY")?.text;
+          if (corpo) corpos.set(t.name, corpo);
+        }
       }
+    } catch {
+      // Sem os corpos o follow-up ainda sai; só o histórico fica menos claro.
     }
-  } catch {
-    // Sem os corpos o follow-up ainda sai; só o histórico fica menos claro.
+    corposPorLoja.set(chave, corpos);
+    return corpos;
   }
 
   // Uma leitura por campanha em vez de uma por follow-up.
@@ -115,7 +123,7 @@ export async function GET(req: NextRequest) {
         conversationId: String(followup.conversationId),
         to: contact.phone,
         templateName: followup.templateName,
-        renderedText: corpoPorTemplate.get(followup.templateName),
+        renderedText: (await corposDe(conv.tenantId ?? null)).get(followup.templateName),
       });
       followup.status = "sent";
       await followup.save();
