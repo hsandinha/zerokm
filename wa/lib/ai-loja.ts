@@ -159,6 +159,19 @@ const T_ENCERRAR: LlmTool = {
 
 const CONSULTAS = new Set(["buscar_estoque", "simular_financiamento", "registrar_interesse", "enviar_localizacao"]);
 
+// O modelo às vezes NARRA a ferramenta no texto ("buscar_estoque(termo: …)")
+// em vez de chamá-la: essas linhas nunca podem chegar ao cliente.
+const TOOL_LEAK_LOJA =
+  /\b(buscar_estoque|simular_financiamento|registrar_interesse|agendar_visita|registrar_captacao|transferir_para_vendedor|enviar_localizacao|encerrar_conversa|reagir_mensagem|parcela_desejada|veiculo_cliente|data_iso)\b/i;
+
+export function sanitizeStoreText(raw: string | null | undefined): string {
+  return sanitizeAssistantText(raw)
+    .split("\n")
+    .filter((line) => !TOOL_LEAK_LOJA.test(line))
+    .join("\n")
+    .trim();
+}
+
 export function toolsDaLoja(store: Pick<IWaStore, "financiamento" | "mapsUrl">): LlmTool[] {
   return [
     T_BUSCAR,
@@ -341,7 +354,7 @@ export async function runStoreTurn(params: {
   const messages = [...params.messages];
   for (let i = 0; i <= MAX_CONSULTAS; i++) {
     const result = await runLlm({ system: params.system, messages, tools, creds: params.creds });
-    const replyText = sanitizeAssistantText(result.text);
+    const replyText = sanitizeStoreText(result.text);
     for (const t of result.toolCalls.filter((c) => c.name === "reagir_mensagem")) {
       const emoji = String((t.input as { emoji?: string }).emoji ?? "").trim();
       if (emoji) await params.onReaction?.(emoji);
@@ -357,7 +370,9 @@ export async function runStoreTurn(params: {
     for (const c of consultas) {
       resultados.push(`Resultado de ${c.name}:\n${await params.onConsulta(c)}`);
     }
-    if (replyText) messages.push({ role: "assistant", content: replyText });
+    // Sempre um turno do assistente antes do resultado: alguns provedores
+    // recusam duas mensagens seguidas do mesmo lado.
+    messages.push({ role: "assistant", content: replyText || "(consultando o sistema)" });
     messages.push({
       role: "user",
       content: `[SISTEMA — não é o cliente]\n${resultados.join("\n\n")}\n\nAgora responda ao cliente com base nisso.`,
@@ -470,7 +485,7 @@ export async function runStoreAiForConversation(conversationId: string): Promise
   }
 
   const input = acao.input as Record<string, unknown>;
-  const fala = sanitizeAssistantText(String(input.mensagem ?? "")) || replyText;
+  const fala = sanitizeStoreText(String(input.mensagem ?? "")) || replyText;
   const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 
   if (acao.name === "agendar_visita") {

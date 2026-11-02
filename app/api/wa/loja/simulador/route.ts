@@ -7,8 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { WaStore } from "@wa/models/store";
 import { requireScopeAdmin } from "@wa/lib/scope";
-import { buildStorePrompt, credsDaLoja, executarConsulta, runStoreTurn } from "@wa/lib/ai-loja";
-import { sanitizeAssistantText } from "@wa/lib/ai";
+import { buildStorePrompt, credsDaLoja, executarConsulta, runStoreTurn, sanitizeStoreText } from "@wa/lib/ai-loja";
 import type { LlmMessage } from "@wa/lib/llm";
 
 export const maxDuration = 60;
@@ -74,7 +73,7 @@ export async function POST(req: NextRequest) {
       },
     });
     if (acao) {
-      const fala = sanitizeAssistantText(String((acao.input as { mensagem?: string }).mensagem ?? ""));
+      const fala = sanitizeStoreText(String((acao.input as { mensagem?: string }).mensagem ?? ""));
       if (replyText) replies.push(replyText);
       if (fala && fala !== replyText) replies.push(fala);
       events.push(`${acao.name}(${JSON.stringify(acao.input)}) — SIMULADO, nada foi gravado`);
