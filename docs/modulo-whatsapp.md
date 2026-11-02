@@ -57,7 +57,7 @@ automático. A cobrança usa `external_reference` no formato
 `firebaseUid:planId:billingType` e `notification_url` apontando para
 `/api/webhooks/mercadopago` — a ativação da assinatura continua centralizada lá.
 
-## Canais (WhatsApp e Instagram)
+## Canais (WhatsApp, Instagram, Messenger e SMS)
 
 A conexão segue o padrão do Chatrun: cada número de WhatsApp e cada conta do
 Instagram é um **canal** (`wa_channels`), com as próprias credenciais
@@ -97,6 +97,54 @@ No app da Meta (produto Instagram):
   `messages`, `messaging_postbacks`, `messaging_seen`, `message_reactions`,
   `message_echoes`;
 - Permissões: `instagram_business_basic` e `instagram_business_manage_messages`.
+
+### Messenger (Página do Facebook)
+
+Portado do Chatrun (088). "Conectar Messenger" (`/api/wa/messenger/connect`)
+→ login do Facebook com `state` assinado → `/api/wa/messenger/callback` troca
+o código por token de longa duração e lista as Páginas. Uma Página só:
+conecta direto. Várias: o login fica 15 minutos em `wa_messenger_choices`
+(índice TTL, token cifrado) e a Configuração abre a escolha
+(`/api/wa/messenger/choice`, só para o mesmo dono). O canal guarda
+`fbPageId`, `fbPageName`, `fbPageToken` (cifrado; token de Página não vence,
+sem worker de renovação) e `fbUserId`.
+
+- Contato do Messenger: `phone` = `fb:<PSID>` e `fbPsid`. Vale tudo do
+  Direct: a Vera pede o celular para o cadastro, 24h para a IA e até 7 dias
+  para a equipe com `HUMAN_AGENT`, eco (resposta pelo Facebook/Business
+  Suite) pausa a IA — o eco com o `app_id` do nosso app é ignorado;
+- No app da Meta (produto Messenger): redirect
+  `https://www.cnv0km.com.br/api/wa/messenger/callback`; webhook
+  `https://www.cnv0km.com.br/api/webhooks/messenger` (objeto `page`) com
+  `MESSENGER_WEBHOOK_VERIFY_TOKEN`, campos `messages`, `messaging_postbacks`,
+  `message_echoes`, `message_deliveries`, `message_reads`,
+  `message_reactions`; permissões `pages_show_list`, `pages_messaging`,
+  `pages_manage_metadata`, `pages_read_engagement`, `business_management`
+  (no "Login do Facebook para Empresas", numa configuração cujo id vai em
+  `MESSENGER_LOGIN_CONFIG_ID`).
+
+### SMS e RCS
+
+Portado do Chatrun (107/115) **sem créditos**: cada loja paga o próprio
+disparo, com a conta dela no provedor. `POST /api/wa/sms` cria/atualiza o
+canal `sms` da loja (um por loja): provedor `zenvia` ou `comtele`, token
+(cifrado), remetente (Zenvia), rota (Comtele) e agente RCS (só Zenvia). A
+conta é conferida no provedor antes de gravar.
+
+- Contato do SMS é o telefone canônico — o mesmo contato do WhatsApp. A
+  conversa segue o canal por onde o cliente escreveu por último: respondeu
+  por SMS, a conversa passa para o canal SMS (e volta ao WhatsApp quando ele
+  escrever lá). Sem SMS no meio, nada muda;
+- SMS não tem janela nem template. A IA **não** responde por SMS: a resposta
+  do cliente vai direto para "Aguardando" (fila da equipe);
+- RCS: com `rcsAgentId` a mensagem vai por `/channels/rcs` da Zenvia, que cai
+  para SMS sozinha quando o aparelho não tem RCS. `WaMessage.via` guarda por
+  onde foi (o status da Zenvia corrige);
+- Webhook por canal: `/api/webhooks/sms/<id do canal>/<segredo>`. Os
+  provedores não assinam o que mandam, então o segredo no caminho (gerado
+  por canal, cifrado) é a autenticação. Na Zenvia a assinatura é criada ao
+  salvar a conta (com o token da loja); na Comtele o gestor cola o endereço
+  (mostrado no cartão) no painel da Comtele, para status e respostas.
 
 ## As telas
 

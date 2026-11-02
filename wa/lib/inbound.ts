@@ -1,6 +1,7 @@
 // Pipeline de mensagem recebida: contato → conversa → mensagem → fila da IA
-// (com debounce). Portado do whatsappsocila (Chatrun) e em Mongo. Serve os
-// dois canais: o WhatsApp e o Direct do Instagram entram aqui já normalizados.
+// (com debounce). Portado do whatsappsocila (Chatrun) e em Mongo. Serve todos
+// os canais: o WhatsApp, o Direct do Instagram, o Messenger e o SMS entram
+// aqui já normalizados.
 
 import dbConnect from "@/lib/mongodb";
 import {
@@ -12,8 +13,8 @@ import {
   WaFollowup,
   WaMessage,
 } from "@wa/models/wa";
-import { canonicalPhone } from "@wa/lib/phone";
-import { IG_PREFIX, type ResolvedChannel } from "@wa/lib/channels";
+import { WaChannel } from "@wa/models/channel";
+import { contactKeyFor, type ResolvedChannel } from "@wa/lib/channels";
 import { emitEvent } from "@wa/lib/webhooks";
 import { advanceConversationStage } from "@wa/lib/conversation-stage";
 
@@ -34,7 +35,7 @@ const AI_DEBOUNCE_SECONDS = 10;
 const AI_REACTIVATION_SILENCE_MS = 3600_000; // 1h
 
 export type NormalizedInbound = {
-  from: string; // dígitos, ex 5531999999999 — no Instagram, o IGSID
+  from: string; // dígitos, ex 5531999999999 — no Instagram o IGSID, no Messenger o PSID
   contactName?: string | null;
   igUsername?: string | null;
   type: string;
@@ -47,8 +48,11 @@ export type NormalizedInbound = {
 
 export async function processInbound(channel: ResolvedChannel, msg: NormalizedInbound) {
   await dbConnect();
-  const instagram = channel.kind === "instagram";
-  const phone = instagram ? `${IG_PREFIX}${msg.from}` : canonicalPhone(msg.from);
+  const kind = channel.kind;
+  const instagram = kind === "instagram";
+  const messenger = kind === "messenger";
+  // "ig:<id>", "fb:<id>" ou o telefone canônico (WhatsApp e SMS: mesmo contato).
+  const phone = contactKeyFor(kind, msg.from);
   // Contato e conversa são da loja dona do canal (null = CNV).
   const tenantId = channel.tenantId ?? null;
   const textContent = msg.text ?? msg.mediaCaption ?? null;
@@ -73,8 +77,9 @@ export async function processInbound(channel: ResolvedChannel, msg: NormalizedIn
       $setOnInsert: {
         phone,
         tenantId,
-        source: instagram ? "instagram" : "whatsapp",
+        source: kind,
         ...(instagram ? { igUserId: msg.from } : {}),
+        ...(messenger ? { fbPsid: msg.from } : {}),
       },
       ...(msg.contactName || msg.igUsername
         ? {
@@ -104,6 +109,26 @@ export async function processInbound(channel: ResolvedChannel, msg: NormalizedIn
     },
     { new: true, upsert: true },
   );
+  // Telefone com WhatsApp e SMS é UM contato com UMA conversa. Ela segue o
+  // canal por onde o cliente escreveu por último, para a resposta sair por
+  // onde ele está: escreveu por SMS, a conversa passa para o canal SMS;
+  // voltou a escrever no WhatsApp, volta para o WhatsApp. Sem SMS no meio,
+  // nada muda (o WhatsApp continua como sempre foi).
+  if (conversationExisted && (kind === "sms" || kind === "whatsapp")) {
+    const current = conversation.channelId ? String(conversation.channelId) : null;
+    if (current !== channel.id) {
+      const currentKind = current
+        ? (await WaChannel.findById(current).select("kind").lean())?.kind
+        : "whatsapp";
+      if (kind === "sms" || currentKind === "sms") {
+        conversation = (await WaConversation.findOneAndUpdate(
+          { _id: conversation._id },
+          channel.id ? { channelId: channel.id } : { $unset: { channelId: 1 } },
+          { new: true },
+        ))!;
+      }
+    }
+  }
   if (!conversationExisted) {
     await emitEvent(
       "conversa.criada",
@@ -114,7 +139,7 @@ export async function processInbound(channel: ResolvedChannel, msg: NormalizedIn
 
   // 2b. Atribuição de campanha: resposta em até 7 dias após um disparo.
   // Campanha é disparo de template, e template só existe no WhatsApp.
-  if (!conversation.campaignId && !instagram) {
+  if (!conversation.campaignId && kind === "whatsapp") {
     const recipient = await WaCampaignRecipient.findOne({
       tenantId,
       phone,
@@ -236,6 +261,16 @@ export async function processInbound(channel: ResolvedChannel, msg: NormalizedIn
 
   // Se humano/fila já cuida da conversa, não aciona IA
   if (conversation.status !== "ai_active") return;
+
+  // SMS: a IA não responde (cada mensagem é paga, e a fala da IA é longa
+  // demais para SMS). Vai direto para a fila da equipe, como no Chatrun.
+  if (kind === "sms") {
+    await WaConversation.updateOne(
+      { _id: conversation._id },
+      { status: "waiting_human", transferReason: "Respondeu por SMS", waitingSince: new Date() },
+    );
+    return;
+  }
 
   // 5. Enfileira a IA com debounce (junta mensagens picadas). O índice único
   // parcial garante um pendente por conversa; perder a corrida da inserção

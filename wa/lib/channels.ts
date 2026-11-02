@@ -1,5 +1,5 @@
-// Resolução de canais (WhatsApp / Instagram) — o mesmo padrão de conexão do
-// Chatrun, para o CNV e para as lojas. Quem envia ou recebe pergunta aqui
+// Resolução de canais (WhatsApp / Instagram / Messenger / SMS) — o mesmo
+// padrão de conexão do Chatrun, para o CNV e para as lojas. Quem envia ou recebe pergunta aqui
 // "qual canal e com que credencial", e não lê mais configuração solta.
 //
 // O WhatsApp do CNV morava em wa_settings. Na primeira leitura ele é copiado
@@ -13,6 +13,9 @@ import { WaSettings } from "@wa/models/wa";
 import { decrypt } from "@wa/lib/crypto";
 import type { MetaCredentials } from "@wa/lib/meta";
 import type { IgCreds } from "@wa/lib/instagram";
+import type { FbCreds } from "@wa/lib/messenger";
+import type { SmsCreds } from "@wa/lib/sms-types";
+import { canonicalPhone } from "@wa/lib/phone";
 
 export type ResolvedChannel = {
   /** null = WhatsApp do CNV configurado só pelo env (sem documento). */
@@ -22,6 +25,10 @@ export type ResolvedChannel = {
   label: string;
   whatsapp: MetaCredentials | null;
   ig: IgCreds | null;
+  /** Messenger: id e token da Página. */
+  fb: FbCreds | null;
+  /** SMS/RCS: conta do provedor da loja. */
+  sms: SmsCreds | null;
 };
 
 export function safeDecrypt(value?: string | null): string | undefined {
@@ -90,25 +97,65 @@ function whatsappCredsOf(doc: IWaChannel | null, cnv: boolean): MetaCredentials 
   };
 }
 
-function resolve(doc: IWaChannel): ResolvedChannel {
+/** Campos que bastam para dar nome ao canal (documento ou `.lean()`). */
+export type ChannelLabelSource = {
+  kind: WaChannelKind;
+  igUsername?: string | null;
+  fbPageName?: string | null;
+  smsProvider?: string | null;
+  rcsAgentId?: string | null;
+  displayPhone?: string | null;
+  displayName?: string | null;
+};
+
+const SMS_PROVIDER_NAME: Record<string, string> = { zenvia: "Zenvia", comtele: "Comtele" };
+
+/** Como o canal aparece na tela e no prompt da IA. */
+export function channelLabelOf(c: ChannelLabelSource): string {
+  if (c.kind === "instagram") return c.igUsername ? `@${c.igUsername}` : "Instagram";
+  if (c.kind === "messenger") return c.fbPageName || c.displayName || "Messenger";
+  if (c.kind === "sms") {
+    const base = c.rcsAgentId && c.smsProvider === "zenvia" ? "SMS/RCS" : "SMS";
+    const provider = c.smsProvider ? SMS_PROVIDER_NAME[c.smsProvider] : null;
+    return provider ? `${base} (${provider})` : base;
+  }
+  return c.displayPhone || c.displayName || "WhatsApp";
+}
+
+function smsCredsOf(doc: IWaChannel): SmsCreds | null {
+  const token = safeDecrypt(doc.smsToken);
+  if (doc.kind !== "sms" || !doc.smsProvider || !token) return null;
+  if (doc.smsProvider === "zenvia" && !doc.smsSender && !doc.rcsAgentId) return null;
+  return {
+    provider: doc.smsProvider,
+    token,
+    sender: doc.smsSender || null,
+    route: doc.smsRoute ?? null,
+    // RCS só pela Zenvia (a Comtele, por ora, só SMS).
+    rcsAgentId: doc.smsProvider === "zenvia" ? doc.rcsAgentId?.trim() || null : null,
+  };
+}
+
+export function resolveChannel(doc: IWaChannel): ResolvedChannel {
   const cnv = doc.tenantId == null;
   const igToken = safeDecrypt(doc.igToken);
+  const fbToken = safeDecrypt(doc.fbPageToken);
   return {
     id: String(doc._id),
     kind: doc.kind,
     tenantId: doc.tenantId ?? null,
-    label:
-      doc.kind === "instagram"
-        ? doc.igUsername
-          ? `@${doc.igUsername}`
-          : "Instagram"
-        : doc.displayPhone || doc.displayName || "WhatsApp",
+    label: channelLabelOf(doc),
     whatsapp: doc.kind === "whatsapp" ? whatsappCredsOf(doc, cnv) : null,
     ig: doc.kind === "instagram" && doc.igUserId && igToken
       ? { userId: doc.igUserId, token: igToken }
       : null,
+    fb: doc.kind === "messenger" && doc.fbPageId && fbToken
+      ? { pageId: doc.fbPageId, token: fbToken }
+      : null,
+    sms: smsCredsOf(doc),
   };
 }
+const resolve = resolveChannel;
 
 async function resolveCnvWhatsapp(): Promise<ResolvedChannel> {
   const doc = await cnvWhatsappChannel();
@@ -120,6 +167,8 @@ async function resolveCnvWhatsapp(): Promise<ResolvedChannel> {
     label: "WhatsApp",
     whatsapp: whatsappCredsOf(null, true),
     ig: null,
+    fb: null,
+    sms: null,
   };
 }
 
@@ -180,16 +229,58 @@ export async function channelByIgUserId(igUserId: string): Promise<ResolvedChann
   return resolve(doc);
 }
 
-// ── Contato do Instagram ─────────────────────────────────────
+/** Canal do Messenger pelo id da Página — no webhook é o `entry.id`. */
+export async function channelByFbPageId(pageId: string): Promise<ResolvedChannel | null> {
+  await dbConnect();
+  const doc = await WaChannel.findOne({ kind: "messenger", fbPageId: pageId });
+  if (!doc || doc.status === "disconnected") return null;
+  return resolve(doc);
+}
+
+// ── Contato sem telefone (Instagram e Messenger) ─────────────
+// Contato de "perfil" não tem telefone: a chave `phone` guarda o id da
+// pessoa no canal com um prefixo. O SMS é canal de telefone: a chave é o
+// telefone canônico, o mesmo contato do WhatsApp.
 export const IG_PREFIX = "ig:";
+export const FB_PREFIX = "fb:";
 
 export function isInstagramPhone(phone: string | null | undefined): boolean {
   return Boolean(phone?.startsWith(IG_PREFIX));
 }
 
+export function isMessengerPhone(phone: string | null | undefined): boolean {
+  return Boolean(phone?.startsWith(FB_PREFIX));
+}
+
+/** Contato sem telefone de verdade (Instagram ou Messenger). Cadastro, CRM
+ *  e qualquer coisa que precise de celular pulam esses: "fb:123..." tem
+ *  dígitos suficientes para passar por telefone se ninguém olhar o prefixo. */
+export function isProfilePhone(phone: string | null | undefined): boolean {
+  return isInstagramPhone(phone) || isMessengerPhone(phone);
+}
+
 /** IGSID guardado na chave "ig:<id>" do contato. */
 export function igRecipientOf(phone: string): string {
   return phone.slice(IG_PREFIX.length);
+}
+
+/** PSID guardado na chave "fb:<id>" do contato. */
+export function fbRecipientOf(phone: string): string {
+  return phone.slice(FB_PREFIX.length);
+}
+
+/** Prefixo da chave do contato em cada canal (null = telefone). */
+export function contactPrefixOf(kind: WaChannelKind): string | null {
+  if (kind === "instagram") return IG_PREFIX;
+  if (kind === "messenger") return FB_PREFIX;
+  return null;
+}
+
+/** Chave `phone` de quem escreveu por este canal: "ig:<id>", "fb:<id>" ou o
+ *  telefone canônico (WhatsApp e SMS). */
+export function contactKeyFor(kind: WaChannelKind, from: string): string {
+  const prefix = contactPrefixOf(kind);
+  return prefix ? `${prefix}${from}` : canonicalPhone(from);
 }
 
 /** Tela de Configuração de quem conectou (o login volta para ela). */
