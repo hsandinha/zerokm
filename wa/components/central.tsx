@@ -45,8 +45,7 @@ import {
 import {
   OUTCOME_LABEL,
   SLA_MINUTES,
-  STAGES,
-  STAGE_BY_ID,
+  stagesFor,
   STATUS_LABEL,
   TRANSFER_REASON_LABEL,
   dateTime,
@@ -59,6 +58,7 @@ import {
   type ConversationStatus,
   type Stage,
 } from "@wa/lib/stages";
+import { useWaPanel } from "@wa/components/wa-panel";
 
 const POLL_MS = 4000;
 
@@ -248,6 +248,9 @@ export function Central({ currentEmail }: { currentEmail: string }) {
 }
 
 function CentralInner({ currentEmail }: { currentEmail: string }) {
+  const { base, store } = useWaPanel();
+  const STAGES = stagesFor(store);
+  const STAGE_BY_ID = Object.fromEntries(STAGES.map((s) => [s.id, s])) as Record<Stage, (typeof STAGES)[number]>;
   const params = useSearchParams();
   const [conversations, setConversations] = useState<Row[]>([]);
   const [counts, setCounts] = useState<Counts | null>(null);
@@ -924,6 +927,7 @@ function DossierPanel({
   currentEmail: string;
   hideTitle?: boolean;
 }) {
+  const { base, store } = useWaPanel();
   if (!detail) {
     return (
       <>
@@ -935,7 +939,7 @@ function DossierPanel({
 
   const conv = detail.conversation;
   const st = STATUS_LABEL[conv.status];
-  const stage = isStage(conv.stage) ? STAGE_BY_ID[conv.stage] : null;
+  const stage = isStage(conv.stage) ? stagesFor(store).find((s) => s.id === conv.stage) ?? null : null;
   const d = detail.dossier;
 
   return (
@@ -996,7 +1000,7 @@ function DossierPanel({
             <div className="flex justify-between gap-2">
               <dt className="text-muted">Campanha</dt>
               <dd className="truncate text-right">
-                <Link href={`/dashboard/admin/whatsapp/campanhas/${conv.campaign.id}`} className="text-brand-700 hover:underline">
+                <Link href={`${base}/campanhas/${conv.campaign.id}`} className="text-brand-700 hover:underline">
                   {conv.campaign.name}
                 </Link>
               </dd>
@@ -1009,7 +1013,7 @@ function DossierPanel({
         </dl>
         {detail.contact && (
           <Link
-            href={`/dashboard/admin/whatsapp/contatos?q=${encodeURIComponent(detail.contact.phone)}`}
+            href={`${base}/contatos?q=${encodeURIComponent(detail.contact.phone)}`}
             className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-brand-700 hover:underline"
           >
             <UserRound size={11} /> Ficha do contato
@@ -1025,6 +1029,7 @@ function DossierPanel({
       {/* ── Situação no CNV ─────────────────────────────────── */}
       {/* É a mesma verdade que a IA lê antes de responder: cadastro, teste de
           24h e assinatura vêm do banco da zerokm a cada mensagem. */}
+      {!store && (
       <div className="border-t border-line pt-3">
         <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
           <BadgeCheck size={13} /> Situação no CNV
@@ -1054,6 +1059,8 @@ function DossierPanel({
           </div>
         )}
       </div>
+
+      )}
 
       {/* ── Cobranças ───────────────────────────────────────── */}
       {(d?.payments.length ?? 0) > 0 && (
@@ -1104,7 +1111,7 @@ function DossierPanel({
           <ul className="mt-1 space-y-0.5 text-xs text-muted">
             {d!.campaigns.map((c) => (
               <li key={`${c.campaignId}-${c.sentAt}`} className="flex justify-between gap-2">
-                <Link href={`/dashboard/admin/whatsapp/campanhas/${c.campaignId}`} className="truncate hover:underline">
+                <Link href={`${base}/campanhas/${c.campaignId}`} className="truncate hover:underline">
                   {c.sentAt ? dateTime(c.sentAt) : "não enviada"}
                 </Link>
                 <span className="shrink-0">{c.status}</span>

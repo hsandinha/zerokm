@@ -90,14 +90,14 @@ async function handleStatuses(value: MetaWebhookValue) {
 export async function POST(req: NextRequest) {
   const raw = await req.text();
 
-  // Assinatura HMAC (se houver app secret configurado)
+  // Assinatura HMAC (se houver app secret configurado). Vale o segredo do app
+  // da plataforma (por onde chegam os números das lojas, via Embedded Signup)
+  // e o do WABA do CNV, que pode ser de outro app.
   const creds = await getWabaCredentials().catch(() => null);
-  if (creds?.appSecret) {
-    const ok = verifyWebhookSignature(
-      creds.appSecret,
-      raw,
-      req.headers.get("x-hub-signature-256"),
-    );
+  const secrets = [...new Set([process.env.META_APP_SECRET, creds?.appSecret].filter(Boolean))] as string[];
+  if (secrets.length) {
+    const header = req.headers.get("x-hub-signature-256");
+    const ok = secrets.some((secret) => verifyWebhookSignature(secret, raw, header));
     if (!ok) return new NextResponse("ok", { status: 200 }); // descarta silenciosamente
   }
 

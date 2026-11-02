@@ -168,3 +168,4 @@ storybook-static
 certificates
 # Backups locais gerados por scripts de manutenção
 /backups/
+.claude/worktrees/

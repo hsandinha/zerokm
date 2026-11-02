@@ -23,8 +23,7 @@ import {
   UserRound,
 } from "lucide-react";
 import {
-  STAGES,
-  STAGE_BY_ID,
+  stagesFor,
   STALLED_DAYS,
   STATUS_LABEL,
   daysSince,
@@ -34,6 +33,7 @@ import {
   type ConversationStatus,
   type Stage,
 } from "@wa/lib/stages";
+import { useWaPanel } from "@wa/components/wa-panel";
 
 const POLL_MS = 10_000;
 
@@ -69,6 +69,8 @@ type Data = {
 };
 
 export function Pipeline() {
+  const { store } = useWaPanel();
+  const STAGES = stagesFor(store);
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -280,6 +282,7 @@ function Card({
   onDragStart: (e: DragEvent<HTMLDivElement>) => void;
   onDragEnd: () => void;
 }) {
+  const { base } = useWaPanel();
   const st = STATUS_LABEL[item.status];
   const daysInStage = daysSince(item.stageChangedAt);
 
@@ -299,7 +302,7 @@ function Card({
           {item.name && <p className="truncate text-[11px] text-muted">{item.phone}</p>}
         </div>
         <Link
-          href={`/dashboard/admin/whatsapp/central?c=${item.id}`}
+          href={`${base}/central?c=${item.id}`}
           className="shrink-0 rounded-full p-1.5 text-muted hover:bg-paper hover:text-ink-900"
           title="Abrir conversa"
           onClick={(e) => e.stopPropagation()}

@@ -41,7 +41,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
   await WaConversation.updateOne({ _id: id }, { unreadCount: 0 });
 
   const [dossier, channel] = await Promise.all([
-    contactDoc ? getDossier(contactDoc) : Promise.resolve(null),
+    // O dossiê é a situação do lojista no funil do CNV — só faz sentido na Vera.
+    contactDoc && !scope.tenantId ? getDossier(contactDoc) : Promise.resolve(null),
     channelForConversation(conversation),
   ]);
 
