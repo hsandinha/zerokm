@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   let email: string;
   let tenantId: string | null;
   try {
-    ({ email, tenantId } = await requireScopeAdmin());
+    ({ email, tenantId } = await requireScopeAdmin("messenger"));
   } catch {
     return NextResponse.redirect(`${base}/dashboard?messenger=forbidden`);
   }

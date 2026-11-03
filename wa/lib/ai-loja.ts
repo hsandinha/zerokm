@@ -24,7 +24,8 @@ import { reactOnChannel, sendAndLogText, showTyping } from "@wa/lib/send";
 import { channelForConversation, isProfilePhone, safeDecrypt, type ResolvedChannel } from "@wa/lib/channels";
 import { runLlm, type LlmCreds, type LlmMessage, type LlmTool, type LlmToolCall } from "@wa/lib/llm";
 import { sanitizeAssistantText } from "@wa/lib/ai";
-import { getStore, storeIsActive } from "@wa/lib/store";
+import { getStore, recursosDaLoja, storeIsActive } from "@wa/lib/store";
+import type { Recursos } from "@/lib/recursos";
 import { buscarEstoque, ofertasParaIa, type FiltrosEstoque } from "@wa/lib/estoque";
 import { numeroDeReais, simular, simuladorDaLoja } from "@wa/lib/simulador";
 import { registrarNoCrm } from "@wa/lib/crm-loja";
@@ -170,6 +171,17 @@ export function sanitizeStoreText(raw: string | null | undefined): string {
     .filter((line) => !TOOL_LEAK_LOJA.test(line))
     .join("\n")
     .trim();
+}
+
+/**
+ * O que o CNV não liberou para a loja (lib/recursos.ts) sai da IA como se a
+ * loja tivesse desligado: sem simulador não há a ferramenta de parcela; sem
+ * "vender a rede", o lojista oferece só o pátio. Muda só o objeto em memória.
+ */
+export function aplicarRecursos(store: IWaStore, recursos: Recursos): IWaStore {
+  if (!recursos.simulador && store.financiamento) store.financiamento.ativo = false;
+  if (!recursos.vende_rede && store.ai) store.ai.vendeEstoqueCnv = false;
+  return store;
 }
 
 export function toolsDaLoja(store: Pick<IWaStore, "financiamento" | "mapsUrl">): LlmTool[] {
@@ -419,6 +431,12 @@ export async function runStoreAiForConversation(conversationId: string): Promise
   if (!contact || contact.optOut) return;
   const store = await getStore(conv.tenantId);
   if (!store) return;
+  const recursos = await recursosDaLoja(store);
+  if (!recursos.ia) {
+    await paraEquipe(conversationId, "ia_nao_liberada");
+    return;
+  }
+  aplicarRecursos(store, recursos);
 
   // Sem IA ligada, sem chave ou sem assinatura: a conversa vai direto para a
   // fila da equipe — nunca fica parada esperando uma IA que não vai responder.

@@ -11,6 +11,7 @@ import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { CarFront, ChevronLeft, CreditCard, Inbox, Kanban, LayoutTemplate, Megaphone, Settings2, Users } from "lucide-react";
 import { WaPanelProvider, STORE_PANEL } from "@wa/components/wa-panel";
+import type { Recursos } from "@/lib/recursos";
 
 export type StoreShellInfo = {
   name: string;
@@ -23,6 +24,8 @@ export type StoreShellInfo = {
     expiresAt: string | null;
     planName: string | null;
   };
+  /** Funcionalidades que o CNV liberou: o que está desligado sai do menu. */
+  recursos: Recursos;
 };
 
 const BASE = STORE_PANEL.base;
@@ -48,15 +51,16 @@ export function StoreShell({ store, children }: { store: StoreShellInfo; childre
     return () => clearInterval(t);
   }, []);
 
+  const r = store.recursos;
   const items = [
     { href: `${BASE}/central`, label: "Central", icon: Inbox, badge: waiting },
-    { href: `${BASE}/pipeline`, label: "Funil", icon: Kanban },
+    ...(r.funil ? [{ href: `${BASE}/pipeline`, label: "Funil", icon: Kanban }] : []),
     { href: `${BASE}/contatos`, label: "Contatos", icon: Users },
-    ...(store.kind === "lojista" ? [{ href: `${BASE}/estoque`, label: "Estoque do pátio", icon: CarFront }] : []),
-    { href: `${BASE}/campanhas`, label: "Campanhas", icon: Megaphone },
+    ...(r.estoque_local ? [{ href: `${BASE}/estoque`, label: "Estoque do pátio", icon: CarFront }] : []),
+    ...(r.campanhas ? [{ href: `${BASE}/campanhas`, label: "Campanhas", icon: Megaphone }] : []),
     ...(gestor
       ? [
-          { href: `${BASE}/templates`, label: "Templates", icon: LayoutTemplate },
+          ...(r.campanhas ? [{ href: `${BASE}/templates`, label: "Templates", icon: LayoutTemplate }] : []),
           { href: `${BASE}/configuracao`, label: "Configuração", icon: Settings2 },
           { href: `${BASE}/assinatura`, label: "Assinatura", icon: CreditCard },
         ]
@@ -66,7 +70,7 @@ export function StoreShell({ store, children }: { store: StoreShellInfo; childre
   const dias = store.access.trial ? diasAte(store.access.trialEndsAt) : diasAte(store.access.expiresAt);
 
   return (
-    <WaPanelProvider value={STORE_PANEL}>
+    <WaPanelProvider value={{ ...STORE_PANEL, recursos: store.recursos }}>
       <div className="min-h-screen">
         <header className="sticky top-0 z-30 border-b border-line bg-paper">
           <div className="flex flex-wrap items-center gap-3 px-4 py-3">

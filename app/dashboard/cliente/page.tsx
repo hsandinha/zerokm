@@ -20,6 +20,7 @@ import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
 import { VideoTutorial } from '@/components/cliente/VideoTutorial';
 import { BoasVindas } from './BoasVindas';
 import { AvisosAssinante } from '@/components/cliente/AvisosAssinante';
+import { useRecursos } from '@/lib/hooks/useRecursos';
 
 function PaymentBanner() {
     const searchParams = useSearchParams();
@@ -213,8 +214,10 @@ function ClienteShell({ userInfo, isInvitee, onUpgradeClick, aviso, videoTutoria
     // Consulta que fica montada por trás do perfil/financeiro (Veículos ou Favoritos).
     const [abaConsulta, setAbaConsulta] = useState<'veiculos' | 'favoritos'>('veiculos');
     const role = userInfo.profile === 'gratis' ? 'gratis' : 'client';
-    // Favoritos (monitoramento de modelos) é recurso dos planos pagos.
-    const podeFavoritar = Boolean(userInfo.profile) && role !== 'gratis';
+    // Favoritos (monitoramento de modelos) é recurso dos planos pagos, e o CNV
+    // pode desligar conta a conta (lib/recursos.ts), como o Atendimento.
+    const { pode } = useRecursos();
+    const podeFavoritar = Boolean(userInfo.profile) && role !== 'gratis' && pode('favoritos');
     const { totalNovos } = useFavoritos(podeFavoritar);
 
     const abrir = (id: AbaCliente) => {
@@ -238,7 +241,7 @@ function ClienteShell({ userInfo, isInvitee, onUpgradeClick, aviso, videoTutoria
         ...(podeFavoritar ? [{ id: 'favoritos', label: 'Favoritos', icon: <Heart size={20} aria-hidden="true" />, badge: aba === 'favoritos' ? 0 : totalNovos }] : []),
         { id: 'perfil', label: 'Meu perfil', icon: <UserRound size={20} aria-hidden="true" /> },
         // Atendimento com IA (WhatsApp/Instagram) da loja: área própria, fora das abas.
-        { id: 'atendimento', label: 'Atendimento', icon: <MessagesSquare size={20} aria-hidden="true" /> },
+        ...(pode('atendimento') ? [{ id: 'atendimento', label: 'Atendimento', icon: <MessagesSquare size={20} aria-hidden="true" /> }] : []),
     ];
     const abaAtual: AbaCliente = aba === 'favoritos' && !podeFavoritar ? 'veiculos' : aba;
     const consultaAtual = abaConsulta === 'favoritos' && !podeFavoritar ? 'veiculos' : abaConsulta;

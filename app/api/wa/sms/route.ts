@@ -25,7 +25,7 @@ import { isLocalUrl, siteUrl } from "@wa/lib/site-url";
 export async function POST(req: NextRequest) {
   let scope: Scope;
   try {
-    scope = await requireScopeAdmin();
+    scope = await requireScopeAdmin("sms");
   } catch (err) {
     const { error, status } = scopeError(err);
     return NextResponse.json({ error }, { status });

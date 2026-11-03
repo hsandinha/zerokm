@@ -4,12 +4,17 @@ import { authOptions } from '@/lib/authOptions';
 import connectDB from '@/lib/mongodb';
 import Banner from '@/models/Banner';
 import { deactivateExpiredBanners } from '@/lib/services/bannerService';
+import { sessaoPodeUsar } from '@/lib/services/recursosConta';
+import { MSG_RECURSO_DESLIGADO } from '@/lib/recursos';
 
 export async function GET() {
     try {
         const session = await getServerSession(authOptions);
         if (!session?.user?.uid) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+        if (!(await sessaoPodeUsar(session, 'anuncios'))) {
+            return NextResponse.json({ error: MSG_RECURSO_DESLIGADO }, { status: 403 });
         }
 
         await connectDB();

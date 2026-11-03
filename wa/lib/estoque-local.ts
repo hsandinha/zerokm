@@ -5,7 +5,7 @@ import { requireScope, requireScopeAdmin } from "@wa/lib/scope";
 import { getStore } from "@wa/lib/store";
 
 export async function lojistaDoEscopo(admin: boolean) {
-  const scope = admin ? await requireScopeAdmin() : await requireScope();
+  const scope = admin ? await requireScopeAdmin("estoque_local") : await requireScope("estoque_local");
   const store = await getStore(scope.tenantId);
   if (!store || store.kind !== "lojista" || !store.ownerUserId) {
     throw Object.assign(new Error("Estoque local é só para lojistas"), { status: 404 });

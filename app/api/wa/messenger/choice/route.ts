@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   let scope: Scope;
   try {
-    scope = await requireScopeAdmin();
+    scope = await requireScopeAdmin("messenger");
   } catch (err) {
     const { error, status } = scopeError(err);
     return NextResponse.json({ error }, { status });
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   let scope: Scope;
   try {
-    scope = await requireScopeAdmin();
+    scope = await requireScopeAdmin("messenger");
   } catch (err) {
     const { error, status } = scopeError(err);
     return NextResponse.json({ error }, { status });

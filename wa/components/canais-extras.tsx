@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Facebook, MessageSquareText, Save } from "lucide-react";
 import clsx from "clsx";
+import { usePodeUsar } from "@wa/components/wa-panel";
 
 type ChannelStatus = "connected" | "error" | "disconnected";
 
@@ -440,10 +441,11 @@ function SmsCard({ rows, reload }: { rows: ChannelRow[] | null; reload: () => vo
 
 export function CanaisExtras() {
   const { rows, messengerReady, load } = useChannels();
+  const podeUsar = usePodeUsar();
   return (
     <div className="space-y-6">
-      <MessengerCard rows={rows} ready={messengerReady} reload={load} />
-      <SmsCard rows={rows} reload={load} />
+      {podeUsar("messenger") && <MessengerCard rows={rows} ready={messengerReady} reload={load} />}
+      {podeUsar("sms") && <SmsCard rows={rows} reload={load} />}
     </div>
   );
 }

@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   let email: string;
   let tenantId: string | null;
   try {
-    ({ email, tenantId } = await requireScopeAdmin());
+    ({ email, tenantId } = await requireScopeAdmin("instagram"));
   } catch {
     return NextResponse.redirect(`${base}/dashboard?instagram=forbidden`);
   }

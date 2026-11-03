@@ -35,6 +35,8 @@ export interface IConcessionaria extends Document {
     ocultarVitrine?: boolean;
     vitrineOcultaEm?: Date | null;
     vitrineOcultaPor?: string;
+    /** Funcionalidades liberadas pelo CNV, só a diferença do padrão. Ver lib/recursos.ts. */
+    recursos?: Record<string, boolean>;
     /** Plano pago pela loja para anunciar repasse. Ver lib/utils/planoRepasse.ts. */
     planoRepasse?: {
         planId?: mongoose.Types.ObjectId;
@@ -83,6 +85,7 @@ const ConcessionariaSchema: Schema = new Schema({
     ocultarVitrine: { type: Boolean, default: false, index: true },
     vitrineOcultaEm: { type: Date, default: null },
     vitrineOcultaPor: { type: String },
+    recursos: { type: Schema.Types.Mixed },
     planoRepasse: {
         planId: { type: Schema.Types.ObjectId, ref: 'Plan' },
         planName: { type: String },

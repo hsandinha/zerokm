@@ -57,7 +57,7 @@ import {
   type ConversationStatus,
   type Stage,
 } from "@wa/lib/stages";
-import { useWaPanel } from "@wa/components/wa-panel";
+import { usePodeUsar, useWaPanel } from "@wa/components/wa-panel";
 
 const POLL_MS = 4000;
 
@@ -258,6 +258,7 @@ export function Central({ currentEmail }: { currentEmail: string }) {
 
 function CentralInner({ currentEmail }: { currentEmail: string }) {
   const { base, store } = useWaPanel();
+  const podeUsar = usePodeUsar();
   const STAGES = stagesFor(store);
   const STAGE_BY_ID = Object.fromEntries(STAGES.map((s) => [s.id, s])) as Record<Stage, (typeof STAGES)[number]>;
   const params = useSearchParams();
@@ -718,7 +719,7 @@ function CentralInner({ currentEmail }: { currentEmail: string }) {
               </div>
 
               <div className="flex shrink-0 items-center gap-1.5">
-                <select
+                {podeUsar("funil") && <select
                   className={clsx(
                     "hidden rounded-full border border-line px-2.5 py-1 text-xs font-semibold sm:block",
                     isStage(conv.stage) ? STAGE_BY_ID[conv.stage].chip : "bg-paper",
@@ -732,7 +733,7 @@ function CentralInner({ currentEmail }: { currentEmail: string }) {
                       {st.label}
                     </option>
                   ))}
-                </select>
+                </select>}
                 {conv.status !== "human_active" && conv.status !== "closed" && (
                   <button className="btn-dark px-3 py-1.5 text-xs" onClick={() => patch("assumir")} title="Assumir a conversa (a IA para de responder)">
                     <Hand size={14} /> <span className="hidden sm:inline">Assumir</span>

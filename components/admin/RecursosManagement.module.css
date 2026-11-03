@@ -1,0 +1,19 @@
+/*
+ * Só o que é próprio da tela de Funcionalidades: a lista de chaves do modal.
+ * O resto (cabeçalho, tabela, selos) vem de components/ui/Page.
+ */
+.grupo + .grupo { margin-top: 20px; }
+.grupoTitulo { margin: 0 0 8px; font-size: 13px; font-weight: 650; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 10px 12px; border: 1px solid var(--admin-border, var(--color-highlight)); border-radius: 10px;
+    cursor: pointer;
+}
+.item + .item { margin-top: 8px; }
+.item:has(input:checked) { border-color: var(--color-accent); background: var(--admin-selected, var(--color-panel)); }
+.item:has(input:disabled) { opacity: 0.5; cursor: not-allowed; }
+.item input { margin-top: 3px; flex: none; }
+.itemTexto { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.itemRotulo { font-size: 14px; font-weight: 600; color: var(--color-text); }
+.itemDescricao { font-size: 12.5px; color: var(--color-text-muted); }
+.itemAviso { font-size: 12px; color: var(--color-warning, #b7791f); }

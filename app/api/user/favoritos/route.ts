@@ -5,14 +5,17 @@ import connectDB from '@/lib/mongodb';
 import Favorito from '@/models/Favorito';
 import FavoritoVeiculo from '@/models/FavoritoVeiculo';
 import { resumoFavoritos } from '@/lib/services/favoritosService';
+import { sessaoPodeUsar } from '@/lib/services/recursosConta';
 
 export const dynamic = 'force-dynamic';
 
 const MAX_FAVORITOS = 100;
 const texto = (valor: unknown) => (typeof valor === 'string' ? valor.trim() : '');
 
+/** E-mail de quem está logado, se a conta tiver Favoritos liberado (lib/recursos.ts). */
 async function emailDaSessao() {
     const session = await getServerSession(authOptions);
+    if (!(await sessaoPodeUsar(session, 'favoritos'))) return null;
     return session?.user?.email?.toLowerCase().trim() || null;
 }
 

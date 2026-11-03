@@ -6,10 +6,12 @@
 // para o CNV (enriquecimento, importação, Procob, integrações, usuários)
 // continuam com requirePanelUser/requireAdmin, que nunca deixam loja passar.
 
+import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { getPanelUser } from "@wa/lib/auth";
-import { membershipFor, storeAccess, type StoreAccess } from "@wa/lib/store";
+import { membershipFor, recursosDaLoja, storeAccess, type StoreAccess } from "@wa/lib/store";
+import { MSG_RECURSO_DESLIGADO, type Recurso, type Recursos } from "@/lib/recursos";
 import type { StoreKind } from "@wa/models/store";
 
 export type Scope = {
@@ -19,7 +21,7 @@ export type Scope = {
   name: string | null;
   /** "admin" = configura (admin do CNV ou gestor da loja); "operador" = atende. */
   role: "admin" | "operador";
-  store: { id: string; name: string; kind: StoreKind; access: StoreAccess } | null;
+  store: { id: string; name: string; kind: StoreKind; access: StoreAccess; recursos: Recursos } | null;
 };
 
 export async function getScope(): Promise<Scope | null> {
@@ -43,19 +45,40 @@ export async function getScope(): Promise<Scope | null> {
     email,
     name: u.name ?? null,
     role: role === "gestor" ? "admin" : "operador",
-    store: { id: String(store._id), name: store.name, kind: store.kind, access: storeAccess(store) },
+    store: {
+      id: String(store._id),
+      name: store.name,
+      kind: store.kind,
+      access: storeAccess(store),
+      recursos: await recursosDaLoja(store),
+    },
   };
 }
 
-export async function requireScope(): Promise<Scope> {
+/** Loja sem o atendimento liberado não passa de nenhuma rota do atendimento.
+ *  `recurso`: a funcionalidade que a rota exige além dele (funil, campanhas...). */
+export async function requireScope(recurso?: Recurso): Promise<Scope> {
   const scope = await getScope();
   if (!scope) throw Object.assign(new Error("Não autorizado"), { status: 401 });
+  requireRecurso(scope, "atendimento");
+  if (recurso) requireRecurso(scope, recurso);
   return scope;
 }
 
+/** O CNV liberou esta funcionalidade para a loja? A Vera (CNV) sempre pode. */
+export function podeUsar(scope: Pick<Scope, "store">, recurso: Recurso): boolean {
+  return !scope.store || scope.store.recursos[recurso];
+}
+
+export function requireRecurso(scope: Pick<Scope, "store">, recurso: Recurso): void {
+  if (!podeUsar(scope, recurso)) {
+    throw Object.assign(new Error(MSG_RECURSO_DESLIGADO), { status: 403 });
+  }
+}
+
 /** Quem configura: administrador do CNV ou gestor da loja. */
-export async function requireScopeAdmin(): Promise<Scope> {
-  const scope = await requireScope();
+export async function requireScopeAdmin(recurso?: Recurso): Promise<Scope> {
+  const scope = await requireScope(recurso);
   if (scope.role !== "admin") {
     throw Object.assign(new Error("Acesso restrito a gestores"), { status: 403 });
   }
@@ -80,4 +103,12 @@ export function sameTenant(
 export function scopeError(err: unknown): { error: string; status: number } {
   const status = (err as { status?: number })?.status ?? 401;
   return { error: err instanceof Error ? err.message : "Não autorizado", status };
+}
+
+/** Página do atendimento que depende de uma funcionalidade: desligada, volta
+ *  para a Central (o menu já não mostra o link; isto cobre o endereço digitado). */
+export async function scopeDaPagina(recurso: Recurso): Promise<Scope> {
+  const scope = await requireScope();
+  if (!podeUsar(scope, recurso)) redirect("/dashboard/atendimento/central");
+  return scope;
 }

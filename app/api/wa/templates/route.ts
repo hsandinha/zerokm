@@ -23,7 +23,7 @@ export async function GET() {
   try {
     // Ver a lista é inofensivo e as Campanhas dependem dela; criar e
     // excluir template na Meta, não.
-    ({ tenantId } = await requireScope());
+    ({ tenantId } = await requireScope("campanhas"));
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
@@ -71,7 +71,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   let tenantId: string | null;
   try {
-    ({ tenantId } = await requireScopeAdmin());
+    ({ tenantId } = await requireScopeAdmin("campanhas"));
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   let tenantId: string | null;
   try {
-    ({ tenantId } = await requireScopeAdmin());
+    ({ tenantId } = await requireScopeAdmin("campanhas"));
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }

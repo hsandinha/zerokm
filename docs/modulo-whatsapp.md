@@ -359,10 +359,18 @@ filtram por `tenantId` via `wa/lib/scope.ts`; as que só existem para o CNV
 (enriquecimento, importação, Procob, integrações, usuários) continuam fechadas
 para lojas.
 
+- **Funcionalidades liberadas pelo CNV** (`lib/recursos.ts`, como no Chatrun):
+  em Admin → Funcionalidades, cada concessionária e cada lojista tem a lista do
+  que pode usar — CRM, Meus anúncios, Favoritos, Atendimento, Funil, Campanhas,
+  Estoque do pátio, Instagram, Messenger, SMS/RCS, IA de vendas, simulação de
+  financiamento e vender a rede. Grava só a diferença do padrão em
+  `Concessionaria.recursos` / `User.recursos` do lojista titular. O que já
+  existia segue ligado; **o atendimento e o Messenger nascem desligados** e são
+  liberados conta a conta. Desligado some do menu e a rota recusa (403);
 - **Quem entra:** o usuário da concessionária (gestor da loja dela), o lojista
   titular (gestor), os sub-usuários convidados pelo lojista (atendentes) e quem
   o gestor puser na equipe (por e-mail, com login da zerokm). A loja nasce no
-  primeiro acesso, com 7 dias de teste;
+  primeiro acesso depois de o CNV liberar o atendimento, com 7 dias de teste;
 - **Canais:** WhatsApp pelo popup da Meta (Embedded Signup) ou cadastro manual,
   inclusive coexistência com o app do celular (o eco pausa a IA); Instagram
   pelo mesmo login do Instagram da Vera;

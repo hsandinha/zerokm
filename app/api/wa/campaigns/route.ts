@@ -26,7 +26,7 @@ export async function GET() {
   let scope: Scope;
   try {
     // Leitura dos números liberada para o operador; criar e disparar, não.
-    scope = await requireScope();
+    scope = await requireScope("campanhas");
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
@@ -90,7 +90,7 @@ async function optedOutSet(phones: string[], tenantId: string | null): Promise<S
 export async function POST(req: NextRequest) {
   let user: Scope;
   try {
-    user = await requireScopeAdmin();
+    user = await requireScopeAdmin("campanhas");
   } catch (err) {
     const status = (err as { status?: number }).status ?? 403;
     return NextResponse.json({ error: "Acesso restrito a gestores" }, { status });

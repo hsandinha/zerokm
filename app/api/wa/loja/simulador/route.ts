@@ -7,7 +7,8 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { WaStore } from "@wa/models/store";
 import { requireScopeAdmin } from "@wa/lib/scope";
-import { buildStorePrompt, credsDaLoja, executarConsulta, runStoreTurn, sanitizeStoreText } from "@wa/lib/ai-loja";
+import { recursosDaLoja } from "@wa/lib/store";
+import { aplicarRecursos, buildStorePrompt, credsDaLoja, executarConsulta, runStoreTurn, sanitizeStoreText } from "@wa/lib/ai-loja";
 import type { LlmMessage } from "@wa/lib/llm";
 
 export const maxDuration = 60;
@@ -17,7 +18,7 @@ type SimMessage = { role: "user" | "assistant"; content: string };
 export async function POST(req: NextRequest) {
   let tenantId: string | null;
   try {
-    ({ tenantId } = await requireScopeAdmin());
+    ({ tenantId } = await requireScopeAdmin("ia"));
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
   await dbConnect();
   const store = await WaStore.findById(tenantId);
   if (!store) return NextResponse.json({ error: "Loja não encontrada" }, { status: 404 });
+  aplicarRecursos(store, await recursosDaLoja(store));
   const creds = credsDaLoja(store);
   if (!creds) {
     return NextResponse.json({ error: "Cadastre a chave da IA da loja antes de simular." }, { status: 400 });

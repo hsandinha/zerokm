@@ -20,7 +20,7 @@ const PER_COLUMN: Record<string, number> = { abordado: 30, perdido: 40 };
 export async function GET() {
   let scope: Scope;
   try {
-    scope = await requireScope();
+    scope = await requireScope("funil");
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
@@ -101,7 +101,7 @@ export async function GET() {
 export async function PATCH(req: NextRequest) {
   let user: Scope;
   try {
-    user = await requireScope();
+    user = await requireScope("funil");
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }

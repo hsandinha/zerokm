@@ -11,6 +11,7 @@ import LeadTask from "@/models/LeadTask";
 import type { IWaStore } from "@wa/models/store";
 import type { IWaContact } from "@wa/models/wa";
 import { isProfilePhone } from "@wa/lib/channels";
+import { recursosDaConta } from "@/lib/services/recursosConta";
 
 export const LEAD_SOURCE_ATENDIMENTO = "Atendimento IA";
 
@@ -48,6 +49,8 @@ export async function registrarNoCrm(params: {
 }): Promise<string | null> {
   const { store, contact } = params;
   if (store.kind !== "concessionaria" || !store.concessionariaId) return null;
+  // Concessionária sem o CRM liberado pelo CNV: o interesse fica só na conversa.
+  if (!(await recursosDaConta({ tipo: "concessionaria", id: String(store.concessionariaId) })).crm) return null;
   await dbConnect();
   const concessionariaId = store.concessionariaId;
   const phone = telefoneDoLead(contact);

@@ -19,8 +19,9 @@ import { AdminDealershipVehicles } from '../../../components/admin/AdminDealersh
 import KanbanBoard from '../../../components/crm/KanbanBoard';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { Page, pageStyles } from '@/components/ui/Page';
-import { LayoutDashboard, Users, CarFront, Warehouse, BookOpen, Building2, Truck, Settings2, CreditCard, Receipt, ContactRound, Funnel, Plug, Images, MessageCircle, Megaphone } from 'lucide-react';
+import { LayoutDashboard, Users, CarFront, Warehouse, BookOpen, Building2, Truck, Settings2, CreditCard, Receipt, ContactRound, Funnel, Plug, Images, MessageCircle, Megaphone, SlidersHorizontal } from 'lucide-react';
 import { AvisosManagement } from '@/components/admin/AvisosManagement';
+import { RecursosManagement } from '@/components/admin/RecursosManagement';
 import { useRouter } from 'next/navigation';
 
 const VehicleConsultation = dynamic<any>(
@@ -36,7 +37,7 @@ const VehicleConsultation = dynamic<any>(
     }
 );
 
-type TabType = 'visao-geral' | 'usuarios' | 'veiculos' | 'estoque-concessionarias' | 'catalogo' | 'concessionarias' | 'transportadoras' | 'margem' | 'configuracoes' | 'planos' | 'cobrancas' | 'crm' | 'funil' | 'integracoes' | 'banners' | 'avisos';
+type TabType = 'visao-geral' | 'usuarios' | 'veiculos' | 'estoque-concessionarias' | 'catalogo' | 'concessionarias' | 'transportadoras' | 'margem' | 'configuracoes' | 'planos' | 'cobrancas' | 'crm' | 'funil' | 'integracoes' | 'banners' | 'avisos' | 'funcionalidades';
 
 export default function AdminDashboard() {
     const router = useRouter();
@@ -119,6 +120,8 @@ export default function AdminDashboard() {
         { id: 'estoque-concessionarias', label: 'Estoque', icon: <Warehouse size={20} aria-hidden="true" /> },
         { id: 'catalogo', label: 'Catálogo', icon: <BookOpen size={20} aria-hidden="true" /> },
         { id: 'concessionarias', label: 'Concessionárias', icon: <Building2 size={20} aria-hidden="true" /> },
+        // O que cada concessionária e cada lojista pode usar (lib/recursos.ts), como no Chatrun.
+        { id: 'funcionalidades', label: 'Funcionalidades', icon: <SlidersHorizontal size={20} aria-hidden="true" /> },
         { id: 'transportadoras', label: 'Frete', icon: <Truck size={20} aria-hidden="true" /> },
         { id: 'configuracoes', label: 'Configurações', icon: <Settings2 size={20} aria-hidden="true" /> },
         { id: 'planos', label: 'Planos', icon: <CreditCard size={20} aria-hidden="true" /> },
@@ -136,7 +139,7 @@ export default function AdminDashboard() {
     // Gerente não vê equipe, planos, carteira de clientes, leads, cobranças nem
     // integrações. A API de cada uma também recusa o perfil: esconder o menu
     // sozinho não protege nada.
-    const OCULTAS_GERENTE = new Set(['usuarios', 'planos', 'crm', 'funil', 'cobrancas', 'integracoes', 'whatsapp', 'avisos']);
+    const OCULTAS_GERENTE = new Set(['usuarios', 'planos', 'crm', 'funil', 'cobrancas', 'integracoes', 'whatsapp', 'avisos', 'funcionalidades']);
 
     const tabs = allTabs.filter(tab => {
         if (userInfo.profile === 'marketing') {
@@ -187,6 +190,8 @@ export default function AdminDashboard() {
                 return <BannersManagement />;
             case 'avisos':
                 return <AvisosManagement />;
+            case 'funcionalidades':
+                return <RecursosManagement />;
             default:
                 return null;
         }

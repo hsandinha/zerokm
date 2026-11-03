@@ -131,6 +131,10 @@ export const TRANSFER_REASON_LABEL: Record<string, string> = {
   falha_cadastro: "falha ao criar o cadastro",
   limite_de_mensagens: "limite de mensagens da IA",
   falha_ia: "falha da IA",
+  ia_desligada: "IA desligada",
+  ia_sem_chave: "IA sem chave",
+  assinatura_inativa: "assinatura inativa",
+  ia_nao_liberada: "IA não liberada pelo CNV",
 };
 
 export const OUTCOME_LABEL: Record<string, string> = {

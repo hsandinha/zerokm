@@ -10,6 +10,7 @@ import { Bot, Calculator, MessageCircle, Save, SendHorizonal, Sparkles, Users } 
 import { InstagramChannels } from "@wa/components/config-screen";
 import { ConectarWhatsApp } from "@wa/components/conectar-whatsapp";
 import { CanaisExtras } from "@wa/components/canais-extras";
+import { usePodeUsar } from "@wa/components/wa-panel";
 
 type Member = { email: string; name: string | null; role: "gestor" | "atendente" };
 type Loja = {
@@ -47,6 +48,7 @@ type Loja = {
 const PROVIDER_LABEL = { gemini: "Google Gemini", openai: "OpenAI (GPT)", claude: "Anthropic (Claude)" };
 
 export function StoreConfig() {
+  const podeUsar = usePodeUsar();
   const [loja, setLoja] = useState<Loja | null>(null);
   const [token, setToken] = useState("");
   const [prazosTxt, setPrazosTxt] = useState("");
@@ -105,11 +107,11 @@ export function StoreConfig() {
     <div className="grid gap-6 lg:grid-cols-[1fr_minmax(360px,420px)]">
       <div className="space-y-6">
         <ConectarWhatsApp />
-        <InstagramChannels />
+        {podeUsar("instagram") && <InstagramChannels />}
         <CanaisExtras />
 
         {/* IA */}
-        <section className="card space-y-4">
+        {podeUsar("ia") && <section className="card space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-lg font-bold">
               <Bot size={18} className="text-brand-700" /> IA de vendas
@@ -178,7 +180,7 @@ export function StoreConfig() {
               />
             </label>
           </div>
-          {loja.kind === "lojista" && (
+          {loja.kind === "lojista" && podeUsar("vende_rede") && (
             <label className="flex cursor-pointer items-start gap-2 text-sm">
               <input
                 type="checkbox"
@@ -227,10 +229,10 @@ export function StoreConfig() {
               onChange={(e) => setAi("systemPrompt", e.target.value)}
             />
           </details>
-        </section>
+        </section>}
 
         {/* Financiamento */}
-        <section className="card space-y-4">
+        {podeUsar("simulador") && <section className="card space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-lg font-bold">
               <Calculator size={18} className="text-brand-700" /> Simulação de financiamento
@@ -277,6 +279,10 @@ export function StoreConfig() {
               onChange={(e) => setFin("observacao", e.target.value)}
             />
           </label>
+        </section>}
+
+        {/* Endereço que a IA envia */}
+        {podeUsar("ia") && <section className="card">
           <label className="block text-sm">
             <span className="mb-1 block text-muted">Link do endereço no Google Maps (a IA envia quando pedirem)</span>
             <input
@@ -286,7 +292,7 @@ export function StoreConfig() {
               onChange={(e) => setLoja({ ...loja, mapsUrl: e.target.value })}
             />
           </label>
-        </section>
+        </section>}
 
         {/* Equipe */}
         <Equipe members={loja.members} onChange={(members) => setLoja({ ...loja, members })} />
@@ -299,7 +305,7 @@ export function StoreConfig() {
         </div>
       </div>
 
-      <SimuladorDaLoja />
+      {podeUsar("ia") && <SimuladorDaLoja />}
     </div>
   );
 }

@@ -15,7 +15,7 @@ type Params = { params: Promise<{ id: string }> };
 export async function GET(req: NextRequest, { params }: Params) {
   let scope: Scope;
   try {
-    scope = await requireScope();
+    scope = await requireScope("campanhas");
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
@@ -115,7 +115,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 export async function PATCH(req: NextRequest, { params }: Params) {
   let scope: Scope;
   try {
-    scope = await requireScopeAdmin();
+    scope = await requireScopeAdmin("campanhas");
   } catch (err) {
     const status = (err as { status?: number }).status ?? 403;
     return NextResponse.json({ error: "Acesso restrito a administradores" }, { status });

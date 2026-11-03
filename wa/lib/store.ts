@@ -1,8 +1,9 @@
 // Loja do atendimento (WaStore): quem é dono, quem opera e o que ela pode.
 //
 // A loja nasce sozinha no primeiro acesso de quem tem direito a ela — o
-// usuário da concessionária ou o lojista titular —, já com o período de teste.
-// Assim o "Atendimento" aparece no painel sem cadastro manual do CNV.
+// usuário da concessionária ou o lojista titular —, já com o período de teste,
+// desde que o CNV tenha liberado o atendimento para a conta (lib/recursos.ts).
+// Antes disso ela não é criada: o teste só começa a contar depois de liberado.
 
 import mongoose from "mongoose";
 import dbConnect from "@/lib/mongodb";
@@ -10,6 +11,8 @@ import User from "@/models/User";
 import Concessionaria from "@/models/Concessionaria";
 import Invite from "@/models/Invite";
 import { WaStore, type IWaStore, type StoreRole } from "@wa/models/store";
+import { recursosDaConta } from "@/lib/services/recursosConta";
+import type { Recursos } from "@/lib/recursos";
 
 export const STORE_TRIAL_DAYS = 7;
 
@@ -24,6 +27,7 @@ export async function storeOfConcessionaria(concessionariaId: string): Promise<I
   await dbConnect();
   const existing = await WaStore.findOne({ concessionariaId });
   if (existing) return existing;
+  if (!(await recursosDaConta({ tipo: "concessionaria", id: concessionariaId })).atendimento) return null;
   const c = await Concessionaria.findById(concessionariaId).select("nome razaoSocial").lean();
   if (!c) return null;
   return createStore({
@@ -39,6 +43,7 @@ export async function storeOfLojista(ownerUserId: string): Promise<IWaStore | nu
   await dbConnect();
   const existing = await WaStore.findOne({ ownerUserId });
   if (existing) return existing;
+  if (!(await recursosDaConta({ tipo: "lojista", id: ownerUserId })).atendimento) return null;
   const u = await User.findById(ownerUserId).select("displayName email").lean();
   if (!u) return null;
   return createStore({
@@ -141,6 +146,14 @@ export function storeAccess(store: IWaStore): StoreAccess {
     expiresAt: sub?.expiresAt ? new Date(sub.expiresAt).toISOString() : null,
     planName: sub?.planName ?? null,
   };
+}
+
+/** Funcionalidades que o CNV liberou para a conta dona da loja. */
+export async function recursosDaLoja(
+  store: Pick<IWaStore, "kind" | "concessionariaId" | "ownerUserId">,
+): Promise<Recursos> {
+  const id = store.kind === "concessionaria" ? store.concessionariaId : store.ownerUserId;
+  return recursosDaConta({ tipo: store.kind, id: String(id) });
 }
 
 export async function getStore(tenantId: string | null | undefined): Promise<IWaStore | null> {
