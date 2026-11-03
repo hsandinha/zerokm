@@ -85,6 +85,16 @@ export async function cnvWhatsappChannel(): Promise<IWaChannel | null> {
 
 /** Credenciais da Cloud API: documento do canal → env (só para o CNV). */
 function whatsappCredsOf(doc: IWaChannel | null, cnv: boolean): MetaCredentials | null {
+  // Conectado pelo Chatrun: a credencial é a conexão no gateway, sem token.
+  if (doc?.provider === "chatrun" && doc.chatrunConnectionId) {
+    return {
+      token: "",
+      phoneNumberId: doc.phoneNumberId || doc.chatrunConnectionId,
+      wabaId: doc.wabaId || null,
+      appSecret: null,
+      chatrunConnectionId: doc.chatrunConnectionId,
+    };
+  }
   const env = cnv ? process.env : ({} as NodeJS.ProcessEnv);
   const token = safeDecrypt(doc?.token) || env.META_TOKEN;
   const phoneNumberId = doc?.phoneNumberId || env.META_PHONE_NUMBER_ID;
@@ -220,6 +230,17 @@ export async function channelForWhatsappNumber(
   }
   // Número não cadastrado como canal = o número único do CNV de hoje (env).
   return resolveCnvWhatsapp();
+}
+
+/** Canal de WhatsApp conectado pelo Chatrun (pela conexão do gateway). */
+export async function channelByChatrunConnection(
+  connectionId: string | null | undefined,
+): Promise<ResolvedChannel | null> {
+  if (!connectionId) return null;
+  await dbConnect();
+  const doc = await WaChannel.findOne({ kind: "whatsapp", chatrunConnectionId: connectionId });
+  if (!doc || doc.status === "disconnected") return null;
+  return resolve(doc);
 }
 
 export async function channelByIgUserId(igUserId: string): Promise<ResolvedChannel | null> {

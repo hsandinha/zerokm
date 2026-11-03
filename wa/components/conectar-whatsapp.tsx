@@ -1,33 +1,24 @@
 "use client";
 
-// "Conectar WhatsApp" da loja — o Embedded Signup da Meta (popup), portado do
-// Chatrun, com o cadastro manual de reserva para quem já tem app próprio.
+// "Conectar WhatsApp" da loja — pelo Chatrun Conexão. O botão pede o convite
+// ao gateway e leva para a página dele (popup da Meta no app da Chatrun); a
+// loja volta para cá com ?whatsapp=retorno e os números viram canais. O
+// cadastro manual continua para quem já tem app próprio na Meta.
 // O número conectado vira um canal da loja; a lista vem de /api/wa/channels.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Loader2, PhoneCall } from "lucide-react";
 
-declare global {
-  interface Window {
-    FB?: {
-      init: (opts: Record<string, unknown>) => void;
-      login: (cb: (r: { authResponse?: { code?: string } | null }) => void, opts: Record<string, unknown>) => void;
-    };
-    fbAsyncInit?: () => void;
-  }
-}
-
 type Canal = { id: string; kind: string; status: string; label: string; lastError: string | null };
-const GRAPH_VERSION = "v26.0";
+
+const PARAMS_DO_RETORNO = ["whatsapp", "status", "channel", "connection_id", "account_id", "mensagem"];
 
 export function ConectarWhatsApp() {
   const [canais, setCanais] = useState<Canal[] | null>(null);
-  const [es, setEs] = useState<{ appId: string; configId: string } | null>(null);
-  const [sdkReady, setSdkReady] = useState(false);
+  const [chatrun, setChatrun] = useState<boolean | null>(null);
   const [working, setWorking] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [manual, setManual] = useState({ phoneNumberId: "", wabaId: "", token: "" });
-  const session = useRef<{ wabaId?: string; phoneNumberId?: string }>({});
 
   const load = useCallback(() => {
     fetch("/api/wa/channels")
@@ -37,54 +28,81 @@ export function ConectarWhatsApp() {
   }, []);
 
   useEffect(() => {
-    load();
+    const url = new URL(window.location.href);
+    const retorno = url.searchParams.get("whatsapp") === "retorno";
+
+    if (retorno) {
+      // Volta da página do Chatrun: confirma no gateway e limpa o endereço.
+      const ok = url.searchParams.get("status") === "ok";
+      const accountId = url.searchParams.get("account_id");
+      const mensagem = url.searchParams.get("mensagem");
+      for (const p of PARAMS_DO_RETORNO) url.searchParams.delete(p);
+      window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+
+      if (!ok) {
+        setNotice(`❌ O WhatsApp não foi conectado: ${mensagem || "o retorno veio sem detalhe."}`);
+      } else {
+        setWorking("Confirmando a conexão…");
+        fetch("/api/wa/whatsapp/connect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ acao: "retorno", accountId }),
+        })
+          .then(async (r) => {
+            const d = (await r.json().catch(() => ({}))) as { error?: string; aviso?: string | null; conectados?: number };
+            if (!r.ok) throw new Error(d.error || "Falha ao confirmar a conexão");
+            setNotice(
+              d.aviso
+                ? `⚠️ ${d.aviso}`
+                : d.conectados
+                  ? "✅ WhatsApp conectado."
+                  : "⏳ A Meta ainda está concluindo a conexão. Em instantes o número aparece aqui.",
+            );
+          })
+          .catch((err) => setNotice(`❌ ${err instanceof Error ? err.message : "Falha ao confirmar a conexão"}`))
+          .finally(() => {
+            setWorking(null);
+            load();
+          });
+      }
+    }
+
     fetch("/api/wa/whatsapp/connect")
       .then((r) => r.json())
-      .then((d) => setEs(d.embeddedSignup ?? null))
-      .catch(() => {});
+      .then((d: { chatrun?: boolean; aviso?: string | null }) => {
+        setChatrun(Boolean(d.chatrun));
+        if (d.aviso && !retorno) setNotice(`⚠️ ${d.aviso}`);
+      })
+      .catch(() => setChatrun(false))
+      .finally(load);
   }, [load]);
 
-  // SDK do Facebook + o postMessage do popup (waba_id / phone_number_id).
-  useEffect(() => {
-    if (!es) return;
-    const onMessage = (event: MessageEvent) => {
-      if (!event.origin.endsWith("facebook.com")) return;
-      try {
-        const data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
-        if (data?.type !== "WA_EMBEDDED_SIGNUP") return;
-        if (data.event === "FINISH" || data.event === "FINISH_ONLY_WABA") {
-          session.current = { wabaId: data.data?.waba_id, phoneNumberId: data.data?.phone_number_id };
-        }
-      } catch {
-        // mensagem de outro script do Facebook
-      }
-    };
-    window.addEventListener("message", onMessage);
-    if (window.FB) {
-      setSdkReady(true);
-    } else {
-      window.fbAsyncInit = () => {
-        window.FB?.init({ appId: es.appId, autoLogAppEvents: true, xfbml: true, version: GRAPH_VERSION });
-        setSdkReady(true);
-      };
-      const script = document.createElement("script");
-      script.src = "https://connect.facebook.net/pt_BR/sdk.js";
-      script.async = true;
-      script.defer = true;
-      script.crossOrigin = "anonymous";
-      document.body.appendChild(script);
+  async function conectarPeloChatrun() {
+    setWorking("Abrindo a conexão…");
+    setNotice(null);
+    try {
+      const res = await fetch("/api/wa/whatsapp/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ acao: "convite" }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+      if (!res.ok || !body.url) throw new Error(body.error || "Não foi possível gerar o link de conexão");
+      window.location.href = body.url;
+    } catch (err) {
+      setNotice(`❌ ${err instanceof Error ? err.message : "Não foi possível conectar o WhatsApp"}`);
+      setWorking(null);
     }
-    return () => window.removeEventListener("message", onMessage);
-  }, [es]);
+  }
 
-  async function finalizar(payload: Record<string, unknown>) {
+  async function conectarManual() {
     setWorking("Conectando o número…");
     setNotice(null);
     try {
       const res = await fetch("/api/wa/whatsapp/connect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ manual }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || "Falha ao conectar");
@@ -98,33 +116,6 @@ export function ConectarWhatsApp() {
     } finally {
       setWorking(null);
     }
-  }
-
-  function abrirPopup(coexistencia: boolean) {
-    if (!window.FB || !es) return;
-    session.current = {};
-    setWorking("Aguardando o Facebook…");
-    window.FB.login(
-      (response) => {
-        const code = response.authResponse?.code;
-        if (!code) {
-          setWorking(null);
-          return;
-        }
-        void finalizar({ code, ...session.current });
-      },
-      {
-        config_id: es.configId,
-        response_type: "code",
-        override_default_response_type: true,
-        extras: {
-          setup: {},
-          sessionInfoVersion: "3",
-          // Coexistência: o mesmo número continua no app do celular.
-          ...(coexistencia ? { featureType: "whatsapp_business_app_onboarding" } : {}),
-        },
-      },
-    );
   }
 
   async function desconectar(id: string) {
@@ -151,7 +142,7 @@ export function ConectarWhatsApp() {
                 {c.status === "connected" ? (
                   <span className="text-xs text-brand-800">● conectado</span>
                 ) : (
-                  <span className="text-xs text-red-500">● atenção{c.lastError ? ` — ${c.lastError}` : ""}</span>
+                  <span className="text-xs text-red-500">● atenção{c.lastError ? `: ${c.lastError}` : ""}</span>
                 )}
               </span>
               <button className="btn-ghost px-2 py-1 text-xs" onClick={() => desconectar(c.id)}>
@@ -164,19 +155,20 @@ export function ConectarWhatsApp() {
         <p className="text-xs text-muted">Nenhum número conectado ainda.</p>
       )}
 
-      {es ? (
-        <div className="flex flex-wrap gap-2">
-          <button className="btn-dark px-3 py-1.5 text-sm" disabled={!sdkReady || !!working} onClick={() => abrirPopup(false)}>
-            Conectar número novo
+      {chatrun === null ? null : chatrun ? (
+        <div className="space-y-1">
+          <button className="btn-dark px-3 py-1.5 text-sm" disabled={!!working} onClick={conectarPeloChatrun}>
+            {ativos.length ? "Conectar outro número" : "Conectar WhatsApp"}
           </button>
-          <button className="btn-ghost px-3 py-1.5 text-sm" disabled={!sdkReady || !!working} onClick={() => abrirPopup(true)}>
-            Usar o número do app WhatsApp Business
-          </button>
+          <p className="text-xs text-muted">
+            Abre a página do Chatrun com o login da Meta. Dá para conectar um número novo ou o número que a loja já usa
+            no app WhatsApp Business do celular.
+          </p>
         </div>
       ) : (
         <p className="text-xs text-muted">
-          A conexão pelo popup da Meta ainda não está configurada na plataforma (META_APP_ID e META_ES_CONFIG_ID).
-          Use o cadastro manual abaixo.
+          A conexão pelo Chatrun ainda não está configurada na plataforma (CHATRUN_API_KEY). Use o cadastro manual
+          abaixo.
         </p>
       )}
       {working && (
@@ -208,7 +200,7 @@ export function ConectarWhatsApp() {
             value={manual.token}
             onChange={(e) => setManual({ ...manual, token: e.target.value })}
           />
-          <button className="btn-dark px-3 py-1.5 text-sm sm:col-span-2" disabled={!!working} onClick={() => finalizar({ manual })}>
+          <button className="btn-dark px-3 py-1.5 text-sm sm:col-span-2" disabled={!!working} onClick={conectarManual}>
             Validar e conectar
           </button>
         </div>

@@ -65,6 +65,8 @@ export interface IWaStore extends Document {
   };
   /** Link do Google Maps da loja (a IA manda quando pedem o endereço). */
   mapsUrl?: string;
+  /** Conta da loja no Chatrun Conexão (onde ficam os números dela). */
+  chatrunAccountId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -118,6 +120,7 @@ const WaStoreSchema: Schema = new Schema(
       observacao: { type: String },
     },
     mapsUrl: { type: String },
+    chatrunAccountId: { type: String },
   },
   { timestamps: true, collection: "wa_stores" },
 );

@@ -1,26 +1,36 @@
-// "Conectar WhatsApp" da loja.
-//   GET  → o que o botão do Embedded Signup precisa (app id e config id)
-//   POST → { code, wabaId?, phoneNumberId? } vindo do popup da Meta, ou
-//          { manual: { phoneNumberId, wabaId, token } } para quem já tem o
-//          token permanente de um app próprio.
-// Os dois caminhos terminam igual: o número vira um canal da loja, com o
-// token cifrado, o webhook inscrito na WABA e o número registrado.
+// "Conectar WhatsApp" da loja — pelo Chatrun Conexão (gateway).
+//   GET  → se o Chatrun está configurado; de quebra sincroniza os números da
+//          loja com o gateway (situação, nome, telefone).
+//   POST { acao: "convite" }  → link do convite (popup da Meta na página do
+//          gateway, no app da Chatrun). A loja volta para a Configuração com
+//          ?whatsapp=retorno&status=ok&connection_id=...
+//   POST { acao: "retorno", accountId? } → lê no gateway os números vinculados
+//          a esta loja e cria/atualiza os canais. Os eventos
+//          connection.* fazem o mesmo, este é só o caminho rápido.
+//   POST { manual: { phoneNumberId, wabaId, token } } → quem já tem o token
+//          permanente de um app próprio (fora do gateway).
+//
+// Pelo gateway a zerokm não guarda token da Meta nem inscreve webhook: o
+// canal fica com o connection_id e tudo passa pela API do Chatrun.
 
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { WaChannel } from "@wa/models/channel";
+import { WaStore } from "@wa/models/store";
 import { requireScopeAdmin, type Scope } from "@wa/lib/scope";
 import { encrypt } from "@wa/lib/crypto";
 import { fetchPhoneInfo, MetaApiError } from "@wa/lib/meta";
 import {
-  discoverWabaIds,
-  embeddedSignupConfig,
-  EmbeddedSignupError,
-  exchangeCodeForToken,
-  listPhoneNumbers,
-  registerPhone,
-  subscribeAppToWaba,
-} from "@wa/lib/embedded-signup";
+  ChatrunError,
+  chatrunConfigured,
+  connectionsOf,
+  resolveAccount,
+  whatsappInvite,
+} from "@wa/lib/chatrun";
+import { upsertChatrunChannel } from "@wa/lib/chatrun-channels";
+import { configPathOf } from "@wa/lib/channels";
+import { siteUrl } from "@wa/lib/site-url";
+import { subscribeAppToWaba } from "@wa/lib/embedded-signup";
 
 export const maxDuration = 60;
 
@@ -39,10 +49,55 @@ async function lojaGestora(): Promise<Scope | NextResponse> {
   }
 }
 
+/** Números da loja no gateway → canais. Devolve o primeiro problema, se houver. */
+async function sincronizar(tenantId: string): Promise<{ conectados: number; aviso: string | null }> {
+  const conexoes = await connectionsOf(tenantId);
+  let conectados = 0;
+  let aviso: string | null = null;
+  for (const c of conexoes) {
+    const r = await upsertChatrunChannel(c, tenantId);
+    if (!r.ok) aviso ??= r.reason;
+    else if (r.status === "connected") conectados += 1;
+  }
+  return { conectados, aviso };
+}
+
+/** Conta da loja no gateway: a guardada, ou achada pelo e-mail de quem conecta. */
+async function contaDaLoja(scope: Scope): Promise<string> {
+  await dbConnect();
+  const store = await WaStore.findById(scope.tenantId);
+  if (!store) throw new ChatrunError(404, "Loja não encontrada.");
+  if (store.chatrunAccountId) {
+    try {
+      return (await resolveAccount({ accountId: store.chatrunAccountId })).id;
+    } catch (err) {
+      if (!(err instanceof ChatrunError) || err.status !== 404) throw err;
+    }
+  }
+  const conta = await resolveAccount({ email: scope.email, name: store.name });
+  await WaStore.updateOne({ _id: store._id }, { chatrunAccountId: conta.id });
+  return conta.id;
+}
+
+function falhaDoChatrun(err: unknown) {
+  if (err instanceof ChatrunError) {
+    return NextResponse.json({ error: err.message }, { status: err.status >= 500 ? 502 : err.status });
+  }
+  return NextResponse.json({ error: err instanceof Error ? err.message : "Falha ao falar com o Chatrun" }, { status: 500 });
+}
+
 export async function GET() {
   const scope = await lojaGestora();
   if (scope instanceof NextResponse) return scope;
-  return NextResponse.json({ embeddedSignup: embeddedSignupConfig() });
+  if (!chatrunConfigured()) return NextResponse.json({ chatrun: false });
+  try {
+    const { aviso } = await sincronizar(scope.tenantId!);
+    return NextResponse.json({ chatrun: true, aviso });
+  } catch (err) {
+    // A tela abre do mesmo jeito; só não confirmou com o gateway agora.
+    const msg = err instanceof Error ? err.message : "Falha ao consultar o Chatrun";
+    return NextResponse.json({ chatrun: true, aviso: `Não foi possível consultar o Chatrun: ${msg}` });
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -51,41 +106,51 @@ export async function POST(req: NextRequest) {
   const tenantId = scope.tenantId!;
 
   const body = (await req.json().catch(() => ({}))) as {
-    code?: string;
-    wabaId?: string;
-    phoneNumberId?: string;
+    acao?: "convite" | "retorno";
+    accountId?: string;
     manual?: { phoneNumberId?: string; wabaId?: string; token?: string };
   };
 
-  let token: string;
-  let wabaId: string | undefined;
-  let phoneNumberId: string | undefined;
-  let viaPopup = false;
-  try {
-    if (body.manual) {
-      token = String(body.manual.token ?? "").trim();
-      wabaId = String(body.manual.wabaId ?? "").trim() || undefined;
-      phoneNumberId = String(body.manual.phoneNumberId ?? "").trim() || undefined;
-      if (!token || !phoneNumberId) {
-        return NextResponse.json({ error: "Informe o Phone Number ID e o token" }, { status: 400 });
-      }
-    } else {
-      if (!body.code) return NextResponse.json({ error: "Faltou o código do Facebook" }, { status: 400 });
-      viaPopup = true;
-      token = await exchangeCodeForToken(body.code);
-      wabaId = body.wabaId || (await discoverWabaIds(token))[0];
-      if (!wabaId) {
-        return NextResponse.json(
-          { error: "A Meta não informou a conta do WhatsApp. Tente de novo e conclua todas as etapas do popup." },
-          { status: 400 },
-        );
-      }
-      phoneNumberId = body.phoneNumberId || (await listPhoneNumbers(wabaId, token))[0]?.id;
-      if (!phoneNumberId) {
-        return NextResponse.json({ error: "Essa conta não tem número de WhatsApp cadastrado." }, { status: 400 });
-      }
+  if (body.acao === "convite" || body.acao === "retorno") {
+    if (!chatrunConfigured()) {
+      return NextResponse.json({ error: "Chatrun não configurado na plataforma (CHATRUN_API_KEY)." }, { status: 503 });
     }
+    try {
+      if (body.acao === "convite") {
+        const accountId = await contaDaLoja(scope);
+        const url = await whatsappInvite({
+          accountId,
+          externalRef: tenantId,
+          returnUrl: `${siteUrl(req)}${configPathOf(tenantId)}?whatsapp=retorno`,
+        });
+        return NextResponse.json({ url });
+      }
+      // A conta da volta pode ser outra (o número já era de outra conta no gateway).
+      if (body.accountId) {
+        await dbConnect();
+        await WaStore.updateOne({ _id: tenantId }, { chatrunAccountId: String(body.accountId) });
+      }
+      const { conectados, aviso } = await sincronizar(tenantId);
+      return NextResponse.json({ ok: true, conectados, aviso });
+    } catch (err) {
+      return falhaDoChatrun(err);
+    }
+  }
 
+  if (!body.manual) {
+    return NextResponse.json({ error: "Pedido inválido" }, { status: 400 });
+  }
+
+  // Cadastro manual: app próprio na Meta, fora do gateway. O token fica
+  // cifrado no canal e o webhook do app dele aponta para /api/webhooks/meta.
+  const token = String(body.manual.token ?? "").trim();
+  const wabaId = String(body.manual.wabaId ?? "").trim() || undefined;
+  const phoneNumberId = String(body.manual.phoneNumberId ?? "").trim() || undefined;
+  if (!token || !phoneNumberId) {
+    return NextResponse.json({ error: "Informe o Phone Number ID e o token" }, { status: 400 });
+  }
+
+  try {
     await dbConnect();
     // Um número pertence a um canal só: o de outra loja não troca de dono.
     const existing = await WaChannel.findOne({ kind: "whatsapp", phoneNumberId });
@@ -96,17 +161,11 @@ export async function POST(req: NextRequest) {
     // Valida o token contra o número antes de gravar qualquer coisa.
     const info = await fetchPhoneInfo({ token, phoneNumberId, wabaId });
 
-    let registered = true;
     let lastError: string | undefined;
     if (wabaId) {
       await subscribeAppToWaba(wabaId, token).catch((err) => {
         lastError = `webhook: ${err instanceof Error ? err.message : err}`;
       });
-    }
-    if (viaPopup) {
-      const reg = await registerPhone(phoneNumberId, token);
-      registered = reg.ok;
-      if (!reg.ok) lastError = `registro: ${reg.error}`;
     }
 
     await WaChannel.findOneAndUpdate(
@@ -119,9 +178,9 @@ export async function POST(req: NextRequest) {
         token: encrypt(token),
         displayPhone: info.display_phone_number,
         displayName: info.verified_name,
-        status: registered && !lastError ? "connected" : "error",
+        status: lastError ? "error" : "connected",
         lastError: lastError ?? null,
-        $unset: { appSecret: 1 },
+        $unset: { appSecret: 1, provider: 1, chatrunConnectionId: 1, chatrunAccountId: 1 },
       },
       { upsert: true },
     );
@@ -129,12 +188,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       phoneNumber: info.display_phone_number ?? null,
-      registered,
+      registered: true,
       warning: lastError ?? null,
     });
   } catch (err) {
-    const status =
-      err instanceof EmbeddedSignupError || err instanceof MetaApiError ? 502 : 500;
+    const status = err instanceof MetaApiError ? 502 : 500;
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Falha ao conectar" },
       { status },

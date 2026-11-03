@@ -371,9 +371,9 @@ para lojas.
   titular (gestor), os sub-usuários convidados pelo lojista (atendentes) e quem
   o gestor puser na equipe (por e-mail, com login da zerokm). A loja nasce no
   primeiro acesso depois de o CNV liberar o atendimento, com 7 dias de teste;
-- **Canais:** WhatsApp pelo popup da Meta (Embedded Signup) ou cadastro manual,
-  inclusive coexistência com o app do celular (o eco pausa a IA); Instagram
-  pelo mesmo login do Instagram da Vera;
+- **Canais:** WhatsApp pelo **Chatrun Conexão** (ver abaixo) ou cadastro
+  manual, inclusive coexistência com o app do celular (o eco pausa a IA);
+  Instagram pelo mesmo login do Instagram da Vera;
 - **IA de vendas** (`wa/lib/ai-loja.ts`): chave da própria loja (Gemini,
   OpenAI ou Claude), prompt editável, e as ferramentas `buscar_estoque`,
   `simular_financiamento`, `registrar_interesse`, `agendar_visita`,
@@ -393,6 +393,36 @@ para lojas.
   ativa à mão em WhatsApp → Lojas (atendimento). Sem assinatura (nem teste) a
   IA para e as conversas vão direto para a equipe. A IA e os disparos a loja
   paga direto aos provedores.
+
+### WhatsApp da loja pelo Chatrun Conexão
+
+A zerokm não guarda token da Meta nem recebe o webhook do WhatsApp das lojas:
+quem faz isso é o gateway (conexao.chatrun.com.br), como na Ângulo.
+
+- **Conectar:** "Conectar WhatsApp" na Configuração pede o convite ao gateway
+  (`POST /api/wa/whatsapp/connect { acao: "convite" }` → `POST /api/v1/invites`
+  com `external_ref` = id da loja) e leva a loja para a página dele, com o
+  popup da Meta no app da Chatrun. A loja volta com `?whatsapp=retorno` e a
+  tela confirma (`acao: "retorno"`), lendo no gateway os números vinculados à
+  loja. A conta da loja no gateway fica em `WaStore.chatrunAccountId`;
+- **Canal:** `wa_channels` com `provider: "chatrun"` e `chatrunConnectionId`,
+  sem token. `MetaCredentials.chatrunConnectionId` faz o `wa/lib/meta.ts`
+  mandar texto, mídia, reação, template, "lido", modelos e download de mídia
+  pela API do gateway (`wa/lib/chatrun.ts`), no mesmo formato de antes para
+  o resto do módulo. Fora da janela de 24h o gateway devolve o mesmo código
+  131047 da Meta;
+- **Receber:** `/api/chatrun/eventos` confere a assinatura
+  (`CHATRUN_CALLBACK_SECRET`) e converte `message.received`, `message.echo` e
+  `message.status` para o formato do webhook da Meta, entrando na mesma
+  pipeline (`wa/lib/whatsapp-webhook.ts`). `connection.*` cria, atualiza ou
+  desliga o canal da loja;
+- **Desconectar:** desvincula só a zerokm da conexão no gateway;
+- **Configuração:** no `/admin` do gateway, cadastrar a plataforma "zerokm"
+  com a callback_url `https://www.cnv0km.com.br/api/chatrun/eventos`; a chave
+  e o segredo vão para `CHATRUN_API_KEY` e `CHATRUN_CALLBACK_SECRET` na Vercel.
+
+O WhatsApp do CNV (a Vera) continua no formulário IA & WABA, com credencial
+própria e o webhook `/api/webhooks/meta`.
 
 **Antes de abrir para as lojas**, rode no banco de produção:
 
