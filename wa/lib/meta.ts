@@ -2,6 +2,7 @@
 // Portado do padrão validado no pnlcreditoseguro.
 
 import { createHmac, timingSafeEqual } from "crypto";
+import * as chatrun from "@wa/lib/chatrun";
 
 const GRAPH_VERSION = "v21.0";
 const GRAPH = `https://graph.facebook.com/${GRAPH_VERSION}`;
@@ -11,6 +12,9 @@ export type MetaCredentials = {
   phoneNumberId: string;
   wabaId?: string | null;
   appSecret?: string | null;
+  /** Canal conectado pelo Chatrun Conexão: não há token aqui, tudo (envio,
+   *  modelos, mídia) passa pelo gateway com esta conexão. */
+  chatrunConnectionId?: string | null;
 };
 
 export class MetaApiError extends Error {
@@ -20,6 +24,20 @@ export class MetaApiError extends Error {
     super(message);
     this.status = status;
     this.code = code;
+  }
+}
+
+/** Erro do gateway no formato que o resto do módulo já entende. */
+async function viaGateway<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (err instanceof chatrun.ChatrunError) {
+      // Fora da janela o gateway barra antes da Meta: mesmo código que ela daria.
+      const code = err.metaCode ?? (err.code === "outside_24h_window" ? 131047 : null);
+      throw new MetaApiError(err.status, err.message, code);
+    }
+    throw err;
   }
 }
 
@@ -50,6 +68,15 @@ async function graphFetch(
 
 // ── Validação do canal (onboarding) ─────────────────────────
 export async function fetchPhoneInfo(creds: MetaCredentials) {
+  const cid = creds.chatrunConnectionId;
+  if (cid) {
+    const c = await viaGateway(() => chatrun.getConnection(cid));
+    return {
+      display_phone_number: c.display_phone ?? undefined,
+      verified_name: c.verified_name ?? undefined,
+      quality_rating: c.quality_rating ?? undefined,
+    };
+  }
   const data = await graphFetch(
     creds,
     `/${creds.phoneNumberId}?fields=display_phone_number,verified_name,quality_rating`,
@@ -77,7 +104,8 @@ export type WabaInfo = {
 
 /** Dados da conta: nome e situação da revisão da Meta. */
 export async function fetchWabaInfo(creds: MetaCredentials): Promise<WabaInfo> {
-  if (!creds.wabaId) return {};
+  // Pelo Chatrun a WABA é do gateway: a revisão da conta é acompanhada lá.
+  if (!creds.wabaId || creds.chatrunConnectionId) return {};
   const data = await graphFetch(
     creds,
     `/${creds.wabaId}?fields=name,account_review_status,timezone_id,currency`,
@@ -91,6 +119,13 @@ export async function sendText(
   text: string,
   replyToExternalId?: string | null,
 ): Promise<SendResult> {
+  const cid = creds.chatrunConnectionId;
+  if (cid) {
+    const wamid = await viaGateway(() =>
+      chatrun.sendMessage({ connectionId: cid, to, type: "text", text, replyTo: replyToExternalId }),
+    );
+    return { external_id: wamid };
+  }
   const body = await graphFetch(creds, `/${creds.phoneNumberId}/messages`, {
     method: "POST",
     body: JSON.stringify({
@@ -137,6 +172,24 @@ export async function sendMedia(
   if (caption && supportsCaption) mediaObject.caption = caption;
   if (filename && type === "document") mediaObject.filename = filename;
 
+  const cid = creds.chatrunConnectionId;
+  if (cid) {
+    const wamid = await viaGateway(() =>
+      chatrun.sendMessage({
+        connectionId: cid,
+        to,
+        type,
+        media: {
+          link: mediaUrl,
+          caption: supportsCaption ? caption ?? null : null,
+          filename: type === "document" ? filename ?? null : null,
+        },
+        replyTo: replyToExternalId,
+      }),
+    );
+    return { external_id: wamid };
+  }
+
   const body = await graphFetch(creds, `/${creds.phoneNumberId}/messages`, {
     method: "POST",
     body: JSON.stringify({
@@ -158,6 +211,13 @@ export async function sendReaction(
   messageId: string,
   emoji: string,
 ): Promise<SendResult> {
+  const cid = creds.chatrunConnectionId;
+  if (cid) {
+    const wamid = await viaGateway(() =>
+      chatrun.sendMessage({ connectionId: cid, to, type: "reaction", reaction: { wamid: messageId, emoji } }),
+    );
+    return { external_id: wamid };
+  }
   const body = await graphFetch(creds, `/${creds.phoneNumberId}/messages`, {
     method: "POST",
     body: JSON.stringify({
@@ -182,6 +242,8 @@ export async function downloadMedia(
   creds: MetaCredentials,
   mediaId: string,
 ): Promise<{ bytes: ArrayBuffer; contentType: string }> {
+  const cid = creds.chatrunConnectionId;
+  if (cid) return viaGateway(() => chatrun.downloadMedia(cid, mediaId));
   const mediaUrl = await getMediaUrl(creds, mediaId);
   if (!mediaUrl) throw new MetaApiError(404, "mídia não encontrada na Meta");
 
@@ -204,6 +266,18 @@ export async function sendTemplate(
   language: string,
   bodyParams: string[],
 ): Promise<SendResult> {
+  const cid = creds.chatrunConnectionId;
+  if (cid) {
+    const wamid = await viaGateway(() =>
+      chatrun.sendMessage({
+        connectionId: cid,
+        to,
+        type: "template",
+        template: { name: templateName, language, body_params: bodyParams },
+      }),
+    );
+    return { external_id: wamid };
+  }
   const components =
     bodyParams.length > 0
       ? [
@@ -234,6 +308,13 @@ export async function markReadWithTyping(
   creds: MetaCredentials,
   messageId: string,
 ): Promise<void> {
+  const cid = creds.chatrunConnectionId;
+  if (cid) {
+    await chatrun.markRead(cid, messageId).catch(() => {
+      /* best-effort */
+    });
+    return;
+  }
   await graphFetch(creds, `/${creds.phoneNumberId}/messages`, {
     method: "POST",
     body: JSON.stringify({
@@ -267,7 +348,50 @@ export type MetaTemplate = {
   quality_score?: { score?: string };
 };
 
+/** Modelo do gateway no formato da Meta (o que as telas já leem). */
+function fromGatewayTemplate(t: chatrun.ChatrunTemplate): MetaTemplate {
+  const components: MetaTemplateComponent[] = [];
+  if (t.header_format) {
+    components.push({
+      type: "HEADER",
+      format: t.header_format,
+      ...(t.header_text ? { text: t.header_text } : {}),
+      ...(t.header_example ? { example: { header_text: [t.header_example] } } : {}),
+    });
+  }
+  components.push({
+    type: "BODY",
+    text: t.body,
+    ...(t.body_example?.length ? { example: { body_text: [t.body_example] } } : {}),
+  });
+  if (t.footer) components.push({ type: "FOOTER", text: t.footer });
+  if (t.buttons_detail?.length) {
+    components.push({
+      type: "BUTTONS",
+      buttons: t.buttons_detail.map((b) => ({
+        type: b.type,
+        text: b.text,
+        url: b.url,
+        phone_number: b.phone_number,
+      })),
+    });
+  }
+  return {
+    id: t.id,
+    name: t.name,
+    status: t.status,
+    language: t.language,
+    category: t.category,
+    components,
+  };
+}
+
 export async function listTemplates(creds: MetaCredentials) {
+  const cid = creds.chatrunConnectionId;
+  if (cid) {
+    const templates = await viaGateway(() => chatrun.listTemplates(cid));
+    return templates.map(fromGatewayTemplate);
+  }
   if (!creds.wabaId) return [];
   const data = await graphFetch(
     creds,
@@ -399,10 +523,57 @@ function draftToComponents(draft: TemplateDraft): MetaTemplateComponent[] {
   return components;
 }
 
+/** Rascunho no formato da API de modelos do gateway. */
+function toGatewayDraft(draft: TemplateDraft): chatrun.ChatrunTemplateDraft {
+  const vars = templateVariables(draft.body);
+  const headerVars = templateVariables(draft.headerText ?? "");
+  return {
+    name: draft.name,
+    category: draft.category,
+    language: draft.language,
+    body_text: draft.body,
+    ...(vars.length ? { example_values: vars.map((_, i) => draft.bodyExamples?.[i] ?? "exemplo") } : {}),
+    ...(draft.footerText?.trim() ? { footer_text: draft.footerText } : {}),
+    ...(draft.headerText?.trim()
+      ? {
+          header: {
+            format: "TEXT" as const,
+            text: draft.headerText,
+            ...(headerVars.length === 1 && draft.headerExample ? { example: draft.headerExample } : {}),
+          },
+        }
+      : {}),
+    ...(draft.buttons?.length
+      ? {
+          buttons: draft.buttons.map((b) =>
+            b.type === "URL"
+              ? {
+                  type: "URL" as const,
+                  text: b.text,
+                  url: b.url,
+                  // Link dinâmico ({{1}} no fim) precisa de um exemplo completo.
+                  ...(b.url.includes("{{1}}") ? { example: b.url.replace("{{1}}", "exemplo") } : {}),
+                }
+              : { type: "QUICK_REPLY" as const, text: b.text },
+          ),
+        }
+      : {}),
+  };
+}
+
 export async function createTemplate(
   creds: MetaCredentials,
   draft: TemplateDraft,
 ): Promise<{ id: string; status: string; category: string }> {
+  const cid = creds.chatrunConnectionId;
+  if (cid) {
+    const r = await viaGateway(() => chatrun.createTemplate(cid, toGatewayDraft(draft)));
+    return {
+      id: String(r.id ?? ""),
+      status: String(r.status ?? "PENDING"),
+      category: String(r.category ?? draft.category),
+    };
+  }
   if (!creds.wabaId) throw new MetaApiError(400, "WABA ID não configurado");
 
   const body = await graphFetch(creds, `/${creds.wabaId}/message_templates`, {
@@ -423,6 +594,11 @@ export async function createTemplate(
 }
 
 export async function deleteTemplate(creds: MetaCredentials, name: string): Promise<void> {
+  const cid = creds.chatrunConnectionId;
+  if (cid) {
+    await viaGateway(() => chatrun.deleteTemplate(cid, name));
+    return;
+  }
   if (!creds.wabaId) throw new MetaApiError(400, "WABA ID não configurado");
   await graphFetch(
     creds,

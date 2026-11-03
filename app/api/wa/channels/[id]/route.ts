@@ -1,5 +1,5 @@
-// Desconectar um canal: apaga o token e para de receber. As conversas ficam
-// no histórico. O WhatsApp do CNV é editado no formulário do WABA; o da loja
+// Desconectar um canal: apaga o token (ou desvincula a zerokm da conexão no
+// Chatrun) e para de receber. As conversas ficam no histórico. O WhatsApp do CNV é editado no formulário do WABA; o da loja
 // sai por aqui (e volta pelo "Conectar WhatsApp"). Messenger e SMS também:
 // a Página sai do webhook do app e as assinaturas da Zenvia deste canal são
 // removidas, antes de apagar o token que faz isso.
@@ -12,6 +12,7 @@ import { safeDecrypt } from "@wa/lib/channels";
 import { unsubscribeChannelPage } from "@wa/lib/messenger-connect";
 import { zenviaUnsubscribe } from "@wa/lib/zenvia";
 import { siteUrl } from "@wa/lib/site-url";
+import { unlinkConnection } from "@wa/lib/chatrun";
 
 /** Segredos que saem do canal ao desconectar, por tipo. */
 function secretFieldsOf(kind: IWaChannel["kind"]): Record<string, 1> {
@@ -40,6 +41,11 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
   }
 
   // Best-effort: o token pode já estar inválido, e desconectar não pode travar.
+  // Número do Chatrun: desvincula só a zerokm no gateway (o número continua
+  // lá para as outras plataformas e para reconectar pelo convite).
+  if (channel.provider === "chatrun" && channel.chatrunConnectionId) {
+    await unlinkConnection(channel.chatrunConnectionId).catch(() => {});
+  }
   if (channel.kind === "messenger") {
     await unsubscribeChannelPage(channel).catch(() => {});
   }

@@ -20,6 +20,13 @@ export interface IWaChannel extends Document {
   tenantId: string | null;
   status: WaChannelStatus;
   displayName?: string;
+  /** De onde vem o WhatsApp: "chatrun" = conectado pelo Chatrun Conexão (o
+   *  gateway guarda o token e recebe o webhook); sem valor = credencial própria
+   *  (o número do CNV no formulário IA & WABA ou o cadastro manual). */
+  provider?: "chatrun";
+  /** Conexão no gateway (connection.id) e a conta da loja nele. */
+  chatrunConnectionId?: string;
+  chatrunAccountId?: string;
   // WhatsApp (Cloud API)
   phoneNumberId?: string;
   wabaId?: string;
@@ -69,6 +76,9 @@ const WaChannelSchema: Schema = new Schema(
       default: "connected",
     },
     displayName: { type: String },
+    provider: { type: String, enum: ["chatrun"] },
+    chatrunConnectionId: { type: String },
+    chatrunAccountId: { type: String },
     phoneNumberId: { type: String },
     wabaId: { type: String },
     token: { type: String },
@@ -98,6 +108,10 @@ WaChannelSchema.index({ tenantId: 1, kind: 1 });
 WaChannelSchema.index(
   { phoneNumberId: 1 },
   { unique: true, partialFilterExpression: { phoneNumberId: { $type: "string" } } },
+);
+WaChannelSchema.index(
+  { chatrunConnectionId: 1 },
+  { unique: true, partialFilterExpression: { chatrunConnectionId: { $type: "string" } } },
 );
 WaChannelSchema.index(
   { igUserId: 1 },
