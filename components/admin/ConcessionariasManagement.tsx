@@ -5,7 +5,7 @@ import { MaskedInput } from '../../components/operator/MaskedInput';
 import { ConcessionariaService } from '../../lib/services/concessionariaService';
 import styles from './ConcessionariasManagement.module.css';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
-import { AlertTriangle, BadgeCheck, Building2, CarFront, ChevronDown, Link2, Pencil, Plus, RefreshCw, Search, Trash2, UserRoundX, UsersRound } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Building2, CarFront, ChevronDown, Eye, EyeOff, Link2, Pencil, Plus, RefreshCw, Search, Trash2, UserRoundX, UsersRound } from 'lucide-react';
 import { UsuariosDaLojaModal } from './UsuariosDaLojaModal';
 import {
     Avatar, Button, EmptyState, IconAction, Page, PageHeader, Panel, PanelFooter, PanelToolbar, PrimaryCell, RowActions,
@@ -15,7 +15,7 @@ import {
 import { InlineNotice, useFeedback } from '@/components/ui/Feedback';
 import { PlanoRepasseCard } from '@/components/dealership/PlanoRepasseCard';
 
-type Segmento = 'todas' | 'ativas' | 'repasse' | 'sem-repasse' | 'desatualizadas' | 'inativas';
+type Segmento = 'todas' | 'ativas' | 'repasse' | 'sem-repasse' | 'desatualizadas' | 'ocultas' | 'inativas';
 type ColunaVeiculo = 'modelo' | 'ano' | 'cor' | 'combustivel' | 'cidade' | 'nomeContato';
 
 // Interfaces para Concessionária
@@ -60,6 +60,10 @@ interface ClienteData {
         expiresAt: string | null;
         activationMethod: string | null;
     } | null;
+    /** Estoque fora da vitrine do cliente final; a loja segue ativa. */
+    ocultarVitrine?: boolean;
+    vitrineOcultaEm?: string | null;
+    vitrineOcultaPor?: string | null;
 }
 
 interface MarcaData {
@@ -131,6 +135,8 @@ export function ConcessionariasManagement({ perfil = 'admin' }: { perfil?: Perfi
     const podeGerirRepasse = perfil === 'admin';
     // Login da loja: admin e administrativo (as ações do servidor recusam os demais).
     const podeGerirUsuarios = perfil === 'admin';
+    // Ocultar o estoque da vitrine: a rota só aceita administrador.
+    const podeOcultarVitrine = perfil === 'admin';
     const [lojaDosUsuarios, setLojaDosUsuarios] = useState<ClienteData | null>(null);
     const [clienteDoPlano, setClienteDoPlano] = useState<ClienteData | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -631,6 +637,35 @@ export function ConcessionariasManagement({ perfil = 'admin' }: { perfil?: Perfi
         }
     };
 
+    const handleToggleVitrine = async (cliente: ClienteData) => {
+        const ocultar = !cliente.ocultarVitrine;
+        if (ocultar) {
+            const ok = await confirm({
+                title: 'Ocultar estoque da vitrine',
+                description: <>Os carros da <strong>{cliente.nome}</strong> (0KM e repasse) deixam de aparecer para os clientes. Nada é excluído: a loja continua ativa e atualizando o estoque, e tudo volta quando você reexibir.</>,
+                confirmLabel: 'Ocultar estoque',
+            });
+            if (!ok) return;
+        }
+
+        try {
+            const res = await fetch(`/api/admin/concessionarias/${cliente.id}/vitrine`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ocultar }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || 'Erro ao alterar a vitrine');
+            const atualizar = (c: ClienteData) => (c.id === cliente.id ? { ...c, ...data } : c);
+            setClientes(prev => prev.map(atualizar));
+            setFilteredClientes(prev => prev.map(atualizar));
+            notify(ocultar ? `Estoque da ${cliente.nome} oculto da vitrine.` : `Estoque da ${cliente.nome} de volta na vitrine.`, 'positive');
+        } catch (error) {
+            console.error('Erro ao alterar a vitrine da concessionária:', error);
+            notify('Não foi possível alterar a vitrine da concessionária. Tente de novo.');
+        }
+    };
+
     const handleChangeOperador = async (cliente: ClienteData, operadorId: string) => {
         try {
             await ConcessionariaService.updateConcessionaria(cliente.id, { operadorId });
@@ -690,6 +725,7 @@ export function ConcessionariasManagement({ perfil = 'admin' }: { perfil?: Perfi
         if (segmento === 'repasse') return Boolean(c.planoRepasse?.ativo);
         if (segmento === 'sem-repasse') return c.ativo !== false && !c.planoRepasse?.ativo;
         if (segmento === 'inativas') return c.ativo === false;
+        if (segmento === 'ocultas') return Boolean(c.ocultarVitrine);
         if (segmento === 'desatualizadas') {
             const dias = diasSemAtualizar(c.ultimaAtualizacao);
             return c.ativo !== false && (dias === null || dias > 30);
@@ -707,6 +743,7 @@ export function ConcessionariasManagement({ perfil = 'admin' }: { perfil?: Perfi
     // Já teve plano e deixou vencer: é a fila de renovação, não o mesmo que
     // "nunca assinou".
     const repasseVencido = clientes.filter(c => !c.planoRepasse?.ativo && c.planoRepasse?.expiresAt).length;
+    const ocultas = clientes.filter(c => c.ocultarVitrine).length;
     const carregando = loadingClientes && clientes.length === 0;
 
     return (
@@ -756,6 +793,7 @@ export function ConcessionariasManagement({ perfil = 'admin' }: { perfil?: Perfi
                             { value: 'repasse', label: 'Com repasse', count: comRepasse },
                             { value: 'sem-repasse', label: 'Sem repasse', count: ativas.length - comRepasse },
                             { value: 'desatualizadas', label: 'Estoque desatualizado', count: desatualizadas },
+                            ...(ocultas > 0 || segmento === 'ocultas' ? [{ value: 'ocultas' as const, label: 'Ocultas na vitrine', count: ocultas }] : []),
                             { value: 'inativas', label: 'Inativas', count: clientes.length - ativas.length },
                         ]}
                     />
@@ -875,7 +913,14 @@ export function ConcessionariasManagement({ perfil = 'admin' }: { perfil?: Perfi
                                             <TwoLine
                                                 nowrap
                                                 top={<strong>{veiculos.toLocaleString('pt-BR')} {veiculos === 1 ? 'veículo' : 'veículos'}</strong>}
-                                                bottom={<StatusBadge tone={semaforo.tone}>{semaforo.label}</StatusBadge>}
+                                                bottom={<>
+                                                    <StatusBadge tone={semaforo.tone}>{semaforo.label}</StatusBadge>
+                                                    {cliente.ocultarVitrine && (
+                                                        <span className={pageStyles.subLine} title={cliente.vitrineOcultaEm ? `Oculto em ${formatDate(cliente.vitrineOcultaEm)}${cliente.vitrineOcultaPor ? ` por ${cliente.vitrineOcultaPor}` : ''}` : undefined}>
+                                                            <StatusBadge tone="warning" dot={false}>Oculto na vitrine</StatusBadge>
+                                                        </span>
+                                                    )}
+                                                </>}
                                             />
                                         </td>
                                         <td>
@@ -939,6 +984,14 @@ export function ConcessionariasManagement({ perfil = 'admin' }: { perfil?: Perfi
                                                 {podeGerirUsuarios && (
                                                     <IconAction label="Usuários da loja (criar e vincular login)" onClick={() => setLojaDosUsuarios(cliente)}>
                                                         <UsersRound size={17} aria-hidden="true" />
+                                                    </IconAction>
+                                                )}
+                                                {podeOcultarVitrine && (
+                                                    <IconAction
+                                                        label={cliente.ocultarVitrine ? 'Mostrar estoque na vitrine' : 'Ocultar estoque da vitrine'}
+                                                        onClick={() => handleToggleVitrine(cliente)}
+                                                    >
+                                                        {cliente.ocultarVitrine ? <Eye size={17} aria-hidden="true" /> : <EyeOff size={17} aria-hidden="true" />}
                                                     </IconAction>
                                                 )}
                                                 {podeAssociarVeiculos && (

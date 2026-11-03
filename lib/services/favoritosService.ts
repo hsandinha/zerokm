@@ -7,6 +7,7 @@ import RepasseVehicle from '@/models/RepasseVehicle';
 import Concessionaria from '@/models/Concessionaria';
 import { REPASSE_STATUS_VITRINE } from '@/lib/utils/repasse';
 import { filtroPlanoRepasseAtivo } from '@/lib/utils/planoRepasse';
+import { concessionariasForaDaVitrine, filtroLojaNaVitrine } from '@/lib/services/vitrineConcessionaria';
 
 export const chaveFavorito = (marca?: string, modelo?: string) => `${(marca || '').trim()}|${(modelo || '').trim()}`;
 
@@ -26,7 +27,7 @@ export interface FavoritoResumo {
 /**
  * Datas de entrada das ofertas na vitrine, por modelo. Mesmas regras da consulta
  * (app/api/vehicles): 0KM ativo com modelo ativo no catálogo; repasse disponível de
- * loja com plano de repasse em dia.
+ * loja com plano de repasse em dia; nada de loja com o estoque oculto.
  */
 async function entradasPorModelo(pares: Array<{ marca: string; modelo: string }>) {
     const porChave = new Map<string, Date[]>();
@@ -38,8 +39,9 @@ async function entradasPorModelo(pares: Array<{ marca: string; modelo: string }>
         porChave.set(chave, lista);
     };
 
+    const ocultas = await concessionariasForaDaVitrine();
     const novos = await DealerVehiclePrice.aggregate([
-        { $match: { ativo: true } },
+        { $match: { ativo: true, concessionariaId: { $nin: ocultas } } },
         { $lookup: { from: VehicleVariation.collection.name, localField: 'variationId', foreignField: '_id', as: 'variation' } },
         { $unwind: '$variation' },
         { $match: { 'variation.ativo': true, $or: pares.map(p => ({ 'variation.marca': p.marca, 'variation.modelo': p.modelo })) } },
@@ -51,7 +53,7 @@ async function entradasPorModelo(pares: Array<{ marca: string; modelo: string }>
         { $match: { ativo: true, status: { $in: REPASSE_STATUS_VITRINE }, $or: pares.map(p => ({ marca: p.marca, modelo: p.modelo })) } },
         { $lookup: { from: Concessionaria.collection.name, localField: 'concessionariaId', foreignField: '_id', as: 'concessionariaInfo' } },
         { $unwind: { path: '$concessionariaInfo', preserveNullAndEmptyArrays: true } },
-        { $match: filtroPlanoRepasseAtivo('concessionariaInfo.') },
+        { $match: { ...filtroPlanoRepasseAtivo('concessionariaInfo.'), ...filtroLojaNaVitrine('concessionariaInfo.') } },
         { $project: { _id: 0, marca: 1, modelo: 1, createdAt: 1 } },
     ]);
     for (const d of usados) add(d.marca, d.modelo, d.createdAt);
@@ -92,20 +94,23 @@ async function situacaoDasOfertas(ids: Array<{ veiculoId: string; origem: string
             { $match: { _id: { $in: novos } } },
             { $lookup: { from: VehicleVariation.collection.name, localField: 'variationId', foreignField: '_id', as: 'variation' } },
             { $unwind: { path: '$variation', preserveNullAndEmptyArrays: true } },
-            { $project: { ativo: 1, updatedAt: 1, variacaoAtiva: '$variation.ativo' } },
+            { $lookup: { from: Concessionaria.collection.name, localField: 'concessionariaId', foreignField: '_id', as: 'concessionariaInfo' } },
+            { $unwind: { path: '$concessionariaInfo', preserveNullAndEmptyArrays: true } },
+            { $project: { ativo: 1, updatedAt: 1, variacaoAtiva: '$variation.ativo', lojaOculta: '$concessionariaInfo.ocultarVitrine' } },
         ]);
-        for (const d of docs) porId.set(String(d._id), { disponivel: Boolean(d.ativo && d.variacaoAtiva), updatedAt: d.updatedAt || null });
+        for (const d of docs) porId.set(String(d._id), { disponivel: Boolean(d.ativo && d.variacaoAtiva && !d.lojaOculta), updatedAt: d.updatedAt || null });
     }
 
     const usados = validos('repasse');
     if (usados.length) {
         const docs = await RepasseVehicle.find({ _id: { $in: usados } }).select('ativo status updatedAt').lean();
-        // Usado só fica na vitrine se a loja estiver com o plano de repasse em dia.
+        // Usado só fica na vitrine se a loja estiver com o plano de repasse em dia
+        // e com o estoque visível.
         const comPlano = new Set((await RepasseVehicle.aggregate([
             { $match: { _id: { $in: usados } } },
             { $lookup: { from: Concessionaria.collection.name, localField: 'concessionariaId', foreignField: '_id', as: 'concessionariaInfo' } },
             { $unwind: { path: '$concessionariaInfo', preserveNullAndEmptyArrays: true } },
-            { $match: filtroPlanoRepasseAtivo('concessionariaInfo.') },
+            { $match: { ...filtroPlanoRepasseAtivo('concessionariaInfo.'), ...filtroLojaNaVitrine('concessionariaInfo.') } },
             { $project: { _id: 1 } },
         ])).map((d: any) => String(d._id)));
         for (const d of docs as any[]) {
