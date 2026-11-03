@@ -30,6 +30,11 @@ export interface IConcessionaria extends Document {
     webhookSecret?: string;
     /** Último lembrete de estoque desatualizado enviado por WhatsApp (cron lembrete-estoque). */
     lembreteEstoqueEnviadoEm?: Date | null;
+    /** Estoque fora da vitrine: a loja segue ativa e atualizando preços, mas
+     *  nenhum carro dela (0KM ou repasse) aparece para o cliente final. */
+    ocultarVitrine?: boolean;
+    vitrineOcultaEm?: Date | null;
+    vitrineOcultaPor?: string;
     /** Plano pago pela loja para anunciar repasse. Ver lib/utils/planoRepasse.ts. */
     planoRepasse?: {
         planId?: mongoose.Types.ObjectId;
@@ -75,6 +80,9 @@ const ConcessionariaSchema: Schema = new Schema({
     dataCadastro: { type: Date, default: Date.now },
     webhookSecret: { type: String },
     lembreteEstoqueEnviadoEm: { type: Date, default: null },
+    ocultarVitrine: { type: Boolean, default: false, index: true },
+    vitrineOcultaEm: { type: Date, default: null },
+    vitrineOcultaPor: { type: String },
     planoRepasse: {
         planId: { type: Schema.Types.ObjectId, ref: 'Plan' },
         planName: { type: String },

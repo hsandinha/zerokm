@@ -7,6 +7,7 @@ import DealerVehiclePrice from '@/models/DealerVehiclePrice';
 import RepasseVehicle from '@/models/RepasseVehicle';
 import { REPASSE_STATUS_VITRINE } from '@/lib/utils/repasse';
 import { filtroPlanoRepasseAtivo } from '@/lib/utils/planoRepasse';
+import { filtroLojaNaVitrine } from '@/lib/services/vitrineConcessionaria';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 
@@ -46,10 +47,11 @@ export async function GET(request: Request) {
         // Campos que existem no usado. 'status' fica de fora: o do usado
         // (Disponível) não é o mesmo vocabulário do 0KM.
         const repasseFields = new Set(['modelo', 'cor', 'anoModelo', 'combustivel', 'transmissao', 'opcionais', 'marca']);
-        // Mesma regra da vitrine: só lojas com plano de repasse em dia. Calculado
-        // uma vez, fora do laço de campos.
+        // Mesma regra da vitrine: só lojas com plano de repasse em dia e com o
+        // estoque visível. Calculado uma vez, fora do laço de campos. A loja
+        // oculta ainda vê o próprio repasse: a restrição abaixo usa esta lista.
         const lojasComPlano = incluiRepasse
-            ? await Concessionaria.find(filtroPlanoRepasseAtivo()).distinct('_id')
+            ? await Concessionaria.find(filtroPlanoRepasseAtivo()).select('_id ocultarVitrine').lean()
             : [];
         const effectiveProfile = getEffectiveProfile(session, searchParams.get('accessProfile'));
 
@@ -113,9 +115,10 @@ export async function GET(request: Request) {
                 }
 
                 if (incluiRepasse && repasseFields.has(actualField)) {
-                    const repasseQuery: any = { ativo: true, status: { $in: REPASSE_STATUS_VITRINE }, concessionariaId: { $in: lojasComPlano } };
+                    const naVitrine = lojasComPlano.filter(l => !l.ocultarVitrine).map(l => l._id);
+                    const repasseQuery: any = { ativo: true, status: { $in: REPASSE_STATUS_VITRINE }, concessionariaId: { $in: naVitrine } };
                     if (restrictedDealershipId) {
-                        repasseQuery.concessionariaId = lojasComPlano.some(id => String(id) === String(restrictedDealershipId))
+                        repasseQuery.concessionariaId = lojasComPlano.some(l => String(l._id) === String(restrictedDealershipId))
                             ? restrictedDealershipId
                             : { $in: [] };
                     }
@@ -128,9 +131,10 @@ export async function GET(request: Request) {
                 // Map 'estado' -> 'uf', 'concessionaria' -> 'nome'
                 const dbField = actualField === 'estado' ? 'uf' : actualField === 'concessionaria' ? 'nome' : actualField;
                 
-                let query: any = {};
+                // Loja oculta não aparece nos filtros de cidade/UF/nome de quem consulta.
+                let query: any = filtroLojaNaVitrine();
                 if (restrictedDealershipId) {
-                    query._id = restrictedDealershipId;
+                    query = { _id: restrictedDealershipId };
                 }
 
                 if (sortByCount) {

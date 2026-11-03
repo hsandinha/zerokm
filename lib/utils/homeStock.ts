@@ -28,7 +28,7 @@ export const EMPTY_HOME_STOCK: HomeStockSummary = {
  *
  * Parte de dealervehicleprices e mantém só o que o cliente realmente enxerga em
  * /api/vehicles: preço ativo, variação existente e ativa, concessionária
- * existente. Os $unwind sem preserveNullAndEmptyArrays descartam de propósito os
+ * existente e visível. Os $unwind sem preserveNullAndEmptyArrays descartam de propósito os
  * registros órfãos (variação apagada ou concessionária removida) — eles seguem
  * no banco mas não são estoque.
  */
@@ -40,6 +40,8 @@ export function buildHomeStockPipeline(): any[] {
         { $match: { 'variation.ativo': true } },
         { $lookup: { from: 'concessionarias', localField: 'concessionariaId', foreignField: '_id', as: 'conc' } },
         { $unwind: '$conc' },
+        // Loja com o estoque oculto pelo admin não conta: o cliente não vê.
+        { $match: { 'conc.ocultarVitrine': { $ne: true } } },
         {
             $facet: {
                 totais: [{
