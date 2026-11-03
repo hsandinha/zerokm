@@ -6,6 +6,8 @@
 //                    com "vende estoque CNV" ligado e assinatura da zerokm em
 //                    dia, todo o 0km da rede e o repasse anunciado — com a
 //                    MARGEM do lojista já aplicada, como na vitrine.
+//                    Concessionária com o estoque oculto pelo admin fica de
+//                    fora da rede (a IA dela mesma continua vendendo o dela).
 //
 // O cliente final nunca vê de qual concessionária é o carro nem o preço de
 // custo: a IA recebe só o que pode dizer.
@@ -18,6 +20,7 @@ import RepasseVehicle from "@/models/RepasseVehicle";
 import Concessionaria from "@/models/Concessionaria";
 import User from "@/models/User";
 import { filtroPlanoRepasseAtivo } from "@/lib/utils/planoRepasse";
+import { concessionariasForaDaVitrine, filtroLojaNaVitrine } from "@/lib/services/vitrineConcessionaria";
 import { acessoBloqueado } from "@/lib/utils/acessoAssinatura";
 import type { IWaStore } from "@wa/models/store";
 
@@ -216,10 +219,17 @@ export async function buscarEstoque(
       ? await lojistaComAcessoARede(store.ownerUserId)
       : { ok: false, margem: null };
     if (acesso.ok) {
-      if (quer0km) listas.push(buscar0km({}, filtros, acesso.margem, limite));
+      if (quer0km) {
+        const ocultas = await concessionariasForaDaVitrine();
+        listas.push(buscar0km({ concessionariaId: { $nin: ocultas } }, filtros, acesso.margem, limite));
+      }
       if (querUsado) {
-        // Repasse só de concessionária com o plano de repasse ativo, como na vitrine.
-        const comPlano = await Concessionaria.find(filtroPlanoRepasseAtivo()).distinct("_id");
+        // Repasse só de concessionária com o plano de repasse ativo e o estoque
+        // visível, como na vitrine.
+        const comPlano = await Concessionaria.find({
+          ...filtroPlanoRepasseAtivo(),
+          ...filtroLojaNaVitrine(),
+        }).distinct("_id");
         listas.push(
           buscarUsados({ concessionariaId: { $in: comPlano } }, "usado", filtros, acesso.margem, limite),
         );
