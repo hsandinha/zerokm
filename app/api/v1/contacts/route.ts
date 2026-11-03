@@ -17,7 +17,8 @@ export async function GET(req: NextRequest) {
     const q = (sp.get("q") ?? "").replace(/[,()]/g, " ").trim();
 
     await dbConnect();
-    const query: Record<string, unknown> = {};
+    // A API pública é a do CNV: lojas não aparecem aqui.
+    const query: Record<string, unknown> = { tenantId: null };
     if (q) {
       const digits = q.replace(/\D/g, "");
       const rx = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
@@ -82,7 +83,7 @@ export async function POST(req: NextRequest) {
     }
 
     await dbConnect();
-    const existing = await WaContact.findOne({ phone: parsed.e164 }).select("_id").lean();
+    const existing = await WaContact.findOne({ tenantId: null, phone: parsed.e164 }).select("_id").lean();
     if (existing) {
       return NextResponse.json({ id: String(existing._id), phone: parsed.e164, created: false });
     }

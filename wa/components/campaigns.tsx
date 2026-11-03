@@ -15,6 +15,7 @@ import {
 import { describeWindow } from "@wa/lib/send-window";
 import { dateTime, formatNumber, percent } from "@wa/lib/stages";
 import { useFeedback } from "@/components/ui/Feedback";
+import { useWaPanel } from "@wa/components/wa-panel";
 
 type Campaign = {
   id: string;
@@ -51,6 +52,7 @@ const SOURCE_LABEL: Record<string, string> = {
 const POLL_MS = 8000;
 
 export function Campaigns() {
+  const { base } = useWaPanel();
   const { confirm: confirmar, feedback } = useFeedback();
   const [campaigns, setCampaigns] = useState<Campaign[] | null>(null);
   const [agindo, setAgindo] = useState<string | null>(null);
@@ -106,7 +108,7 @@ export function Campaigns() {
             qualidade do número.
           </p>
         </div>
-        <Link href="/dashboard/admin/whatsapp/campanhas/nova" className="btn-primary">
+        <Link href={`${base}/campanhas/nova`} className="btn-primary">
           <Plus size={16} /> Nova campanha
         </Link>
       </div>
@@ -128,7 +130,7 @@ export function Campaigns() {
             Nenhuma campanha ainda. Comece buscando empresas no CNPJá, usando a base já enriquecida
             ou importando um CSV.
           </p>
-          <Link href="/dashboard/admin/whatsapp/campanhas/nova" className="btn-primary mt-3 inline-flex">
+          <Link href={`${base}/campanhas/nova`} className="btn-primary mt-3 inline-flex">
             <Plus size={15} /> Criar a primeira
           </Link>
         </div>
@@ -140,7 +142,7 @@ export function Campaigns() {
               <div key={c.id} className="card space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <Link href={`/dashboard/admin/whatsapp/campanhas/${c.id}`} className="font-bold hover:text-brand-700">
+                    <Link href={`${base}/campanhas/${c.id}`} className="font-bold hover:text-brand-700">
                       {c.name}
                     </Link>
                     <p className="truncate text-xs text-muted">
@@ -199,7 +201,7 @@ export function Campaigns() {
 
                 {c.failed > 0 && (
                   <Link
-                    href={`/dashboard/admin/whatsapp/campanhas/${c.id}?status=failed`}
+                    href={`${base}/campanhas/${c.id}?status=failed`}
                     className="block text-xs font-semibold text-red-600 hover:underline"
                   >
                     {formatNumber(c.failed)} falha(s) de envio — ver o motivo
@@ -244,7 +246,7 @@ export function Campaigns() {
                     </button>
                   )}
                   <Link
-                    href={`/dashboard/admin/whatsapp/campanhas/${c.id}`}
+                    href={`${base}/campanhas/${c.id}`}
                     className="ml-auto self-center text-xs text-muted hover:text-ink-900"
                   >
                     detalhes →

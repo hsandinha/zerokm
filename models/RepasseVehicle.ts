@@ -3,12 +3,20 @@ import { REPASSE_STATUS, REPASSE_TIPOS, type RepasseStatus, type RepasseTipo } f
 
 /**
  * Veículo de repasse: uma unidade usada, cadastrada pela concessionária.
+ *
+ * Também guarda o ESTOQUE LOCAL do lojista que assina o atendimento (com
+ * `lojistaId` e sem concessionária): é a mesma coisa — um usado, uma unidade —
+ * e não justifica outra tabela. Esse estoque é só da IA da própria loja: as
+ * consultas de sempre (vitrine, favoritos, sugestões, painel da
+ * concessionária) não o enxergam — ver o filtro automático no fim do arquivo.
  * Regras e motivo de não reaproveitar DealerVehiclePrice: lib/utils/repasse.ts.
  * Placa e fotos não ficam aqui: o lojista pede à concessionária pelo WhatsApp,
  * como no 0KM.
  */
 export interface IRepasseVehicle extends Document {
-    concessionariaId: mongoose.Types.ObjectId;
+    concessionariaId?: mongoose.Types.ObjectId;
+    /** Estoque local de um lojista (User titular). Ausente = repasse de concessionária. */
+    lojistaId?: mongoose.Types.ObjectId | null;
     tipoVeiculo: RepasseTipo;
     marca: string;
     modelo: string;
@@ -37,7 +45,13 @@ export interface IRepasseVehicle extends Document {
 }
 
 const RepasseVehicleSchema: Schema = new Schema({
-    concessionariaId: { type: Schema.Types.ObjectId, ref: 'Concessionaria', required: true, index: true },
+    concessionariaId: {
+        type: Schema.Types.ObjectId,
+        ref: 'Concessionaria',
+        index: true,
+        required: function (this: { lojistaId?: unknown }) { return !this.lojistaId; },
+    },
+    lojistaId: { type: Schema.Types.ObjectId, ref: 'User', default: null, index: true },
     tipoVeiculo: { type: String, enum: REPASSE_TIPOS, default: 'carro', index: true },
     marca: { type: String, required: true, trim: true, index: true },
     modelo: { type: String, required: true, trim: true, index: true },
@@ -66,6 +80,25 @@ const RepasseVehicleSchema: Schema = new Schema({
 RepasseVehicleSchema.index({ concessionariaId: 1, ativo: 1, updatedAt: -1 });
 // Vitrine: só ativos em status visível.
 RepasseVehicleSchema.index({ ativo: 1, status: 1, updatedAt: -1 });
+RepasseVehicleSchema.index({ lojistaId: 1, ativo: 1, updatedAt: -1 });
+
+// Estoque local de lojista fica fora de toda consulta que não pede por ele.
+// O filtro entra aqui, e não em cada rota, para nenhuma tela antiga (vitrine,
+// favoritos, sugestões) passar a mostrar carro de lojista por esquecimento.
+// `$unionWith` não passa por hook: a vitrine filtra também no próprio pipeline.
+function mencionaLojista(filtro: unknown): boolean {
+    return JSON.stringify(filtro ?? {}).includes('"lojistaId"');
+}
+for (const op of ['find', 'findOne', 'countDocuments', 'distinct', 'updateMany', 'findOneAndUpdate'] as const) {
+    RepasseVehicleSchema.pre(op, function excluirEstoqueDeLojista() {
+        const filtro = this.getFilter();
+        if (!mencionaLojista(filtro) && !('_id' in filtro)) this.where({ lojistaId: null });
+    });
+}
+RepasseVehicleSchema.pre('aggregate', function excluirEstoqueDeLojista() {
+    const pipeline = this.pipeline();
+    if (!mencionaLojista(pipeline[0])) pipeline.unshift({ $match: { lojistaId: null } });
+});
 
 if (process.env.NODE_ENV === 'development' && mongoose.models.RepasseVehicle) {
     delete mongoose.models.RepasseVehicle;

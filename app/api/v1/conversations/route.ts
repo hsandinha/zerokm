@@ -16,7 +16,8 @@ export async function GET(req: NextRequest) {
     const sp = req.nextUrl.searchParams;
 
     await dbConnect();
-    const query: Record<string, unknown> = {};
+    // A API pública é a do CNV: lojas não aparecem aqui.
+    const query: Record<string, unknown> = { tenantId: null };
     const status = sp.get("status");
     if (status && STATUSES.has(status)) query.status = status;
     const stage = sp.get("stage");

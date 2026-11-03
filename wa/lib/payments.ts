@@ -16,7 +16,14 @@ const ZEROKM_BASE_URL = () => process.env.ZEROKM_BASE_URL || "https://www.cnv0km
 export async function getActivePlans(): Promise<IPlan[]> {
   await dbConnect();
   // Plano especial é condição negociada pela equipe: a Vera não oferece.
-  return Plan.find({ active: true, type: "monthly", especial: { $ne: true } }).sort({ price: 1 });
+  // Só planos do lojista: os de concessionária (repasse) e de atendimento
+  // são vendidos em outro lugar, nunca pela Vera.
+  return Plan.find({
+    active: true,
+    type: "monthly",
+    especial: { $ne: true },
+    publico: { $nin: ["concessionaria", "atendimento"] },
+  }).sort({ price: 1 });
 }
 
 /** Preço da tabela (anual = total do ano) ou o valor combinado do cliente, se houver. */

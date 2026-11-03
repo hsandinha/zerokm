@@ -20,6 +20,7 @@ import { REENVIO_LABEL, metaErrorInfo } from "@wa/lib/meta-errors";
 import { formatPhoneBr } from "@wa/lib/phone";
 import { dateTime, formatNumber, percent } from "@wa/lib/stages";
 import { useFeedback } from "@/components/ui/Feedback";
+import { useWaPanel } from "@wa/components/wa-panel";
 
 type Campaign = {
   id: string;
@@ -101,6 +102,7 @@ function ErroMeta({ erro }: { erro: string }) {
 }
 
 export function CampaignDetail({ id, statusInicial }: { id: string; statusInicial?: string }) {
+  const { base } = useWaPanel();
   const { confirm: confirmar, feedback } = useFeedback();
   const [data, setData] = useState<Payload | null>(null);
   const [filtro, setFiltro] = useState(statusInicial ?? "todos");
@@ -148,7 +150,7 @@ export function CampaignDetail({ id, statusInicial }: { id: string; statusInicia
   if (erro && !data) {
     return (
       <div className="space-y-3">
-        <Link href="/dashboard/admin/whatsapp/campanhas" className="inline-flex items-center gap-1 text-sm text-muted">
+        <Link href={`${base}/campanhas`} className="inline-flex items-center gap-1 text-sm text-muted">
           <ArrowLeft size={15} /> Campanhas
         </Link>
         <p className="card text-sm text-red-600">{erro}</p>
@@ -172,7 +174,7 @@ export function CampaignDetail({ id, statusInicial }: { id: string; statusInicia
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <Link
-            href="/dashboard/admin/whatsapp/campanhas"
+            href={`${base}/campanhas`}
             className="inline-flex items-center gap-1 text-xs text-muted hover:text-ink-900"
           >
             <ArrowLeft size={14} /> Campanhas
@@ -377,7 +379,7 @@ export function CampaignDetail({ id, statusInicial }: { id: string; statusInicia
                 <span className="flex shrink-0 items-center gap-2">
                   {r.conversationId && (
                     <Link
-                      href={`/dashboard/admin/whatsapp/central?c=${r.conversationId}`}
+                      href={`${base}/central?c=${r.conversationId}`}
                       className="rounded-full p-1.5 text-muted hover:bg-canvas hover:text-ink-900"
                       title="Abrir conversa"
                     >

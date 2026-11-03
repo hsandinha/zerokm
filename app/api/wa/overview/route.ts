@@ -40,7 +40,7 @@ export async function GET() {
 
   await dbConnect();
   // Contatos que já viraram cadastro na zerokm — a ponte com os pagamentos.
-  const registeredContacts = await WaContact.find({ userId: { $exists: true, $ne: null } })
+  const registeredContacts = await WaContact.find({ tenantId: null, userId: { $exists: true, $ne: null } })
     .select("userId")
     .lean();
   const userIds = registeredContacts
@@ -82,13 +82,13 @@ export async function GET() {
       createdAt: { $gte: yesterday, $lt: today },
     }),
     WaCampaignRecipient.countDocuments({ sentAt: { $gte: d30 } }),
-    WaConversation.countDocuments({ lastInboundAt: { $gte: d30 } }),
-    WaConversation.countDocuments({
+    WaConversation.countDocuments({ tenantId: null, lastInboundAt: { $gte: d30 } }),
+    WaConversation.countDocuments({ tenantId: null,
       stage: { $in: ["cadastro", "pagamento", "ganho"] },
       stageChangedAt: { $gte: d30 },
     }),
-    WaConversation.countDocuments({ stage: "ganho", stageChangedAt: { $gte: d30 } }),
-    WaConversation.countDocuments({ stage: "perdido", stageChangedAt: { $gte: d30 } }),
+    WaConversation.countDocuments({ tenantId: null, stage: "ganho", stageChangedAt: { $gte: d30 } }),
+    WaConversation.countDocuments({ tenantId: null, stage: "perdido", stageChangedAt: { $gte: d30 } }),
     WaMessage.countDocuments({ sender: "ai", createdAt: { $gte: d30 } }),
     WaFollowup.countDocuments({ status: "sent", runAfter: { $gte: d30 } }),
     WaFollowup.countDocuments({ status: "pending" }),
@@ -98,12 +98,12 @@ export async function GET() {
       createdAt: { $gte: d30 },
     }),
     WaTarget.countDocuments({ status: "ready" }),
-    WaCampaign.countDocuments({ status: { $in: ["running", "scheduled"] } }),
-    WaConversation.countDocuments({ status: "closed", updatedAt: { $gte: today } }),
-    WaConversation.countDocuments({ stage: "ganho", stageChangedAt: { $gte: month } }),
+    WaCampaign.countDocuments({ tenantId: null, status: { $in: ["running", "scheduled"] } }),
+    WaConversation.countDocuments({ tenantId: null, status: "closed", updatedAt: { $gte: today } }),
+    WaConversation.countDocuments({ tenantId: null, stage: "ganho", stageChangedAt: { $gte: month } }),
     paymentsFromWhatsapp(userIds, d30),
     paymentsFromWhatsapp(userIds, month),
-    WaConversation.find({ status: "waiting_human" })
+    WaConversation.find({ tenantId: null, status: "waiting_human" })
       .sort({ waitingSince: 1 })
       .limit(6)
       .populate("contactId", "name phone")

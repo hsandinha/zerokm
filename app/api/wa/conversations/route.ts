@@ -2,19 +2,20 @@
 // contadores de cada filtro (uma agregação só).
 
 import { NextRequest, NextResponse } from "next/server";
-import { requirePanelUser, type PanelUser } from "@wa/lib/auth";
+import { requireScope, type Scope } from "@wa/lib/scope";
 import dbConnect from "@/lib/mongodb";
 import { WaContact, WaConversation } from "@wa/models/wa";
-import { getSettings } from "@wa/lib/settings";
+import { WaChannel } from "@wa/models/channel";
+import { channelLabelOf, whatsappChannelOf } from "@wa/lib/channels";
 import { conversationCounts } from "@wa/lib/inbox";
 import { SLA_MINUTES, isSlaViolated, type ConversationStatus } from "@wa/lib/stages";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  let user: PanelUser;
+  let user: Scope;
   try {
-    user = await requirePanelUser();
+    user = await requireScope();
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(Number(sp.get("limit") ?? 300), 500);
 
   await dbConnect();
-  const query: Record<string, unknown> = {};
+  const query: Record<string, unknown> = { tenantId: user.tenantId };
   if (filtro === "minhas") {
     query.assignedTo = user.email;
     query.status = { $ne: "closed" };
@@ -35,11 +36,19 @@ export async function GET(req: NextRequest) {
     query.status = filtro;
   }
 
-  const [conversations, counts, settings] = await Promise.all([
+  const [conversations, counts, whatsapp, channels] = await Promise.all([
     WaConversation.find(query).sort({ lastMessageAt: -1 }).limit(limit).lean(),
-    conversationCounts(user.email),
-    getSettings().catch(() => null),
+    conversationCounts(user.email, undefined, user.tenantId),
+    whatsappChannelOf(user.tenantId).catch(() => null),
+    // Todos os canais (também os desconectados): a conversa de um canal
+    // desligado continua sendo do Messenger/SMS/Instagram na lista.
+    WaChannel.find({ tenantId: user.tenantId })
+      .select("kind displayPhone displayName igUsername fbPageName smsProvider rcsAgentId status")
+      .lean(),
   ]);
+  // Conversa sem canal é do WhatsApp do CNV (anterior aos canais).
+  const kindById = new Map(channels.map((ch) => [String(ch._id), ch.kind]));
+  const activeChannels = channels.filter((ch) => ch.status !== "disconnected");
 
   const contacts = await WaContact.find({
     _id: { $in: conversations.map((c) => c.contactId) },
@@ -66,10 +75,12 @@ export async function GET(req: NextRequest) {
         waitingSince,
         slaViolated: isSlaViolated(c.status as ConversationStatus, waitingSince),
         campaignId: c.campaignId ? String(c.campaignId) : null,
+        channelKind: (c.channelId && kindById.get(String(c.channelId))) || "whatsapp",
         contact: {
           id: contact ? String(contact._id) : null,
           phone: contact?.phone ?? "",
           name: contact?.name ?? null,
+          igUsername: contact?.igUsername ?? null,
           company: contact?.company ?? null,
           registered: Boolean(contact?.userId || contact?.firebaseUid),
           optOut: contact?.optOut ?? false,
@@ -77,7 +88,12 @@ export async function GET(req: NextRequest) {
       };
     }),
     counts,
-    channel: { phone: settings?.wabaDisplayPhone ?? null },
+    channel: { phone: whatsapp?.label ?? null },
+    channels: activeChannels.map((ch) => ({
+      kind: ch.kind,
+      status: ch.status,
+      label: ch.kind === "whatsapp" ? ch.displayPhone ?? "WhatsApp" : channelLabelOf(ch),
+    })),
     me: user.email,
   });
 }

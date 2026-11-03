@@ -27,7 +27,7 @@ import {
 import { formatPhoneBr } from "@wa/lib/phone";
 import { formatDocument } from "@wa/lib/documento";
 import {
-  STAGE_BY_ID,
+  stageByIdFor,
   STATUS_LABEL,
   dateTime,
   formatNumber,
@@ -37,6 +37,7 @@ import {
   timeAgo,
   type ConversationStatus,
 } from "@wa/lib/stages";
+import { useWaPanel } from "@wa/components/wa-panel";
 
 type Filtro = "todos" | "cadastrados" | "sem_cadastro" | "optout";
 
@@ -116,6 +117,8 @@ export function Contacts() {
 }
 
 function ContactsInner() {
+  const { base, store } = useWaPanel();
+  const STAGE_BY_ID = stageByIdFor(store);
   const params = useSearchParams();
   const router = useRouter();
   const [busca, setBusca] = useState(params?.get("q") ?? "");
@@ -342,7 +345,7 @@ function ContactsInner() {
                 .catch(() => {});
             }
           }}
-          onAbrirConversa={(id) => router.push(`/dashboard/admin/whatsapp/central?c=${id}`)}
+          onAbrirConversa={(id) => router.push(`${base}/central?c=${id}`)}
         />
       </div>
     </div>
@@ -362,6 +365,7 @@ function Ficha({
   onSalvo: () => void;
   onAbrirConversa: (conversationId: string) => void;
 }) {
+  const { base } = useWaPanel();
   const [editando, setEditando] = useState(false);
   const [nome, setNome] = useState("");
   const [empresa, setEmpresa] = useState("");
@@ -598,7 +602,7 @@ function Ficha({
       {detalhe.conversation && (
         <p className="text-[11px] text-muted">
           Última mensagem {timeAgo(detalhe.conversation.lastMessageAt)} ·{" "}
-          <Link href={`/dashboard/admin/whatsapp/pipeline`} className="text-brand-700 hover:underline">
+          <Link href={`${base}/pipeline`} className="text-brand-700 hover:underline">
             ver no pipeline
           </Link>
         </p>

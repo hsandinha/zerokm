@@ -2,6 +2,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 const findOne = vi.fn();
 vi.mock('@/models/User', () => ({ default: { findOne: (...args: any[]) => findOne(...args) } }));
+const crmLiberado = { valor: true };
+vi.mock('@/lib/services/recursosConta', () => ({ recursosDaConta: async () => ({ crm: crmLiberado.valor }) }));
 
 import { resolveCrmScope } from '@/lib/utils/crmScope';
 import Lead from '@/models/Lead';
@@ -24,6 +26,14 @@ describe('resolveCrmScope', () => {
         const scope = await resolveCrmScope(sessionFor(profile));
 
         expect(scope).toEqual({ ok: true, concessionariaId: '507f1f77bcf86cd799439011' });
+    });
+
+    it('recusa a concessionária sem o CRM liberado pelo CNV', async () => {
+        findOne.mockResolvedValue({ dealershipId: '507f1f77bcf86cd799439011' });
+        crmLiberado.valor = false;
+
+        expect(await resolveCrmScope(sessionFor('concessionaria'))).toMatchObject({ ok: false, status: 403 });
+        crmLiberado.valor = true;
     });
 
     it('rejeita concessionária sem vínculo', async () => {

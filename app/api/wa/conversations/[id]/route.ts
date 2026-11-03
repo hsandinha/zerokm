@@ -2,19 +2,21 @@
 // assumir, devolver para a IA, encerrar, mover de etapa, atribuir.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requirePanelUser, type PanelUser } from "@wa/lib/auth";
+import { requireScope, sameTenant, type Scope } from "@wa/lib/scope";
 import dbConnect from "@/lib/mongodb";
 import { WaAiJob, WaCampaign, WaContact, WaConversation, WaMessage } from "@wa/models/wa";
 import { getDossier } from "@wa/lib/dossier";
 import { isStage } from "@wa/lib/stages";
 import { setConversationStage } from "@wa/lib/conversation-stage";
 import { emitEvent } from "@wa/lib/webhooks";
+import { channelForConversation } from "@wa/lib/channels";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, { params }: Params) {
+  let scope: Scope;
   try {
-    await requirePanelUser();
+    scope = await requireScope();
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
@@ -23,7 +25,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   await dbConnect();
 
   const conversation = await WaConversation.findById(id).lean();
-  if (!conversation) {
+  if (!conversation || !sameTenant(scope, conversation)) {
     return NextResponse.json({ error: "Conversa não encontrada" }, { status: 404 });
   }
 
@@ -38,7 +40,11 @@ export async function GET(_req: NextRequest, { params }: Params) {
   // Zera o não lido ao abrir
   await WaConversation.updateOne({ _id: id }, { unreadCount: 0 });
 
-  const dossier = contactDoc ? await getDossier(contactDoc) : null;
+  const [dossier, channel] = await Promise.all([
+    // O dossiê é a situação do lojista no funil do CNV — só faz sentido na Vera.
+    contactDoc && !scope.tenantId ? getDossier(contactDoc) : Promise.resolve(null),
+    channelForConversation(conversation),
+  ]);
 
   return NextResponse.json({
     conversation: {
@@ -54,12 +60,15 @@ export async function GET(_req: NextRequest, { params }: Params) {
       waitingSince: conversation.waitingSince ?? null,
       createdAt: conversation.createdAt,
       campaign: campaign ? { id: String(campaign._id), name: campaign.name } : null,
+      channel: { kind: channel.kind, label: channel.label },
     },
     contact: contactDoc
       ? {
           id: String(contactDoc._id),
           phone: contactDoc.phone,
           name: contactDoc.name ?? null,
+          igUsername: contactDoc.igUsername ?? null,
+          whatsappPhone: contactDoc.whatsappPhone ?? null,
           email: contactDoc.email ?? null,
           document: contactDoc.document ?? null,
           company: contactDoc.company ?? null,
@@ -86,9 +95,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 export async function PATCH(req: NextRequest, { params }: Params) {
-  let user: PanelUser;
+  let user: Scope;
   try {
-    user = await requirePanelUser();
+    user = await requireScope();
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
@@ -101,6 +110,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   };
 
   await dbConnect();
+  const own = await WaConversation.findById(id).select("tenantId").lean();
+  if (!own || !sameTenant(user, own)) {
+    return NextResponse.json({ error: "Conversa não encontrada" }, { status: 404 });
+  }
   const patch: Record<string, unknown> = {};
   let event: "conversa.atribuida" | "conversa.resolvida" | null = null;
 

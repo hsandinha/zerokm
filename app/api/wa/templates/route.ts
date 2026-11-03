@@ -5,8 +5,8 @@
 // o status e, quando recusado, o motivo.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin, requirePanelUser } from "@wa/lib/auth";
-import { getWabaCredentials } from "@wa/lib/settings";
+import { requireScope, requireScopeAdmin } from "@wa/lib/scope";
+import { wabaCredentialsOf } from "@wa/lib/channels";
 import {
   createTemplate,
   deleteTemplate,
@@ -19,15 +19,17 @@ import {
 export const maxDuration = 60;
 
 export async function GET() {
+  let tenantId: string | null;
   try {
     // Ver a lista é inofensivo e as Campanhas dependem dela; criar e
     // excluir template na Meta, não.
-    await requirePanelUser();
+    ({ tenantId } = await requireScope("campanhas"));
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
-  const creds = await getWabaCredentials();
+  // Templates são do WABA de quem está operando (CNV ou loja).
+  const creds = await wabaCredentialsOf(tenantId);
   if (!creds?.wabaId) {
     return NextResponse.json({
       templates: [],
@@ -67,8 +69,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  let tenantId: string | null;
   try {
-    await requireAdmin();
+    ({ tenantId } = await requireScopeAdmin("campanhas"));
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
@@ -91,7 +94,8 @@ export async function POST(req: NextRequest) {
   const errors = validateTemplateDraft(draft);
   if (errors.length > 0) return NextResponse.json({ errors }, { status: 400 });
 
-  const creds = await getWabaCredentials();
+  // Templates são do WABA de quem está operando (CNV ou loja).
+  const creds = await wabaCredentialsOf(tenantId);
   if (!creds?.wabaId) {
     return NextResponse.json(
       { errors: ["WABA ID não configurado — preencha em IA & WABA."] },
@@ -111,8 +115,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  let tenantId: string | null;
   try {
-    await requireAdmin();
+    ({ tenantId } = await requireScopeAdmin("campanhas"));
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
@@ -120,7 +125,8 @@ export async function DELETE(req: NextRequest) {
   const name = req.nextUrl.searchParams.get("name");
   if (!name) return NextResponse.json({ error: "Informe o nome do template" }, { status: 400 });
 
-  const creds = await getWabaCredentials();
+  // Templates são do WABA de quem está operando (CNV ou loja).
+  const creds = await wabaCredentialsOf(tenantId);
   if (!creds?.wabaId) {
     return NextResponse.json({ error: "WABA ID não configurado" }, { status: 400 });
   }

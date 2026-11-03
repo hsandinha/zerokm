@@ -22,7 +22,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     await dbConnect();
     const conv = await WaConversation.findById(id);
-    if (!conv) return NextResponse.json({ error: "Conversa não encontrada" }, { status: 404 });
+    if (!conv || conv.tenantId) return NextResponse.json({ error: "Conversa não encontrada" }, { status: 404 });
     if (!isWithin24hWindow(conv.lastInboundAt)) {
       return NextResponse.json(
         {

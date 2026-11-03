@@ -54,6 +54,8 @@ export interface IUser extends Document {
     };
     mpCustomerId?: string;
     isInvitee?: boolean;
+    /** Funcionalidades liberadas pelo CNV ao lojista titular, só a diferença do padrão. Ver lib/recursos.ts. */
+    recursos?: Record<string, boolean>;
     /** "@loja", obrigatório no cadastro do lojista (lib/utils/instagram.ts). */
     instagram?: string;
     /** Aceite dos termos no cadastro ("Li e concordo"). */
@@ -126,6 +128,7 @@ const UserSchema: Schema = new Schema({
     },
     mpCustomerId: { type: String },
     isInvitee: { type: Boolean, default: false },
+    recursos: { type: Schema.Types.Mixed },
     instagram: { type: String, trim: true },
     termosAceitosEm: { type: Date },
     termosVersao: { type: String },

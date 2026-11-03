@@ -5,7 +5,7 @@
 // grande a coluna "abordado" teria milhares de cartões.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requirePanelUser } from "@wa/lib/auth";
+import { requireScope, sameTenant, type Scope } from "@wa/lib/scope";
 import dbConnect from "@/lib/mongodb";
 import { WaContact, WaConversation } from "@wa/models/wa";
 import { conversationCounts } from "@wa/lib/inbox";
@@ -18,8 +18,9 @@ export const dynamic = "force-dynamic";
 const PER_COLUMN: Record<string, number> = { abordado: 30, perdido: 40 };
 
 export async function GET() {
+  let scope: Scope;
   try {
-    await requirePanelUser();
+    scope = await requireScope("funil");
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
@@ -31,18 +32,23 @@ export async function GET() {
   const [columns, counts, stalled, wonMonth] = await Promise.all([
     Promise.all(
       STAGES.map((s) =>
-        WaConversation.find({ stage: s.id })
+        WaConversation.find({ tenantId: scope.tenantId, stage: s.id })
           .sort({ stageChangedAt: -1 })
           .limit(PER_COLUMN[s.id] ?? 80)
           .lean(),
       ),
     ),
-    conversationCounts(null),
+    conversationCounts(null, undefined, scope.tenantId),
     WaConversation.countDocuments({
+      tenantId: scope.tenantId,
       stage: { $in: OPEN_STAGES },
       lastMessageAt: { $lt: stalledCutoff },
     }),
-    WaConversation.countDocuments({ stage: "ganho", stageChangedAt: { $gte: month } }),
+    WaConversation.countDocuments({
+      tenantId: scope.tenantId,
+      stage: "ganho",
+      stageChangedAt: { $gte: month },
+    }),
   ]);
 
   const rows = columns.flat();
@@ -93,9 +99,9 @@ export async function GET() {
 
 /** Movimento manual do kanban — o único jeito de marcar "assinante" à mão. */
 export async function PATCH(req: NextRequest) {
-  let user;
+  let user: Scope;
   try {
-    user = await requirePanelUser();
+    user = await requireScope("funil");
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
@@ -105,6 +111,11 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "id/etapa inválidos" }, { status: 400 });
   }
 
+  await dbConnect();
+  const own = await WaConversation.findById(body.id).select("tenantId").lean().catch(() => null);
+  if (!own || !sameTenant(user, own)) {
+    return NextResponse.json({ error: "Conversa não encontrada" }, { status: 404 });
+  }
   try {
     await setConversationStage(body.id, body.stage, user.email);
   } catch (err) {

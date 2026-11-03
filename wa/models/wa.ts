@@ -13,7 +13,8 @@ export interface IWaSettings extends Document {
   knowledgeBase?: string; // explicativo institucional do CNV ({{conhecimento}})
   greeting?: string;
   extraInstructions?: string;
-  // WABA (token/appSecret criptografados com APP_ENCRYPTION_KEY)
+  // Legado: o WABA do CNV migra sozinho para wa_channels na primeira leitura
+  // (ver channels.ts). Ficam no schema só para essa migração conseguir ler.
   wabaPhoneNumberId?: string;
   wabaId?: string;
   wabaToken?: string;
@@ -44,7 +45,14 @@ const WaSettingsSchema: Schema = new Schema(
 
 // ── Contato ──────────────────────────────────────────────────
 export interface IWaContact extends Document {
-  phone: string; // formato +5531999999999 (canônico)
+  // formato +5531999999999 (canônico). Contato do Instagram e do Messenger
+  // não tem telefone: a chave vira "ig:<IGSID>" ou "fb:<PSID>", igual ao
+  // Chatrun — unicidade e todo caminho que já usa `phone` continuam valendo.
+  // O SMS usa o telefone canônico: é o mesmo contato do WhatsApp.
+  phone: string;
+  /** Loja dona do contato (WaStore). null/ausente = CNV. O mesmo telefone
+   *  pode ser contato de várias lojas — cada uma tem o seu. */
+  tenantId?: string | null;
   name?: string;
   email?: string;
   document?: string; // CPF/CNPJ (dígitos)
@@ -52,8 +60,14 @@ export interface IWaContact extends Document {
   city?: string;
   state?: string;
   cnae?: string;
-  source: "whatsapp" | "cnpja" | "csv" | "manual" | "procob";
+  source: "whatsapp" | "instagram" | "messenger" | "sms" | "cnpja" | "csv" | "manual" | "procob";
   optOut: boolean;
+  igUserId?: string;
+  igUsername?: string;
+  /** Id da pessoa na Página do Facebook (PSID). Contato do Messenger. */
+  fbPsid?: string;
+  /** Celular que a pessoa informou fora do WhatsApp (ex.: no Direct, para o cadastro). */
+  whatsappPhone?: string;
   userId?: string; // _id do User da zerokm quando o cadastro foi criado
   firebaseUid?: string;
   // A empresa que originou a abordagem. Um sócio com 5 empresas tem UM
@@ -65,7 +79,8 @@ export interface IWaContact extends Document {
 
 const WaContactSchema: Schema = new Schema(
   {
-    phone: { type: String, required: true, unique: true },
+    phone: { type: String, required: true },
+    tenantId: { type: String, default: null },
     name: { type: String },
     email: { type: String },
     document: { type: String },
@@ -75,16 +90,24 @@ const WaContactSchema: Schema = new Schema(
     cnae: { type: String },
     source: {
       type: String,
-      enum: ["whatsapp", "cnpja", "csv", "manual", "procob"],
+      enum: ["whatsapp", "instagram", "messenger", "sms", "cnpja", "csv", "manual", "procob"],
       default: "whatsapp",
     },
     optOut: { type: Boolean, default: false },
+    igUserId: { type: String },
+    igUsername: { type: String },
+    fbPsid: { type: String },
+    whatsappPhone: { type: String },
     userId: { type: String },
     firebaseUid: { type: String },
     targetId: { type: Schema.Types.ObjectId, ref: "WaTarget" },
   },
   { timestamps: true, collection: "wa_contacts" },
 );
+// Unicidade por loja. O índice antigo `phone_1` (único global) é removido
+// pelo scripts/migrar-atendimento-lojas.mjs — sem isso, o mesmo telefone não
+// conseguiria ser contato do CNV e de uma loja ao mesmo tempo.
+WaContactSchema.index({ tenantId: 1, phone: 1 }, { unique: true });
 WaContactSchema.index({ name: 1 });
 WaContactSchema.index({ document: 1 });
 
@@ -103,6 +126,11 @@ export type WaStage =
 
 export interface IWaConversation extends Document {
   contactId: mongoose.Types.ObjectId;
+  /** Loja (WaStore). null/ausente = CNV. Igual ao do contato. */
+  tenantId?: string | null;
+  /** Canal por onde a conversa acontece. Ausente = WhatsApp do CNV (conversas
+   *  de antes dos canais). */
+  channelId?: mongoose.Types.ObjectId;
   status: WaConversationStatus;
   stage: WaStage;
   stageChangedAt: Date;
@@ -124,6 +152,8 @@ export interface IWaConversation extends Document {
 const WaConversationSchema: Schema = new Schema(
   {
     contactId: { type: Schema.Types.ObjectId, ref: "WaContact", required: true, unique: true },
+    tenantId: { type: String, default: null },
+    channelId: { type: Schema.Types.ObjectId, ref: "WaChannel" },
     status: {
       type: String,
       enum: ["ai_active", "waiting_human", "human_active", "closed"],
@@ -152,6 +182,7 @@ const WaConversationSchema: Schema = new Schema(
   { timestamps: true, collection: "wa_conversations" },
 );
 WaConversationSchema.index({ lastMessageAt: -1 });
+WaConversationSchema.index({ tenantId: 1, lastMessageAt: -1 });
 WaConversationSchema.index({ stage: 1, stageChangedAt: -1 });
 WaConversationSchema.index({ status: 1, waitingSince: 1 });
 WaConversationSchema.index({ assignedTo: 1, status: 1 });
@@ -169,6 +200,9 @@ export interface IWaMessage extends Document {
   /** Motivo devolvido pela Meta quando o status vira failed ("130472: …"). */
   error?: string;
   reaction?: string;
+  /** Canal SMS: por onde a mensagem foi de fato. Com agente RCS sai "rcs", e
+   *  o status da Zenvia corrige para "sms" quando ela caiu para SMS. */
+  via?: "sms" | "rcs";
   createdAt: Date;
   updatedAt: Date;
 }
@@ -185,6 +219,7 @@ const WaMessageSchema: Schema = new Schema(
     status: { type: String },
     error: { type: String },
     reaction: { type: String },
+    via: { type: String, enum: ["sms", "rcs"] },
   },
   { timestamps: true, collection: "wa_messages" },
 );
@@ -232,6 +267,8 @@ export type WaCampaignStatus =
   | "failed";
 
 export interface IWaCampaign extends Document {
+  /** Loja que dispara (WaStore). null/ausente = CNV. */
+  tenantId?: string | null;
   name: string;
   templateName: string;
   templateLanguage: string;
@@ -273,6 +310,7 @@ export interface IWaCampaign extends Document {
 
 const WaCampaignSchema: Schema = new Schema(
   {
+    tenantId: { type: String, default: null },
     name: { type: String, required: true },
     templateName: { type: String, required: true },
     templateLanguage: { type: String, default: "pt_BR" },
@@ -317,6 +355,8 @@ WaCampaignSchema.index({ status: 1, createdAt: -1 });
 // ── Destinatário de campanha ─────────────────────────────────
 export interface IWaCampaignRecipient extends Document {
   campaignId: mongoose.Types.ObjectId;
+  /** Mesma loja da campanha — a resposta só é atribuída dentro da loja. */
+  tenantId?: string | null;
   targetId?: mongoose.Types.ObjectId;
   /** Sócio dono deste número. Vários destinatários com o mesmo partnerId são
    *  a MESMA pessoa — quando um responde, os outros são cancelados. */
@@ -338,6 +378,7 @@ export interface IWaCampaignRecipient extends Document {
 const WaCampaignRecipientSchema: Schema = new Schema(
   {
     campaignId: { type: Schema.Types.ObjectId, ref: "WaCampaign", required: true },
+    tenantId: { type: String, default: null },
     targetId: { type: Schema.Types.ObjectId, ref: "WaTarget" },
     partnerId: { type: Schema.Types.ObjectId, ref: "WaPartner" },
     attempt: { type: Number, default: 1 },

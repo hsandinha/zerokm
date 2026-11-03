@@ -1,7 +1,10 @@
-// Camada de LLM da Vera: Gemini (REST v1beta, sem SDK), portada do
-// whatsappsocila, ou GPT da OpenAI (Chat Completions) quando
-// LLM_PROVIDER=openai. Os dois devolvem o mesmo formato (texto + chamadas de
-// ferramenta), então o resto do módulo não muda.
+// Camada de LLM: Gemini (REST v1beta, sem SDK), portada do whatsappsocila,
+// GPT da OpenAI (Chat Completions) ou Claude (llm-claude.ts). Todos devolvem
+// o mesmo formato (texto + chamadas de ferramenta), então o resto do módulo
+// não muda.
+//
+// A Vera usa as chaves do deploy (LLM_PROVIDER, GEMINI_*, OPENAI_*). Cada loja
+// usa a PRÓPRIA chave, passada em `creds` — sem chave, a loja não tem IA.
 // Erros classificados: transitório (429/5xx — resolve esperando) vs
 // autenticação (401/403/402/404 — retry não adianta).
 
@@ -12,6 +15,9 @@ export type LlmTool = {
 };
 export type LlmMessage = { role: "user" | "assistant"; content: string };
 export type LlmToolCall = { name: string; input: Record<string, unknown> };
+export type LlmProvider = "gemini" | "openai" | "claude";
+/** Chave e modelo de uma loja. */
+export type LlmCreds = { provider: LlmProvider; apiKey: string; model?: string | null };
 export type LlmResult = {
   text: string;
   toolCalls: LlmToolCall[];
@@ -92,8 +98,10 @@ async function runOpenAi(params: {
   messages: LlmMessage[];
   tools: LlmTool[];
   maxTokens?: number;
+  apiKey?: string;
+  model?: string | null;
 }): Promise<LlmResult> {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = params.apiKey ?? process.env.OPENAI_API_KEY;
   if (!apiKey) throw new LlmAuthError("OPENAI_API_KEY ausente");
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -103,7 +111,7 @@ async function runOpenAi(params: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: OPENAI_MODEL,
+      model: params.model || OPENAI_MODEL,
       messages: [
         { role: "system", content: params.system },
         ...params.messages.map((m) => ({ role: m.role, content: m.content })),
@@ -165,14 +173,33 @@ export async function runLlm(params: {
   messages: LlmMessage[];
   tools: LlmTool[];
   maxTokens?: number;
+  /** Chave da loja. Ausente = chaves do deploy (a Vera). */
+  creds?: LlmCreds | null;
 }): Promise<LlmResult> {
-  if (llmProvider() === "openai") return runOpenAi(params);
+  const creds = params.creds ?? null;
+  if (creds?.provider === "claude") {
+    const { runClaude } = await import("@wa/lib/llm-claude");
+    return runClaude({
+      apiKey: creds.apiKey,
+      model: creds.model ?? undefined,
+      system: params.system,
+      messages: params.messages,
+      tools: params.tools,
+      maxTokens: params.maxTokens,
+      onError: classifyHttp,
+    });
+  }
+  if (creds?.provider === "openai") {
+    return runOpenAi({ ...params, apiKey: creds.apiKey, model: creds.model });
+  }
+  if (!creds && llmProvider() === "openai") return runOpenAi(params);
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = creds?.apiKey ?? process.env.GEMINI_API_KEY;
   if (!apiKey) throw new LlmAuthError("GEMINI_API_KEY ausente");
+  const geminiModel = creds?.model || GEMINI_MODEL;
 
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent`,
     {
       method: "POST",
       headers: {

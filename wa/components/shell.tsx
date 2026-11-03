@@ -30,6 +30,7 @@ import {
   Wallet,
   X,
   type LucideIcon,
+  Store,
 } from "lucide-react";
 import { signOut as nextAuthSignOut } from "next-auth/react";
 import { ThemeToggle } from "@wa/components/theme-toggle";
@@ -78,6 +79,7 @@ const GROUPS: Array<{ title: string; items: NavItem[] }> = [
   {
     title: "Gestão",
     items: [
+      { href: "/dashboard/admin/whatsapp/lojas", label: "Lojas (atendimento)", icon: Store, adminOnly: true },
       { href: "/dashboard/admin/whatsapp/usuarios", label: "Usuários", icon: UserCog, adminOnly: true },
       { href: "/dashboard/admin/whatsapp/configuracao", label: "IA & WABA", icon: Settings2, adminOnly: true },
     ],

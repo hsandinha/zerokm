@@ -44,8 +44,7 @@ import {
 import {
   OUTCOME_LABEL,
   SLA_MINUTES,
-  STAGES,
-  STAGE_BY_ID,
+  stagesFor,
   STATUS_LABEL,
   TRANSFER_REASON_LABEL,
   dateTime,
@@ -58,6 +57,7 @@ import {
   type ConversationStatus,
   type Stage,
 } from "@wa/lib/stages";
+import { usePodeUsar, useWaPanel } from "@wa/components/wa-panel";
 
 const POLL_MS = 4000;
 
@@ -88,7 +88,14 @@ type Row = {
   waitingSince: string | null;
   slaViolated: boolean;
   campaignId: string | null;
-  contact: { id: string | null; phone: string; name: string | null; company: string | null };
+  channelKind: ChannelKind;
+  contact: {
+    id: string | null;
+    phone: string;
+    name: string | null;
+    igUsername: string | null;
+    company: string | null;
+  };
 };
 
 type Message = {
@@ -117,11 +124,14 @@ type Detail = {
     waitingSince: string | null;
     createdAt: string;
     campaign: { id: string; name: string } | null;
+    channel: { kind: ChannelKind; label: string };
   };
   contact: {
     id: string;
     phone: string;
     name: string | null;
+    igUsername: string | null;
+    whatsappPhone: string | null;
     email: string | null;
     document: string | null;
     company: string | null;
@@ -181,6 +191,30 @@ function within24h(lastInboundAt: string | null | undefined): boolean {
   return Date.now() - new Date(lastInboundAt).getTime() < 24 * 3600_000;
 }
 
+/** No Direct a equipe ainda fala até 7 dias depois (tag HUMAN_AGENT). */
+type ChannelKind = "whatsapp" | "instagram" | "messenger" | "sms";
+
+/** Ícone e nome curto de cada canal na fila. */
+const CHANNEL_BADGE: Partial<Record<ChannelKind, { label: string; cls: string }>> = {
+  instagram: { label: "Instagram", cls: "text-pink-600" },
+  messenger: { label: "Messenger", cls: "text-blue-600" },
+  sms: { label: "SMS", cls: "text-amber-600" },
+};
+
+function within7d(lastInboundAt: string | null | undefined): boolean {
+  if (!lastInboundAt) return false;
+  return Date.now() - new Date(lastInboundAt).getTime() < 7 * 24 * 3600_000;
+}
+
+/** Telefone formatado; contato do Instagram mostra o @ (não tem telefone). */
+function contactHandle(contact: { phone: string; igUsername?: string | null }): string {
+  if (contact.phone.startsWith("ig:")) {
+    return contact.igUsername ? `@${contact.igUsername}` : "Instagram";
+  }
+  if (contact.phone.startsWith("fb:")) return "Messenger";
+  return formatPhoneBr(contact.phone);
+}
+
 function personLabel(email: string | null): string {
   if (!email) return "";
   return email.split("@")[0].replace(/[._-]/g, " ");
@@ -223,10 +257,15 @@ export function Central({ currentEmail }: { currentEmail: string }) {
 }
 
 function CentralInner({ currentEmail }: { currentEmail: string }) {
+  const { base, store } = useWaPanel();
+  const podeUsar = usePodeUsar();
+  const STAGES = stagesFor(store);
+  const STAGE_BY_ID = Object.fromEntries(STAGES.map((s) => [s.id, s])) as Record<Stage, (typeof STAGES)[number]>;
   const params = useSearchParams();
   const [conversations, setConversations] = useState<Row[]>([]);
   const [counts, setCounts] = useState<Counts | null>(null);
   const [channelPhone, setChannelPhone] = useState<string | null>(null);
+  const [channelList, setChannelList] = useState<Array<{ kind: string; label: string }>>([]);
   const [selectedId, setSelectedId] = useState<string | null>(params?.get("c") ?? null);
   const [detail, setDetail] = useState<Detail | null>(null);
   const [input, setInput] = useState("");
@@ -290,6 +329,7 @@ function CentralInner({ currentEmail }: { currentEmail: string }) {
       setConversations(body.conversations ?? []);
       setCounts(body.counts ?? null);
       setChannelPhone(body.channel?.phone ?? null);
+      setChannelList(body.channels ?? []);
     } catch {
       /* rede oscilou — o próximo poll resolve */
     }
@@ -390,7 +430,12 @@ function CentralInner({ currentEmail }: { currentEmail: string }) {
   );
 
   const conv = detail?.conversation;
-  const canText = within24h(conv?.lastInboundAt);
+  const channelKind = conv?.channel?.kind ?? "whatsapp";
+  // Direct e Messenger: a equipe fala até 7 dias depois (tag HUMAN_AGENT), e
+  // lá não existe template. SMS não tem janela nenhuma.
+  const isInstagram = channelKind === "instagram" || channelKind === "messenger";
+  const canText =
+    channelKind === "sms" ? true : isInstagram ? within7d(conv?.lastInboundAt) : within24h(conv?.lastInboundAt);
 
   function select(id: string) {
     setSelectedId(id);
@@ -473,6 +518,14 @@ function CentralInner({ currentEmail }: { currentEmail: string }) {
             <MessageCircle size={12} className="text-emerald-600" /> WhatsApp
           </p>
           <p className="truncate text-[10px] text-muted">{channelPhone ?? "número do CNV"}</p>
+          {channelList
+            .filter((ch) => ch.kind !== "whatsapp")
+            .map((ch) => (
+              <p key={`${ch.kind}-${ch.label}`} className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-ink-700">
+                <MessageCircle size={12} className={CHANNEL_BADGE[ch.kind as ChannelKind]?.cls ?? "text-muted"} />{" "}
+                {CHANNEL_BADGE[ch.kind as ChannelKind]?.label ?? ch.kind} · {ch.label}
+              </p>
+            ))}
         </div>
       </aside>
 
@@ -561,7 +614,12 @@ function CentralInner({ currentEmail }: { currentEmail: string }) {
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center justify-between gap-2">
                     <span className={clsx("truncate text-sm", c.unread > 0 ? "font-bold" : "font-semibold")}>
-                      {c.contact.name || formatPhoneBr(c.contact.phone)}
+                      {CHANNEL_BADGE[c.channelKind] && (
+                        <span className={clsx("mr-1 text-[10px] font-bold uppercase", CHANNEL_BADGE[c.channelKind]!.cls)}>
+                          {CHANNEL_BADGE[c.channelKind]!.label}
+                        </span>
+                      )}
+                      {c.contact.name || contactHandle(c.contact)}
                     </span>
                     <span className={clsx("shrink-0 text-[11px]", c.unread > 0 ? "font-semibold text-brand-700" : "text-muted")}>
                       {shortTime(c.lastMessageAt)}
@@ -644,10 +702,14 @@ function CentralInner({ currentEmail }: { currentEmail: string }) {
               </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-bold">
-                  {detail?.contact?.name || formatPhoneBr(detail?.contact?.phone ?? "")}
+                  {detail?.contact?.name || (detail?.contact ? contactHandle(detail.contact) : "")}
                 </p>
                 <p className="truncate text-xs text-muted">
-                  {detail?.contact?.name ? formatPhoneBr(detail.contact.phone) : ""}
+                  {CHANNEL_BADGE[channelKind] ? `${CHANNEL_BADGE[channelKind]!.label} · ` : ""}
+                  {detail?.contact?.name ? contactHandle(detail.contact) : ""}
+                  {isInstagram && detail?.contact?.whatsappPhone
+                    ? ` · ${formatPhoneBr(detail.contact.whatsappPhone)}`
+                    : ""}
                   {detail?.contact?.company ? ` · ${detail.contact.company}` : ""}
                   {conv.transferReason
                     ? ` · ${TRANSFER_REASON_LABEL[conv.transferReason] ?? conv.transferReason}`
@@ -657,7 +719,7 @@ function CentralInner({ currentEmail }: { currentEmail: string }) {
               </div>
 
               <div className="flex shrink-0 items-center gap-1.5">
-                <select
+                {podeUsar("funil") && <select
                   className={clsx(
                     "hidden rounded-full border border-line px-2.5 py-1 text-xs font-semibold sm:block",
                     isStage(conv.stage) ? STAGE_BY_ID[conv.stage].chip : "bg-paper",
@@ -671,7 +733,7 @@ function CentralInner({ currentEmail }: { currentEmail: string }) {
                       {st.label}
                     </option>
                   ))}
-                </select>
+                </select>}
                 {conv.status !== "human_active" && conv.status !== "closed" && (
                   <button className="btn-dark px-3 py-1.5 text-xs" onClick={() => patch("assumir")} title="Assumir a conversa (a IA para de responder)">
                     <Hand size={14} /> <span className="hidden sm:inline">Assumir</span>
@@ -777,7 +839,13 @@ function CentralInner({ currentEmail }: { currentEmail: string }) {
                 </div>
 
                 <div className="border-t border-line p-3">
-                  {!canText ? (
+                  {!canText && isInstagram ? (
+                    <p className="flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-[11px] leading-snug text-amber-700">
+                      <Clock size={13} className="mt-0.5 shrink-0" />
+                      Passaram 7 dias desde a última mensagem: o {CHANNEL_BADGE[channelKind]?.label ?? "canal"} não
+                      deixa escrever até a pessoa mandar de novo (e lá não existe template).
+                    </p>
+                  ) : !canText ? (
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                       <p className="flex flex-1 items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-[11px] leading-snug text-amber-700">
                         <Clock size={13} className="mt-0.5 shrink-0" />
@@ -876,6 +944,7 @@ function DossierPanel({
   currentEmail: string;
   hideTitle?: boolean;
 }) {
+  const { base, store } = useWaPanel();
   if (!detail) {
     return (
       <>
@@ -887,7 +956,7 @@ function DossierPanel({
 
   const conv = detail.conversation;
   const st = STATUS_LABEL[conv.status];
-  const stage = isStage(conv.stage) ? STAGE_BY_ID[conv.stage] : null;
+  const stage = isStage(conv.stage) ? stagesFor(store).find((s) => s.id === conv.stage) ?? null : null;
   const d = detail.dossier;
 
   return (
@@ -948,7 +1017,7 @@ function DossierPanel({
             <div className="flex justify-between gap-2">
               <dt className="text-muted">Campanha</dt>
               <dd className="truncate text-right">
-                <Link href={`/dashboard/admin/whatsapp/campanhas/${conv.campaign.id}`} className="text-brand-700 hover:underline">
+                <Link href={`${base}/campanhas/${conv.campaign.id}`} className="text-brand-700 hover:underline">
                   {conv.campaign.name}
                 </Link>
               </dd>
@@ -961,7 +1030,7 @@ function DossierPanel({
         </dl>
         {detail.contact && (
           <Link
-            href={`/dashboard/admin/whatsapp/contatos?q=${encodeURIComponent(detail.contact.phone)}`}
+            href={`${base}/contatos?q=${encodeURIComponent(detail.contact.phone)}`}
             className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-brand-700 hover:underline"
           >
             <UserRound size={11} /> Ficha do contato
@@ -977,6 +1046,7 @@ function DossierPanel({
       {/* ── Situação no CNV ─────────────────────────────────── */}
       {/* É a mesma verdade que a IA lê antes de responder: cadastro, teste de
           24h e assinatura vêm do banco da zerokm a cada mensagem. */}
+      {!store && (
       <div className="border-t border-line pt-3">
         <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
           <BadgeCheck size={13} /> Situação no CNV
@@ -1006,6 +1076,8 @@ function DossierPanel({
           </div>
         )}
       </div>
+
+      )}
 
       {/* ── Cobranças ───────────────────────────────────────── */}
       {(d?.payments.length ?? 0) > 0 && (
@@ -1056,7 +1128,7 @@ function DossierPanel({
           <ul className="mt-1 space-y-0.5 text-xs text-muted">
             {d!.campaigns.map((c) => (
               <li key={`${c.campaignId}-${c.sentAt}`} className="flex justify-between gap-2">
-                <Link href={`/dashboard/admin/whatsapp/campanhas/${c.campaignId}`} className="truncate hover:underline">
+                <Link href={`${base}/campanhas/${c.campaignId}`} className="truncate hover:underline">
                   {c.sentAt ? dateTime(c.sentAt) : "não enviada"}
                 </Link>
                 <span className="shrink-0">{c.status}</span>

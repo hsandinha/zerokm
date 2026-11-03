@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { WaAiJob, WaConversation, WaContact } from "@wa/models/wa";
 import { runAiForConversation } from "@wa/lib/ai";
+import { runStoreAiForConversation } from "@wa/lib/ai-loja";
 import { sendAndLogText } from "@wa/lib/send";
 import { LlmAuthError, LlmTransientError } from "@wa/lib/llm";
 
@@ -52,7 +53,10 @@ async function processJobs(): Promise<{ processed: number }> {
     if (!job) break;
 
     try {
-      await runAiForConversation(job.conversationId.toString());
+      // Conversa de loja tem o cérebro de venda de carro; sem loja, é a Vera.
+      const own = await WaConversation.findById(job.conversationId).select("tenantId").lean();
+      if (own?.tenantId) await runStoreAiForConversation(job.conversationId.toString());
+      else await runAiForConversation(job.conversationId.toString());
       job.status = "done";
       await job.save();
       processed++;

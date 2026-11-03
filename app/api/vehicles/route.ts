@@ -11,6 +11,7 @@ import FavoritoVeiculo from '@/models/FavoritoVeiculo';
 import { chaveFavorito } from '@/lib/services/favoritosService';
 import { REPASSE_STATUS_VITRINE } from '@/lib/utils/repasse';
 import { filtroPlanoRepasseAtivo } from '@/lib/utils/planoRepasse';
+import { concessionariasForaDaVitrine } from '@/lib/services/vitrineConcessionaria';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { createExpiredFreeTrialWindow, isFreeTrialExpired } from '@/lib/utils/freeTrial';
@@ -43,7 +44,8 @@ const getEffectiveProfile = (session: any, requestedProfile?: string | null) => 
  */
 function repasseAsVitrineStages(now: Date = new Date()) {
     return [
-        { $match: { ativo: true, status: { $in: REPASSE_STATUS_VITRINE } } },
+        // Estoque local de lojista (lojistaId) é só da IA da loja, nunca da vitrine.
+        { $match: { ativo: true, status: { $in: REPASSE_STATUS_VITRINE }, lojistaId: null } },
         {
             $lookup: {
                 from: Concessionaria.collection.name,
@@ -250,6 +252,15 @@ export async function GET(request: Request) {
             ];
             // Sem favoritos, nenhum resultado (um $or vazio seria inválido).
             matchStage.$and = [...(matchStage.$and || []), condicoes.length ? { $or: condicoes } : { _id: { $in: [] } }];
+        }
+
+        // Loja com o estoque oculto pelo admin some da vitrine (0KM e repasse:
+        // o $match vale depois do $unionWith). Ela mesma continua vendo o dela.
+        if (!restrictedDealershipId) {
+            const ocultas = await concessionariasForaDaVitrine();
+            if (ocultas.length) {
+                matchStage.$and = [...(matchStage.$and || []), { concessionariaId: { $nin: ocultas } }];
+            }
         }
 
         // Restriction apply

@@ -68,6 +68,30 @@ export const STAGE_BY_ID = Object.fromEntries(STAGES.map((s) => [s.id, s])) as R
   StageMeta
 >;
 
+// Mesmas etapas (e a mesma ordem de avanço automático) no funil das LOJAS,
+// com o nome que faz sentido para quem vende carro. A IA da loja leva para
+// "Visita / test drive" ao agendar e para "Proposta" ao simular a parcela;
+// "Vendido" é sempre à mão.
+const STORE_LABELS: Record<Stage, { label: string; hint: string }> = {
+  abordado: { label: "Abordado", hint: "Mensagem enviada, ainda sem resposta" },
+  conversa: { label: "Em atendimento", hint: "Respondeu — IA ou vendedor conversando" },
+  cadastro: { label: "Visita / test drive", hint: "Pediu visita ou test drive" },
+  pagamento: { label: "Proposta", hint: "Simulou parcela ou recebeu proposta" },
+  ganho: { label: "Vendido", hint: "Venda fechada (marcada à mão)" },
+  perdido: { label: "Perdido", hint: "Sem interesse, opt-out ou sem resposta" },
+};
+
+export const STORE_STAGES: StageMeta[] = STAGES.map((s) => ({ ...s, ...STORE_LABELS[s.id] }));
+
+/** Etapas do painel de quem está operando: o CNV ou uma loja. */
+export function stagesFor(store: boolean): StageMeta[] {
+  return store ? STORE_STAGES : STAGES;
+}
+
+export function stageByIdFor(store: boolean): Record<Stage, StageMeta> {
+  return Object.fromEntries(stagesFor(store).map((s) => [s.id, s])) as Record<Stage, StageMeta>;
+}
+
 /** Etapas em que o lead ainda está vivo no funil. */
 export const OPEN_STAGES: Stage[] = ["conversa", "cadastro", "pagamento"];
 
@@ -107,6 +131,10 @@ export const TRANSFER_REASON_LABEL: Record<string, string> = {
   falha_cadastro: "falha ao criar o cadastro",
   limite_de_mensagens: "limite de mensagens da IA",
   falha_ia: "falha da IA",
+  ia_desligada: "IA desligada",
+  ia_sem_chave: "IA sem chave",
+  assinatura_inativa: "assinatura inativa",
+  ia_nao_liberada: "IA não liberada pelo CNV",
 };
 
 export const OUTCOME_LABEL: Record<string, string> = {

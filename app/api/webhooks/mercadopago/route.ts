@@ -15,6 +15,7 @@ import {
 } from '../../../../lib/services/mercadoPagoSubscriptionService';
 import Banner from '../../../../models/Banner';
 import { DEALER_PLAN_PREFIX, processarPagamentoPlanoRepasse } from '@/lib/services/planoRepasseService';
+import { ATENDIMENTO_PREFIX, processarPagamentoAtendimento } from '@wa/lib/assinatura-atendimento';
 
 /**
  * Webhook do Mercado Pago
@@ -416,6 +417,14 @@ export async function POST(req: NextRequest) {
         if (externalRef.startsWith(DEALER_PLAN_PREFIX)) {
             await connectDB();
             await processarPagamentoPlanoRepasse(payment, String(paymentId));
+            return NextResponse.json({ ok: true });
+        }
+
+        // Assinatura do atendimento (Chatrun) de uma loja: mesmo motivo — tem
+        // que desviar antes do parse da assinatura do lojista.
+        if (externalRef.startsWith(ATENDIMENTO_PREFIX)) {
+            await connectDB();
+            await processarPagamentoAtendimento(payment, String(paymentId));
             return NextResponse.json({ ok: true });
         }
 

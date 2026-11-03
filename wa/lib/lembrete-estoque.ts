@@ -45,9 +45,10 @@ export async function enviarLembreteEstoque(params: {
   const tpl = modelo.tpl;
 
   await dbConnect();
-  let contact = await WaContact.findOne({ phone: parsed.e164 });
+  // O lembrete sai do número do CNV: o contato é do CNV (tenantId null).
+  let contact = await WaContact.findOne({ tenantId: null, phone: parsed.e164 });
   if (!contact) {
-    contact = await WaContact.create({ phone: parsed.e164, name: params.loja, company: params.loja, source: "manual" });
+    contact = await WaContact.create({ tenantId: null, phone: parsed.e164, name: params.loja, company: params.loja, source: "manual" });
   }
   if (contact.optOut) return { ok: false, motivo: "a loja pediu para não receber mensagens" };
 

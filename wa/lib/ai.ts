@@ -1,13 +1,14 @@
 // IA de vendas do CNV — tira dúvidas usando a base de conhecimento, conduz ao
 // cadastro (que já ativa o teste grátis de 24h da zerokm), gera a assinatura
 // pelo Mercado Pago e transfere para um humano quando precisa. Motor: Gemini.
+// Atende em qualquer canal do CNV (WhatsApp e Direct do Instagram).
 
 import dbConnect from "@/lib/mongodb";
 import { WaContact, WaConversation, WaMessage, type IWaSettings } from "@wa/models/wa";
 import { getSettings } from "@wa/lib/settings";
-import { getWabaCredentials } from "@wa/lib/settings";
-import { sendReaction } from "@wa/lib/meta";
-import { sendAndLogText, showTyping } from "@wa/lib/send";
+import { reactOnChannel, sendAndLogText, showTyping } from "@wa/lib/send";
+import { channelForConversation, isProfilePhone, type ResolvedChannel } from "@wa/lib/channels";
+import { parsePhoneBr } from "@wa/lib/phone";
 import { runLlm, type LlmMessage, type LlmTool, type LlmToolCall } from "@wa/lib/llm";
 import { registerClient, getFunnelStatus, type RegisterErrorCode } from "@wa/lib/register";
 import { createPixPayment, createPaymentLink, getActivePlans } from "@wa/lib/payments";
@@ -33,6 +34,11 @@ export const TOOLS: LlmTool[] = [
           type: "string",
           description: "CPF (11 dígitos) ou CNPJ (14 dígitos), se o cliente informou",
         },
+        telefone: {
+          type: "string",
+          description:
+            "Celular com DDD do cliente. OBRIGATÓRIO quando a conversa é pelo Instagram (no WhatsApp o sistema já usa o número da conversa)",
+        },
         mensagem: {
           type: "string",
           description:
@@ -45,7 +51,7 @@ export const TOOLS: LlmTool[] = [
   {
     name: "gerar_pagamento",
     description:
-      "Gera a cobrança da assinatura de um plano para um cliente JÁ CADASTRADO (verifique a situação do cliente no seu contexto). metodo 'pix' envia o código PIX copia-e-cola direto no WhatsApp; metodo 'link' envia um link seguro do Mercado Pago com todas as formas (cartão em até 12x, PIX e boleto). O sistema envia sozinho o código/link após a sua mensagem — NÃO invente valores nem links.",
+      "Gera a cobrança da assinatura de um plano para um cliente JÁ CADASTRADO (verifique a situação do cliente no seu contexto). metodo 'pix' envia o código PIX copia-e-cola direto na conversa; metodo 'link' envia um link seguro do Mercado Pago com todas as formas (cartão em até 12x, PIX e boleto). O sistema envia sozinho o código/link após a sua mensagem — NÃO invente valores nem links.",
     schema: {
       type: "object",
       properties: {
@@ -150,6 +156,7 @@ export const PROMPT_VARS: Record<string, string> = {
   conhecimento: "Base de conhecimento do CNV (editável no painel)",
   planos: "Planos ativos com preços (vêm do banco da zerokm)",
   situacao: "Situação do cliente no funil (sem cadastro / trial / assinante)",
+  canal: "Canal desta conversa (WhatsApp ou Direct do Instagram) e o que muda nele",
   instrucoes: "Bloco das instruções extras (vazio se não houver)",
 };
 
@@ -158,7 +165,7 @@ Agora são {{agora}} (horário de Brasília).
 {{saudacao}}
 ## Sua missão (funil de vendas — siga nesta ordem)
 1. **Tirar dúvidas**: responda tudo sobre o CNV usando SOMENTE a base de conhecimento abaixo. Desperte interesse: fale dos números (12.000+ veículos, 500+ concessionárias) e do que o lojista ganha na prática;
-2. **Conduzir ao cadastro**: seu objetivo é o cliente sair da conversa CADASTRADO. Assim que perceber interesse, proponha criar a conta agora mesmo — você mesma faz o cadastro pelo WhatsApp em 1 minuto. Colete: nome completo, e-mail e CPF ou CNPJ. Com nome + e-mail em mãos, chame criar_cadastro;
+2. **Conduzir ao cadastro**: seu objetivo é o cliente sair da conversa CADASTRADO. Assim que perceber interesse, proponha criar a conta agora mesmo — você mesma faz o cadastro por aqui em 1 minuto. Colete: nome completo, e-mail e CPF ou CNPJ. Com nome + e-mail em mãos, chame criar_cadastro;
 3. **Fechar a assinatura**: com o cadastro criado, apresente os planos e conduza ao pagamento. Pergunte a forma preferida (PIX na hora ou link com cartão em até 12x/boleto) e chame gerar_pagamento;
 4. **Se houver resistência**: NÃO insista na venda — ofereça o TESTE GRÁTIS DE 24H. O teste é ativado automaticamente no cadastro, então basta convencer a pessoa a criar a conta ("crie a conta sem compromisso e veja o estoque por 24 horas, sem pagar nada"). Depois do teste, retome a conversa de assinatura;
 5. **Cliente já assinante**: agradeça, tire dúvidas e ofereça ajuda com a plataforma.
@@ -172,8 +179,10 @@ Agora são {{agora}} (horário de Brasília).
 ## Situação deste cliente
 {{situacao}}
 
+{{canal}}
+
 ## Regras
-- Tom comercial, simpático e direto; mensagens CURTAS (é WhatsApp — 1 a 3 frases). Emojis com moderação;
+- Tom comercial, simpático e direto; mensagens CURTAS (é chat — 1 a 3 frases). Emojis com moderação;
 - NUNCA invente números, preços, promoções, descontos ou funcionalidades. Preço é só o dos planos listados;
 - Credenciais de acesso, código PIX e link de pagamento são enviados AUTOMATICAMENTE pelo sistema após as ferramentas — nunca escreva senha, código ou link no seu texto;
 - Não peça senha ao cliente: a senha temporária é gerada pelo sistema e trocada no primeiro acesso;
@@ -262,6 +271,31 @@ export function formatFunnelStatus(status: FunnelInfo, contactName?: string | nu
   return lines.join("\n");
 }
 
+/** O que muda para a IA conforme o canal. Vai no prompt mesmo quando o
+ *  prompt editado no painel não tem o marcador {{canal}}. */
+export function channelBlock(channel?: Pick<ResolvedChannel, "kind" | "label">): string {
+  if (channel?.kind === "instagram") {
+    return [
+      "## Canal desta conversa: Direct do Instagram",
+      `- A pessoa escreveu no Direct do Instagram do CNV (${channel.label}). Você NÃO tem o celular dela;`,
+      "- Para criar o cadastro, além de nome e e-mail, peça o CELULAR com DDD (de preferência o WhatsApp) e passe no campo telefone de criar_cadastro;",
+      "- O Direct não formata *negrito*: escreva texto simples.",
+    ].join("\n");
+  }
+  if (channel?.kind === "messenger") {
+    return [
+      "## Canal desta conversa: Messenger (Página do Facebook)",
+      `- A pessoa escreveu no Messenger da Página do CNV (${channel.label}). Você NÃO tem o celular dela;`,
+      "- Para criar o cadastro, além de nome e e-mail, peça o CELULAR com DDD (de preferência o WhatsApp) e passe no campo telefone de criar_cadastro;",
+      "- O Messenger não formata *negrito*: escreva texto simples.",
+    ].join("\n");
+  }
+  return [
+    "## Canal desta conversa: WhatsApp",
+    "- O celular do cliente é o deste WhatsApp: não precisa perguntar.",
+  ].join("\n");
+}
+
 export function buildSystemPrompt(params: {
   settings: Pick<
     IWaSettings,
@@ -269,6 +303,7 @@ export function buildSystemPrompt(params: {
   >;
   plans: IPlan[];
   funnelStatus: string;
+  channel?: Pick<ResolvedChannel, "kind" | "label">;
 }): string {
   const { settings } = params;
   const now = new Intl.DateTimeFormat("pt-BR", {
@@ -291,12 +326,16 @@ export function buildSystemPrompt(params: {
     conhecimento: settings.knowledgeBase?.trim() || DEFAULT_KNOWLEDGE_BASE,
     planos: formatPlans(params.plans),
     situacao: params.funnelStatus,
+    canal: channelBlock(params.channel),
     instrucoes: settings.extraInstructions?.trim()
       ? `\n## Instruções do administrador\n${settings.extraInstructions.trim()}`
       : "",
   };
 
-  const template = settings.systemPrompt?.trim() || DEFAULT_SYSTEM_PROMPT;
+  let template = settings.systemPrompt?.trim() || DEFAULT_SYSTEM_PROMPT;
+  // Prompt personalizado antes dos canais não tem o marcador: sem o bloco a
+  // IA pediria cadastro no Direct sem saber que falta o celular.
+  if (!template.includes("{{canal}}")) template += "\n\n{{canal}}";
   return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? "");
 }
 
@@ -442,6 +481,7 @@ export async function runAiForConversation(conversationId: string) {
 
   const settings = await getSettings();
   if (!settings.aiActive) return;
+  const channel = await channelForConversation(conv);
 
   const history = await WaMessage.find({ conversationId })
     .sort({ createdAt: 1 })
@@ -475,6 +515,7 @@ export async function runAiForConversation(conversationId: string) {
       userId: contact.userId,
       firebaseUid: contact.firebaseUid,
       phone: contact.phone,
+      whatsappPhone: contact.whatsappPhone,
       email: contact.email,
     }),
   ]);
@@ -491,6 +532,7 @@ export async function runAiForConversation(conversationId: string) {
     settings,
     plans,
     funnelStatus: formatFunnelStatus(funnel, contact.name),
+    channel,
   });
 
   const llmMessages: LlmMessage[] = history.map((m) => ({
@@ -498,18 +540,24 @@ export async function runAiForConversation(conversationId: string) {
     content: m.content && m.content.trim().length > 0 ? m.content : `[${m.mediaType}]`,
   }));
 
-  if (last.externalId) await showTyping(last.externalId);
+  if (last.externalId) {
+    await showTyping({ conversationId, to: contact.phone, lastInboundExternalId: last.externalId });
+  }
 
   // Reações saem primeiro — são um extra, nunca a resposta em si.
-  const creds = await getWabaCredentials();
   const { toolCalls: toolBlocks, replyText } = await runAiTurn({
     system: systemPrompt,
     messages: llmMessages,
     onReaction: async (emoji) => {
-      if (!last.externalId || !creds) return;
+      if (!last.externalId) return;
       try {
-        await sendReaction(creds, contact.phone, last.externalId, emoji);
-        await WaMessage.updateOne({ externalId: last.externalId }, { reaction: emoji });
+        const sent = await reactOnChannel({
+          conversationId,
+          to: contact.phone,
+          messageExternalId: last.externalId,
+          emoji,
+        });
+        await WaMessage.updateOne({ externalId: last.externalId }, { reaction: sent });
       } catch {
         // Reação é um extra — nunca derruba o atendimento
       }
@@ -560,8 +608,29 @@ export async function runAiForConversation(conversationId: string) {
         nome?: string;
         email?: string;
         documento?: string;
+        telefone?: string;
         mensagem?: string;
       };
+
+      // No WhatsApp o celular é o da conversa. No Direct não existe: sem um
+      // celular válido o cadastro não sai, e a pergunta é fixa — deixar a IA
+      // improvisar aqui já fez ela prometer conta que não existia.
+      let telefone = contact.phone;
+      if (isProfilePhone(contact.phone)) {
+        const informado = parsePhoneBr(input.telefone ?? contact.whatsappPhone ?? "");
+        if (!informado.valid || !informado.e164) {
+          await sendAndLogText({
+            conversationId,
+            to: contact.phone,
+            text: "Para concluir seu cadastro, me passa seu celular com DDD (de preferência o WhatsApp)? 😊",
+            sender: "system",
+          });
+          return;
+        }
+        telefone = informado.e164;
+        await WaContact.updateOne({ _id: contact._id }, { whatsappPhone: telefone });
+      }
+
       const intro = sanitizeAssistantText(input.mensagem) || replyText;
       if (intro) {
         await sendAndLogText({ conversationId, to: contact.phone, text: intro, sender: "ai" });
@@ -570,7 +639,7 @@ export async function runAiForConversation(conversationId: string) {
         nome: input.nome ?? contact.name ?? "",
         email: input.email ?? "",
         documento: input.documento,
-        telefone: contact.phone,
+        telefone,
         contactId: contact._id.toString(),
       });
       if (result.ok) {
@@ -670,6 +739,7 @@ export async function runAiForConversation(conversationId: string) {
           userId: contact.userId,
           firebaseUid: contact.firebaseUid,
           phone: contact.phone,
+          whatsappPhone: contact.whatsappPhone,
           email: contact.email,
         });
         if (status.registered && status.user) {

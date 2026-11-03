@@ -4,7 +4,7 @@
 // costuma ter na mão só um desses.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requirePanelUser } from "@wa/lib/auth";
+import { requireScope, type Scope } from "@wa/lib/scope";
 import dbConnect from "@/lib/mongodb";
 import { WaCampaignRecipient, WaContact, WaConversation } from "@wa/models/wa";
 import { onlyDigits } from "@wa/lib/documento";
@@ -15,8 +15,9 @@ export const dynamic = "force-dynamic";
 const PAGE = 50;
 
 export async function GET(req: NextRequest) {
+  let scope: Scope;
   try {
-    await requirePanelUser();
+    scope = await requireScope();
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
   const page = Math.max(1, Number(sp.get("page") ?? 1));
 
   await dbConnect();
-  const query: Record<string, unknown> = {};
+  const query: Record<string, unknown> = { tenantId: scope.tenantId };
 
   if (busca) {
     const digits = onlyDigits(busca);

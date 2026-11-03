@@ -16,7 +16,7 @@ import {
   WaMessage,
 } from "@wa/models/wa";
 import { WaTarget } from "@wa/models/base";
-import { getWabaCredentials } from "@wa/lib/settings";
+import { whatsappChannelOf } from "@wa/lib/channels";
 import { sendTemplate } from "@wa/lib/meta";
 import { canonicalPhone } from "@wa/lib/phone";
 import { isWithinSendWindow } from "@wa/lib/send-window";
@@ -35,8 +35,6 @@ export async function GET(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   await dbConnect();
-  const creds = await getWabaCredentials();
-  if (!creds) return NextResponse.json({ error: "WABA não configurado" }, { status: 200 });
 
   const campaigns = await WaCampaign.find({ status: { $in: ["running", "scheduled"] } });
 
@@ -46,6 +44,12 @@ export async function GET(req: NextRequest) {
   let dailyCapped = 0;
 
   for (const campaign of campaigns) {
+    // Cada campanha sai pelo WhatsApp da loja dona (null = CNV).
+    const tenantId = campaign.tenantId ?? null;
+    const channel = await whatsappChannelOf(tenantId);
+    const creds = channel?.whatsapp;
+    if (!creds) continue;
+
     // 1. Agendamento: ainda não chegou a hora.
     if (campaign.scheduledAt && campaign.scheduledAt.getTime() > Date.now()) {
       waitingSchedule++;
@@ -101,9 +105,9 @@ export async function GET(req: NextRequest) {
 
       // Contato (com o vínculo da empresa, que é o que alimenta o dossiê).
       const contact = await WaContact.findOneAndUpdate(
-        { phone },
+        { tenantId, phone },
         {
-          $setOnInsert: { phone, source: campaign.source === "cnpja" ? "cnpja" : "csv" },
+          $setOnInsert: { phone, tenantId, source: campaign.source === "cnpja" ? "cnpja" : "csv" },
           $set: {
             ...(recipient.name ? { name: recipient.name } : {}),
             ...(recipient.targetId ? { targetId: recipient.targetId } : {}),
@@ -144,6 +148,8 @@ export async function GET(req: NextRequest) {
           {
             $setOnInsert: {
               contactId: contact._id,
+              tenantId,
+              ...(channel?.id ? { channelId: channel.id } : {}),
               status: "ai_active",
               stage: "abordado",
               stageChangedAt: new Date(),

@@ -21,21 +21,29 @@ export type InboxCounts = {
 export async function conversationCounts(
   email?: string | null,
   slaMinutes = SLA_MINUTES,
+  /** Loja (null = CNV). Cada painel conta só as conversas dele. */
+  tenantId: string | null = null,
 ): Promise<InboxCounts> {
   await dbConnect();
   const slaCutoff = new Date(Date.now() - slaMinutes * 60_000);
+  // `tenantId: null` também casa com conversa sem o campo (as do CNV de antes
+  // das lojas), no $match igual ao find.
+  const daLoja = { tenantId };
 
   const [byStatus, byStage, mine, sla] = await Promise.all([
     WaConversation.aggregate<{ _id: string; n: number }>([
+      { $match: daLoja },
       { $group: { _id: "$status", n: { $sum: 1 } } },
     ]),
     WaConversation.aggregate<{ _id: string; n: number }>([
+      { $match: daLoja },
       { $group: { _id: "$stage", n: { $sum: 1 } } },
     ]),
     email
-      ? WaConversation.countDocuments({ assignedTo: email, status: { $ne: "closed" } })
+      ? WaConversation.countDocuments({ tenantId, assignedTo: email, status: { $ne: "closed" } })
       : Promise.resolve(0),
     WaConversation.countDocuments({
+      tenantId,
       status: "waiting_human",
       waitingSince: { $lt: slaCutoff },
     }),

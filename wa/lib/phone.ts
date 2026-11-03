@@ -132,6 +132,9 @@ export function isUsablePhone(raw: string | null | undefined): boolean {
 
 /** Exibição amigável: +55 (31) 97563-5430 */
 export function formatPhoneBr(e164: string): string {
+  // Contato do Instagram/Messenger guarda "ig:<id>"/"fb:<id>" no lugar do telefone.
+  if (e164.startsWith("ig:")) return "Instagram";
+  if (e164.startsWith("fb:")) return "Messenger";
   const d = e164.replace(/\D/g, "");
   if (!d.startsWith("55") || (d.length !== 12 && d.length !== 13)) return e164;
   const ddd = d.slice(2, 4);

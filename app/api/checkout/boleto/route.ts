@@ -8,7 +8,7 @@ import Invite from '@/models/Invite';
 import Payment from '@/models/Payment';
 import { createBoletoPayment, getBoletoExpirationDate, validateBoletoProfile } from '@/lib/services/boletoService';
 import { normalizeBillingType } from '@/lib/services/mercadoPagoSubscriptionService';
-import { isPlanoConcessionaria } from '@/lib/utils/planoRepasse';
+import { isPlanoAtendimento, isPlanoConcessionaria } from '@/lib/utils/planoRepasse';
 import { MSG_PLANO_ESPECIAL, podeContratarPlano } from '@/lib/utils/planoEspecial';
 
 export async function POST(req: NextRequest) {
@@ -31,8 +31,8 @@ export async function POST(req: NextRequest) {
     if (!plan || !plan.active || plan.type !== 'monthly') {
         return NextResponse.json({ error: 'Plano não encontrado ou inativo' }, { status: 404 });
     }
-    if (isPlanoConcessionaria(plan)) {
-        return NextResponse.json({ error: 'Este plano é exclusivo para concessionárias.' }, { status: 400 });
+    if (isPlanoConcessionaria(plan) || isPlanoAtendimento(plan)) {
+        return NextResponse.json({ error: 'Este plano não é uma assinatura de lojista.' }, { status: 400 });
     }
 
     const user = await User.findOne({ firebaseUid: session.user.uid });

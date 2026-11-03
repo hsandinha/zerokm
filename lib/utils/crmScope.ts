@@ -1,5 +1,7 @@
 import type { Session } from 'next-auth';
 import User from '@/models/User';
+import { recursosDaConta } from '@/lib/services/recursosConta';
+import { MSG_RECURSO_DESLIGADO } from '@/lib/recursos';
 
 /**
  * Escopo de acesso ao CRM. `concessionariaId: null` é o pipeline global (admin/marketing).
@@ -31,6 +33,10 @@ export async function resolveCrmScope(session: Session | null): Promise<CrmScope
         const user = await User.findOne({ email: session.user.email });
         if (!user?.dealershipId) {
             return { ok: false, error: 'Concessionária não vinculada', status: 400 };
+        }
+        // CRM é funcionalidade liberada pelo CNV, loja a loja (lib/recursos.ts).
+        if (!(await recursosDaConta({ tipo: 'concessionaria', id: String(user.dealershipId) })).crm) {
+            return { ok: false, error: MSG_RECURSO_DESLIGADO, status: 403 };
         }
         return { ok: true, concessionariaId: user.dealershipId };
     }

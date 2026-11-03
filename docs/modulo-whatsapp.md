@@ -57,6 +57,95 @@ automático. A cobrança usa `external_reference` no formato
 `firebaseUid:planId:billingType` e `notification_url` apontando para
 `/api/webhooks/mercadopago` — a ativação da assinatura continua centralizada lá.
 
+## Canais (WhatsApp, Instagram, Messenger e SMS)
+
+A conexão segue o padrão do Chatrun: cada número de WhatsApp e cada conta do
+Instagram é um **canal** (`wa_channels`), com as próprias credenciais
+(cifradas com `APP_ENCRYPTION_KEY`) e um dono — `tenantId: null` é o CNV (a
+Vera). É o mesmo modelo que as lojas vão usar quando assinarem o atendimento.
+
+- **WhatsApp do CNV:** continua no formulário da tela IA & WABA. O que antes
+  ficava em `wa_settings` é copiado para o canal na primeira leitura e os
+  campos antigos são apagados — uma fonte só. Sem nada no banco, valem as
+  `META_*` do deploy;
+- **Instagram:** botão "Conectar Instagram" na mesma tela → login da conta
+  profissional → o canal nasce sozinho e a conta é inscrita no webhook. O
+  token dura 60 dias e é renovado pelo cron diário `/api/wa/workers/instagram-tokens`;
+- Cada conversa guarda o `channelId`. Quem envia (`sendAndLogText`) descobre o
+  canal pela conversa — a IA, a Central e a API não precisam saber qual é.
+  Conversa antiga, sem canal, é do WhatsApp do CNV.
+
+O que muda no Direct:
+
+- Contato do Instagram não tem telefone: a chave `phone` vira `ig:<IGSID>` e
+  `igUserId`/`igUsername` guardam a identidade;
+- A Vera recebe no prompt o bloco `{{canal}}` (entra sozinho mesmo em prompt
+  personalizado sem o marcador): no Direct ela pede também o **celular**, e o
+  `criar_cadastro` recusa com uma pergunta fixa enquanto ele não vier. O
+  celular fica em `whatsappPhone` e vai para o usuário da zerokm;
+- Não existe template no Instagram. A IA responde dentro das 24h; a equipe na
+  Central ainda fala até 7 dias depois (tag `HUMAN_AGENT`), e passado isso só
+  quando a pessoa escrever de novo;
+- Se a equipe responder pelo app do Instagram, o eco chega no webhook: a
+  conversa vai para "Em atendimento" e a IA para;
+- O `*negrito*` das mensagens fixas é tirado no envio — o Direct mostraria cru.
+
+No app da Meta (produto Instagram):
+
+- Redirect do login: `https://www.cnv0km.com.br/api/wa/instagram/callback`;
+- Webhook: `https://www.cnv0km.com.br/api/webhooks/instagram`, campos
+  `messages`, `messaging_postbacks`, `messaging_seen`, `message_reactions`,
+  `message_echoes`;
+- Permissões: `instagram_business_basic` e `instagram_business_manage_messages`.
+
+### Messenger (Página do Facebook)
+
+Portado do Chatrun (088). "Conectar Messenger" (`/api/wa/messenger/connect`)
+→ login do Facebook com `state` assinado → `/api/wa/messenger/callback` troca
+o código por token de longa duração e lista as Páginas. Uma Página só:
+conecta direto. Várias: o login fica 15 minutos em `wa_messenger_choices`
+(índice TTL, token cifrado) e a Configuração abre a escolha
+(`/api/wa/messenger/choice`, só para o mesmo dono). O canal guarda
+`fbPageId`, `fbPageName`, `fbPageToken` (cifrado; token de Página não vence,
+sem worker de renovação) e `fbUserId`.
+
+- Contato do Messenger: `phone` = `fb:<PSID>` e `fbPsid`. Vale tudo do
+  Direct: a Vera pede o celular para o cadastro, 24h para a IA e até 7 dias
+  para a equipe com `HUMAN_AGENT`, eco (resposta pelo Facebook/Business
+  Suite) pausa a IA — o eco com o `app_id` do nosso app é ignorado;
+- No app da Meta (produto Messenger): redirect
+  `https://www.cnv0km.com.br/api/wa/messenger/callback`; webhook
+  `https://www.cnv0km.com.br/api/webhooks/messenger` (objeto `page`) com
+  `MESSENGER_WEBHOOK_VERIFY_TOKEN`, campos `messages`, `messaging_postbacks`,
+  `message_echoes`, `message_deliveries`, `message_reads`,
+  `message_reactions`; permissões `pages_show_list`, `pages_messaging`,
+  `pages_manage_metadata`, `pages_read_engagement`, `business_management`
+  (no "Login do Facebook para Empresas", numa configuração cujo id vai em
+  `MESSENGER_LOGIN_CONFIG_ID`).
+
+### SMS e RCS
+
+Portado do Chatrun (107/115) **sem créditos**: cada loja paga o próprio
+disparo, com a conta dela no provedor. `POST /api/wa/sms` cria/atualiza o
+canal `sms` da loja (um por loja): provedor `zenvia` ou `comtele`, token
+(cifrado), remetente (Zenvia), rota (Comtele) e agente RCS (só Zenvia). A
+conta é conferida no provedor antes de gravar.
+
+- Contato do SMS é o telefone canônico — o mesmo contato do WhatsApp. A
+  conversa segue o canal por onde o cliente escreveu por último: respondeu
+  por SMS, a conversa passa para o canal SMS (e volta ao WhatsApp quando ele
+  escrever lá). Sem SMS no meio, nada muda;
+- SMS não tem janela nem template. A IA **não** responde por SMS: a resposta
+  do cliente vai direto para "Aguardando" (fila da equipe);
+- RCS: com `rcsAgentId` a mensagem vai por `/channels/rcs` da Zenvia, que cai
+  para SMS sozinha quando o aparelho não tem RCS. `WaMessage.via` guarda por
+  onde foi (o status da Zenvia corrige);
+- Webhook por canal: `/api/webhooks/sms/<id do canal>/<segredo>`. Os
+  provedores não assinam o que mandam, então o segredo no caminho (gerado
+  por canal, cifrado) é a autenticação. Na Zenvia a assinatura é criada ao
+  salvar a conta (com o token da loja); na Comtele o gestor cola o endereço
+  (mostrado no cartão) no painel da Comtele, para status e respostas.
+
 ## As telas
 
 | Grupo | Tela | O que faz |
@@ -258,3 +347,60 @@ No app da Meta, o webhook do WhatsApp é:
 - **`scripts/fix-firebase-key.sh` não veio.** Ele rodava `vercel env rm` num
   loop e já zerou as 20 variáveis do projeto uma vez; o próprio cabeçalho dele
   mandava usar `firebase-key-base64.mjs`, que veio.
+
+## Atendimento das lojas (Chatrun dentro da zerokm)
+
+O mesmo motor da Vera atende as **lojas** — concessionárias e lojistas — em
+`/dashboard/atendimento` (botão "Atendimento" no painel de cada uma). Cada
+loja é um `WaStore` (`wa_stores`) e tudo do atendimento carrega `tenantId`:
+`null` é o CNV (a Vera), qualquer outro valor é a loja. As rotas compartilhadas
+(`/api/wa/conversations`, contatos, funil, campanhas, templates, canais, mídia)
+filtram por `tenantId` via `wa/lib/scope.ts`; as que só existem para o CNV
+(enriquecimento, importação, Procob, integrações, usuários) continuam fechadas
+para lojas.
+
+- **Funcionalidades liberadas pelo CNV** (`lib/recursos.ts`, como no Chatrun):
+  em Admin → Funcionalidades, cada concessionária e cada lojista tem a lista do
+  que pode usar — CRM, Meus anúncios, Favoritos, Atendimento, Funil, Campanhas,
+  Estoque do pátio, Instagram, Messenger, SMS/RCS, IA de vendas, simulação de
+  financiamento e vender a rede. Grava só a diferença do padrão em
+  `Concessionaria.recursos` / `User.recursos` do lojista titular. O que já
+  existia segue ligado; **o atendimento e o Messenger nascem desligados** e são
+  liberados conta a conta. Desligado some do menu e a rota recusa (403);
+- **Quem entra:** o usuário da concessionária (gestor da loja dela), o lojista
+  titular (gestor), os sub-usuários convidados pelo lojista (atendentes) e quem
+  o gestor puser na equipe (por e-mail, com login da zerokm). A loja nasce no
+  primeiro acesso depois de o CNV liberar o atendimento, com 7 dias de teste;
+- **Canais:** WhatsApp pelo popup da Meta (Embedded Signup) ou cadastro manual,
+  inclusive coexistência com o app do celular (o eco pausa a IA); Instagram
+  pelo mesmo login do Instagram da Vera;
+- **IA de vendas** (`wa/lib/ai-loja.ts`): chave da própria loja (Gemini,
+  OpenAI ou Claude), prompt editável, e as ferramentas `buscar_estoque`,
+  `simular_financiamento`, `registrar_interesse`, `agendar_visita`,
+  `registrar_captacao`, `transferir_para_vendedor`, `enviar_localizacao`;
+- **Estoque:** sempre o da zerokm (`wa/lib/estoque.ts`). Concessionária vende o
+  0km e o repasse dela. Lojista vende o **estoque do pátio** (cadastrado em
+  "Estoque do pátio", gravado na `RepasseVehicle` com `lojistaId` — fora da
+  vitrine) e, com "vender estoque da rede" ligado e a assinatura da zerokm em
+  dia, o 0km e o repasse da rede com a margem dele aplicada;
+- **CRM:** na concessionária, interesse, visita/test drive, captação e
+  transferência viram lead (e tarefa) no CRM que ela já usa;
+- **Funil:** as mesmas etapas da Vera com nomes de venda de carro
+  (Em atendimento → Visita / test drive → Proposta → Vendido);
+- **Campanhas e templates:** saem do WhatsApp da loja, para a lista dela (CSV);
+- **Assinatura:** planos com público "Atendimento" (Configurações → Planos),
+  PIX no Mercado Pago com referência `ATEND:` e ativação pelo webhook; o CNV
+  ativa à mão em WhatsApp → Lojas (atendimento). Sem assinatura (nem teste) a
+  IA para e as conversas vão direto para a equipe. A IA e os disparos a loja
+  paga direto aos provedores.
+
+**Antes de abrir para as lojas**, rode no banco de produção:
+
+```bash
+node scripts/wa/migrar-atendimento-lojas.cjs           # mostra
+node scripts/wa/migrar-atendimento-lojas.cjs --aplicar # grava
+```
+
+Ele troca o índice único de telefone dos contatos (`phone_1`) por
+`{ tenantId, phone }` — sem isso o mesmo cliente não pode ser contato do CNV e
+de uma loja — e cria os índices novos.
