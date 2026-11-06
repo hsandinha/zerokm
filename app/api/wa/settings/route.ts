@@ -111,7 +111,13 @@ export async function PUT(req: NextRequest) {
   for (const k of unset) delete waba[k];
   await dbConnect();
   const existing = await cnvWhatsappChannel();
-  if (existing || Object.keys(waba).length > 0) {
+  // Número da Vera conectado pelo Chatrun: o formulário não mexe no canal.
+  // Só um token novo troca de volta para a credencial própria.
+  const pelaChatrun = existing?.provider === "chatrun";
+  if (pelaChatrun && waba.token) {
+    unset.push("provider", "chatrunConnectionId", "chatrunAccountId");
+  }
+  if ((existing || Object.keys(waba).length > 0) && (!pelaChatrun || waba.token)) {
     await WaChannel.updateOne(
       { tenantId: null, kind: "whatsapp" },
       {

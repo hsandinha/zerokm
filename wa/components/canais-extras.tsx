@@ -83,7 +83,7 @@ function StatusTag({ status, lastError }: { status: ChannelStatus; lastError: st
 const FB_NOTICE: Record<string, string> = {
   ok: "✅ Messenger conectado. As mensagens da Página já chegam na Central.",
   erro: "❌ Não foi possível conectar o Messenger.",
-  config: "❌ Faltam META_APP_ID / META_APP_SECRET no deploy.",
+  config: "❌ A conexão pelo Chatrun não está configurada no deploy (CHATRUN_API_KEY).",
   forbidden: "❌ Só gestores conectam canais.",
 };
 
@@ -152,7 +152,6 @@ function MessengerCard({
   }
 
   const active = (rows ?? []).filter((c) => c.kind === "messenger" && c.status !== "disconnected");
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
 
   return (
     <section className="card space-y-4">
@@ -230,16 +229,13 @@ function MessengerCard({
       )}
       {!ready && (
         <p className="rounded-xl bg-canvas p-3 text-xs text-muted">
-          Para conectar, o deploy precisa de <code>META_APP_ID</code> e <code>META_APP_SECRET</code>{" "}
-          (e, com o Login do Facebook para Empresas, <code>MESSENGER_LOGIN_CONFIG_ID</code>).
+          Para conectar, o deploy precisa da chave do Chatrun Conexão (<code>CHATRUN_API_KEY</code>).
         </p>
       )}
       <p className="rounded-xl bg-canvas p-3 text-xs text-muted">
-        No app da Meta (produto Messenger), cadastre o redirect{" "}
-        <code className="text-brand-800">{origin}/api/wa/messenger/callback</code> e o webhook{" "}
-        <code className="text-brand-800">{origin}/api/webhooks/messenger</code> com{" "}
-        <code>MESSENGER_WEBHOOK_VERIFY_TOKEN</code> (ou o verify token do WhatsApp). Fora das 24h
-        só a equipe responde, até 7 dias.
+        A conexão é feita pelo Chatrun: o botão abre a página dele com o login do Facebook e a escolha
+        da Página, sem nenhuma configuração no app da Meta. Fora das 24h só a equipe responde, até 7
+        dias.
       </p>
     </section>
   );

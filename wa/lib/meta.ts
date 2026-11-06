@@ -28,7 +28,7 @@ export class MetaApiError extends Error {
 }
 
 /** Erro do gateway no formato que o resto do módulo já entende. */
-async function viaGateway<T>(fn: () => Promise<T>): Promise<T> {
+export async function viaChatrun<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (err) {
@@ -70,7 +70,7 @@ async function graphFetch(
 export async function fetchPhoneInfo(creds: MetaCredentials) {
   const cid = creds.chatrunConnectionId;
   if (cid) {
-    const c = await viaGateway(() => chatrun.getConnection(cid));
+    const c = await viaChatrun(() => chatrun.getConnection(cid));
     return {
       display_phone_number: c.display_phone ?? undefined,
       verified_name: c.verified_name ?? undefined,
@@ -121,7 +121,7 @@ export async function sendText(
 ): Promise<SendResult> {
   const cid = creds.chatrunConnectionId;
   if (cid) {
-    const wamid = await viaGateway(() =>
+    const wamid = await viaChatrun(() =>
       chatrun.sendMessage({ connectionId: cid, to, type: "text", text, replyTo: replyToExternalId }),
     );
     return { external_id: wamid };
@@ -174,7 +174,7 @@ export async function sendMedia(
 
   const cid = creds.chatrunConnectionId;
   if (cid) {
-    const wamid = await viaGateway(() =>
+    const wamid = await viaChatrun(() =>
       chatrun.sendMessage({
         connectionId: cid,
         to,
@@ -213,7 +213,7 @@ export async function sendReaction(
 ): Promise<SendResult> {
   const cid = creds.chatrunConnectionId;
   if (cid) {
-    const wamid = await viaGateway(() =>
+    const wamid = await viaChatrun(() =>
       chatrun.sendMessage({ connectionId: cid, to, type: "reaction", reaction: { wamid: messageId, emoji } }),
     );
     return { external_id: wamid };
@@ -243,7 +243,7 @@ export async function downloadMedia(
   mediaId: string,
 ): Promise<{ bytes: ArrayBuffer; contentType: string }> {
   const cid = creds.chatrunConnectionId;
-  if (cid) return viaGateway(() => chatrun.downloadMedia(cid, mediaId));
+  if (cid) return viaChatrun(() => chatrun.downloadMedia(cid, mediaId));
   const mediaUrl = await getMediaUrl(creds, mediaId);
   if (!mediaUrl) throw new MetaApiError(404, "mídia não encontrada na Meta");
 
@@ -268,7 +268,7 @@ export async function sendTemplate(
 ): Promise<SendResult> {
   const cid = creds.chatrunConnectionId;
   if (cid) {
-    const wamid = await viaGateway(() =>
+    const wamid = await viaChatrun(() =>
       chatrun.sendMessage({
         connectionId: cid,
         to,
@@ -389,7 +389,7 @@ function fromGatewayTemplate(t: chatrun.ChatrunTemplate): MetaTemplate {
 export async function listTemplates(creds: MetaCredentials) {
   const cid = creds.chatrunConnectionId;
   if (cid) {
-    const templates = await viaGateway(() => chatrun.listTemplates(cid));
+    const templates = await viaChatrun(() => chatrun.listTemplates(cid));
     return templates.map(fromGatewayTemplate);
   }
   if (!creds.wabaId) return [];
@@ -567,7 +567,7 @@ export async function createTemplate(
 ): Promise<{ id: string; status: string; category: string }> {
   const cid = creds.chatrunConnectionId;
   if (cid) {
-    const r = await viaGateway(() => chatrun.createTemplate(cid, toGatewayDraft(draft)));
+    const r = await viaChatrun(() => chatrun.createTemplate(cid, toGatewayDraft(draft)));
     return {
       id: String(r.id ?? ""),
       status: String(r.status ?? "PENDING"),
@@ -596,7 +596,7 @@ export async function createTemplate(
 export async function deleteTemplate(creds: MetaCredentials, name: string): Promise<void> {
   const cid = creds.chatrunConnectionId;
   if (cid) {
-    await viaGateway(() => chatrun.deleteTemplate(cid, name));
+    await viaChatrun(() => chatrun.deleteTemplate(cid, name));
     return;
   }
   if (!creds.wabaId) throw new MetaApiError(400, "WABA ID não configurado");

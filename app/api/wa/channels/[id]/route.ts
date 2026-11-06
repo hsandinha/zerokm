@@ -36,17 +36,18 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
   await dbConnect();
   const channel = await WaChannel.findOne({ _id: id, tenantId: scope.tenantId }).catch(() => null);
   if (!channel) return NextResponse.json({ error: "Canal não encontrado" }, { status: 404 });
-  if (channel.kind === "whatsapp" && !scope.tenantId) {
+  const viaChatrun = channel.provider === "chatrun" && Boolean(channel.chatrunConnectionId);
+  if (channel.kind === "whatsapp" && !scope.tenantId && !viaChatrun) {
     return NextResponse.json({ error: "O WhatsApp do CNV é editado no formulário" }, { status: 400 });
   }
 
   // Best-effort: o token pode já estar inválido, e desconectar não pode travar.
   // Número do Chatrun: desvincula só a zerokm no gateway (o número continua
   // lá para as outras plataformas e para reconectar pelo convite).
-  if (channel.provider === "chatrun" && channel.chatrunConnectionId) {
-    await unlinkConnection(channel.chatrunConnectionId).catch(() => {});
+  if (viaChatrun) {
+    await unlinkConnection(channel.chatrunConnectionId!).catch(() => {});
   }
-  if (channel.kind === "messenger") {
+  if (channel.kind === "messenger" && !viaChatrun) {
     await unsubscribeChannelPage(channel).catch(() => {});
   }
   if (channel.kind === "sms" && channel.smsProvider === "zenvia") {

@@ -1,14 +1,16 @@
-// "Conectar WhatsApp" da loja — pelo Chatrun Conexão (gateway).
-//   GET  → se o Chatrun está configurado; de quebra sincroniza os números da
-//          loja com o gateway (situação, nome, telefone).
+// "Conectar WhatsApp" — pelo Chatrun Conexão (gateway), para a loja e para
+// o CNV (a Vera, tenantId null, external_ref "cnv").
+//   GET  → se o Chatrun está configurado; de quebra sincroniza os números do
+//          dono com o gateway (situação, nome, telefone).
 //   POST { acao: "convite" }  → link do convite (popup da Meta na página do
-//          gateway, no app da Chatrun). A loja volta para a Configuração com
+//          gateway, no app da Chatrun). Volta para a Configuração com
 //          ?whatsapp=retorno&status=ok&connection_id=...
-//   POST { acao: "retorno", accountId? } → lê no gateway os números vinculados
-//          a esta loja e cria/atualiza os canais. Os eventos
-//          connection.* fazem o mesmo, este é só o caminho rápido.
-//   POST { manual: { phoneNumberId, wabaId, token } } → quem já tem o token
-//          permanente de um app próprio (fora do gateway).
+//   POST { acao: "retorno", accountId? } → lê no gateway os números do dono
+//          e cria/atualiza os canais. Os eventos connection.* fazem o mesmo,
+//          este é só o caminho rápido.
+//   POST { manual: { phoneNumberId, wabaId, token } } → loja que já tem o
+//          token permanente de um app próprio (fora do gateway). O manual do
+//          CNV é o formulário da tela IA & WABA.
 //
 // Pelo gateway a zerokm não guarda token da Meta nem inscreve webhook: o
 // canal fica com o connection_id e tudo passa pela API do Chatrun.
@@ -16,67 +18,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { WaChannel } from "@wa/models/channel";
-import { WaStore } from "@wa/models/store";
 import { requireScopeAdmin, type Scope } from "@wa/lib/scope";
 import { encrypt } from "@wa/lib/crypto";
 import { fetchPhoneInfo, MetaApiError } from "@wa/lib/meta";
-import {
-  ChatrunError,
-  chatrunConfigured,
-  connectionsOf,
-  resolveAccount,
-  whatsappInvite,
-} from "@wa/lib/chatrun";
-import { upsertChatrunChannel } from "@wa/lib/chatrun-channels";
+import { ChatrunError, chatrunConfigured } from "@wa/lib/chatrun";
+import { inviteFor, saveAccount, syncChannels } from "@wa/lib/chatrun-account";
 import { configPathOf } from "@wa/lib/channels";
 import { siteUrl } from "@wa/lib/site-url";
 import { subscribeAppToWaba } from "@wa/lib/embedded-signup";
 
 export const maxDuration = 60;
 
-async function lojaGestora(): Promise<Scope | NextResponse> {
+async function gestor(): Promise<Scope | NextResponse> {
   try {
-    const scope = await requireScopeAdmin();
-    if (!scope.tenantId) {
-      return NextResponse.json(
-        { error: "O WhatsApp do CNV é configurado na tela IA & WABA" },
-        { status: 400 },
-      );
-    }
-    return scope;
+    return await requireScopeAdmin();
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
-}
-
-/** Números da loja no gateway → canais. Devolve o primeiro problema, se houver. */
-async function sincronizar(tenantId: string): Promise<{ conectados: number; aviso: string | null }> {
-  const conexoes = await connectionsOf(tenantId);
-  let conectados = 0;
-  let aviso: string | null = null;
-  for (const c of conexoes) {
-    const r = await upsertChatrunChannel(c, tenantId);
-    if (!r.ok) aviso ??= r.reason;
-    else if (r.status === "connected") conectados += 1;
-  }
-  return { conectados, aviso };
-}
-
-/** Conta da loja no gateway: a guardada, ou achada pelo e-mail de quem conecta. */
-async function contaDaLoja(scope: Scope): Promise<string> {
-  await dbConnect();
-  const store = await WaStore.findById(scope.tenantId);
-  if (!store) throw new ChatrunError(404, "Loja não encontrada.");
-  if (store.chatrunAccountId) {
-    try {
-      return (await resolveAccount({ accountId: store.chatrunAccountId })).id;
-    } catch (err) {
-      if (!(err instanceof ChatrunError) || err.status !== 404) throw err;
-    }
-  }
-  const conta = await resolveAccount({ email: scope.email, name: store.name });
-  await WaStore.updateOne({ _id: store._id }, { chatrunAccountId: conta.id });
-  return conta.id;
 }
 
 function falhaDoChatrun(err: unknown) {
@@ -87,12 +45,12 @@ function falhaDoChatrun(err: unknown) {
 }
 
 export async function GET() {
-  const scope = await lojaGestora();
+  const scope = await gestor();
   if (scope instanceof NextResponse) return scope;
   if (!chatrunConfigured()) return NextResponse.json({ chatrun: false });
   try {
-    const { aviso } = await sincronizar(scope.tenantId!);
-    return NextResponse.json({ chatrun: true, aviso });
+    const { warning } = await syncChannels(scope.tenantId, "whatsapp");
+    return NextResponse.json({ chatrun: true, aviso: warning });
   } catch (err) {
     // A tela abre do mesmo jeito; só não confirmou com o gateway agora.
     const msg = err instanceof Error ? err.message : "Falha ao consultar o Chatrun";
@@ -101,9 +59,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const scope = await lojaGestora();
+  const scope = await gestor();
   if (scope instanceof NextResponse) return scope;
-  const tenantId = scope.tenantId!;
+  const tenantId = scope.tenantId;
 
   const body = (await req.json().catch(() => ({}))) as {
     acao?: "convite" | "retorno";
@@ -117,21 +75,18 @@ export async function POST(req: NextRequest) {
     }
     try {
       if (body.acao === "convite") {
-        const accountId = await contaDaLoja(scope);
-        const url = await whatsappInvite({
-          accountId,
-          externalRef: tenantId,
+        const url = await inviteFor({
+          tenantId,
+          email: scope.email,
+          channel: "whatsapp",
           returnUrl: `${siteUrl(req)}${configPathOf(tenantId)}?whatsapp=retorno`,
         });
         return NextResponse.json({ url });
       }
       // A conta da volta pode ser outra (o número já era de outra conta no gateway).
-      if (body.accountId) {
-        await dbConnect();
-        await WaStore.updateOne({ _id: tenantId }, { chatrunAccountId: String(body.accountId) });
-      }
-      const { conectados, aviso } = await sincronizar(tenantId);
-      return NextResponse.json({ ok: true, conectados, aviso });
+      if (body.accountId) await saveAccount(tenantId, String(body.accountId));
+      const { connected, warning } = await syncChannels(tenantId, "whatsapp");
+      return NextResponse.json({ ok: true, conectados: connected, aviso: warning });
     } catch (err) {
       return falhaDoChatrun(err);
     }
@@ -139,6 +94,9 @@ export async function POST(req: NextRequest) {
 
   if (!body.manual) {
     return NextResponse.json({ error: "Pedido inválido" }, { status: 400 });
+  }
+  if (!tenantId) {
+    return NextResponse.json({ error: "O WhatsApp do CNV é configurado na tela IA & WABA" }, { status: 400 });
   }
 
   // Cadastro manual: app próprio na Meta, fora do gateway. O token fica

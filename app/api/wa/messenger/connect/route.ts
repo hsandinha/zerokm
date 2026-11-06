@@ -1,11 +1,13 @@
-// "Conectar Messenger": manda o gestor para o login do Facebook. O `state`
-// assinado diz de quem será o canal — o CNV (Vera) ou a loja —, igual ao
-// "Conectar Instagram".
+// "Conectar Messenger": convite do Chatrun Conexão. A página do gateway faz o
+// login oficial da Meta no app da Chatrun e volta para /api/wa/messenger/callback.
+// A zerokm não guarda token nem recebe webhook da Meta: o canal fica com a
+// conexão do gateway.
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireScopeAdmin } from "@wa/lib/scope";
-import { configPathOf, signConnectState } from "@wa/lib/channels";
-import { fbAuthorizeUrl } from "@wa/lib/messenger";
+import { configPathOf } from "@wa/lib/channels";
+import { chatrunConfigured } from "@wa/lib/chatrun";
+import { inviteFor } from "@wa/lib/chatrun-account";
 import { siteUrl } from "@wa/lib/site-url";
 
 export async function GET(req: NextRequest) {
@@ -17,12 +19,21 @@ export async function GET(req: NextRequest) {
   } catch {
     return NextResponse.redirect(`${base}/dashboard?messenger=forbidden`);
   }
+  if (!chatrunConfigured()) {
+    return NextResponse.redirect(`${base}${configPathOf(tenantId)}?messenger=config`);
+  }
 
   try {
-    const state = signConnectState({ tenantId, by: email });
-    return NextResponse.redirect(fbAuthorizeUrl(state, `${base}/api/wa/messenger/callback`));
+    const url = await inviteFor({
+      tenantId,
+      email,
+      channel: "messenger",
+      returnUrl: `${base}/api/wa/messenger/callback`,
+    });
+    return NextResponse.redirect(url);
   } catch (err) {
-    console.error("[messenger] conexão indisponível:", err);
-    return NextResponse.redirect(`${base}${configPathOf(tenantId)}?messenger=config`);
+    console.error("[messenger] convite do Chatrun falhou:", err);
+    const qs = new URLSearchParams({ messenger: "erro", why: err instanceof Error ? err.message : "falha no Chatrun" });
+    return NextResponse.redirect(`${base}${configPathOf(tenantId)}?${qs.toString()}`);
   }
 }

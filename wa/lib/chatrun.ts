@@ -1,9 +1,9 @@
 // Cliente do Chatrun Conexão (gateway) — conexao.chatrun.com.br.
 //
 // A regra do gateway vale aqui: a zerokm não guarda token da Meta nem recebe
-// o webhook do WhatsApp das lojas. A loja conecta o número pelo convite do
-// gateway (Cadastro Incorporado da Meta, no app da Chatrun); o envio, os
-// modelos e a mídia passam pela API dele; o que chega volta assinado em
+// webhook da Meta. WhatsApp, Instagram e Messenger (do CNV e das lojas) são
+// conectados pelo convite do gateway, no app da Chatrun; o envio, os modelos
+// e a mídia passam pela API dele; o que chega volta assinado em
 // /api/chatrun/eventos.
 //
 // Variáveis (a chave e o segredo saem prontos do /admin do gateway, ao
@@ -66,10 +66,12 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 
 // ── Contas, convites e conexões ─────────────────────────────
 
+export type ChatrunChannel = "whatsapp" | "instagram" | "messenger";
+
 export type ChatrunConnection = {
   id: string;
   account_id: string;
-  channel?: "whatsapp" | "instagram" | "messenger";
+  channel?: ChatrunChannel;
   status: "pending" | "connected" | "error" | "disconnected";
   status_detail?: string | null;
   waba_id?: string | null;
@@ -77,6 +79,12 @@ export type ChatrunConnection = {
   display_phone?: string | null;
   verified_name?: string | null;
   quality_rating?: string | null;
+  /** Instagram: a conta profissional. */
+  ig_user_id?: string | null;
+  ig_username?: string | null;
+  /** Messenger: a Página do Facebook. */
+  fb_page_id?: string | null;
+  fb_page_name?: string | null;
   external_ref?: string | null;
 };
 
@@ -96,17 +104,22 @@ export async function resolveAccount(input: {
   return r.account;
 }
 
-/** Link do convite do WhatsApp (popup da Meta na página do gateway). */
-export async function whatsappInvite(input: {
+/**
+ * Link do convite: a página do gateway com o login oficial do canal (popup do
+ * WhatsApp, login do Instagram ou do Facebook). Volta para `returnUrl` com
+ * `status`, `connection_id`, `account_id` e `channel`.
+ */
+export async function invite(input: {
   accountId: string;
   externalRef: string;
   returnUrl: string;
+  channel?: ChatrunChannel;
 }): Promise<string> {
   const r = await call<{ url: string }>("/api/v1/invites", {
     method: "POST",
     body: JSON.stringify({
       account_id: input.accountId,
-      channel: "whatsapp",
+      channel: input.channel ?? "whatsapp",
       external_ref: input.externalRef,
       return_url: input.returnUrl,
       ttl_hours: 24,
@@ -115,10 +128,22 @@ export async function whatsappInvite(input: {
   return r.url;
 }
 
-/** Conexões de WhatsApp vinculadas à zerokm com este external_ref (a loja). */
-export async function connectionsOf(externalRef: string): Promise<ChatrunConnection[]> {
+/** Convite do WhatsApp (Cadastro Incorporado da Meta). */
+export async function whatsappInvite(input: {
+  accountId: string;
+  externalRef: string;
+  returnUrl: string;
+}): Promise<string> {
+  return invite({ ...input, channel: "whatsapp" });
+}
+
+/** Conexões vinculadas à zerokm com este external_ref (a loja, ou "cnv"). */
+export async function connectionsOf(
+  externalRef: string,
+  channel: ChatrunChannel = "whatsapp",
+): Promise<ChatrunConnection[]> {
   const r = await call<{ connections: ChatrunConnection[] }>(
-    `/api/v1/connections?channel=whatsapp&external_ref=${encodeURIComponent(externalRef)}`,
+    `/api/v1/connections?channel=${channel}&external_ref=${encodeURIComponent(externalRef)}`,
   );
   return r.connections ?? [];
 }
@@ -146,15 +171,22 @@ export type ChatrunSend = {
   media?: { link: string; caption?: string | null; filename?: string | null };
   template?: { name: string; language: string; body_params?: string[] };
   reaction?: { wamid: string; emoji: string };
+  /** Messenger: resposta de gente entre 24 h e 7 dias (tag HUMAN_AGENT). */
+  humanAgent?: boolean;
 };
 
-/** Envia pelo gateway e devolve o wamid (o gateway fala com a Meta na hora). */
+/**
+ * Envia pelo gateway e devolve o wamid (o gateway fala com a Meta na hora).
+ * `to`: telefone no WhatsApp; "ig:<id>" no Instagram; "fb:<PSID>" no Messenger.
+ */
 export async function sendMessage(input: ChatrunSend): Promise<string> {
+  const perfil = /^(ig|fb):/.test(input.to);
   const r = await call<{ message: { wamid: string } }>("/api/v1/messages", {
     method: "POST",
     body: JSON.stringify({
       connection_id: input.connectionId,
-      to: input.to.replace(/\D/g, ""),
+      to: perfil ? input.to : input.to.replace(/\D/g, ""),
+      ...(input.humanAgent ? { human_agent: true } : {}),
       type: input.type,
       ...(input.text != null ? { text: input.text } : {}),
       ...(input.replyTo ? { reply_to: input.replyTo } : {}),

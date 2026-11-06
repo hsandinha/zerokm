@@ -59,69 +59,50 @@ automático. A cobrança usa `external_reference` no formato
 
 ## Canais (WhatsApp, Instagram, Messenger e SMS)
 
-A conexão segue o padrão do Chatrun: cada número de WhatsApp e cada conta do
-Instagram é um **canal** (`wa_channels`), com as próprias credenciais
-(cifradas com `APP_ENCRYPTION_KEY`) e um dono — `tenantId: null` é o CNV (a
-Vera). É o mesmo modelo que as lojas vão usar quando assinarem o atendimento.
+Cada número de WhatsApp, cada conta do Instagram e cada Página do Facebook é
+um **canal** (`wa_channels`) com um dono: `tenantId: null` é o CNV (a Vera),
+qualquer outro valor é a loja.
 
-- **WhatsApp do CNV:** continua no formulário da tela IA & WABA. O que antes
-  ficava em `wa_settings` é copiado para o canal na primeira leitura e os
-  campos antigos são apagados — uma fonte só. Sem nada no banco, valem as
-  `META_*` do deploy;
-- **Instagram:** botão "Conectar Instagram" na mesma tela → login da conta
-  profissional → o canal nasce sozinho e a conta é inscrita no webhook. O
-  token dura 60 dias e é renovado pelo cron diário `/api/wa/workers/instagram-tokens`;
+**Tudo é conectado pelo Chatrun Conexão** (conexao.chatrun.com.br), para o CNV
+e para as lojas: a zerokm não guarda token da Meta, não tem login próprio da
+Meta e não recebe webhook dela. O canal fica com `provider: "chatrun"` e o
+`chatrunConnectionId`; nenhuma variável da Meta é necessária. Ver
+"Chatrun Conexão" mais abaixo.
+
+- **WhatsApp:** "Conectar WhatsApp" (Configuração da loja e tela IA & WABA do
+  CNV). O formulário do WABA na tela IA & WABA continua como credencial
+  própria da Vera (opcional, webhook `/api/webhooks/meta`); se a Vera for
+  conectada pelo Chatrun, o mesmo canal é convertido (o CNV tem um WhatsApp só);
+- **Instagram:** "Conectar Instagram" → página do Chatrun com o login oficial
+  do Instagram → `/api/wa/instagram/callback` lê a conexão no gateway e o
+  canal nasce sozinho (sem token para renovar);
+- **Messenger:** "Conectar Messenger" → página do Chatrun com o login do
+  Facebook e a escolha da Página → `/api/wa/messenger/callback`;
 - Cada conversa guarda o `channelId`. Quem envia (`sendAndLogText`) descobre o
   canal pela conversa — a IA, a Central e a API não precisam saber qual é.
   Conversa antiga, sem canal, é do WhatsApp do CNV.
 
-O que muda no Direct:
+O que muda no Direct e no Messenger:
 
-- Contato do Instagram não tem telefone: a chave `phone` vira `ig:<IGSID>` e
-  `igUserId`/`igUsername` guardam a identidade;
+- Contato sem telefone: a chave `phone` vira `ig:<IGSID>` / `fb:<PSID>`;
 - A Vera recebe no prompt o bloco `{{canal}}` (entra sozinho mesmo em prompt
   personalizado sem o marcador): no Direct ela pede também o **celular**, e o
   `criar_cadastro` recusa com uma pergunta fixa enquanto ele não vier. O
   celular fica em `whatsappPhone` e vai para o usuário da zerokm;
-- Não existe template no Instagram. A IA responde dentro das 24h; a equipe na
-  Central ainda fala até 7 dias depois (tag `HUMAN_AGENT`), e passado isso só
-  quando a pessoa escrever de novo;
-- Se a equipe responder pelo app do Instagram, o eco chega no webhook: a
-  conversa vai para "Em atendimento" e a IA para;
+- Não existe template. Instagram: só dentro das 24h desde a última mensagem
+  da pessoa. Messenger: a IA dentro das 24h; a equipe na Central até 7 dias
+  (`human_agent`, tag `HUMAN_AGENT`);
+- Se a equipe responder pelo app (Instagram, Facebook ou Business Suite), o
+  eco chega como `message.echo`: a conversa vai para "Em atendimento" e a IA
+  para;
+- Reação pela Central não existe no Direct nem no Messenger pelo Chatrun;
 - O `*negrito*` das mensagens fixas é tirado no envio — o Direct mostraria cru.
 
-No app da Meta (produto Instagram):
-
-- Redirect do login: `https://www.cnv0km.com.br/api/wa/instagram/callback`;
-- Webhook: `https://www.cnv0km.com.br/api/webhooks/instagram`, campos
-  `messages`, `messaging_postbacks`, `messaging_seen`, `message_reactions`,
-  `message_echoes`;
-- Permissões: `instagram_business_basic` e `instagram_business_manage_messages`.
-
-### Messenger (Página do Facebook)
-
-Portado do Chatrun (088). "Conectar Messenger" (`/api/wa/messenger/connect`)
-→ login do Facebook com `state` assinado → `/api/wa/messenger/callback` troca
-o código por token de longa duração e lista as Páginas. Uma Página só:
-conecta direto. Várias: o login fica 15 minutos em `wa_messenger_choices`
-(índice TTL, token cifrado) e a Configuração abre a escolha
-(`/api/wa/messenger/choice`, só para o mesmo dono). O canal guarda
-`fbPageId`, `fbPageName`, `fbPageToken` (cifrado; token de Página não vence,
-sem worker de renovação) e `fbUserId`.
-
-- Contato do Messenger: `phone` = `fb:<PSID>` e `fbPsid`. Vale tudo do
-  Direct: a Vera pede o celular para o cadastro, 24h para a IA e até 7 dias
-  para a equipe com `HUMAN_AGENT`, eco (resposta pelo Facebook/Business
-  Suite) pausa a IA — o eco com o `app_id` do nosso app é ignorado;
-- No app da Meta (produto Messenger): redirect
-  `https://www.cnv0km.com.br/api/wa/messenger/callback`; webhook
-  `https://www.cnv0km.com.br/api/webhooks/messenger` (objeto `page`) com
-  `MESSENGER_WEBHOOK_VERIFY_TOKEN`, campos `messages`, `messaging_postbacks`,
-  `message_echoes`, `message_deliveries`, `message_reads`,
-  `message_reactions`; permissões `pages_show_list`, `pages_messaging`,
-  `pages_manage_metadata`, `pages_read_engagement`, `business_management`
-  (no "Login do Facebook para Empresas", numa configuração cujo id vai em
-  `MESSENGER_LOGIN_CONFIG_ID`).
+Os webhooks antigos (`/api/webhooks/instagram`, `/api/webhooks/messenger`), a
+escolha de Página (`/api/wa/messenger/choice`), o worker
+`/api/wa/workers/instagram-tokens` e o Embedded Signup próprio
+(`wa/lib/embedded-signup.ts`) ficaram sem uso: canal novo não passa mais
+por eles.
 
 ### SMS e RCS
 
@@ -394,10 +375,15 @@ para lojas.
   IA para e as conversas vão direto para a equipe. A IA e os disparos a loja
   paga direto aos provedores.
 
-### WhatsApp da loja pelo Chatrun Conexão
+### Chatrun Conexão (WhatsApp, Instagram e Messenger)
 
-A zerokm não guarda token da Meta nem recebe o webhook do WhatsApp das lojas:
-quem faz isso é o gateway (conexao.chatrun.com.br), como na Ângulo.
+A zerokm não guarda token da Meta nem recebe webhook dela: quem faz isso é o
+gateway (conexao.chatrun.com.br), como na Ângulo. O `external_ref` da conexão
+é o id da loja, ou `cnv` para os canais da Vera; a conta no gateway fica em
+`WaStore.chatrunAccountId` (loja) ou `WaSettings.chatrunAccountId` (CNV).
+Instagram e Messenger seguem o mesmo caminho do WhatsApp descrito abaixo, com
+o convite do canal deles e a volta em `/api/wa/<canal>/callback`; o Direct e
+o Messenger chegam já normalizados pelo gateway (`wa/lib/chatrun-perfil.ts`).
 
 - **Conectar:** "Conectar WhatsApp" na Configuração pede o convite ao gateway
   (`POST /api/wa/whatsapp/connect { acao: "convite" }` → `POST /api/v1/invites`
@@ -421,8 +407,8 @@ quem faz isso é o gateway (conexao.chatrun.com.br), como na Ângulo.
   com a callback_url `https://www.cnv0km.com.br/api/chatrun/eventos`; a chave
   e o segredo vão para `CHATRUN_API_KEY` e `CHATRUN_CALLBACK_SECRET` na Vercel.
 
-O WhatsApp do CNV (a Vera) continua no formulário IA & WABA, com credencial
-própria e o webhook `/api/webhooks/meta`.
+O WhatsApp do CNV (a Vera) também pode ser conectado pelo Chatrun (tela IA &
+WABA); o formulário do WABA continua como credencial própria opcional.
 
 **Antes de abrir para as lojas**, rode no banco de produção:
 

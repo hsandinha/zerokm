@@ -1,5 +1,6 @@
 // Resolução de canais (WhatsApp / Instagram / Messenger / SMS) — o mesmo
-// padrão de conexão do Chatrun, para o CNV e para as lojas. Quem envia ou recebe pergunta aqui
+// padrão de conexão do Chatrun, para o CNV e para as lojas. Canal com
+// provider "chatrun" não tem token: a credencial é a conexão do gateway. Quem envia ou recebe pergunta aqui
 // "qual canal e com que credencial", e não lê mais configuração solta.
 //
 // O WhatsApp do CNV morava em wa_settings. Na primeira leitura ele é copiado
@@ -148,8 +149,22 @@ function smsCredsOf(doc: IWaChannel): SmsCreds | null {
 
 export function resolveChannel(doc: IWaChannel): ResolvedChannel {
   const cnv = doc.tenantId == null;
+  // Pelo Chatrun não há token: a conexão do gateway é a credencial.
+  const viaChatrun = doc.provider === "chatrun" && doc.chatrunConnectionId ? doc.chatrunConnectionId : null;
   const igToken = safeDecrypt(doc.igToken);
   const fbToken = safeDecrypt(doc.fbPageToken);
+  if (viaChatrun && doc.kind !== "whatsapp") {
+    return {
+      id: String(doc._id),
+      kind: doc.kind,
+      tenantId: doc.tenantId ?? null,
+      label: channelLabelOf(doc),
+      whatsapp: null,
+      ig: doc.kind === "instagram" ? { userId: doc.igUserId ?? "", token: "", chatrunConnectionId: viaChatrun } : null,
+      fb: doc.kind === "messenger" ? { pageId: doc.fbPageId ?? "", token: "", chatrunConnectionId: viaChatrun } : null,
+      sms: null,
+    };
+  }
   return {
     id: String(doc._id),
     kind: doc.kind,
@@ -232,13 +247,13 @@ export async function channelForWhatsappNumber(
   return resolveCnvWhatsapp();
 }
 
-/** Canal de WhatsApp conectado pelo Chatrun (pela conexão do gateway). */
+/** Canal conectado pelo Chatrun (pela conexão do gateway), de qualquer tipo. */
 export async function channelByChatrunConnection(
   connectionId: string | null | undefined,
 ): Promise<ResolvedChannel | null> {
   if (!connectionId) return null;
   await dbConnect();
-  const doc = await WaChannel.findOne({ kind: "whatsapp", chatrunConnectionId: connectionId });
+  const doc = await WaChannel.findOne({ chatrunConnectionId: connectionId });
   if (!doc || doc.status === "disconnected") return null;
   return resolve(doc);
 }

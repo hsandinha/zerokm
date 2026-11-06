@@ -1,10 +1,13 @@
-// "Conectar Instagram": manda o gestor para a autorização do Instagram Login.
-// O `state` assinado diz de quem será o canal — o CNV (Vera) ou a loja.
+// "Conectar Instagram": convite do Chatrun Conexão. A página do gateway faz o
+// login oficial da Meta no app da Chatrun e volta para /api/wa/instagram/callback.
+// A zerokm não guarda token nem recebe webhook da Meta: o canal fica com a
+// conexão do gateway.
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireScopeAdmin } from "@wa/lib/scope";
-import { configPathOf, signConnectState } from "@wa/lib/channels";
-import { igAuthorizeUrl } from "@wa/lib/instagram";
+import { configPathOf } from "@wa/lib/channels";
+import { chatrunConfigured } from "@wa/lib/chatrun";
+import { inviteFor } from "@wa/lib/chatrun-account";
 import { siteUrl } from "@wa/lib/site-url";
 
 export async function GET(req: NextRequest) {
@@ -16,12 +19,21 @@ export async function GET(req: NextRequest) {
   } catch {
     return NextResponse.redirect(`${base}/dashboard?instagram=forbidden`);
   }
+  if (!chatrunConfigured()) {
+    return NextResponse.redirect(`${base}${configPathOf(tenantId)}?instagram=config`);
+  }
 
   try {
-    const state = signConnectState({ tenantId, by: email });
-    return NextResponse.redirect(igAuthorizeUrl(state, `${base}/api/wa/instagram/callback`));
+    const url = await inviteFor({
+      tenantId,
+      email,
+      channel: "instagram",
+      returnUrl: `${base}/api/wa/instagram/callback`,
+    });
+    return NextResponse.redirect(url);
   } catch (err) {
-    console.error("[instagram] conexão indisponível:", err);
-    return NextResponse.redirect(`${base}${configPathOf(tenantId)}?instagram=config`);
+    console.error("[instagram] convite do Chatrun falhou:", err);
+    const qs = new URLSearchParams({ instagram: "erro", why: err instanceof Error ? err.message : "falha no Chatrun" });
+    return NextResponse.redirect(`${base}${configPathOf(tenantId)}?${qs.toString()}`);
   }
 }

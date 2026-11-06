@@ -201,7 +201,7 @@ export async function showTyping(params: {
     return;
   }
   if (channel.kind === "messenger") {
-    if (channel.fb) await fbTypingOn(channel.fb, fbRecipientOf(params.to));
+    if (channel.fb) await fbTypingOn(channel.fb, fbRecipientOf(params.to), params.lastInboundExternalId);
     return;
   }
   if (channel.kind === "sms") return; // SMS não tem "digitando"

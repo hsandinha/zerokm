@@ -4,10 +4,12 @@
 // CHATRUN_CALLBACK_SECRET. Tudo é idempotente (mensagem por wamid, status e
 // canal por id), porque o gateway reentrega o que não recebeu 2xx.
 //
-//   connection.connected / .updated → canal da loja (external_ref = WaStore._id)
+//   connection.connected / .updated → canal do dono (external_ref = WaStore._id
+//                                     da loja, ou "cnv" para a Vera)
 //   connection.error / .disconnected → situação do canal
-//   message.received                → mesma entrada do webhook da Meta
-//   message.echo                    → loja respondeu pelo celular (coexistência)
+//   message.received                → WhatsApp: mesma entrada do webhook da Meta;
+//                                     Instagram/Messenger: o Direct normalizado
+//   message.echo                    → a conta respondeu pelo celular/app (IA pausa)
 //   message.status                  → enviada / entregue / lida / falhou
 
 import { NextResponse } from "next/server";
@@ -16,6 +18,8 @@ import { setChatrunChannelStatus, upsertChatrunChannel } from "@wa/lib/chatrun-c
 import { channelByChatrunConnection } from "@wa/lib/channels";
 import type { MetaWebhookMessage, MetaWebhookStatus, MetaWebhookValue } from "@wa/lib/meta";
 import { processWhatsappValue, wakeAiWorker } from "@wa/lib/whatsapp-webhook";
+import { processInbound } from "@wa/lib/inbound";
+import { ecoDoPerfil, entradaDoPerfil, type ContatoDoPerfil, type MensagemDoPerfil } from "@wa/lib/chatrun-perfil";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -157,8 +161,12 @@ export async function POST(req: Request) {
       }
     }
 
-    const valor = valorDoEvento(evento);
-    if (!valor || !conexao?.id) return NextResponse.json({ ok: true });
+    if (!conexao?.id) return NextResponse.json({ ok: true });
+    const tipoDoCanal = (dados.channel as string | undefined) ?? conexao.channel ?? "whatsapp";
+    const perfil = tipoDoCanal === "instagram" || tipoDoCanal === "messenger";
+    const mensagem = evento.type === "message.received" || evento.type === "message.echo";
+    const valor = perfil && mensagem ? null : valorDoEvento(evento);
+    if (!valor && !(perfil && mensagem)) return NextResponse.json({ ok: true });
 
     let canal = await channelByChatrunConnection(conexao.id);
     if (!canal && conexao.external_ref) {
@@ -167,6 +175,23 @@ export async function POST(req: Request) {
       if (r.ok) canal = await channelByChatrunConnection(conexao.id);
     }
     if (!canal) return NextResponse.json({ ok: true, ignorado: "canal desconhecido" });
+
+    // Direct do Instagram e Messenger: o gateway já manda normalizado.
+    if (perfil && mensagem && (canal.kind === "instagram" || canal.kind === "messenger")) {
+      const m = (dados.message ?? {}) as MensagemDoPerfil;
+      const contato = (dados.contact ?? {}) as ContatoDoPerfil;
+      if (evento.type === "message.echo") {
+        await ecoDoPerfil(canal, m, contato);
+        return NextResponse.json({ ok: true });
+      }
+      const entrada = entradaDoPerfil(canal.kind, m, contato);
+      if (entrada) {
+        await processInbound(canal, entrada);
+        wakeAiWorker(req);
+      }
+      return NextResponse.json({ ok: true });
+    }
+    if (!valor) return NextResponse.json({ ok: true });
 
     const { hadInbound } = await processWhatsappValue(canal, valor);
     if (hadInbound) wakeAiWorker(req);

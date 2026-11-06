@@ -21,6 +21,8 @@ export interface IWaSettings extends Document {
   wabaAppSecret?: string;
   wabaVerifyToken?: string;
   wabaDisplayPhone?: string;
+  /** Conta do CNV no Chatrun Conexão (onde ficam os canais da Vera). */
+  chatrunAccountId?: string;
   updatedAt: Date;
 }
 
@@ -39,6 +41,7 @@ const WaSettingsSchema: Schema = new Schema(
     wabaAppSecret: { type: String },
     wabaVerifyToken: { type: String },
     wabaDisplayPhone: { type: String },
+    chatrunAccountId: { type: String },
   },
   { timestamps: true, collection: "wa_settings" },
 );

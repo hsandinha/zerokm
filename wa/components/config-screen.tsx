@@ -7,6 +7,7 @@ import { Bot, Instagram, PhoneCall, RotateCcw, Save, SendHorizonal, Sparkles } f
 import clsx from "clsx";
 import { useWaPanel } from "@wa/components/wa-panel";
 import { CanaisExtras } from "@wa/components/canais-extras";
+import { ConectarWhatsApp } from "@wa/components/conectar-whatsapp";
 
 type SettingsPayload = {
   assistantName: string;
@@ -202,10 +203,13 @@ export function ConfigScreen() {
           </label>
         </section>
 
+        {/* WhatsApp da Vera pelo Chatrun (o formulário abaixo é a credencial própria) */}
+        <ConectarWhatsApp manual={false} />
+
         {/* WABA */}
         <section className="card space-y-4">
           <h2 className="flex items-center gap-2 text-lg font-bold">
-            <PhoneCall size={18} className="text-brand-700" /> WhatsApp Business (Meta)
+            <PhoneCall size={18} className="text-brand-700" /> WhatsApp Business (credencial própria)
             {data.connection?.displayPhone ? (
               <span className="rounded-full bg-brand-600/15 px-2 py-0.5 text-xs font-medium text-brand-800">
                 ● conectado · {data.connection.displayPhone}
@@ -302,8 +306,8 @@ export function ConfigScreen() {
 }
 
 // ── Instagram ────────────────────────────────────────────────
-// Mesmo padrão de conexão do Chatrun: login do Instagram, o canal nasce
-// sozinho e o Direct cai na mesma Central e na mesma Vera.
+// Conectado pelo Chatrun Conexão: login do Instagram na página do gateway,
+// o canal nasce sozinho e o Direct cai na mesma Central e na mesma Vera.
 type ChannelRow = {
   id: string;
   kind: "whatsapp" | "instagram";
@@ -316,7 +320,7 @@ type ChannelRow = {
 const IG_NOTICE: Record<string, string> = {
   ok: "✅ Instagram conectado. As mensagens do Direct já chegam na Central.",
   erro: "❌ Não foi possível conectar o Instagram.",
-  config: "❌ Faltam INSTAGRAM_APP_ID / INSTAGRAM_APP_SECRET no deploy.",
+  config: "❌ A conexão pelo Chatrun não está configurada no deploy (CHATRUN_API_KEY).",
   forbidden: "❌ Só administradores conectam canais.",
 };
 
@@ -421,20 +425,13 @@ export function InstagramChannels() {
       )}
       {!ready && (
         <p className="rounded-xl bg-canvas p-3 text-xs text-muted">
-          Para conectar, o deploy precisa de <code>INSTAGRAM_APP_ID</code> e{" "}
-          <code>INSTAGRAM_APP_SECRET</code> (produto Instagram do app da Meta).
+          Para conectar, o deploy precisa da chave do Chatrun Conexão (<code>CHATRUN_API_KEY</code>).
         </p>
       )}
       <p className="rounded-xl bg-canvas p-3 text-xs text-muted">
-        No app da Meta (produto Instagram), cadastre o redirect{" "}
-        <code className="text-brand-800">
-          {typeof window !== "undefined" ? window.location.origin : ""}/api/wa/instagram/callback
-        </code>{" "}
-        e o webhook{" "}
-        <code className="text-brand-800">
-          {typeof window !== "undefined" ? window.location.origin : ""}/api/webhooks/instagram
-        </code>{" "}
-        com o mesmo verify token do WhatsApp (ou <code>INSTAGRAM_WEBHOOK_VERIFY_TOKEN</code>).
+        A conexão é feita pelo Chatrun: o botão abre a página dele com o login oficial do Instagram, e o
+        Direct chega na Central sem nenhuma configuração no app da Meta. Fora das 24h após a última
+        mensagem da pessoa, o Instagram não deixa responder.
       </p>
     </section>
   );

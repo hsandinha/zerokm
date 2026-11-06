@@ -1,16 +1,18 @@
-// Canais de WhatsApp das lojas conectados pelo Chatrun Conexão.
+// Canais conectados pelo Chatrun Conexão (WhatsApp, Instagram e Messenger,
+// do CNV e das lojas).
 //
-// A conexão mora no gateway; aqui fica só o espelho dela como canal da loja
-// (wa_channels com provider "chatrun"), sem token. O `external_ref` que a
-// zerokm manda no convite é o id da loja (WaStore._id): é ele que diz de
-// quem é o número quando a conexão volta pelo retorno do convite ou pelos
-// eventos (connection.connected / updated / error / disconnected).
+// A conexão mora no gateway; aqui fica só o espelho dela como canal
+// (wa_channels com provider "chatrun"), sem token. O `external_ref` da
+// conexão diz de quem é o canal: o id da loja (WaStore._id) ou "cnv" para a
+// Vera. Ele chega pelo retorno do convite e pelos eventos connection.*.
 
 import mongoose from "mongoose";
 import dbConnect from "@/lib/mongodb";
-import { WaChannel, type WaChannelStatus } from "@wa/models/channel";
+import { WaChannel, type IWaChannel, type WaChannelKind, type WaChannelStatus } from "@wa/models/channel";
 import { WaStore } from "@wa/models/store";
 import type { ChatrunConnection } from "@wa/lib/chatrun";
+
+const CNV_REF = "cnv";
 
 const STATUS: Record<ChatrunConnection["status"], WaChannelStatus | null> = {
   // Popup aberto e não concluído: ainda não é canal.
@@ -24,62 +26,110 @@ export type ChatrunSyncResult =
   | { ok: true; channelId: string | null; status: WaChannelStatus | null }
   | { ok: false; reason: string };
 
-/** Cria ou atualiza o canal da loja a partir da conexão do gateway. */
+/** Campo que identifica a conta no canal (um número, uma conta, uma Página). */
+function identityOf(kind: WaChannelKind, conn: ChatrunConnection): { field: string; value: string } | null {
+  if (kind === "whatsapp" && conn.phone_number_id) return { field: "phoneNumberId", value: conn.phone_number_id };
+  if (kind === "instagram" && conn.ig_user_id) return { field: "igUserId", value: conn.ig_user_id };
+  if (kind === "messenger" && conn.fb_page_id) return { field: "fbPageId", value: conn.fb_page_id };
+  return null;
+}
+
+function fieldsOf(kind: WaChannelKind, conn: ChatrunConnection) {
+  if (kind === "instagram") {
+    return {
+      ...(conn.ig_user_id ? { igUserId: conn.ig_user_id } : {}),
+      ...(conn.ig_username ? { igUsername: conn.ig_username } : {}),
+    };
+  }
+  if (kind === "messenger") {
+    const name = conn.fb_page_name ?? conn.verified_name;
+    return {
+      ...(conn.fb_page_id ? { fbPageId: conn.fb_page_id } : {}),
+      ...(name ? { fbPageName: name, displayName: name } : {}),
+    };
+  }
+  return {
+    ...(conn.phone_number_id ? { phoneNumberId: conn.phone_number_id } : {}),
+    ...(conn.waba_id ? { wabaId: conn.waba_id } : {}),
+    ...(conn.display_phone ? { displayPhone: conn.display_phone } : {}),
+    ...(conn.verified_name ? { displayName: conn.verified_name } : {}),
+  };
+}
+
+/** Pelo gateway não há segredo da Meta guardado aqui. */
+const SECRETS = {
+  token: 1,
+  appSecret: 1,
+  verifyToken: 1,
+  igToken: 1,
+  igTokenExpiresAt: 1,
+  fbPageToken: 1,
+  fbUserId: 1,
+} as const;
+
+/** Cria ou atualiza o canal do dono (`ref`: id da loja ou "cnv") a partir da conexão. */
 export async function upsertChatrunChannel(
   conn: ChatrunConnection,
-  tenantId: string,
+  ref: string,
 ): Promise<ChatrunSyncResult> {
-  if (conn.channel && conn.channel !== "whatsapp") return { ok: true, channelId: null, status: null };
-  if (!mongoose.isValidObjectId(tenantId)) return { ok: false, reason: "Loja inválida no external_ref." };
+  const kind: WaChannelKind = conn.channel ?? "whatsapp";
+  if (!["whatsapp", "instagram", "messenger"].includes(kind)) return { ok: true, channelId: null, status: null };
 
   await dbConnect();
-  if (!(await WaStore.exists({ _id: tenantId }))) return { ok: false, reason: "Loja não encontrada." };
+  let tenantId: string | null;
+  if (ref === CNV_REF) {
+    tenantId = null;
+  } else {
+    if (!mongoose.isValidObjectId(ref)) return { ok: false, reason: "Loja inválida no external_ref." };
+    if (!(await WaStore.exists({ _id: ref }))) return { ok: false, reason: "Loja não encontrada." };
+    tenantId = ref;
+  }
 
-  let doc = await WaChannel.findOne({ kind: "whatsapp", chatrunConnectionId: conn.id });
-  if (!doc && conn.phone_number_id) {
-    doc = await WaChannel.findOne({ kind: "whatsapp", phoneNumberId: conn.phone_number_id });
+  const identity = identityOf(kind, conn);
+  let doc: IWaChannel | null = await WaChannel.findOne({ kind, chatrunConnectionId: conn.id });
+  if (!doc && identity) doc = await WaChannel.findOne({ kind, [identity.field]: identity.value });
+  // O CNV tem um WhatsApp só (o número da Vera): conectar pelo Chatrun
+  // converte o canal que já existe em vez de criar um segundo.
+  if (!doc && kind === "whatsapp" && tenantId === null) {
+    doc = await WaChannel.findOne({ kind: "whatsapp", tenantId: null });
   }
 
   const status = STATUS[conn.status] ?? null;
   if (!status) return { ok: true, channelId: doc ? String(doc._id) : null, status: null };
 
-  // Um número pertence a um canal só: o de outra loja não troca de dono.
+  // Uma conta pertence a um canal só: a de outro dono não troca de mão.
   if (doc && (doc.tenantId ?? null) !== tenantId && doc.status !== "disconnected") {
-    return { ok: false, reason: "Este número já está conectado a outra loja." };
+    const what = kind === "whatsapp" ? "Este número" : kind === "instagram" ? "Esta conta do Instagram" : "Esta Página";
+    return { ok: false, reason: `${what} já está conectado a outra loja.` };
   }
 
-  // Canal antigo e desligado com o mesmo número (outra credencial): libera o
-  // número para o índice único não barrar o novo.
-  if (conn.phone_number_id) {
+  // Canal antigo e desligado com a mesma conta (outra credencial): libera a
+  // conta para o índice único não barrar o novo.
+  if (identity) {
     await WaChannel.updateMany(
       {
-        kind: "whatsapp",
-        phoneNumberId: conn.phone_number_id,
+        kind,
+        [identity.field]: identity.value,
         status: "disconnected",
         ...(doc ? { _id: { $ne: doc._id } } : {}),
       },
-      { $unset: { phoneNumberId: 1 } },
+      { $unset: { [identity.field]: 1 } },
     );
   }
 
   const fields = {
-    kind: "whatsapp" as const,
+    kind,
     tenantId,
     provider: "chatrun" as const,
     chatrunConnectionId: conn.id,
     chatrunAccountId: conn.account_id,
-    ...(conn.phone_number_id ? { phoneNumberId: conn.phone_number_id } : {}),
-    ...(conn.waba_id ? { wabaId: conn.waba_id } : {}),
-    ...(conn.display_phone ? { displayPhone: conn.display_phone } : {}),
-    ...(conn.verified_name ? { displayName: conn.verified_name } : {}),
+    ...fieldsOf(kind, conn),
     status,
     lastError: status === "connected" ? null : conn.status_detail ?? null,
   };
-  // Pelo gateway não há segredo da Meta guardado aqui.
-  const unset = { token: 1, appSecret: 1, verifyToken: 1 };
 
   if (doc) {
-    await WaChannel.updateOne({ _id: doc._id }, { ...fields, $unset: unset });
+    await WaChannel.updateOne({ _id: doc._id }, { ...fields, $unset: SECRETS });
     return { ok: true, channelId: String(doc._id), status };
   }
   try {
@@ -88,9 +138,9 @@ export async function upsertChatrunChannel(
   } catch (err) {
     // Retorno do convite e evento chegando juntos: fica o primeiro.
     if ((err as { code?: number })?.code === 11000) {
-      const again = await WaChannel.findOne({ kind: "whatsapp", chatrunConnectionId: conn.id });
+      const again = await WaChannel.findOne({ kind, chatrunConnectionId: conn.id });
       if (again) {
-        await WaChannel.updateOne({ _id: again._id }, { ...fields, $unset: unset });
+        await WaChannel.updateOne({ _id: again._id }, { ...fields, $unset: SECRETS });
         return { ok: true, channelId: String(again._id), status };
       }
     }
@@ -106,7 +156,7 @@ export async function setChatrunChannelStatus(
 ): Promise<void> {
   await dbConnect();
   await WaChannel.updateOne(
-    { kind: "whatsapp", chatrunConnectionId: connectionId },
+    { chatrunConnectionId: connectionId },
     { status, lastError: status === "connected" ? null : detail ?? null },
   );
 }

@@ -1,9 +1,10 @@
 "use client";
 
-// "Conectar WhatsApp" da loja — pelo Chatrun Conexão. O botão pede o convite
-// ao gateway e leva para a página dele (popup da Meta no app da Chatrun); a
-// loja volta para cá com ?whatsapp=retorno e os números viram canais. O
-// cadastro manual continua para quem já tem app próprio na Meta.
+// "Conectar WhatsApp" — pelo Chatrun Conexão, na Configuração da loja e na
+// tela IA & WABA do CNV. O botão pede o convite ao gateway e leva para a
+// página dele (popup da Meta no app da Chatrun); volta para cá com
+// ?whatsapp=retorno e os números viram canais. O cadastro manual continua
+// para a loja que já tem app próprio na Meta (o do CNV é o formulário do WABA).
 // O número conectado vira um canal da loja; a lista vem de /api/wa/channels.
 
 import { useCallback, useEffect, useState } from "react";
@@ -13,7 +14,7 @@ type Canal = { id: string; kind: string; status: string; label: string; lastErro
 
 const PARAMS_DO_RETORNO = ["whatsapp", "status", "channel", "connection_id", "account_id", "mensagem"];
 
-export function ConectarWhatsApp() {
+export function ConectarWhatsApp({ manual: comManual = true }: { manual?: boolean } = {}) {
   const [canais, setCanais] = useState<Canal[] | null>(null);
   const [chatrun, setChatrun] = useState<boolean | null>(null);
   const [working, setWorking] = useState<string | null>(null);
@@ -129,7 +130,7 @@ export function ConectarWhatsApp() {
   return (
     <section className="card space-y-4">
       <h2 className="flex items-center gap-2 text-lg font-bold">
-        <PhoneCall size={18} className="text-brand-700" /> WhatsApp
+        <PhoneCall size={18} className="text-brand-700" /> WhatsApp{comManual ? "" : " pelo Chatrun"}
       </h2>
       {canais === null ? (
         <p className="text-xs text-muted">Carregando…</p>
@@ -178,6 +179,7 @@ export function ConectarWhatsApp() {
       )}
       {notice && <p className="text-sm text-ink-800">{notice}</p>}
 
+      {comManual && (
       <details className="text-sm">
         <summary className="cursor-pointer text-muted">Já tenho app próprio na Meta (cadastro manual)</summary>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -205,6 +207,7 @@ export function ConectarWhatsApp() {
           </button>
         </div>
       </details>
+      )}
     </section>
   );
 }

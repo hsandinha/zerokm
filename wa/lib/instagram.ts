@@ -6,12 +6,18 @@
 // já mandou mensagem, dentro de 24h — ou até 7 dias com a tag HUMAN_AGENT,
 // que é só para gente (a equipe), nunca para a IA.
 
-import { MetaApiError } from "@wa/lib/meta";
+import { MetaApiError, viaChatrun } from "@wa/lib/meta";
+import * as chatrun from "@wa/lib/chatrun";
 
 const IG_GRAPH_VERSION = "v21.0";
 const IG_GRAPH = `https://graph.instagram.com/${IG_GRAPH_VERSION}`;
 
-export type IgCreds = { userId: string; token: string };
+export type IgCreds = {
+  userId: string;
+  token: string;
+  /** Conta conectada pelo Chatrun: o Direct sai pela API do gateway. */
+  chatrunConnectionId?: string | null;
+};
 
 export const IG_SCOPES = [
   "instagram_business_basic",
@@ -63,6 +69,14 @@ export async function igSendText(
   text: string,
   opts?: { humanAgent?: boolean },
 ): Promise<SendResult> {
+  const cid = creds.chatrunConnectionId;
+  if (cid) {
+    // Pelo gateway vale a janela de 24 h (fora dela, 422 outside_24h_window).
+    const wamid = await viaChatrun(() =>
+      chatrun.sendMessage({ connectionId: cid, to: `ig:${recipientId}`, type: "text", text }),
+    );
+    return { external_id: wamid };
+  }
   const body = await igFetch(creds.token, `${IG_GRAPH}/${creds.userId}/messages`, {
     method: "POST",
     body: JSON.stringify({
@@ -77,6 +91,8 @@ export async function igSendText(
 
 /** Indicador "digitando..." — best-effort, nunca derruba o atendimento. */
 export async function igTypingOn(creds: IgCreds, recipientId: string): Promise<void> {
+  // O gateway não tem "digitando" no Instagram.
+  if (creds.chatrunConnectionId) return;
   try {
     await igFetch(creds.token, `${IG_GRAPH}/${creds.userId}/messages`, {
       method: "POST",
@@ -93,6 +109,9 @@ export async function igReact(
   recipientId: string,
   messageId: string,
 ): Promise<void> {
+  if (creds.chatrunConnectionId) {
+    throw new MetaApiError(422, "Reação no Direct não está disponível pelo Chatrun.");
+  }
   await igFetch(creds.token, `${IG_GRAPH}/${creds.userId}/messages`, {
     method: "POST",
     body: JSON.stringify({

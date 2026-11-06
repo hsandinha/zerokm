@@ -11,12 +11,18 @@
 // mensagem, dentro de 24h — ou até 7 dias com a tag HUMAN_AGENT, que é só
 // para gente (a equipe), nunca para a IA.
 
-import { MetaApiError } from "@wa/lib/meta";
+import { MetaApiError, viaChatrun } from "@wa/lib/meta";
+import * as chatrun from "@wa/lib/chatrun";
 
 const FB_GRAPH_VERSION = "v21.0";
 const FB_GRAPH = `https://graph.facebook.com/${FB_GRAPH_VERSION}`;
 
-export type FbCreds = { pageId: string; token: string };
+export type FbCreds = {
+  pageId: string;
+  token: string;
+  /** Página conectada pelo Chatrun: o Messenger sai pela API do gateway. */
+  chatrunConnectionId?: string | null;
+};
 
 /** O que o login pede. Com o "Login do Facebook para Empresas" quem manda é
  *  a configuração (MESSENGER_LOGIN_CONFIG_ID); esta lista vale para o login
@@ -84,6 +90,19 @@ export async function fbSendText(
   text: string,
   opts?: { humanAgent?: boolean },
 ): Promise<SendResult> {
+  const cid = creds.chatrunConnectionId;
+  if (cid) {
+    const wamid = await viaChatrun(() =>
+      chatrun.sendMessage({
+        connectionId: cid,
+        to: `fb:${psid}`,
+        type: "text",
+        text,
+        humanAgent: opts?.humanAgent,
+      }),
+    );
+    return { external_id: wamid };
+  }
   const body = await fbFetch(creds.token, `/${creds.pageId}/messages`, {
     method: "POST",
     body: JSON.stringify({
@@ -95,8 +114,14 @@ export async function fbSendText(
   return { external_id: String(body.message_id ?? "") };
 }
 
-/** "Digitando..." — best-effort, nunca derruba o atendimento. */
-export async function fbTypingOn(creds: FbCreds, psid: string): Promise<void> {
+/** "Digitando..." — best-effort, nunca derruba o atendimento. Pelo Chatrun,
+ *  marca como vista a conversa da última mensagem recebida e mostra
+ *  "digitando" (o gateway precisa do id dessa mensagem). */
+export async function fbTypingOn(creds: FbCreds, psid: string, lastInboundMid?: string | null): Promise<void> {
+  if (creds.chatrunConnectionId) {
+    if (lastInboundMid) await chatrun.markRead(creds.chatrunConnectionId, lastInboundMid).catch(() => {});
+    return;
+  }
   try {
     await fbFetch(creds.token, `/${creds.pageId}/messages`, {
       method: "POST",
@@ -121,6 +146,9 @@ export async function fbMarkSeen(creds: FbCreds, psid: string): Promise<void> {
 
 /** Reação: a API do Messenger, como a do Instagram, só garante "love". */
 export async function fbReact(creds: FbCreds, psid: string, messageId: string): Promise<void> {
+  if (creds.chatrunConnectionId) {
+    throw new MetaApiError(422, "Reação no Messenger não está disponível pelo Chatrun.");
+  }
   await fbFetch(creds.token, `/${creds.pageId}/messages`, {
     method: "POST",
     body: JSON.stringify({

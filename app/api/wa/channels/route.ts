@@ -8,7 +8,7 @@ import dbConnect from "@/lib/mongodb";
 import { requireScopeAdmin, type Scope } from "@wa/lib/scope";
 import { WaChannel } from "@wa/models/channel";
 import { channelLabelOf, cnvWhatsappChannel, safeDecrypt } from "@wa/lib/channels";
-import { messengerReady } from "@wa/lib/messenger";
+import { chatrunConfigured } from "@wa/lib/chatrun";
 import { smsWebhookPath } from "@wa/lib/sms";
 import { siteUrl } from "@wa/lib/site-url";
 
@@ -59,10 +59,8 @@ export async function GET(req: NextRequest) {
           : {}),
       };
     }),
-    instagramReady: Boolean(
-      (process.env.INSTAGRAM_APP_ID ?? process.env.META_APP_ID) &&
-        (process.env.INSTAGRAM_APP_SECRET ?? process.env.META_APP_SECRET),
-    ),
-    messengerReady: messengerReady(),
+    // Instagram e Messenger conectam pelo Chatrun Conexão: basta a chave dele.
+    instagramReady: chatrunConfigured(),
+    messengerReady: chatrunConfigured(),
   });
 }
