@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { signOut } from 'next-auth/react';
+import { desligarAvisosDoAparelho } from '@wa/lib/push-aparelho';
 import { useTheme } from '@/lib/contexts/ThemeContext';
 import styles from './MobileMoreSheet.module.css';
 
@@ -162,7 +163,11 @@ export function MobileMoreSheet({ open, onClose, items, activeId, onSelect, user
                         {theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}
                     </button>
                     <button
-                        onClick={() => signOut({ callbackUrl: '/' })}
+                        onClick={async () => {
+                            // O aparelho para de receber os avisos do atendimento de quem saiu.
+                            await desligarAvisosDoAparelho();
+                            await signOut({ callbackUrl: '/' });
+                        }}
                         className={`${styles.footerButton} ${styles.footerButtonDanger}`}
                     >
                         <span className={styles.footerIcon}>🚪</span>

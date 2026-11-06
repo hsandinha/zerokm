@@ -1,26 +1,20 @@
 "use client";
 
-// Casca do painel. No desktop, barra lateral recolhida (só ícones) que
-// expande ao passar o mouse — por cima do conteúdo, sem empurrar a página —
-// e uma barra superior com busca; no celular, barra flutuante embaixo, porque
-// o polegar não alcança o topo e a Central é usada em pé, no meio do
-// atendimento.
+// Casca do painel de WhatsApp do CNV. Usa o mesmo menu lateral da
+// Administração (DashboardShell): as abas do painel continuam à vista e o
+// WhatsApp aparece aberto com as telas dele logo abaixo. O menu nunca some
+// ao entrar aqui. No topo ficam a busca, o saldo da Procob, o estado da IA e
+// o status de quem atende; no celular, numa faixa no começo da tela.
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import clsx from "clsx";
 import {
-  Bot,
   Inbox,
   Kanban,
   LayoutDashboard,
   LayoutTemplate,
-  ChevronLeft,
-  ChevronRight,
-  LogOut,
   Megaphone,
-  MoreHorizontal,
   Search,
   Settings2,
   Sparkles,
@@ -28,14 +22,18 @@ import {
   UserCog,
   Users,
   Wallet,
-  X,
   type LucideIcon,
   Store,
+  MessageCircle,
+  MessageCircleReply,
 } from "lucide-react";
-import { signOut as nextAuthSignOut } from "next-auth/react";
-import { ThemeToggle } from "@wa/components/theme-toggle";
+import { useSession } from "next-auth/react";
+import { DashboardShell, type ShellTab } from "@/components/dashboard/DashboardShell";
+import { abasDoAdmin } from "@/components/dashboard/abas-dos-paineis";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
+import { WhatsAppTheme } from "@wa/components/admin-theme";
+import { EquipeNaMoldura } from "@wa/components/equipe-status";
 import { timeAgo } from "@wa/lib/stages";
-import { BrandMark } from "@wa/components/brand-mark";
 import { WalletModal, type Balance } from "@wa/components/wallet-modal";
 
 type PanelUser = { email: string; name: string | null; role: "admin" | "operador" };
@@ -74,6 +72,7 @@ const GROUPS: Array<{ title: string; items: NavItem[] }> = [
     items: [
       { href: "/dashboard/admin/whatsapp/campanhas", label: "Campanhas", icon: Megaphone, adminOnly: true },
       { href: "/dashboard/admin/whatsapp/templates", label: "Templates", icon: LayoutTemplate, adminOnly: true },
+      { href: "/dashboard/admin/whatsapp/iscas", label: "Iscas", icon: MessageCircleReply, adminOnly: true },
     ],
   },
   {
@@ -87,6 +86,8 @@ const GROUPS: Array<{ title: string; items: NavItem[] }> = [
 ];
 
 const ALL_ITEMS = GROUPS.flatMap((g) => g.items);
+/** Prefixo das telas do WhatsApp no menu: não colide com as abas da Administração. */
+const WA = "wa:";
 const STATUS_POLL_MS = 30_000;
 // O saldo muda devagar (só consulta paga o move) e a leitura é guardada no
 // banco — pesquisar de minuto em minuto seria só carga sem informação nova.
@@ -156,12 +157,13 @@ function BalancePill({ balance, loading, onOpen }: { balance: Balance; loading: 
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const isMobile = useIsMobile();
+  const { data: sessao } = useSession();
   const [user, setUser] = useState<PanelUser | null>(null);
   const [status, setStatus] = useState<PanelStatus | null>(null);
   const [balance, setBalance] = useState<Balance | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [wallet, setWallet] = useState(false);
-  const [sheet, setSheet] = useState(false);
   const [q, setQ] = useState("");
 
   useEffect(() => {
@@ -186,7 +188,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Saldo da Procob. Sem `refresh` a rota só lê o banco — o número vem de
+  // Saldo da Procob. Sem `refresh` a rota só lê o banco: o número vem de
   // carona nas consultas pagas. Perguntar à Procob (o clique) não debita
   // crédito, mas gasta 1 requisição do proxy de IP fixo, que é limitado.
   const loadBalance = useCallback(async (refresh = false) => {
@@ -195,7 +197,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       const res = await fetch(`/api/wa/procob/saldo${refresh ? "?refresh=1" : ""}`);
       if (res.ok) setBalance((await res.json()).balance ?? null);
     } catch {
-      /* header não quebra por causa do saldo */
+      /* o topo não quebra por causa do saldo */
     } finally {
       setBalanceLoading(false);
     }
@@ -207,15 +209,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
     return () => clearInterval(t);
   }, [loadBalance]);
 
-  // Trocar de tela fecha a gaveta e o extrato — senão ficam por cima da página.
+  // Trocar de tela fecha o extrato: senão fica por cima da página.
   useEffect(() => {
-    setSheet(false);
     setWallet(false);
   }, [pathname]);
-
-  async function signOut() {
-    await nextAuthSignOut({ callbackUrl: "/login" });
-  }
 
   function onSearch(e: FormEvent) {
     e.preventDefault();
@@ -225,345 +222,118 @@ export function Shell({ children }: { children: React.ReactNode }) {
   }
 
   const isAdmin = user?.role === "admin";
-  const groups = GROUPS.map((g) => ({
-    ...g,
-    items: g.items.filter((i) => !i.adminOnly || isAdmin),
-  })).filter((g) => g.items.length > 0);
-  const visible = groups.flatMap((g) => g.items);
-  const primary = visible.filter((t) => t.primary);
-  const extra = visible.filter((t) => !t.primary);
+  const visible = GROUPS.flatMap((g) => g.items.filter((i) => !i.adminOnly || isAdmin));
+  const waiting = status?.counts.waiting ?? 0;
 
   // A rota mais específica que casa com o caminho (ex.: /campanhas/nova).
   const current = ALL_ITEMS.filter((i) => (pathname ?? "").startsWith(i.href)).sort(
     (a, b) => b.href.length - a.href.length,
   )[0];
 
-  const waiting = status?.counts.waiting ?? 0;
-  const sla = status?.counts.sla ?? 0;
+  // Telas do WhatsApp como subitens da aba WhatsApp.
+  const telas: ShellTab[] = visible.map((item) => {
+    const Icon = item.icon;
+    return {
+      id: `${WA}${item.href}`,
+      label: item.label,
+      icon: <Icon size={18} aria-hidden="true" />,
+      ...(item.badge === "waiting" && waiting > 0 ? { badge: waiting } : {}),
+    };
+  });
+
+  // Abas da Administração para quem é da administração da zerokm; quem só
+  // está na lista do WhatsApp (operador de fila) vê o painel dele e o WhatsApp.
+  const perfil = (sessao?.user as { profile?: string } | undefined)?.profile ?? null;
+  const daAdministracao = perfil === "administrador" || perfil === "gerente" || perfil === "marketing";
+  const abasDoPainel = daAdministracao
+    ? abasDoAdmin(perfil)
+    : [{ id: "painel", label: "Painel", icon: <LayoutDashboard size={20} aria-hidden="true" /> }];
+  const comWhatsapp = abasDoPainel.some((t) => t.id === "whatsapp")
+    ? abasDoPainel
+    : [...abasDoPainel, { id: "whatsapp", label: "WhatsApp", icon: <MessageCircle size={20} aria-hidden="true" /> }];
+  const tabs: ShellTab[] = comWhatsapp.map((t) => ({
+    id: t.id,
+    label: t.label,
+    icon: t.icon,
+    ...(t.id === "whatsapp" ? { children: telas } : {}),
+  }));
+  const activeId = current ? `${WA}${current.href}` : "whatsapp";
+
+  function selecionar(id: string) {
+    if (id.startsWith(WA)) router.push(id.slice(WA.length));
+    else if (id === "whatsapp") router.push("/dashboard/admin/whatsapp/visao-geral");
+    else if (id === "painel") window.location.assign("/dashboard");
+    // Aba da Administração: abre lá, na aba certa.
+    else window.location.assign(`/dashboard/admin?view=${encodeURIComponent(id)}`);
+  }
+
+  const estadoDaIa = (
+    <span
+      className="flex shrink-0 items-center gap-1.5 rounded-full border border-line px-2.5 py-1.5 text-xs font-semibold text-muted"
+      title={status?.displayPhone ? `WhatsApp ${status.displayPhone}` : undefined}
+    >
+      <span
+        className={clsx(
+          "h-2 w-2 rounded-full",
+          !status ? "bg-ink-300" : status.aiActive ? "bg-emerald-500" : "bg-amber-500",
+        )}
+      />
+      {status ? (status.aiActive ? "IA respondendo" : "IA pausada") : "IA"}
+    </span>
+  );
+
+  // Um lugar só por vez (topo no computador, faixa no celular): os controles
+  // consultam o servidor, montados em dobro consultariam em dobro.
+  const controles = (
+    <>
+      {!isMobile && (
+        <form onSubmit={onSearch} className="hidden w-64 xl:block">
+          <label className="relative block">
+            <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+            <input
+              className="input py-1.5 pl-8 text-sm"
+              placeholder="Buscar contato ou telefone…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </label>
+        </form>
+      )}
+      {balance && <BalancePill balance={balance} loading={balanceLoading} onOpen={() => setWallet(true)} />}
+      {estadoDaIa}
+      {/* Status de quem atende e avisos no navegador (wa/components/equipe-status.tsx). */}
+      <EquipeNaMoldura />
+    </>
+  );
 
   return (
-    <div className="flex min-h-screen">
-      {/* ── Desktop: barra lateral ───────────────────────────── */}
-      {/* O <aside> reserva 4rem no fluxo; o painel interno cresce para 15rem
-          no hover e sobrepõe o conteúdo (z acima do header), então nada se
-          move na página quando ele abre. */}
-      <aside className="cnv-wa-navigation group relative z-40 hidden w-16 shrink-0 md:block">
-        <div className="sticky top-0 flex h-screen w-16 flex-col overflow-hidden border-r border-line bg-paper transition-[width,box-shadow] duration-200 ease-out group-hover:w-60 group-hover:shadow-[8px_0_30px_rgba(11,18,21,0.35)]">
-          <div className="flex h-16 shrink-0 items-center px-3">
-            <Link href="/dashboard/admin/whatsapp/visao-geral" className="flex items-center gap-2 overflow-hidden" aria-label="Visão geral">
-              <BrandMark className="h-10 w-10 shrink-0 text-ink-900" />
-              <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-[max-width,opacity] duration-200 group-hover:max-w-[10rem] group-hover:opacity-100">
-                <span className="brand-kicker">CNV</span>{" "}
-                <span className="text-sm font-bold text-ink-900">WhatsApp</span>
-              </span>
-            </Link>
-          </div>
-
-          <nav className="flex-1 overflow-y-auto overflow-x-hidden px-3 pb-4">
-            {groups.map((g, gi) => (
-              <div key={g.title} className={clsx(gi > 0 && "mt-1 group-hover:mt-5")}>
-                {gi > 0 && <div className="mx-2 mb-1 border-t border-line group-hover:hidden" />}
-                <p className="hidden truncate px-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-muted group-hover:block">
-                  {g.title}
-                </p>
-                <div className="space-y-0.5">
-                  {g.items.map((item) => {
-                    const active = current?.href === item.href;
-                    const Icon = item.icon;
-                    const badge = item.badge === "waiting" ? waiting : 0;
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        title={item.label}
-                        className={clsx(
-                          "relative flex h-10 items-center gap-2.5 rounded-2xl px-[0.6875rem] text-sm font-semibold transition",
-                          active ? "pill-active" : "text-ink-700 hover:bg-canvas hover:text-ink-900",
-                        )}
-                      >
-                        <Icon size={18} className="shrink-0" />
-                        <span className="max-w-0 flex-1 truncate opacity-0 transition-[max-width,opacity] duration-200 group-hover:max-w-[12rem] group-hover:opacity-100">
-                          {item.label}
-                        </span>
-                        {badge > 0 && (
-                          <>
-                            {/* Recolhida: só um ponto no canto do ícone. */}
-                            <span
-                              className={clsx(
-                                "absolute left-6 top-1.5 h-2 w-2 rounded-full ring-2 ring-paper group-hover:hidden",
-                                sla > 0 ? "bg-red-500" : "bg-amber-500",
-                              )}
-                            />
-                            <span
-                              className={clsx(
-                                "hidden rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none group-hover:inline-block",
-                                active
-                                  ? "bg-white/20 text-inherit"
-                                  : sla > 0
-                                    ? "bg-red-100 text-red-600"
-                                    : "bg-amber-100 text-amber-700",
-                              )}
-                            >
-                              {badge}
-                            </span>
-                          </>
-                        )}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </nav>
-
-          <div className="shrink-0 border-t border-line p-3">
-            {/* O módulo mora dentro do painel da zerokm — sem esta saída ele
-                vira um beco, e a única forma de voltar seria deslogar. */}
-            <Link
-              href="/dashboard/admin"
-              title="Voltar ao painel da zerokm"
-              className="mb-2 flex h-10 items-center gap-2.5 rounded-2xl px-[0.6875rem] text-sm font-semibold text-ink-700 transition hover:bg-canvas hover:text-ink-900"
-            >
-              <ChevronLeft size={18} className="shrink-0" />
-              <span className="max-w-0 flex-1 truncate opacity-0 transition-[max-width,opacity] duration-200 group-hover:max-w-[12rem] group-hover:opacity-100">
-                Painel zerokm
-              </span>
-            </Link>
-
-            {/* Recolhida: ícone com a cor do estado. Expandida: o cartão. */}
-            <Link
-              href="/dashboard/admin/whatsapp/central"
-              title={status ? (status.aiActive ? "IA respondendo" : "IA pausada") : "IA"}
-              className="relative flex h-10 items-center justify-center rounded-2xl text-brand-700 hover:bg-canvas group-hover:hidden"
-            >
-              <Bot size={18} />
-              <span
-                className={clsx(
-                  "absolute left-6 top-1.5 h-2 w-2 rounded-full ring-2 ring-paper",
-                  !status ? "bg-ink-300" : status.aiActive ? "bg-emerald-500" : "bg-amber-500",
-                )}
-              />
-            </Link>
-            <div className="hidden rounded-2xl border border-brand-300 bg-brand-50 p-3 group-hover:block">
-              <p className="flex items-center gap-1.5 text-xs font-bold text-ink-900">
-                <Bot size={14} className="text-brand-700" />
-                {status ? (status.aiActive ? "IA respondendo" : "IA pausada") : "IA"}
-              </p>
-              <p className="mt-1 text-[11px] leading-snug text-muted">
-                {!status
-                  ? "Carregando…"
-                  : waiting === 0
-                    ? "Nenhuma conversa esperando você."
-                    : `${waiting} conversa${waiting === 1 ? "" : "s"} aguardando humano${
-                        sla > 0 ? ` · ${sla} fora do SLA` : ""
-                      }.`}
-              </p>
-              {status?.displayPhone && (
-                <p className="mt-1 truncate text-[11px] text-muted">WhatsApp {status.displayPhone}</p>
-              )}
-              <Link
-                href="/dashboard/admin/whatsapp/central"
-                className="mt-2 inline-block text-[11px] font-semibold text-brand-700 hover:underline"
-              >
-                Abrir a Central →
-              </Link>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 border-b border-line bg-paper/85 backdrop-blur">
-          <div className="flex h-16 items-center gap-3 px-4 sm:px-6">
-            <Link href="/dashboard/admin/whatsapp/visao-geral" className="flex shrink-0 items-center gap-2 md:hidden">
-              <BrandMark className="h-8 w-8 text-ink-900" />
-              <span className="brand-kicker">CNV</span>
-            </Link>
-            {/* Mesmo caminho do topo das outras telas do painel: Administração › WhatsApp › tela. */}
-            <nav aria-label="Você está em" className="hidden min-w-0 shrink-0 items-center gap-1.5 text-sm text-muted md:flex">
-              <Link href="/dashboard/admin" className="whitespace-nowrap transition hover:text-ink-900">Administração</Link>
-              <ChevronRight size={14} className="shrink-0 opacity-60" aria-hidden="true" />
-              {current ? (
-                <>
-                  <Link href="/dashboard/admin/whatsapp/visao-geral" className="whitespace-nowrap transition hover:text-ink-900">WhatsApp</Link>
-                  <ChevronRight size={14} className="shrink-0 opacity-60" aria-hidden="true" />
-                  <span aria-current="page" className="truncate font-semibold text-ink-900">{current.label}</span>
-                </>
-              ) : (
-                <span aria-current="page" className="font-semibold text-ink-900">WhatsApp</span>
-              )}
-            </nav>
-
-            <form onSubmit={onSearch} className="ml-auto hidden w-full max-w-md sm:block">
-              <label className="relative block">
-                <Search
-                  size={15}
-                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
-                />
-                <input
-                  className="input py-2 pl-9"
-                  placeholder="Buscar contato, empresa ou telefone…"
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                />
-              </label>
-            </form>
-
-            <div className="ml-auto flex shrink-0 items-center gap-3 sm:ml-0">
-              {balance && <BalancePill balance={balance} loading={balanceLoading} onOpen={() => setWallet(true)} />}
-              {user && (
-                <span className="hidden text-right text-xs leading-tight lg:block">
-                  <span className="block font-semibold text-ink-900">{user.name ?? user.email}</span>
-                  <span className="text-muted">
-                    {user.role === "admin" ? "administrador" : "operador"}
-                  </span>
-                </span>
-              )}
-              <ThemeToggle />
-              <button
-                onClick={signOut}
-                className="hidden items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-muted transition hover:bg-canvas hover:text-ink-900 md:flex"
-              >
-                <LogOut size={15} />
-                Sair
-              </button>
-            </div>
-          </div>
-        </header>
-
-        <main className="has-tabbar mx-auto w-full max-w-[1440px] flex-1 px-4 py-5 sm:px-6">
-          {children}
-        </main>
-      </div>
-
-      {/* ── Celular: barra flutuante ─────────────────────────── */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden">
-        <div className="mx-auto flex max-w-md items-center justify-around rounded-full border border-line bg-paper/95 px-2 py-2 shadow-[0_8px_30px_rgba(11,18,21,0.35)] backdrop-blur">
-          {primary.map((tab) => {
-            const active = current?.href === tab.href;
-            const Icon = tab.icon;
-            const badge = tab.badge === "waiting" ? waiting : 0;
-            return (
-              <Link
-                key={tab.href}
-                href={tab.href}
-                aria-label={tab.label}
-                className={clsx(
-                  "relative flex min-w-14 flex-col items-center gap-0.5 rounded-2xl px-2 py-1.5 transition",
-                  active ? "text-ink-900" : "text-ink-400",
-                )}
-              >
-                <Icon size={21} strokeWidth={active ? 2.4 : 1.9} />
-                {badge > 0 && (
-                  <span className="absolute right-1 top-0.5 rounded-full bg-amber-500 px-1 text-[9px] font-bold leading-4 text-white">
-                    {badge}
-                  </span>
-                )}
-                <span className={clsx("text-[10px]", active ? "font-bold" : "font-medium")}>
-                  {tab.label === "Visão geral" ? "Visão" : tab.label}
-                </span>
-                <span
-                  className={clsx(
-                    "h-1 w-1 rounded-full transition",
-                    active ? "bg-brand-500" : "bg-transparent",
-                  )}
-                />
-              </Link>
-            );
-          })}
-
-          {extra.length > 0 && (
-            <button
-              onClick={() => setSheet(true)}
-              aria-label="Mais"
-              className="flex min-w-14 flex-col items-center gap-0.5 rounded-2xl px-2 py-1.5 text-ink-400"
-            >
-              <MoreHorizontal size={21} strokeWidth={1.9} />
-              <span className="text-[10px] font-medium">Mais</span>
-              <span className="h-1 w-1" />
-            </button>
-          )}
-        </div>
-      </nav>
-
-      {/* ── Celular: gaveta do "Mais" ────────────────────────── */}
-      {sheet && (
-        <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true">
-          <button
-            className="absolute inset-0 bg-black/50"
-            aria-label="Fechar"
-            onClick={() => setSheet(false)}
+    <DashboardShell
+      sectionLabel={daAdministracao ? "Administração" : "Painel"}
+      tabs={tabs}
+      activeId={activeId}
+      onSelect={selecionar}
+      primaryIds={visible.filter((i) => i.primary).map((i) => `${WA}${i.href}`)}
+      user={{
+        name: user?.name ?? sessao?.user?.name ?? "Equipe",
+        email: user?.email ?? sessao?.user?.email ?? null,
+        role: isAdmin ? "Administrador" : "Operador",
+      }}
+      topbarAside={isMobile ? undefined : <WhatsAppTheme variante="compacto">{controles}</WhatsAppTheme>}
+    >
+      <WhatsAppTheme variante="painel">
+        {isMobile && (
+          <div className="flex flex-wrap items-center justify-end gap-2 border-b border-line px-4 py-2">{controles}</div>
+        )}
+        <main className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6">{children}</main>
+        {wallet && balance && (
+          <WalletModal
+            balance={balance}
+            refreshing={balanceLoading}
+            onRefresh={() => loadBalance(true)}
+            onClose={() => setWallet(false)}
           />
-          <div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-3xl border-t border-line bg-paper p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <p className="font-bold text-ink-900">{user?.name ?? user?.email}</p>
-                <p className="text-xs text-muted">
-                  {user?.role === "admin" ? "administrador" : "operador"}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <ThemeToggle />
-                <button
-                  onClick={() => setSheet(false)}
-                  className="rounded-full p-2 text-muted hover:bg-canvas"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-            </div>
-
-            <form onSubmit={onSearch} className="mb-3">
-              <input
-                className="input"
-                placeholder="Buscar contato, empresa ou telefone…"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-              />
-            </form>
-
-            <div className="space-y-1.5">
-              {extra.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <Link
-                    key={tab.href}
-                    href={tab.href}
-                    className="flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-semibold text-ink-900 hover:bg-canvas"
-                  >
-                    <Icon size={18} className="text-muted" />
-                    {tab.label}
-                  </Link>
-                );
-              })}
-              <Link
-                href="/dashboard/admin"
-                className="flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-semibold text-ink-900 hover:bg-canvas"
-              >
-                <ChevronLeft size={18} className="text-muted" />
-                Painel zerokm
-              </Link>
-              <button
-                onClick={signOut}
-                className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-sm font-semibold text-red-600 hover:bg-red-50"
-              >
-                <LogOut size={18} />
-                Sair
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Carteira: extrato das consultas e evolução do saldo ── */}
-      {wallet && balance && (
-        <WalletModal
-          balance={balance}
-          refreshing={balanceLoading}
-          onRefresh={() => loadBalance(true)}
-          onClose={() => setWallet(false)}
-        />
-      )}
-    </div>
+        )}
+      </WhatsAppTheme>
+    </DashboardShell>
   );
 }

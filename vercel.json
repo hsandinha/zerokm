@@ -13,6 +13,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/api/wa/workers/equipe",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/wa/workers/campaigns",
       "schedule": "* * * * *"
     },
@@ -21,12 +25,34 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/api/wa/workers/funil-followup",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/wa/workers/automacoes",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/wa/workers/agenda",
+      "schedule": "*/30 * * * *"
+    },
+    {
       "path": "/api/wa/workers/webhooks",
       "schedule": "*/5 * * * *"
     },
     {
       "path": "/api/wa/workers/instagram-tokens",
       "schedule": "0 6 * * *"
+    },
+
+    {
+      "path": "/api/wa/workers/programadas",
+      "schedule": "* * * * *"
+    },
+
+    {
+      "path": "/api/wa/workers/conversoes-meta",
+      "schedule": "*/10 * * * *"
     }
   ]
 }

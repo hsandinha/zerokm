@@ -8,10 +8,14 @@
 //   2. simula a parcela com a taxa da loja (simular_financiamento) — a conta é
 //      do sistema;
 //   3. leva para o próximo passo: visita ou test drive (agendar_visita), que
-//      vai para a fila da equipe e, na concessionária, vira lead + tarefa no
-//      CRM que ela já usa;
+//      vai para a fila da equipe, entra na Agenda "a confirmar" (com a
+//      agenda liberada) e, na concessionária, vira lead + tarefa no CRM que
+//      ela já usa. Com a agenda configurada, oferece antes os horários livres
+//      (horarios_livres);
 //   4. carro na troca / quer vender o carro → registrar_captacao;
-//   5. desconto, crédito, pediu gente → transferir_para_vendedor.
+//   5. desconto, crédito, pediu gente → transferir_para_vendedor;
+//   6. pediu foto de um carro do pátio → enviar_fotos (ação: manda as fotos
+//      e a frase dela, sem outra chamada de IA).
 //
 // Ferramentas de CONSULTA (estoque, simulação) devolvem o resultado para o
 // modelo e ele responde em seguida; as de AÇÃO encerram o turno com a frase
@@ -30,8 +34,24 @@ import { buscarEstoque, ofertasParaIa, type FiltrosEstoque } from "@wa/lib/estoq
 import { numeroDeReais, simular, simuladorDaLoja } from "@wa/lib/simulador";
 import { registrarNoCrm } from "@wa/lib/crm-loja";
 import { advanceConversationStage } from "@wa/lib/conversation-stage";
+import { registrarEventoDaColuna } from "@wa/lib/conversoes-meta-servidor";
 import { emitEvent } from "@wa/lib/webhooks";
 import { parsePhoneBr } from "@wa/lib/phone";
+import { hojeEmSaoPaulo, horariosParaIa, lerDataHoraIso, lerDia, lerPeriodo } from "@wa/lib/agenda";
+import {
+  agendaComHorarios,
+  agendarPelaIa,
+  conferirPedidoDaIa,
+  horariosLivresDaLoja,
+  proximosHorariosLivres,
+} from "@wa/lib/agenda-server";
+import { ofertaDoPatio } from "@wa/lib/estoque";
+import { enviarCarroDoPatio } from "@wa/lib/enviar-carro";
+import { criarTarefa } from "@wa/lib/tarefas";
+import { siteUrl } from "@wa/lib/site-url";
+import { operacaoDe } from "@wa/lib/operacao";
+import { estadoDoHorario } from "@wa/lib/horario";
+import { sincronizarOptOutNoGateway } from "@wa/lib/chatrun-bloqueio";
 
 // ── Ferramentas ──────────────────────────────────────────────
 const T_BUSCAR: LlmTool = {
@@ -89,13 +109,43 @@ const T_VISITA: LlmTool = {
     properties: {
       tipo: { type: "string", enum: ["visita", "test_drive"] },
       quando: { type: "string", description: "Dia e horário como o cliente disse, ex: 'sábado de manhã', '12/11 às 15h'" },
-      data_iso: { type: "string", description: "A mesma data em ISO (AAAA-MM-DDTHH:mm), se der para saber" },
+      data_iso: { type: "string", description: "A mesma data em ISO (AAAA-MM-DDTHH:mm, horário de Brasília), se der para saber" },
       veiculo: { type: "string" },
+      ref: { type: "string", description: "Código do carro na consulta, se for um deles" },
       telefone: { type: "string", description: "Celular com DDD — OBRIGATÓRIO no Instagram (no WhatsApp já temos)" },
       resumo: { type: "string" },
-      mensagem: { type: "string", description: "OBRIGATÓRIO. Frase curta dizendo que a equipe confirma o horário em instantes" },
+      mensagem: {
+        type: "string",
+        description: "OBRIGATÓRIO. Frase curta dizendo que a equipe confirma o horário com o cliente e, fora do horário de atendimento, quando ela volta",
+      },
     },
     required: ["tipo", "quando", "resumo", "mensagem"],
+  },
+};
+
+const T_HORARIOS: LlmTool = {
+  name: "horarios_livres",
+  description:
+    "Horários livres da agenda de visita e test drive. Use antes de agendar_visita para oferecer 2 ou 3 horários; agende só horário que veio daqui.",
+  schema: {
+    type: "object",
+    properties: {
+      dia: { type: "string", description: "Dia pedido: AAAA-MM-DD, 'sábado', 'amanhã'. Vazio = próximos dias" },
+      periodo: { type: "string", enum: ["manha", "tarde", "noite"] },
+    },
+  },
+};
+
+const T_FOTOS: LlmTool = {
+  name: "enviar_fotos",
+  description: "Manda ao cliente as fotos de um carro do pátio (os que têm foto na consulta). Use quando pedirem foto.",
+  schema: {
+    type: "object",
+    properties: {
+      ref: { type: "string", description: "Código do carro na consulta, ex: L1A2B3" },
+      mensagem: { type: "string", description: "Frase curta depois das fotos, ex: 'Gostou? Quer agendar uma visita?'" },
+    },
+    required: ["ref", "mensagem"],
   },
 };
 
@@ -126,7 +176,10 @@ const T_TRANSFERIR: LlmTool = {
     properties: {
       motivo: { type: "string", enum: ["pediu_humano", "negociacao", "credito", "reclamacao", "fora_do_escopo"] },
       resumo: { type: "string", description: "Resumo para o vendedor" },
-      mensagem: { type: "string", description: "OBRIGATÓRIO. Frase curta avisando que um vendedor assume em instantes" },
+      mensagem: {
+        type: "string",
+        description: "OBRIGATÓRIO. Frase curta dizendo que um vendedor assume a conversa e, fora do horário de atendimento, quando a equipe volta",
+      },
     },
     required: ["motivo", "resumo", "mensagem"],
   },
@@ -158,12 +211,18 @@ const T_ENCERRAR: LlmTool = {
   },
 };
 
-const CONSULTAS = new Set(["buscar_estoque", "simular_financiamento", "registrar_interesse", "enviar_localizacao"]);
+const CONSULTAS = new Set([
+  "buscar_estoque",
+  "simular_financiamento",
+  "registrar_interesse",
+  "enviar_localizacao",
+  "horarios_livres",
+]);
 
 // O modelo às vezes NARRA a ferramenta no texto ("buscar_estoque(termo: …)")
 // em vez de chamá-la: essas linhas nunca podem chegar ao cliente.
 const TOOL_LEAK_LOJA =
-  /\b(buscar_estoque|simular_financiamento|registrar_interesse|agendar_visita|registrar_captacao|transferir_para_vendedor|enviar_localizacao|encerrar_conversa|reagir_mensagem|parcela_desejada|veiculo_cliente|data_iso)\b/i;
+  /\b(buscar_estoque|simular_financiamento|registrar_interesse|agendar_visita|registrar_captacao|transferir_para_vendedor|enviar_localizacao|encerrar_conversa|reagir_mensagem|horarios_livres|enviar_fotos|parcela_desejada|veiculo_cliente|data_iso)\b/i;
 
 export function sanitizeStoreText(raw: string | null | undefined): string {
   return sanitizeAssistantText(raw)
@@ -184,11 +243,37 @@ export function aplicarRecursos(store: IWaStore, recursos: Recursos): IWaStore {
   return store;
 }
 
-export function toolsDaLoja(store: Pick<IWaStore, "financiamento" | "mapsUrl">): LlmTool[] {
+/**
+ * O que a IA pode fazer além do básico nesta conversa:
+ *  - fotos: o lojista tem pátio e a conversa é do WhatsApp (foto só sai por lá);
+ *  - agenda: a loja tem "Agenda e tarefas" liberado (agendar_visita grava);
+ *  - horarios: a agenda está configurada (horarios_livres aparece).
+ */
+export type OpcoesDaIa = { fotos: boolean; agenda: boolean; horarios: boolean };
+
+export async function opcoesDaIa(
+  store: Pick<IWaStore, "kind" | "concessionariaId" | "ownerUserId"> & { _id: unknown },
+  params: { canal?: string; recursos?: Recursos } = {},
+): Promise<OpcoesDaIa> {
+  const recursos = params.recursos ?? (await recursosDaLoja(store));
+  const agenda = recursos.agenda;
+  return {
+    fotos: store.kind === "lojista" && (params.canal ?? "whatsapp") === "whatsapp",
+    agenda,
+    horarios: agenda && Boolean(await agendaComHorarios(String(store._id)).catch(() => null)),
+  };
+}
+
+export function toolsDaLoja(
+  store: Pick<IWaStore, "financiamento" | "mapsUrl">,
+  opcoes: OpcoesDaIa = { fotos: false, agenda: false, horarios: false },
+): LlmTool[] {
   return [
     T_BUSCAR,
     ...(store.financiamento?.ativo ? [T_SIMULAR] : []),
+    ...(opcoes.fotos ? [T_FOTOS] : []),
     T_INTERESSE,
+    ...(opcoes.horarios ? [T_HORARIOS] : []),
     T_VISITA,
     T_CAPTACAO,
     T_TRANSFERIR,
@@ -266,7 +351,8 @@ function blocoDoEstoque(store: Pick<IWaStore, "kind" | "ai">): string {
 }
 
 export function buildStorePrompt(params: {
-  store: Pick<IWaStore, "name" | "kind" | "ai">;
+  /** `operacao` (horário de atendimento) é opcional: sem ela, loja sempre aberta. */
+  store: Pick<IWaStore, "name" | "kind" | "ai"> & Partial<Pick<IWaStore, "operacao">>;
   channel: Pick<ResolvedChannel, "kind" | "label">;
 }): string {
   const { store } = params;
@@ -295,7 +381,24 @@ export function buildStorePrompt(params: {
   };
   let template = ai?.systemPrompt?.trim() || DEFAULT_STORE_PROMPT;
   if (!template.includes("{{canal}}")) template += "\n\n{{canal}}";
+  // Fora do horário de atendimento a IA não promete vendedor "em instantes":
+  // diz quando a equipe volta. Entra sozinho, também em prompt personalizado.
+  const expediente = blocoDoExpediente(store);
+  if (expediente) template += `\n\n${expediente}`;
   return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? "");
+}
+
+/** Aviso de fora do horário para o prompt (vazio com a loja atendendo). */
+function blocoDoExpediente(store: Pick<IWaStore, "operacao">): string {
+  const { horario } = operacaoDe(store);
+  const estado = estadoDoHorario(horario);
+  if (estado.aberto) return "";
+  const volta = estado.quandoVolta || "no próximo horário de atendimento";
+  return [
+    "## Fora do horário de atendimento",
+    `A equipe da loja não está atendendo agora e volta ${volta}. Continue atendendo normalmente.`,
+    `Se precisar passar para um vendedor (transferir_para_vendedor, agendar_visita), diga que a equipe responde ${volta}. Nunca diga "em instantes" nem "já já".`,
+  ].join("\n");
 }
 
 /** Chave da IA da loja. Sem chave a loja não tem IA (a zerokm não paga). */
@@ -344,6 +447,18 @@ export async function executarConsulta(
     }
     return "Interesse anotado para a equipe. Continue a conversa.";
   }
+  if (call.name === "horarios_livres") {
+    const config = await agendaComHorarios(String(store._id));
+    if (!config) return "A agenda da loja não está configurada: pergunte o dia e o horário que o cliente prefere.";
+    const hoje = hojeEmSaoPaulo();
+    const dia = lerDia(input.dia, hoje);
+    const periodo = lerPeriodo(input.periodo);
+    const tenantId = String(store._id);
+    const doDia = dia ? await horariosLivresDaLoja({ tenantId, config, dias: [dia] }) : [];
+    const proximos = await proximosHorariosLivres({ tenantId, config, desde: dia });
+    const porDia = [...doDia, ...proximos.filter((d) => d.data !== dia)];
+    return horariosParaIa(porDia, periodo, dia);
+  }
   if (call.name === "enviar_localizacao") {
     if (store.mapsUrl && ctx.send) {
       await ctx.send(`📍 ${store.name}: ${store.mapsUrl}`);
@@ -368,8 +483,14 @@ export async function runStoreTurn(params: {
   creds: LlmCreds;
   onConsulta: (call: LlmToolCall) => Promise<string>;
   onReaction?: (emoji: string) => Promise<void>;
+  /** Sem isto (simulador), lê da loja: recursos e agenda. */
+  opcoes?: OpcoesDaIa;
+  /** Confere a ação antes de ela sair. Texto = não sai: o motivo volta para
+   *  o modelo como resultado de consulta (horário ocupado na agenda, e ele
+   *  oferece outro). null = segue. */
+  validarAcao?: (call: LlmToolCall) => Promise<string | null>;
 }): Promise<{ replyText: string; acao: LlmToolCall | null }> {
-  const tools = toolsDaLoja(params.store);
+  const tools = toolsDaLoja(params.store, params.opcoes ?? (await opcoesDaIa(params.store)));
   const messages = [...params.messages];
   for (let i = 0; i <= MAX_CONSULTAS; i++) {
     const result = await runLlm({ system: params.system, messages, tools, creds: params.creds });
@@ -380,12 +501,14 @@ export async function runStoreTurn(params: {
     }
     const calls = result.toolCalls.filter((c) => c.name !== "reagir_mensagem");
     const acao = calls.find((c) => !CONSULTAS.has(c.name)) ?? null;
-    if (acao) return { replyText, acao };
-    const consultas = calls.filter((c) => CONSULTAS.has(c.name));
-    if (!consultas.length) return { replyText, acao: null };
+    const recusa = acao && params.validarAcao ? await params.validarAcao(acao) : null;
+    if (acao && !recusa) return { replyText, acao };
+    const consultas = acao ? [] : calls.filter((c) => CONSULTAS.has(c.name));
+    if (!acao && !consultas.length) return { replyText, acao: null };
 
-    // Consulta: o resultado volta para o modelo como mensagem do sistema.
-    const resultados: string[] = [];
+    // Consulta (ou ação recusada): o resultado volta para o modelo como
+    // mensagem do sistema.
+    const resultados: string[] = acao && recusa ? [`Resultado de ${acao.name}:\n${recusa}`] : [];
     for (const c of consultas) {
       resultados.push(`Resultado de ${c.name}:\n${await params.onConsulta(c)}`);
     }
@@ -418,8 +541,9 @@ async function paraEquipe(conversationId: string, reason: string, summary?: stri
 }
 
 function dataDoPedido(iso: unknown): Date {
-  const d = typeof iso === "string" ? new Date(iso) : null;
-  if (d && !Number.isNaN(d.getTime()) && d.getTime() > Date.now() - 86400_000) return d;
+  // Sem fuso, a data da IA é de Brasília (o servidor roda em UTC).
+  const d = lerDataHoraIso(iso);
+  if (d && d.getTime() > Date.now() - 86400_000) return d;
   return new Date(Date.now() + 2 * 3600_000); // sem data clara: a equipe confirma em 2h
 }
 
@@ -467,6 +591,7 @@ export async function runStoreAiForConversation(conversationId: string): Promise
 
   const channel = await channelForConversation(conv);
   const system = buildStorePrompt({ store, channel });
+  const opcoes = await opcoesDaIa(store, { canal: channel.kind, recursos });
   const messages: LlmMessage[] = history.map((m) => ({
     role: m.direction === "inbound" ? "user" : "assistant",
     content: m.content && m.content.trim() ? m.content : `[${m.mediaType}]`,
@@ -484,7 +609,17 @@ export async function runStoreAiForConversation(conversationId: string): Promise
     system,
     messages,
     creds,
+    opcoes,
     onConsulta: (call) => executarConsulta(store, call, { conversationId, contact, send }),
+    // Horário ocupado ou fora do horário de visita não vira agendamento: a IA
+    // recebe os livres e oferece outro (dois no mesmo horário só pela tela).
+    validarAcao: async (call) =>
+      call.name === "agendar_visita" && opcoes.agenda
+        ? conferirPedidoDaIa({ tenantId: String(store._id), conversationId, input: call.input }).catch((err) => {
+            console.error("[ai-loja] agenda:", err);
+            return null;
+          })
+        : null,
     onReaction: async (emoji) => {
       if (!last.externalId) return;
       try {
@@ -529,14 +664,73 @@ export async function runStoreAiForConversation(conversationId: string): Promise
     const tipo = input.tipo === "test_drive" ? "Test drive" : "Visita";
     const nota = `${tipo} pedido para ${str(input.quando)}${str(input.veiculo) ? ` — ${str(input.veiculo)}` : ""}. ${str(input.resumo)}`;
     if (fala) await send(fala);
+    // Agenda (com o recurso liberado): entra "a confirmar" no dia e na hora
+    // pedidos; a equipe confirma. Falhar aqui não pode travar o resto.
+    const agendamento = opcoes.agenda
+      ? await agendarPelaIa({ store, conv, contact, telefone: celular, input }).catch((err) => {
+          console.error("[ai-loja] agenda:", err);
+          return null;
+        })
+      : null;
     await registrarNoCrm({
       store,
       contact,
       nota,
-      tarefa: { titulo: `${tipo}: ${contact.name || "cliente"} — ${str(input.quando)}`, quando: dataDoPedido(input.data_iso) },
+      tarefa: {
+        titulo: `${tipo}: ${contact.name || "cliente"} — ${str(input.quando)}`,
+        quando: agendamento && !agendamento.horarioAproximado ? agendamento.inicio : dataDoPedido(input.data_iso),
+      },
     }).catch((err) => console.error("[ai-loja] CRM:", err));
     await advanceConversationStage(conversationId, "cadastro");
     await paraEquipe(conversationId, input.tipo === "test_drive" ? "test_drive" : "visita", nota);
+    return;
+  }
+
+  if (acao.name === "enviar_fotos") {
+    // Ação de propósito: as fotos e a frase da IA saem sem outra chamada de
+    // IA. Carro reservado, vendido ou pausado não é achado (só o disponível).
+    const oferta = await ofertaDoPatio(store, str(input.ref));
+    if (!oferta?.fotoIds?.length || channel.kind !== "whatsapp") {
+      await send(
+        oferta
+          ? "Esse ainda está sem foto aqui no sistema, mas já pedi para a equipe te mandar! 😊"
+          : "Não achei as fotos desse carro aqui, mas já pedi para a equipe te mandar! 😊",
+      );
+      const pedido = `Mandar fotos${oferta ? ` do ${oferta.titulo}` : ""} para ${contact.name || "o cliente"}`;
+      // A IA disse que a equipe manda: a conversa vai para a fila (com o
+      // aviso de transferência) e, com a agenda liberada, fica também a
+      // tarefa, uma só por pedido enquanto estiver aberta.
+      if (opcoes.agenda) {
+        await criarTarefa({
+          tenantId: conv.tenantId ?? null,
+          titulo: pedido,
+          prazo: new Date(Date.now() + 2 * 3600_000),
+          responsavel: conv.assignedTo ?? null,
+          conversationId: String(conv._id),
+          contactId: String(contact._id),
+          contatoNome: contact.name ?? null,
+          origem: "ia",
+          criadoPor: "IA",
+          semRepetir: true,
+        }).catch((err) => console.error("[ai-loja] tarefa:", err));
+      }
+      await paraEquipe(conversationId, "pediu_foto", pedido);
+      return;
+    }
+    try {
+      await enviarCarroDoPatio({
+        conversationId,
+        to: contact.phone,
+        oferta,
+        base: siteUrl(),
+        canal: channel.kind,
+        sender: "ai",
+        semCartao: true,
+      });
+    } catch (err) {
+      console.error("[ai-loja] fotos:", err);
+    }
+    if (fala) await send(fala);
     return;
   }
 
@@ -563,6 +757,7 @@ export async function runStoreAiForConversation(conversationId: string): Promise
     if (input.motivo === "opt_out") {
       await WaContact.updateOne({ _id: contact._id }, { optOut: true });
       await emitEvent("contato.optout", { phone: contact.phone, via: "ia" }, { conversationId });
+      await sincronizarOptOutNoGateway(contact, true, "ia");
     }
     await WaConversation.updateOne(
       { _id: conversationId },
@@ -574,6 +769,8 @@ export async function runStoreAiForConversation(conversationId: string): Promise
       },
     );
     await emitEvent("conversa.resolvida", { by: "ia", reason: input.motivo ?? null }, { conversationId });
+    // Foi para "Perdido": a coluna pode ter evento para a Meta.
+    if (conv.stage !== "ganho") await registrarEventoDaColuna({ conversationId, por: "ia" });
     return;
   }
 

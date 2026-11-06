@@ -10,8 +10,9 @@ import { REPASSE_STATUS, REPASSE_TIPOS, type RepasseStatus, type RepasseTipo } f
  * consultas de sempre (vitrine, favoritos, sugestões, painel da
  * concessionária) não o enxergam — ver o filtro automático no fim do arquivo.
  * Regras e motivo de não reaproveitar DealerVehiclePrice: lib/utils/repasse.ts.
- * Placa e fotos não ficam aqui: o lojista pede à concessionária pelo WhatsApp,
- * como no 0KM.
+ * Placa e fotos do repasse não ficam aqui: o lojista pede à concessionária
+ * pelo WhatsApp, como no 0KM. Só o carro do pátio do lojista tem fotos e placa
+ * interna (bloco no fim da interface), porque ali quem vende é o próprio dono.
  */
 export interface IRepasseVehicle extends Document {
     concessionariaId?: mongoose.Types.ObjectId;
@@ -42,6 +43,24 @@ export interface IRepasseVehicle extends Document {
     createdBy?: string;
     createdAt: Date;
     updatedAt: Date;
+
+    // ── Só do estoque local (pátio do lojista) ── ver wa/lib/estoque-ficha.ts.
+    // O repasse da concessionária não usa nada daqui: segue sem foto e sem
+    // placa, pedidas pelo WhatsApp.
+    versao?: string;
+    portas?: number;
+    aceitaTroca?: boolean;
+    unicoDono?: boolean;
+    /** Placa para a equipe achar o carro no pátio. Nunca vai à IA nem ao cliente. */
+    placaInterna?: string;
+    /** Preço FIPE de referência no cadastro (só a equipe vê). */
+    precoFipe?: number;
+    referenciaFipe?: string;
+    /** disponivel | reservado | vendido | pausado. Ausente = disponível. A IA só oferece disponível. */
+    situacao?: 'disponivel' | 'reservado' | 'vendido' | 'pausado';
+    situacaoEm?: Date | null;
+    /** Fotos (WaFotoEstoque) na ordem de exibição; a primeira é a capa. */
+    fotos?: mongoose.Types.ObjectId[];
 }
 
 const RepasseVehicleSchema: Schema = new Schema({
@@ -72,6 +91,18 @@ const RepasseVehicleSchema: Schema = new Schema({
     ativo: { type: Boolean, default: true, index: true },
     removidoEm: { type: Date, default: null },
     createdBy: { type: String, trim: true },
+
+    // Estoque local (pátio do lojista): ver a interface acima.
+    versao: { type: String, trim: true },
+    portas: { type: Number, min: 0, max: 9 },
+    aceitaTroca: { type: Boolean },
+    unicoDono: { type: Boolean },
+    placaInterna: { type: String, trim: true, uppercase: true },
+    precoFipe: { type: Number, min: 0 },
+    referenciaFipe: { type: String, trim: true },
+    situacao: { type: String, enum: ['disponivel', 'reservado', 'vendido', 'pausado'] },
+    situacaoEm: { type: Date, default: null },
+    fotos: { type: [{ type: Schema.Types.ObjectId, ref: 'WaFotoEstoque' }], default: undefined },
 }, {
     timestamps: true,
 });

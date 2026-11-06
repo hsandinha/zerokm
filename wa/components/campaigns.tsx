@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import clsx from "clsx";
-import { Ban, Loader2, Megaphone, Pause, Play, Plus } from "lucide-react";
+import { AlertTriangle, Ban, Loader2, Megaphone, Pause, Play, Plus, Trash2 } from "lucide-react";
 import {
   CAMPAIGN_STATUS_CLS,
   CAMPAIGN_STATUS_LABEL,
@@ -39,6 +39,7 @@ type Campaign = {
   replied: number;
   skipped: number;
   createdAt: string;
+  lastError?: string | null;
 };
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -47,12 +48,19 @@ const SOURCE_LABEL: Record<string, string> = {
   targets: "base",
   pessoa: "por pessoa",
   manual: "manual",
+  contatos: "contatos",
+  coluna: "coluna do funil",
+  colar: "lista colada",
+  misto: "várias fontes",
 };
+
+/** Só o que não está (nem vai estar) enviando pode ser apagado. */
+const APAGAVEIS = ["draft", "completed", "cancelled", "failed"];
 
 const POLL_MS = 8000;
 
 export function Campaigns() {
-  const { base } = useWaPanel();
+  const { base, store } = useWaPanel();
   const { confirm: confirmar, feedback } = useFeedback();
   const [campaigns, setCampaigns] = useState<Campaign[] | null>(null);
   const [agindo, setAgindo] = useState<string | null>(null);
@@ -74,6 +82,32 @@ export function Campaigns() {
     const t = setInterval(load, POLL_MS);
     return () => clearInterval(t);
   }, [load]);
+
+  async function apagar(c: Campaign) {
+    if (
+      !(await confirmar({
+        title: `Apagar "${c.name}"?`,
+        description: "A campanha e a lista de destinatários somem. As conversas continuam na Central.",
+        confirmLabel: "Apagar campanha",
+        cancelLabel: "Voltar",
+        danger: true,
+      }))
+    ) {
+      return;
+    }
+    setAgindo(c.id);
+    setErro(null);
+    try {
+      const res = await fetch(`/api/wa/campaigns/${c.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setErro(body.error ?? "Falha ao apagar a campanha");
+      }
+      await load();
+    } finally {
+      setAgindo(null);
+    }
+  }
 
   async function acao(c: Campaign, action: "iniciar" | "pausar" | "retomar" | "cancelar") {
     if (action === "cancelar" && !(await confirmar({ title: `Cancelar "${c.name}"?`, description: "As mensagens que ainda não saíram não serão mais enviadas.", confirmLabel: "Cancelar campanha", cancelLabel: "Voltar", danger: true }))) {
@@ -127,8 +161,9 @@ export function Campaigns() {
         <div className="card text-center">
           <Megaphone className="mx-auto mb-2 opacity-40" />
           <p className="text-sm text-muted">
-            Nenhuma campanha ainda. Comece buscando empresas no CNPJá, usando a base já enriquecida
-            ou importando um CSV.
+            {store
+              ? "Nenhuma campanha ainda. Mande uma oferta para os contatos da loja, para uma coluna do funil ou para uma lista sua."
+              : "Nenhuma campanha ainda. Comece buscando empresas no CNPJá, usando a base já enriquecida ou importando um CSV."}
           </p>
           <Link href={`${base}/campanhas/nova`} className="btn-primary mt-3 inline-flex">
             <Plus size={15} /> Criar a primeira
@@ -199,6 +234,13 @@ export function Campaigns() {
                   {c.scheduledAt ? ` · começa ${dateTime(c.scheduledAt)}` : ""}
                 </p>
 
+                {c.status === "paused" && c.lastError && (
+                  <p className="flex items-start gap-1.5 rounded-xl bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-700">
+                    <AlertTriangle size={12} className="mt-0.5 shrink-0" />
+                    {c.lastError}
+                  </p>
+                )}
+
                 {c.failed > 0 && (
                   <Link
                     href={`${base}/campanhas/${c.id}?status=failed`}
@@ -243,6 +285,17 @@ export function Campaigns() {
                       onClick={() => acao(c, "cancelar")}
                     >
                       <Ban size={13} /> Cancelar
+                    </button>
+                  )}
+                  {APAGAVEIS.includes(c.status) && (
+                    <button
+                      className="rounded-full p-1.5 text-muted hover:bg-canvas hover:text-red-600"
+                      disabled={agindo === c.id}
+                      onClick={() => apagar(c)}
+                      title="Apagar campanha"
+                      aria-label="Apagar campanha"
+                    >
+                      <Trash2 size={13} />
                     </button>
                   )}
                   <Link

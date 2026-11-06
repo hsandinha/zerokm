@@ -23,7 +23,9 @@ export type Recurso =
     | 'favoritos'
     | 'atendimento'
     | 'funil'
+    | 'agenda'
     | 'campanhas'
+    | 'automacoes'
     | 'estoque_local'
     | 'instagram'
     | 'messenger'
@@ -61,7 +63,19 @@ export const GRUPOS_DE_RECURSOS: Array<{ grupo: string; itens: ItemRecurso[] }> 
                 descricao: 'A área de atendimento da loja: Central de conversas, contatos e o WhatsApp da loja. Ao liberar, começa o período de teste no primeiro acesso.',
             },
             { chave: 'funil', rotulo: 'Funil de vendas', descricao: 'Etapas de venda na conversa e o quadro do funil.', depende: 'atendimento' },
+            {
+                chave: 'agenda',
+                rotulo: 'Agenda e tarefas',
+                descricao: 'Visitas e test drives marcados (também pela IA), lembrete ao cliente na véspera e as tarefas da equipe.',
+                depende: 'atendimento',
+            },
             { chave: 'campanhas', rotulo: 'Campanhas e modelos', descricao: 'Disparo para a lista da loja e modelos aprovados pela Meta.', depende: 'atendimento' },
+            {
+                chave: 'automacoes',
+                rotulo: 'Automações e follow-up',
+                descricao: 'Pós-atendimento com avaliação no Google, pós-venda, aniversário e follow-up por coluna do funil. Ligado por padrão para quem tem o atendimento.',
+                depende: 'atendimento',
+            },
             {
                 chave: 'estoque_local',
                 rotulo: 'Estoque do pátio',

@@ -11,10 +11,12 @@ import { WaContact, WaConversation, WaFollowup, type IWaContact } from "@wa/mode
 import { WaTarget } from "@wa/models/base";
 import { parsePhoneBr } from "@wa/lib/phone";
 import { wabaCredentialsOf, whatsappChannelOf } from "@wa/lib/channels";
-import { listTemplates, templateVariables } from "@wa/lib/meta";
+import { formaDoTemplate, listTemplates, podeUsarTemplates, type TemplateSendExtras } from "@wa/lib/meta";
 import { sendAndLogTemplate } from "@wa/lib/send";
-import { renderTemplateBody } from "@wa/lib/campaign-params";
 import { emitEvent } from "@wa/lib/webhooks";
+import { linkDaMidia, midiaDoDono, tipoDaMidia } from "@wa/lib/midia-saida";
+import { siteUrl } from "@wa/lib/site-url";
+import { TemplateIncompletoError, extrasDoEnvio, textoDoTemplate, type MidiaDoEnvio } from "@wa/lib/template-envio";
 
 export class OutreachError extends Error {
   constructor(
@@ -37,6 +39,14 @@ export async function sendTemplateOutreach(params: {
   userEmail: string;
   /** Loja que aborda (null = CNV). Contato, conversa e número são dela. */
   tenantId?: string | null;
+  /** Opcionais, para template que pede mais que o corpo (sem eles, o envio
+   *  desses templates é barrado com o motivo em vez de falhar na Meta): */
+  /** Valor do {{1}} do cabeçalho de texto. */
+  headerText?: string | null;
+  /** Arquivo do cabeçalho de mídia, já salvo pela mesma loja (wa/lib/midia-saida.ts). */
+  headerMediaId?: string | null;
+  /** Final da URL de cada botão de link dinâmico (index = posição do botão). */
+  buttonUrlParams?: Array<{ index: number; value: string }>;
 }): Promise<{ conversationId: string; contactId: string; created: boolean; text: string }> {
   await dbConnect();
   const tenantId = params.tenantId ?? null;
@@ -90,7 +100,7 @@ export async function sendTemplateOutreach(params: {
 
   // ── 2. Template: precisa existir, estar aprovado e ter as variáveis ──
   const creds = await wabaCredentialsOf(tenantId);
-  if (!creds?.wabaId) {
+  if (!podeUsarTemplates(creds)) {
     throw new OutreachError("WhatsApp não conectado — conecte o número na Configuração.");
   }
   const channel = await whatsappChannelOf(tenantId);
@@ -100,22 +110,48 @@ export async function sendTemplateOutreach(params: {
     templates.find(
       (t) => t.name === params.templateName && (!params.language || t.language === params.language),
     ) ?? templates.find((t) => t.name === params.templateName);
-  if (!tpl) throw new OutreachError(`Template "${params.templateName}" não existe neste WABA.`);
+  if (!tpl) {
+    throw new OutreachError(
+      `Template "${params.templateName}" não existe ${tenantId ? "no WhatsApp da loja" : "neste WABA"}.`,
+    );
+  }
   if (tpl.status !== "APPROVED") {
     throw new OutreachError(
       `O template "${tpl.name}" está ${tpl.status} — só APPROVED pode ser enviado.`,
     );
   }
 
-  const body = tpl.components?.find((c) => c.type === "BODY")?.text ?? "";
-  const needed = templateVariables(body).length;
+  const forma = formaDoTemplate(tpl);
+  const needed = forma.bodyVars;
   const values = (params.params ?? []).map((v) => String(v ?? "").trim()).slice(0, needed);
   if (values.length < needed || values.some((v) => !v)) {
     throw new OutreachError(
       `O template tem ${needed} variável${needed === 1 ? "" : "is"} — preencha todas.`,
     );
   }
-  const text = renderTemplateBody(body, values);
+
+  // Cabeçalho de mídia e link dinâmico: a Meta recusa a mensagem inteira sem
+  // eles. O arquivo precisa ser da mesma loja.
+  let midia: MidiaDoEnvio | null = null;
+  if (params.headerMediaId) {
+    const doc = await midiaDoDono(params.headerMediaId, tenantId);
+    if (!doc) throw new OutreachError("O arquivo do cabeçalho venceu ou não existe: anexe de novo.");
+    const tipo = tipoDaMidia(doc.mime);
+    if (!tipo || tipo === "audio") throw new OutreachError("Cabeçalho aceita imagem, vídeo ou documento.");
+    midia = { link: linkDaMidia(siteUrl(), params.headerMediaId), tipo, filename: doc.filename ?? null };
+  }
+  let extras: TemplateSendExtras;
+  try {
+    extras = extrasDoEnvio(forma, {
+      headerTexto: params.headerText,
+      midia,
+      botoes: params.buttonUrlParams,
+    });
+  } catch (err) {
+    if (err instanceof TemplateIncompletoError) throw new OutreachError(err.message);
+    throw err;
+  }
+  const text = textoDoTemplate(forma, values, params.headerText);
 
   // ── 3. Conversa (nova, ou reaberta se estava encerrada) ────
   let created = false;
@@ -163,6 +199,8 @@ export async function sendTemplateOutreach(params: {
     bodyParams: values,
     renderedText: text,
     sender: "human",
+    headerParams: extras.headerParams,
+    buttonUrlParams: extras.buttonUrlParams,
   });
 
   if (contact.targetId) {

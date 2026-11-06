@@ -25,6 +25,16 @@
 .sidebarItemLabel { flex: 1; }
 .sidebarCollapsed .sidebarItem { justify-content: center; padding: 12px; }
 .sidebarCollapsed .sidebarItemLabel { display: none; }
+/* Subitens da área aberta (ex.: Atendimento › Central): logo abaixo da aba-mãe,
+   recuados e menores. Recolhido, ficam só os ícones com um fio à esquerda. */
+.sidebarGroup { display: flex; flex-direction: column; gap: 2px; }
+.sidebarSubNav { display: flex; flex-direction: column; gap: 2px; margin: 2px 0 6px 18px; padding-left: 8px; border-left: 1px solid #2d4457; }
+.sidebarSubItem { width: 100%; min-height: 34px; display: flex; align-items: center; gap: 10px; padding: 6px 10px; background: transparent; border: 1px solid transparent; border-radius: 7px; color: #9fb1c2; text-align: left; font-size: 12.5px; font-weight: 500; }
+.sidebarSubItem:hover { background: #1b3448; color: #fff; }
+.sidebarSubItem .sidebarItemIcon svg { width: 16px; height: 16px; }
+.sidebarSubItemActive, .sidebarSubItemActive:hover { background: #3a382b; border-color: #5b5031; color: #ffd16e; }
+.sidebarCollapsed .sidebarSubNav { margin: 2px 0 6px 6px; padding-left: 4px; }
+.sidebarCollapsed .sidebarSubItem { justify-content: center; padding: 8px; }
 .sidebarFooter { padding: 12px; border-top: 1px solid #263b4c; display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
 .sidebarFooter > :first-child { align-self: center; }
 /* O menu lateral é sempre azul-marinho: o menu do usuário usa a paleta escura

@@ -1,10 +1,12 @@
 "use client";
 
-// Contatos: quem já trocou mensagem (ou foi abordado) pelo número do CNV.
+// Contatos: quem já trocou mensagem (ou foi abordado) pelo número do CNV ou
+// da loja, e quem a loja cadastrou à mão ou importou da planilha.
 //
 // A ficha à direita responde a pergunta que quem atende faz antes de ligar:
 // essa pessoa já tem conta? está no teste grátis? já pagou alguma coisa? — e
-// é a mesma verdade que a IA lê, porque sai do banco da zerokm.
+// é a mesma verdade que a IA lê, porque sai do banco da zerokm. Cadastrar,
+// editar e apagar abrem em modal, como os outros cadastros do atendimento.
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
@@ -14,20 +16,27 @@ import {
   Ban,
   BadgeCheck,
   Building2,
+  Cake,
   CreditCard,
+  Download,
+  FileSpreadsheet,
   Loader2,
   Mail,
+  MapPin,
   Megaphone,
   MessageCircle,
   Pencil,
-  Save,
+  StickyNote,
   Search,
+  Trash2,
+  UserPlus,
   X,
 } from "lucide-react";
 import { formatPhoneBr } from "@wa/lib/phone";
 import { formatDocument } from "@wa/lib/documento";
 import {
   stageByIdFor,
+  corDaColuna,
   STATUS_LABEL,
   dateTime,
   formatNumber,
@@ -38,14 +47,23 @@ import {
   type ConversationStatus,
 } from "@wa/lib/stages";
 import { useWaPanel } from "@wa/components/wa-panel";
+import {
+  MESES,
+  ROTULO_DO_TIPO,
+  TIPOS_DE_CONTATO,
+  formatarAniversario,
+  type TipoDeContato,
+} from "@wa/lib/contatos";
+import { ImportarContatosModal } from "@wa/components/contatos-importar";
 
-type Filtro = "todos" | "cadastrados" | "sem_cadastro" | "optout";
+type Filtro = "todos" | "cadastrados" | "sem_cadastro" | "optout" | "aniversariantes";
 
 const FILTROS: Array<{ id: Filtro; label: string }> = [
   { id: "todos", label: "Todos" },
   { id: "cadastrados", label: "Com cadastro" },
   { id: "sem_cadastro", label: "Sem cadastro" },
   { id: "optout", label: "Opt-out" },
+  { id: "aniversariantes", label: "Aniversariantes do mês" },
 ];
 
 type Row = {
@@ -57,6 +75,8 @@ type Row = {
   company: string | null;
   city: string | null;
   state: string | null;
+  tipo: TipoDeContato;
+  birthDate: string | null;
   source: string;
   optOut: boolean;
   registered: boolean;
@@ -65,6 +85,7 @@ type Row = {
     id: string;
     status: ConversationStatus;
     stage: string;
+    coluna?: { name: string; color: string } | null;
     lastMessageAt: string | null;
     unread: number;
   } | null;
@@ -97,8 +118,16 @@ type Dossier = {
   campaigns: Array<{ campaignId: string; status: string; sentAt: string | null }>;
 };
 
+type Endereco = {
+  zip: string | null;
+  street: string | null;
+  number: string | null;
+  complement: string | null;
+  district: string | null;
+};
+
 type Detail = {
-  contact: Row & { cnae: string | null };
+  contact: Row & { cnae: string | null; address: Endereco; notes: string | null };
   conversation: {
     id: string;
     status: ConversationStatus;
@@ -124,14 +153,20 @@ function ContactsInner() {
   const [busca, setBusca] = useState(params?.get("q") ?? "");
   const [termo, setTermo] = useState(params?.get("q") ?? "");
   const [filtro, setFiltro] = useState<Filtro>("todos");
+  const [tipo, setTipo] = useState<TipoDeContato | "">("");
+  const [mes, setMes] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState<Row[]>([]);
   const [total, setTotal] = useState(0);
   const [pageSize, setPageSize] = useState(50);
+  const [podeExportar, setPodeExportar] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [selecionado, setSelecionado] = useState<string | null>(null);
   const [detalhe, setDetalhe] = useState<Detail | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [cadastro, setCadastro] = useState<{ mode: "novo" } | { mode: "editar"; detalhe: Detail } | null>(null);
+  const [importando, setImportando] = useState(false);
+  const [apagando, setApagando] = useState<Detail | null>(null);
 
   // A busca do topo do painel manda pelo `?q=` — respeita o que veio na URL.
   useEffect(() => {
@@ -149,11 +184,20 @@ function ContactsInner() {
     return () => clearTimeout(t);
   }, [busca]);
 
+  /** Os mesmos filtros da lista valem para a exportação. */
+  const filtrosDaUrl = useCallback(() => {
+    const sp = new URLSearchParams({ filtro });
+    if (termo.trim()) sp.set("q", termo.trim());
+    if (tipo) sp.set("tipo", tipo);
+    if (filtro === "aniversariantes" && mes) sp.set("mes", String(mes));
+    return sp;
+  }, [filtro, termo, tipo, mes]);
+
   const load = useCallback(async () => {
     setCarregando(true);
     try {
-      const sp = new URLSearchParams({ filtro, page: String(page) });
-      if (termo.trim()) sp.set("q", termo.trim());
+      const sp = filtrosDaUrl();
+      sp.set("page", String(page));
       const res = await fetch(`/api/wa/contacts?${sp.toString()}`);
       if (!res.ok) {
         setErro("Não foi possível carregar os contatos.");
@@ -163,28 +207,36 @@ function ContactsInner() {
       setRows(body.contacts ?? []);
       setTotal(body.total ?? 0);
       setPageSize(body.pageSize ?? 50);
+      setPodeExportar(Boolean(body.podeExportar));
+      // O mês "de agora" é o do servidor (Brasília), não o do relógio da máquina.
+      if (filtro === "aniversariantes" && !mes && body.mes) setMes(body.mes);
       setErro(null);
     } finally {
       setCarregando(false);
     }
-  }, [filtro, page, termo]);
+  }, [filtrosDaUrl, page, filtro, mes]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  const carregarDetalhe = useCallback((id: string) => {
+    fetch(`/api/wa/contacts/${id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setDetalhe(d))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!selecionado) {
       setDetalhe(null);
       return;
     }
-    fetch(`/api/wa/contacts/${selecionado}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setDetalhe(d))
-      .catch(() => {});
-  }, [selecionado]);
+    carregarDetalhe(selecionado);
+  }, [selecionado, carregarDetalhe]);
 
   const paginas = Math.max(1, Math.ceil(total / pageSize));
+  const aniversariantes = filtro === "aniversariantes";
 
   return (
     <div className="space-y-5">
@@ -193,26 +245,45 @@ function ContactsInner() {
           <p className="brand-kicker">Base</p>
           <h1 className="mt-1 text-2xl font-bold">Contatos</h1>
           <p className="mt-1 text-sm text-muted">
-            {formatNumber(total)} contato{total === 1 ? "" : "s"} — todo mundo que recebeu ou mandou
-            mensagem pelo número do CNV.
+            {formatNumber(total)} contato{total === 1 ? "" : "s"}:{" "}
+            {store
+              ? "todo mundo que recebeu ou mandou mensagem pelos canais da loja, e quem foi cadastrado ou importado."
+              : "todo mundo que recebeu ou mandou mensagem pelo número do CNV."}
           </p>
         </div>
-        <label className="relative">
-          <Search
-            size={15}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
-          />
-          <input
-            className="input w-72 py-2 pl-9"
-            placeholder="Nome, telefone, e-mail, CNPJ…"
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-          />
-        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="relative">
+            <Search
+              size={15}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
+            />
+            <input
+              className="input w-72 py-2 pl-9"
+              placeholder="Nome, telefone, e-mail, CNPJ…"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+            />
+          </label>
+          <button className="btn-ghost px-3 py-2 text-xs" onClick={() => setImportando(true)}>
+            <FileSpreadsheet size={14} /> Importar CSV
+          </button>
+          {podeExportar && (
+            <a
+              className="btn-ghost px-3 py-2 text-xs"
+              href={`/api/wa/contacts/export?${filtrosDaUrl().toString()}`}
+              title="Baixa os contatos deste filtro em CSV"
+            >
+              <Download size={14} /> Exportar CSV
+            </a>
+          )}
+          <button className="btn-dark px-3 py-2 text-xs" onClick={() => setCadastro({ mode: "novo" })}>
+            <UserPlus size={14} /> Novo contato
+          </button>
+        </div>
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
-        {FILTROS.map((f) => (
+      <div className="flex flex-wrap items-center gap-1.5">
+        {FILTROS.filter((f) => !store || (f.id !== "cadastrados" && f.id !== "sem_cadastro")).map((f) => (
           <button
             key={f.id}
             onClick={() => {
@@ -227,6 +298,39 @@ function ContactsInner() {
             {f.label}
           </button>
         ))}
+        {aniversariantes && (
+          <select
+            className="input w-auto py-1 text-xs"
+            value={mes ?? ""}
+            onChange={(e) => {
+              setMes(Number(e.target.value) || null);
+              setPage(1);
+            }}
+            aria-label="Mês dos aniversariantes"
+          >
+            {MESES.map((m, i) => (
+              <option key={m} value={i + 1}>
+                {m}
+              </option>
+            ))}
+          </select>
+        )}
+        <select
+          className="input ml-auto w-auto py-1 text-xs"
+          value={tipo}
+          onChange={(e) => {
+            setTipo(e.target.value as TipoDeContato | "");
+            setPage(1);
+          }}
+          aria-label="Tipo de contato"
+        >
+          <option value="">Todos os tipos</option>
+          {TIPOS_DE_CONTATO.map((t) => (
+            <option key={t} value={t}>
+              {ROTULO_DO_TIPO[t]}
+            </option>
+          ))}
+        </select>
       </div>
 
       {erro && (
@@ -243,14 +347,20 @@ function ContactsInner() {
             </p>
           ) : rows.length === 0 ? (
             <p className="px-4 py-10 text-center text-sm text-muted">
-              Nenhum contato com esse filtro.
+              {aniversariantes
+                ? "Ninguém com aniversário neste mês. A data entra pela ficha do contato ou pela importação."
+                : "Nenhum contato com esse filtro."}
             </p>
           ) : (
             <ul className="divide-y divide-line">
               {rows.map((c) => {
-                const stage = c.conversation && isStage(c.conversation.stage)
+                // A coluna do funil (com o nome que a loja deu); sem ela, o nome da etapa.
+                const etapa = c.conversation && isStage(c.conversation.stage)
                   ? STAGE_BY_ID[c.conversation.stage]
                   : null;
+                const stage = c.conversation?.coluna
+                  ? { label: c.conversation.coluna.name, chip: corDaColuna(c.conversation.coluna.color).chip }
+                  : etapa;
                 return (
                   <li key={c.id}>
                     <button
@@ -268,10 +378,15 @@ function ContactsInner() {
                           <span className="truncate text-sm font-semibold">
                             {c.name || formatPhoneBr(c.phone)}
                           </span>
-                          {c.registered && (
+                          {!store && c.registered && (
                             <BadgeCheck size={13} className="shrink-0 text-violet-700" />
                           )}
                           {c.optOut && <Ban size={13} className="shrink-0 text-red-600" />}
+                          {c.tipo !== "cliente" && (
+                            <span className="shrink-0 rounded-full bg-ink-100 px-1.5 py-0.5 text-[10px] font-semibold text-ink-800">
+                              {ROTULO_DO_TIPO[c.tipo] ?? c.tipo}
+                            </span>
+                          )}
                         </span>
                         <span className="block truncate text-xs text-muted">
                           {[c.name ? formatPhoneBr(c.phone) : null, c.company, c.city]
@@ -280,6 +395,11 @@ function ContactsInner() {
                         </span>
                       </span>
                       <span className="hidden shrink-0 items-center gap-1.5 sm:flex">
+                        {aniversariantes && c.birthDate && (
+                          <span className="flex items-center gap-1 rounded-full bg-pink-100 px-1.5 py-0.5 text-[10px] font-semibold text-pink-700">
+                            <Cake size={11} /> {formatarAniversario(c.birthDate, false)}
+                          </span>
+                        )}
                         {stage && (
                           <span
                             className={clsx(
@@ -338,16 +458,44 @@ function ContactsInner() {
           onFechar={() => setSelecionado(null)}
           onSalvo={() => {
             load();
-            if (selecionado) {
-              fetch(`/api/wa/contacts/${selecionado}`)
-                .then((r) => (r.ok ? r.json() : null))
-                .then((d) => setDetalhe(d))
-                .catch(() => {});
-            }
+            if (selecionado) carregarDetalhe(selecionado);
           }}
+          onEditar={(d) => setCadastro({ mode: "editar", detalhe: d })}
+          onApagar={(d) => setApagando(d)}
           onAbrirConversa={(id) => router.push(`${base}/central?c=${id}`)}
         />
       </div>
+
+      {cadastro && (
+        <ContatoModal
+          cadastro={cadastro}
+          onClose={() => setCadastro(null)}
+          onSalvo={(id) => {
+            setCadastro(null);
+            load();
+            setSelecionado(id);
+            carregarDetalhe(id);
+          }}
+          onAbrirExistente={(id) => {
+            setCadastro(null);
+            setSelecionado(id);
+          }}
+        />
+      )}
+
+      {importando && <ImportarContatosModal onClose={() => setImportando(false)} onImportado={load} />}
+
+      {apagando && (
+        <ApagarContatoModal
+          detalhe={apagando}
+          onClose={() => setApagando(null)}
+          onApagado={() => {
+            setApagando(null);
+            setSelecionado(null);
+            load();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -357,30 +505,24 @@ function Ficha({
   selecionado,
   onFechar,
   onSalvo,
+  onEditar,
+  onApagar,
   onAbrirConversa,
 }: {
   detalhe: Detail | null;
   selecionado: string | null;
   onFechar: () => void;
   onSalvo: () => void;
+  onEditar: (d: Detail) => void;
+  onApagar: (d: Detail) => void;
   onAbrirConversa: (conversationId: string) => void;
 }) {
-  const { base } = useWaPanel();
-  const [editando, setEditando] = useState(false);
-  const [nome, setNome] = useState("");
-  const [empresa, setEmpresa] = useState("");
-  const [email, setEmail] = useState("");
+  const { base, store } = useWaPanel();
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
-    setEditando(false);
     setErro(null);
-    if (detalhe) {
-      setNome(detalhe.contact.name ?? "");
-      setEmpresa(detalhe.contact.company ?? "");
-      setEmail(detalhe.contact.email ?? "");
-    }
   }, [detalhe]);
 
   async function patch(body: Record<string, unknown>) {
@@ -398,7 +540,6 @@ function Ficha({
         setErro(b.error ?? "Falha ao salvar");
         return;
       }
-      setEditando(false);
       onSalvo();
     } finally {
       setSalvando(false);
@@ -409,8 +550,9 @@ function Ficha({
     return (
       <aside className="card hidden h-fit lg:block">
         <p className="text-sm text-muted">
-          Selecione um contato para ver a situação dele no CNV: cadastro, teste grátis, assinatura e
-          cobranças.
+          {store
+            ? "Selecione um contato para ver os dados dele e abrir a conversa."
+            : "Selecione um contato para ver a situação dele no CNV: cadastro, teste grátis, assinatura e cobranças."}
         </p>
       </aside>
     );
@@ -428,6 +570,14 @@ function Ficha({
 
   const c = detalhe.contact;
   const d = detalhe.dossier;
+  const endereco = [
+    [c.address?.street, c.address?.number].filter(Boolean).join(", "),
+    c.address?.complement,
+    c.address?.district,
+    c.address?.zip ? `CEP ${c.address.zip.replace(/^(\d{5})(\d{3})$/, "$1-$2")}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <aside className="card h-fit space-y-4">
@@ -457,6 +607,9 @@ function Ficha({
             opt-out
           </span>
         )}
+        <span className="rounded-full bg-ink-100 px-2 py-0.5 text-[11px] font-semibold text-ink-800">
+          {ROTULO_DO_TIPO[c.tipo] ?? c.tipo}
+        </span>
         <span className="rounded-full bg-ink-100 px-2 py-0.5 text-[11px] text-ink-800">
           origem: {c.source}
         </span>
@@ -464,65 +617,54 @@ function Ficha({
 
       {erro && <p className="text-xs text-red-600">{erro}</p>}
 
-      {editando ? (
-        <div className="space-y-2">
-          <div>
-            <label className="label">Nome</label>
-            <input className="input" value={nome} onChange={(e) => setNome(e.target.value)} />
+      <dl className="space-y-1 text-xs">
+        {c.email && (
+          <div className="flex items-center gap-2">
+            <Mail size={12} className="text-muted" />
+            <span className="truncate">{c.email}</span>
           </div>
-          <div>
-            <label className="label">Empresa</label>
-            <input className="input" value={empresa} onChange={(e) => setEmpresa(e.target.value)} />
+        )}
+        {c.document && (
+          <div className="flex items-center gap-2">
+            <span className="text-muted">doc</span>
+            <span>{formatDocument(c.document)}</span>
           </div>
-          <div>
-            <label className="label">E-mail</label>
-            <input className="input" value={email} onChange={(e) => setEmail(e.target.value)} />
+        )}
+        {c.birthDate && (
+          <div className="flex items-center gap-2">
+            <Cake size={12} className="text-muted" />
+            <span>aniversário {formatarAniversario(c.birthDate)}</span>
           </div>
-          <div className="flex gap-2">
-            <button
-              className="btn-primary px-3 py-1.5 text-xs"
-              disabled={salvando}
-              onClick={() => patch({ name: nome, company: empresa, email })}
-            >
-              <Save size={14} /> Salvar
-            </button>
-            <button className="btn-ghost px-3 py-1.5 text-xs" onClick={() => setEditando(false)}>
-              Cancelar
-            </button>
+        )}
+        {(c.company || c.city) && (
+          <div className="flex items-center gap-2">
+            <Building2 size={12} className="text-muted" />
+            <span className="truncate">
+              {[c.company, c.city && `${c.city}${c.state ? `/${c.state}` : ""}`]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
           </div>
+        )}
+        {endereco && (
+          <div className="flex items-start gap-2">
+            <MapPin size={12} className="mt-0.5 shrink-0 text-muted" />
+            <span>{endereco}</span>
+          </div>
+        )}
+        {c.notes && (
+          <div className="flex items-start gap-2">
+            <StickyNote size={12} className="mt-0.5 shrink-0 text-muted" />
+            <span className="whitespace-pre-wrap">{c.notes}</span>
+          </div>
+        )}
+        <div className="flex items-center gap-2 text-muted">
+          <span>na base desde {dateTime(c.createdAt)}</span>
         </div>
-      ) : (
-        <dl className="space-y-1 text-xs">
-          {c.email && (
-            <div className="flex items-center gap-2">
-              <Mail size={12} className="text-muted" />
-              <span className="truncate">{c.email}</span>
-            </div>
-          )}
-          {c.document && (
-            <div className="flex items-center gap-2">
-              <span className="text-muted">doc</span>
-              <span>{formatDocument(c.document)}</span>
-            </div>
-          )}
-          {(c.company || c.city) && (
-            <div className="flex items-center gap-2">
-              <Building2 size={12} className="text-muted" />
-              <span className="truncate">
-                {[c.company, c.city && `${c.city}${c.state ? `/${c.state}` : ""}`]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </span>
-            </div>
-          )}
-          <div className="flex items-center gap-2 text-muted">
-            <span>na base desde {dateTime(c.createdAt)}</span>
-          </div>
-        </dl>
-      )}
+      </dl>
 
-      {/* ── Situação no CNV ─────────────────────────────────── */}
-      <div className="border-t border-line pt-3">
+      {/* ── Situação no CNV (só no painel do CNV) ──────────── */}
+      {!store && <div className="border-t border-line pt-3">
         <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
           <BadgeCheck size={13} /> Situação no CNV
         </p>
@@ -546,9 +688,9 @@ function Ficha({
             )}
           </div>
         )}
-      </div>
+      </div>}
 
-      {(d?.payments.length ?? 0) > 0 && (
+      {!store && (d?.payments.length ?? 0) > 0 && (
         <div>
           <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
             <CreditCard size={13} /> Cobranças
@@ -580,11 +722,9 @@ function Ficha({
             <MessageCircle size={14} /> Abrir conversa
           </button>
         )}
-        {!editando && (
-          <button className="btn-ghost px-3 py-1.5 text-xs" onClick={() => setEditando(true)}>
-            <Pencil size={14} /> Editar
-          </button>
-        )}
+        <button className="btn-ghost px-3 py-1.5 text-xs" onClick={() => onEditar(detalhe)}>
+          <Pencil size={14} /> Editar
+        </button>
         <button
           className="btn-ghost px-3 py-1.5 text-xs"
           disabled={salvando}
@@ -597,6 +737,13 @@ function Ficha({
         >
           <Ban size={14} /> {c.optOut ? "Remover opt-out" : "Marcar opt-out"}
         </button>
+        <button
+          className="btn-ghost px-3 py-1.5 text-xs text-red-600"
+          onClick={() => onApagar(detalhe)}
+          title="Apagar o contato, a conversa e as mensagens dele"
+        >
+          <Trash2 size={14} /> Apagar
+        </button>
       </div>
 
       {detalhe.conversation && (
@@ -608,5 +755,270 @@ function Ficha({
         </p>
       )}
     </aside>
+  );
+}
+
+/** Moldura dos modais dos contatos, no mesmo padrão dos outros do atendimento. */
+function Modal({
+  title,
+  subtitle,
+  onClose,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true">
+      <button className="absolute inset-0 bg-black/50" aria-label="Fechar" onClick={onClose} />
+      <div className="relative flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl border border-line bg-paper shadow-2xl sm:rounded-3xl">
+        <div className="flex items-start gap-3 border-b border-line px-5 py-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold">{title}</p>
+            {subtitle && <p className="mt-0.5 text-xs text-muted">{subtitle}</p>}
+          </div>
+          <button className="rounded-full p-1.5 text-muted hover:bg-canvas" onClick={onClose} aria-label="Fechar">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="overflow-y-auto px-5 py-4">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+type Formulario = {
+  phone: string;
+  name: string;
+  email: string;
+  document: string;
+  company: string;
+  tipo: TipoDeContato;
+  birthDate: string;
+  zip: string;
+  street: string;
+  number: string;
+  complement: string;
+  district: string;
+  city: string;
+  state: string;
+  notes: string;
+};
+
+function ContatoModal({
+  cadastro,
+  onClose,
+  onSalvo,
+  onAbrirExistente,
+}: {
+  cadastro: { mode: "novo" } | { mode: "editar"; detalhe: Detail };
+  onClose: () => void;
+  onSalvo: (id: string) => void;
+  onAbrirExistente: (id: string) => void;
+}) {
+  const atual = cadastro.mode === "editar" ? cadastro.detalhe.contact : null;
+  const [inicial] = useState<Formulario>(() => ({
+    phone: atual ? formatPhoneBr(atual.phone) : "",
+    name: atual?.name ?? "",
+    email: atual?.email ?? "",
+    document: atual?.document ? formatDocument(atual.document) : "",
+    company: atual?.company ?? "",
+    tipo: atual?.tipo ?? "cliente",
+    birthDate: atual?.birthDate ?? "",
+    zip: atual?.address?.zip ?? "",
+    street: atual?.address?.street ?? "",
+    number: atual?.address?.number ?? "",
+    complement: atual?.address?.complement ?? "",
+    district: atual?.address?.district ?? "",
+    city: atual?.city ?? "",
+    state: atual?.state ?? "",
+    notes: atual?.notes ?? "",
+  }));
+  const [f, setF] = useState<Formulario>(inicial);
+  const [erro, setErro] = useState<string | null>(null);
+  const [existente, setExistente] = useState<string | null>(null);
+  const [salvando, setSalvando] = useState(false);
+  const set = (k: keyof Formulario) => (e: { target: { value: string } }) =>
+    setF((x) => ({ ...x, [k]: e.target.value }));
+
+  async function salvar(e: React.FormEvent) {
+    e.preventDefault();
+    if (salvando) return;
+    setSalvando(true);
+    setErro(null);
+    setExistente(null);
+    // Na edição vai só o que mudou: um dado antigo que não passaria na
+    // conferência de hoje não trava a correção de outro campo.
+    const mudou = (k: keyof Formulario) => !atual || f[k] !== inicial[k];
+    const corpo: Record<string, unknown> = {};
+    const endereco: Record<string, string> = {};
+    for (const k of Object.keys(f) as Array<keyof Formulario>) {
+      // O telefone não muda na edição: é a chave da conversa.
+      if (k === "phone" ? atual : !mudou(k)) continue;
+      if (["zip", "street", "number", "complement", "district"].includes(k)) endereco[k] = f[k];
+      else corpo[k] = f[k];
+    }
+    if (Object.keys(endereco).length) corpo.address = endereco;
+    if (atual && Object.keys(corpo).length === 0) {
+      onSalvo(atual.id);
+      setSalvando(false);
+      return;
+    }
+    try {
+      const res = await fetch(atual ? `/api/wa/contacts/${atual.id}` : "/api/wa/contacts", {
+        method: atual ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(corpo),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setErro(body.error ?? "Não foi possível salvar.");
+        if (res.status === 409 && body.id) setExistente(String(body.id));
+        return;
+      }
+      onSalvo(atual ? atual.id : String(body.id));
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  const campo = (k: keyof Formulario, label: string, extra: Record<string, unknown> = {}) => (
+    <label className="block text-xs font-semibold text-ink-800">
+      {label}
+      <input className="input mt-1 w-full" value={f[k]} onChange={set(k)} {...extra} />
+    </label>
+  );
+
+  return (
+    <Modal
+      title={atual ? "Editar contato" : "Novo contato"}
+      subtitle={
+        atual
+          ? "O telefone não muda: é ele que liga o contato à conversa."
+          : "O telefone com DDD é obrigatório e não pode repetir: cada número é um contato."
+      }
+      onClose={onClose}
+    >
+      <form className="space-y-4" onSubmit={salvar}>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {atual ? (
+            <div>
+              <p className="text-xs font-semibold text-ink-800">Telefone</p>
+              <p className="mt-2 text-sm text-ink-900">{formatPhoneBr(atual.phone)}</p>
+            </div>
+          ) : (
+            campo("phone", "Telefone (com DDD)", { required: true, autoFocus: true, placeholder: "(31) 99999-9999" })
+          )}
+          {campo("name", "Nome", atual ? { autoFocus: true } : {})}
+          {campo("email", "E-mail", { type: "email" })}
+          {campo("document", "CPF ou CNPJ")}
+          {campo("company", "Empresa")}
+          <label className="block text-xs font-semibold text-ink-800">
+            Tipo
+            <select className="input mt-1 w-full" value={f.tipo} onChange={set("tipo")}>
+              {TIPOS_DE_CONTATO.map((t) => (
+                <option key={t} value={t}>
+                  {ROTULO_DO_TIPO[t]}
+                </option>
+              ))}
+            </select>
+          </label>
+          {campo("birthDate", "Aniversário", { type: "date" })}
+        </div>
+
+        <div>
+          <p className="text-xs font-semibold text-ink-800">Endereço</p>
+          <div className="mt-2 grid gap-3 sm:grid-cols-6">
+            <div className="sm:col-span-2">{campo("zip", "CEP")}</div>
+            <div className="sm:col-span-4">{campo("street", "Rua")}</div>
+            <div className="sm:col-span-2">{campo("number", "Número")}</div>
+            <div className="sm:col-span-4">{campo("complement", "Complemento")}</div>
+            <div className="sm:col-span-3">{campo("district", "Bairro")}</div>
+            <div className="sm:col-span-2">{campo("city", "Cidade")}</div>
+            <div className="sm:col-span-1">{campo("state", "UF", { maxLength: 2 })}</div>
+          </div>
+        </div>
+
+        <label className="block text-xs font-semibold text-ink-800">
+          Observações
+          <textarea className="input mt-1 min-h-[80px] w-full" maxLength={2000} value={f.notes} onChange={set("notes")} />
+        </label>
+
+        {erro && (
+          <p className="text-xs text-red-600">
+            {erro}{" "}
+            {existente && (
+              <button type="button" className="font-semibold underline" onClick={() => onAbrirExistente(existente)}>
+                Abrir o contato
+              </button>
+            )}
+          </p>
+        )}
+
+        <div className="flex justify-end gap-2 pt-1">
+          <button type="button" className="btn-ghost px-4 py-2 text-xs" onClick={onClose}>
+            Cancelar
+          </button>
+          <button type="submit" className="btn-dark px-4 py-2 text-xs" disabled={salvando || (!atual && !f.phone.trim())}>
+            {salvando ? "Salvando…" : atual ? "Salvar" : "Cadastrar"}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function ApagarContatoModal({
+  detalhe,
+  onClose,
+  onApagado,
+}: {
+  detalhe: Detail;
+  onClose: () => void;
+  onApagado: () => void;
+}) {
+  const [apagando, setApagando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const c = detalhe.contact;
+  return (
+    <Modal title={`Apagar ${c.name || formatPhoneBr(c.phone)}?`} onClose={onClose}>
+      <div className="space-y-3 text-sm">
+        <p className="text-ink-800">
+          {detalhe.conversation
+            ? "O contato sai da base junto com a conversa, as mensagens e as notas dele. Não dá para desfazer."
+            : "O contato sai da base. Não dá para desfazer."}
+        </p>
+        <p className="text-xs text-muted">
+          Se a pessoa escrever de novo, ela volta como um contato novo, sem o histórico. Para só parar de mandar
+          mensagem, use o opt-out.
+        </p>
+        {erro && <p className="text-xs text-red-600">{erro}</p>}
+        <div className="flex justify-end gap-2 pt-1">
+          <button className="btn-ghost px-4 py-2 text-xs" onClick={onClose}>
+            Cancelar
+          </button>
+          <button
+            className="rounded-2xl bg-red-600 px-4 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+            disabled={apagando}
+            onClick={async () => {
+              setApagando(true);
+              setErro(null);
+              const res = await fetch(`/api/wa/contacts/${c.id}`, { method: "DELETE" });
+              setApagando(false);
+              if (!res.ok) {
+                const b = await res.json().catch(() => ({}));
+                setErro(b.error ?? "Não foi possível apagar.");
+                return;
+              }
+              onApagado();
+            }}
+          >
+            {apagando ? "Apagando…" : "Apagar contato"}
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }

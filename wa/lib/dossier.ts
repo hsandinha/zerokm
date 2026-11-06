@@ -68,7 +68,11 @@ export async function getDossier(contact: IWaContact): Promise<Dossier> {
       : contact.document
         ? WaTarget.findOne({ cnpj: contact.document }).lean()
         : Promise.resolve(null),
-    WaCampaignRecipient.find({ phone: contact.phone })
+    WaCampaignRecipient.find({
+      tenantId: contact.tenantId ?? null,
+      phone: contact.phone,
+      status: { $in: ["sent", "delivered", "read", "replied", "failed"] },
+    })
       .sort({ sentAt: -1 })
       .limit(5)
       .select("campaignId status sentAt")

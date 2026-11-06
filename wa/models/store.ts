@@ -10,6 +10,7 @@
 // Cada loja paga a própria IA (a chave é dela, cifrada) e os próprios disparos.
 
 import mongoose, { Schema, Document, Model } from "mongoose";
+import type { HorarioLoja } from "@wa/lib/horario";
 
 export type StoreKind = "concessionaria" | "lojista";
 export type StoreRole = "gestor" | "atendente";
@@ -63,10 +64,23 @@ export interface IWaStore extends Document {
     prazos: number[];
     observacao?: string;
   };
+
+  /** Operação da equipe: horário de atendimento, distribuição automática e
+   *  meta de primeira resposta. Ausente = sem horário, distribuição manual e
+   *  SLA de 15 min (o de antes). Lido sempre por wa/lib/operacao.ts. */
+  operacao?: {
+    horario?: HorarioLoja;
+    distribuicao?: "manual" | "rodizio";
+    slaMinutos?: number;
+  };
+
   /** Link do Google Maps da loja (a IA manda quando pedem o endereço). */
   mapsUrl?: string;
   /** Conta da loja no Chatrun Conexão (onde ficam os números dela). */
   chatrunAccountId?: string;
+  /** A conta acima é da loja (criada pelo nome dela ou devolvida pela Meta no
+   *  convite). Conta antiga, achada pelo e-mail de quem conectou, não vale. */
+  chatrunAccountProprio?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -119,8 +133,34 @@ const WaStoreSchema: Schema = new Schema(
       prazos: { type: [Number], default: [24, 36, 48, 60] },
       observacao: { type: String },
     },
+
+    // Operação da equipe (ver wa/lib/operacao.ts, que completa e valida).
+    operacao: {
+      horario: {
+        ativo: { type: Boolean },
+        dias: {
+          type: [
+            new Schema(
+              { dia: Number, faixas: { type: [new Schema({ abre: String, fecha: String }, { _id: false })] } },
+              { _id: false },
+            ),
+          ],
+          default: undefined,
+        },
+        feriados: {
+          type: [new Schema({ data: String, nome: String }, { _id: false })],
+          default: undefined,
+        },
+        mensagem: { type: String },
+        intervaloHoras: { type: Number },
+      },
+      distribuicao: { type: String, enum: ["manual", "rodizio"] },
+      slaMinutos: { type: Number },
+    },
+
     mapsUrl: { type: String },
     chatrunAccountId: { type: String },
+    chatrunAccountProprio: { type: Boolean },
   },
   { timestamps: true, collection: "wa_stores" },
 );

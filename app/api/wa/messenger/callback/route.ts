@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireScopeAdmin } from "@wa/lib/scope";
 import { configPathOf } from "@wa/lib/channels";
-import { saveAccount, syncChannels } from "@wa/lib/chatrun-account";
+import { adoptReturnedAccount, syncChannels } from "@wa/lib/chatrun-account";
 import { siteUrl } from "@wa/lib/site-url";
 
 export async function GET(req: NextRequest) {
@@ -29,8 +29,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const accountId = sp.get("account_id");
-    if (accountId) await saveAccount(tenantId, accountId);
+    await adoptReturnedAccount(tenantId, sp.get("account_id"), "messenger");
     const { connected, warning } = await syncChannels(tenantId, "messenger");
     const qs = new URLSearchParams({ messenger: warning || !connected ? "erro" : "ok" });
     const quem = sp.get("page_name");

@@ -11,6 +11,8 @@
 //                                     Instagram/Messenger: o Direct normalizado
 //   message.echo                    → a conta respondeu pelo celular/app (IA pausa)
 //   message.status                  → enviada / entregue / lida / falhou
+//   instagram.comment(_reply),
+//   messenger.comment(_reply)       → iscas de comentário (wa/lib/iscas-eventos.ts)
 
 import { NextResponse } from "next/server";
 import { validSignature, type ChatrunConnection } from "@wa/lib/chatrun";
@@ -20,6 +22,8 @@ import type { MetaWebhookMessage, MetaWebhookStatus, MetaWebhookValue } from "@w
 import { processWhatsappValue, wakeAiWorker } from "@wa/lib/whatsapp-webhook";
 import { processInbound } from "@wa/lib/inbound";
 import { ecoDoPerfil, entradaDoPerfil, type ContatoDoPerfil, type MensagemDoPerfil } from "@wa/lib/chatrun-perfil";
+import { origemDoDirectOuMessenger, type ReferralMeta } from "@wa/lib/origem";
+import { EVENTOS_DE_ISCA, eventoDeIsca } from "@wa/lib/iscas-eventos";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,6 +44,8 @@ type MensagemGateway = {
   contact_phone?: string;
   message_at?: string;
   payload?: Record<string, unknown> | null;
+  /** wamid citado quando a mensagem é uma resposta (o gateway guarda à parte). */
+  context_wamid?: string | null;
 };
 
 const STATUS_DA_META = new Set(["sent", "delivered", "read", "failed"]);
@@ -51,8 +57,12 @@ function segundos(iso: string | undefined): string {
 
 /** A mensagem da Meta de volta (o gateway manda o payload original). */
 function mensagemDaMeta(m: MensagemGateway, telefone: string | undefined): MetaWebhookMessage | null {
+  // A citação vem no payload da Meta; quando não vem, o gateway ainda manda
+  // o context_wamid, e a Central mostra a mensagem citada do mesmo jeito.
+  const contexto = m.context_wamid ? { context: { id: m.context_wamid } } : {};
   if (m.payload && typeof m.payload === "object" && m.payload.id) {
-    return m.payload as unknown as MetaWebhookMessage;
+    const original = m.payload as unknown as MetaWebhookMessage;
+    return original.context?.id ? original : { ...original, ...contexto };
   }
   // Sem payload: o mínimo para virar texto na conversa.
   if (!m.wamid || !telefone) return null;
@@ -62,6 +72,7 @@ function mensagemDaMeta(m: MensagemGateway, telefone: string | undefined): MetaW
     timestamp: segundos(m.message_at),
     type: m.text ? "text" : m.type ?? "text",
     ...(m.text ? { text: { body: m.text } } : {}),
+    ...contexto,
   };
 }
 
@@ -75,8 +86,13 @@ function valorDoEvento(evento: Evento): MetaWebhookValue | null {
 
   if (evento.type === "message.received") {
     const contato = (dados.contact ?? {}) as { phone?: string; name?: string | null };
-    const m = mensagemDaMeta((dados.message ?? {}) as MensagemGateway, contato.phone);
+    let m = mensagemDaMeta((dados.message ?? {}) as MensagemGateway, contato.phone);
     if (!m) return null;
+    // Anúncio de clique para WhatsApp: vem no payload da Meta; sem payload, o
+    // gateway ainda manda o referral à parte (data.referral).
+    if (dados.referral && typeof dados.referral === "object" && !("referral" in m)) {
+      m = { ...m, referral: dados.referral } as MetaWebhookMessage;
+    }
     return {
       metadata,
       contacts: contato.name ? [{ wa_id: m.from, profile: { name: contato.name } }] : [],
@@ -162,6 +178,15 @@ export async function POST(req: Request) {
     }
 
     if (!conexao?.id) return NextResponse.json({ ok: true });
+
+    // Iscas de comentário (Instagram e Página): o comentário e o que a isca
+    // fez com ele. Fora do caminho de mensagem: não acorda a IA.
+    if (evento.type && EVENTOS_DE_ISCA.has(evento.type)) {
+      const canalDaIsca = await channelByChatrunConnection(conexao.id);
+      if (canalDaIsca) await eventoDeIsca(canalDaIsca, evento.type, dados);
+      return NextResponse.json({ ok: true });
+    }
+
     const tipoDoCanal = (dados.channel as string | undefined) ?? conexao.channel ?? "whatsapp";
     const perfil = tipoDoCanal === "instagram" || tipoDoCanal === "messenger";
     const mensagem = evento.type === "message.received" || evento.type === "message.echo";
@@ -186,7 +211,10 @@ export async function POST(req: Request) {
       }
       const entrada = entradaDoPerfil(canal.kind, m, contato);
       if (entrada) {
-        await processInbound(canal, entrada);
+        // Messenger (e o Direct, quando o gateway repassar): o referral do
+        // anúncio de clique para mensagem vem em data.referral.
+        const anuncio = origemDoDirectOuMessenger(canal.kind, dados.referral as ReferralMeta | null | undefined);
+        await processInbound(canal, anuncio ? { ...entrada, anuncio } : entrada);
         wakeAiWorker(req);
       }
       return NextResponse.json({ ok: true });

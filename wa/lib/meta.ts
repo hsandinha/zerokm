@@ -4,7 +4,8 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import * as chatrun from "@wa/lib/chatrun";
 
-const GRAPH_VERSION = "v21.0";
+// Exportada: a API de Conversões (wa/lib/conversoes-meta-servidor.ts) usa a mesma versão.
+export const GRAPH_VERSION = "v21.0";
 const GRAPH = `https://graph.facebook.com/${GRAPH_VERSION}`;
 
 export type MetaCredentials = {
@@ -17,13 +18,24 @@ export type MetaCredentials = {
   chatrunConnectionId?: string | null;
 };
 
+/** Dá para listar, criar e disparar templates com estas credenciais? Pelo
+ *  Chatrun a conexão basta (o gateway sabe o WABA); fora dele, o WABA ID. */
+export function podeUsarTemplates(creds: MetaCredentials | null | undefined): creds is MetaCredentials {
+  return Boolean(creds?.chatrunConnectionId || creds?.wabaId);
+}
+
 export class MetaApiError extends Error {
   status: number;
   code: number | null;
-  constructor(status: number, message: string, code: number | null = null) {
+  /** Código do gateway quando o erro veio dele (connection_not_ready,
+   *  rate_limited, contact_blocked...). O worker de campanha decide por ele
+   *  se pausa a campanha ou se o problema é só deste destinatário. */
+  gatewayCode: string | null;
+  constructor(status: number, message: string, code: number | null = null, gatewayCode: string | null = null) {
     super(message);
     this.status = status;
     this.code = code;
+    this.gatewayCode = gatewayCode;
   }
 }
 
@@ -35,7 +47,7 @@ export async function viaChatrun<T>(fn: () => Promise<T>): Promise<T> {
     if (err instanceof chatrun.ChatrunError) {
       // Fora da janela o gateway barra antes da Meta: mesmo código que ela daria.
       const code = err.metaCode ?? (err.code === "outside_24h_window" ? 131047 : null);
-      throw new MetaApiError(err.status, err.message, code);
+      throw new MetaApiError(err.status, err.message, code, err.code);
     }
     throw err;
   }
@@ -259,13 +271,36 @@ export async function downloadMedia(
   return { bytes: await res.arrayBuffer(), contentType };
 }
 
+/** Parâmetro do cabeçalho: o {{1}} do cabeçalho de texto ou o arquivo do
+ *  cabeçalho de mídia (link público que a Meta baixa). `filename` só vale
+ *  para documento e só na Cloud API direta: o gateway aceita {type, link}. */
+export type TemplateHeaderParam =
+  | { type: "text"; text: string }
+  | { type: "image" | "video" | "document"; link: string; filename?: string | null };
+
+/** Final da URL de um botão de link dinâmico. `index` = posição do botão
+ *  entre todos os botões do template. */
+export type TemplateButtonUrlParam = { index: number; value: string };
+
+/** O que um template pode pedir além das variáveis do corpo. Opcional: quem
+ *  manda template sem cabeçalho de mídia nem link dinâmico não muda nada. */
+export type TemplateSendExtras = {
+  headerParams?: TemplateHeaderParam[];
+  buttonUrlParams?: TemplateButtonUrlParam[];
+  /** Idempotência no gateway (ex.: "camp:<destinatário>"). */
+  clientRef?: string | null;
+};
+
 export async function sendTemplate(
   creds: MetaCredentials,
   to: string,
   templateName: string,
   language: string,
   bodyParams: string[],
+  extras: TemplateSendExtras = {},
 ): Promise<SendResult> {
+  const headerParams = extras.headerParams ?? [];
+  const buttonUrlParams = extras.buttonUrlParams ?? [];
   const cid = creds.chatrunConnectionId;
   if (cid) {
     const wamid = await viaChatrun(() =>
@@ -273,20 +308,52 @@ export async function sendTemplate(
         connectionId: cid,
         to,
         type: "template",
-        template: { name: templateName, language, body_params: bodyParams },
+        template: {
+          name: templateName,
+          language,
+          body_params: bodyParams,
+          header_params: headerParams.map((p) =>
+            p.type === "text" ? { type: "text" as const, text: p.text } : { type: p.type, link: p.link },
+          ),
+          button_url_params: buttonUrlParams.map((b) => ({ index: b.index, value: b.value })),
+        },
+        clientRef: extras.clientRef ?? null,
       }),
     );
     return { external_id: wamid };
   }
-  const components =
-    bodyParams.length > 0
-      ? [
-          {
-            type: "body",
-            parameters: bodyParams.map((p) => ({ type: "text", text: p })),
-          },
-        ]
-      : [];
+  // Ordem que a Meta espera: header, body, botões.
+  const components: Array<Record<string, unknown>> = [];
+  if (headerParams.length > 0) {
+    components.push({
+      type: "header",
+      parameters: headerParams.map((p) =>
+        p.type === "text"
+          ? { type: "text", text: p.text }
+          : {
+              type: p.type,
+              [p.type]: {
+                link: p.link,
+                ...(p.type === "document" && p.filename ? { filename: p.filename } : {}),
+              },
+            },
+      ),
+    });
+  }
+  if (bodyParams.length > 0) {
+    components.push({
+      type: "body",
+      parameters: bodyParams.map((p) => ({ type: "text", text: p })),
+    });
+  }
+  for (const b of buttonUrlParams) {
+    components.push({
+      type: "button",
+      sub_type: "url",
+      index: String(b.index),
+      parameters: [{ type: "text", text: b.value }],
+    });
+  }
   const body = await graphFetch(creds, `/${creds.phoneNumberId}/messages`, {
     method: "POST",
     body: JSON.stringify({
@@ -333,8 +400,8 @@ export type MetaTemplateComponent = {
   type: string;
   format?: string;
   text?: string;
-  example?: { body_text?: string[][]; header_text?: string[] };
-  buttons?: Array<{ type: string; text?: string; url?: string; phone_number?: string }>;
+  example?: { body_text?: string[][]; header_text?: string[]; header_handle?: string[] };
+  buttons?: Array<{ type: string; text?: string; url?: string; phone_number?: string; example?: string[] | string }>;
 };
 
 export type MetaTemplate = {
@@ -346,7 +413,73 @@ export type MetaTemplate = {
   components?: MetaTemplateComponent[];
   rejected_reason?: string;
   quality_score?: { score?: string };
+  /** O que o gateway já calculou (var_count, button_vars). Ausente na Cloud
+   *  API direta: aí sai dos componentes (ver formaDoTemplate). */
+  gateway?: {
+    varCount?: number;
+    buttonVars?: Array<{ index: number; text: string; url_prefix: string }>;
+  };
 };
+
+export type HeaderFormat = "TEXT" | "IMAGE" | "VIDEO" | "DOCUMENT" | "LOCATION";
+
+/** O que um envio deste template precisa, além do nome e do idioma. */
+export type FormaDoTemplate = {
+  body: string;
+  bodyVars: number;
+  /** null = sem cabeçalho. */
+  headerFormat: HeaderFormat | null;
+  headerText: string | null;
+  /** Variáveis do cabeçalho de texto (a Meta aceita no máximo 1). */
+  headerVars: number;
+  headerExample: string | null;
+  /** Botões de link dinâmico, com a posição entre todos os botões. */
+  botoesUrl: Array<{ index: number; text: string; urlPrefix: string; example: string | null }>;
+};
+
+export function formaDoTemplate(t: MetaTemplate): FormaDoTemplate {
+  const header = t.components?.find((c) => c.type === "HEADER");
+  const body = t.components?.find((c) => c.type === "BODY")?.text ?? "";
+  const buttons = t.components?.find((c) => c.type === "BUTTONS")?.buttons ?? [];
+  const format = (header?.format?.toUpperCase() ?? null) as HeaderFormat | null;
+  const headerText = format === "TEXT" ? (header?.text ?? null) : null;
+  const doGateway = t.gateway?.buttonVars;
+  const botoesUrl =
+    doGateway && doGateway.length > 0
+      ? doGateway.map((b) => {
+          const ex = buttons[b.index]?.example;
+          return {
+            index: b.index,
+            text: b.text,
+            urlPrefix: b.url_prefix,
+            example: (Array.isArray(ex) ? ex[0] : ex) ?? null,
+          };
+        })
+      : buttons.flatMap((b, index) => {
+          if (b.type !== "URL" || !b.url?.includes("{{1}}")) return [];
+          const ex = Array.isArray(b.example) ? b.example[0] : b.example;
+          return [{ index, text: b.text ?? "link", urlPrefix: b.url.replace("{{1}}", ""), example: ex ?? null }];
+        });
+  return {
+    body,
+    bodyVars: t.gateway?.varCount ?? templateVariables(body).length,
+    headerFormat: format,
+    headerText,
+    headerVars: headerText ? templateVariables(headerText).length : 0,
+    headerExample: header?.example?.header_text?.[0] ?? null,
+    botoesUrl,
+  };
+}
+
+/** Cabeçalho de mídia pede um arquivo em cada envio. */
+export function headerDeMidia(format: string | null | undefined): format is "IMAGE" | "VIDEO" | "DOCUMENT" {
+  return format === "IMAGE" || format === "VIDEO" || format === "DOCUMENT";
+}
+
+/** Tipo de mídia do envio para o formato do cabeçalho. */
+export function tipoDoHeader(format: "IMAGE" | "VIDEO" | "DOCUMENT"): "image" | "video" | "document" {
+  return format === "IMAGE" ? "image" : format === "VIDEO" ? "video" : "document";
+}
 
 /** Modelo do gateway no formato da Meta (o que as telas já leem). */
 function fromGatewayTemplate(t: chatrun.ChatrunTemplate): MetaTemplate {
@@ -373,6 +506,7 @@ function fromGatewayTemplate(t: chatrun.ChatrunTemplate): MetaTemplate {
         text: b.text,
         url: b.url,
         phone_number: b.phone_number,
+        ...(b.example ? { example: [b.example] } : {}),
       })),
     });
   }
@@ -383,6 +517,9 @@ function fromGatewayTemplate(t: chatrun.ChatrunTemplate): MetaTemplate {
     language: t.language,
     category: t.category,
     components,
+    ...(t.var_count != null || t.button_vars
+      ? { gateway: { varCount: t.var_count, buttonVars: t.button_vars } }
+      : {}),
   };
 }
 
@@ -404,18 +541,52 @@ export async function listTemplates(creds: MetaCredentials) {
 // Submete direto pela API para o cliente não precisar entrar na Business
 // Manager. A aprovação continua sendo da Meta: nasce PENDING.
 
+export type TemplateDraftButton =
+  | { type: "QUICK_REPLY"; text: string }
+  /** URL com {{1}} no FIM é dinâmica: cada envio completa o final, e a Meta
+   *  exige o exemplo de uma URL completa para aprovar. */
+  | { type: "URL"; text: string; url: string; example?: string }
+  | { type: "PHONE_NUMBER"; text: string; phone_number: string };
+
 export type TemplateDraft = {
   name: string;
   language: string;
   category: "MARKETING" | "UTILITY";
+  /** Ausente = TEXT quando há headerText, senão sem cabeçalho. */
+  headerFormat?: "TEXT" | "IMAGE" | "VIDEO" | "DOCUMENT";
   headerText?: string;
+  /** Cabeçalho de mídia: link público da amostra (o gateway baixa e manda
+   *  para a Meta). Na zerokm é o link assinado de /api/wa/midia/[id]. */
+  headerSampleUrl?: string;
   body: string;
   footerText?: string;
-  buttons?: Array<{ type: "QUICK_REPLY"; text: string } | { type: "URL"; text: string; url: string }>;
+  buttons?: TemplateDraftButton[];
   /** Valor de exemplo para cada {{n}} do corpo, na ordem. */
   bodyExamples?: string[];
   headerExample?: string;
 };
+
+/** Formato do cabeçalho do rascunho. */
+function formatoDoRascunho(draft: TemplateDraft): "TEXT" | "IMAGE" | "VIDEO" | "DOCUMENT" | null {
+  if (draft.headerFormat && draft.headerFormat !== "TEXT") return draft.headerFormat;
+  return draft.headerText?.trim() ? "TEXT" : null;
+}
+
+/** A Meta pede os botões do mesmo tipo juntos: respostas rápidas primeiro,
+ *  depois os de ação. O índice de cada um no envio sai do template aprovado. */
+function botoesEmOrdem(buttons: TemplateDraftButton[] = []): TemplateDraftButton[] {
+  const peso = (b: TemplateDraftButton) => (b.type === "QUICK_REPLY" ? 0 : b.type === "URL" ? 1 : 2);
+  return [...buttons].sort((a, b) => peso(a) - peso(b));
+}
+
+/** Exemplo da URL dinâmica: o que veio, ou o endereço com "exemplo" no fim. */
+function exemploDaUrl(b: { url: string; example?: string }): string | undefined {
+  if (!b.url.includes("{{1}}")) return undefined;
+  const ex = b.example?.trim();
+  if (!ex) return b.url.replace("{{1}}", "exemplo");
+  // Aceita só o final ("123") ou a URL inteira.
+  return /^https?:\/\//.test(ex) ? ex : b.url.replace("{{1}}", ex);
+}
 
 /** Números das variáveis {{n}} na ordem em que aparecem, sem repetição. */
 export function templateVariables(text: string): number[] {
@@ -433,15 +604,19 @@ export function validateTemplateDraft(draft: TemplateDraft): string[] {
 
   if (!/^[a-z0-9_]{1,512}$/.test(draft.name)) {
     errors.push(
-      "O nome só aceita letras minúsculas, números e underscore (ex.: abertura_socio_v1).",
+      "O nome só aceita letras minúsculas, números e underscore (ex.: oferta_semana_v1).",
     );
   }
   if (!draft.body?.trim()) errors.push("O corpo da mensagem é obrigatório.");
   if (draft.body && draft.body.length > 1024) {
     errors.push("O corpo passa de 1024 caracteres.");
   }
-  if (draft.headerText && draft.headerText.length > 60) {
+  const formato = formatoDoRascunho(draft);
+  if (formato === "TEXT" && draft.headerText && draft.headerText.length > 60) {
     errors.push("O cabeçalho passa de 60 caracteres.");
+  }
+  if (formato && formato !== "TEXT" && !/^https:\/\/\S+$/.test(draft.headerSampleUrl ?? "")) {
+    errors.push("Cabeçalho com mídia precisa de um arquivo de amostra: a Meta aprova vendo o exemplo.");
   }
   if (draft.footerText && draft.footerText.length > 60) {
     errors.push("O rodapé passa de 60 caracteres.");
@@ -463,18 +638,37 @@ export function validateTemplateDraft(draft: TemplateDraft): string[] {
     );
   }
 
-  const headerVars = templateVariables(draft.headerText ?? "");
+  const headerVars = formato === "TEXT" ? templateVariables(draft.headerText ?? "") : [];
   if (headerVars.length > 1) errors.push("O cabeçalho aceita no máximo uma variável.");
+  if (headerVars.length === 1 && headerVars[0] !== 1) errors.push("A variável do cabeçalho precisa ser {{1}}.");
   if (headerVars.length === 1 && !draft.headerExample?.trim()) {
     errors.push("A variável do cabeçalho precisa de um exemplo.");
   }
 
-  if ((draft.buttons?.length ?? 0) > 3) errors.push("Máximo de 3 botões.");
-  for (const button of draft.buttons ?? []) {
+  // Limites da Meta: até 10 botões, no máximo 2 de link e 1 de ligar.
+  const buttons = draft.buttons ?? [];
+  if (buttons.length > 10) errors.push("Máximo de 10 botões.");
+  if (buttons.filter((b) => b.type === "URL").length > 2) errors.push("No máximo 2 botões de link.");
+  if (buttons.filter((b) => b.type === "PHONE_NUMBER").length > 1) errors.push("Só 1 botão de ligar.");
+  const textos = buttons.map((b) => b.text?.trim().toLowerCase()).filter(Boolean);
+  if (new Set(textos).size !== textos.length) errors.push("Dois botões com o mesmo texto: a Meta recusa.");
+  for (const button of buttons) {
     if (!button.text?.trim()) errors.push("Botão sem texto.");
     if (button.text && button.text.length > 25) errors.push(`Botão "${button.text}" passa de 25 caracteres.`);
-    if (button.type === "URL" && !/^https?:\/\//.test(button.url ?? "")) {
-      errors.push("Botão de link precisa de uma URL começando com http(s)://.");
+    if (button.type === "URL") {
+      if (!/^https?:\/\/\S+$/.test(button.url ?? "")) {
+        errors.push("Botão de link precisa de uma URL começando com http(s)://.");
+      } else if (button.url.includes("{{")) {
+        if (templateVariables(button.url).join() !== "1" || !button.url.endsWith("{{1}}")) {
+          errors.push("Link dinâmico: uma única variável {{1}}, no FINAL do endereço.");
+        } else if (!button.example?.trim()) {
+          errors.push(`O link dinâmico do botão "${button.text}" precisa de um exemplo do final do endereço.`);
+        }
+      }
+    } else if (button.type === "PHONE_NUMBER") {
+      if (!/^\+?\d{10,20}$/.test((button.phone_number ?? "").replace(/[\s()-]/g, ""))) {
+        errors.push("Botão de ligar: telefone com DDI e DDD (ex.: +55 31 99999-0000).");
+      }
     }
   }
 
@@ -484,7 +678,7 @@ export function validateTemplateDraft(draft: TemplateDraft): string[] {
 function draftToComponents(draft: TemplateDraft): MetaTemplateComponent[] {
   const components: MetaTemplateComponent[] = [];
 
-  if (draft.headerText?.trim()) {
+  if (formatoDoRascunho(draft) === "TEXT" && draft.headerText?.trim()) {
     const headerVars = templateVariables(draft.headerText);
     components.push({
       type: "HEADER",
@@ -512,11 +706,16 @@ function draftToComponents(draft: TemplateDraft): MetaTemplateComponent[] {
   if (draft.buttons?.length) {
     components.push({
       type: "BUTTONS",
-      buttons: draft.buttons.map((b) =>
-        b.type === "URL"
-          ? { type: "URL", text: b.text, url: b.url }
-          : { type: "QUICK_REPLY", text: b.text },
-      ),
+      buttons: botoesEmOrdem(draft.buttons).map((b) => {
+        if (b.type === "URL") {
+          const ex = exemploDaUrl(b);
+          return { type: "URL", text: b.text, url: b.url, ...(ex ? { example: [ex] } : {}) };
+        }
+        if (b.type === "PHONE_NUMBER") {
+          return { type: "PHONE_NUMBER", text: b.text, phone_number: b.phone_number.replace(/[\s()-]/g, "") };
+        }
+        return { type: "QUICK_REPLY", text: b.text };
+      }),
     });
   }
 
@@ -526,7 +725,18 @@ function draftToComponents(draft: TemplateDraft): MetaTemplateComponent[] {
 /** Rascunho no formato da API de modelos do gateway. */
 function toGatewayDraft(draft: TemplateDraft): chatrun.ChatrunTemplateDraft {
   const vars = templateVariables(draft.body);
-  const headerVars = templateVariables(draft.headerText ?? "");
+  const formato = formatoDoRascunho(draft);
+  const headerVars = formato === "TEXT" ? templateVariables(draft.headerText ?? "") : [];
+  let header: chatrun.ChatrunTemplateDraft["header"] | undefined;
+  if (formato === "TEXT") {
+    header = {
+      format: "TEXT",
+      text: draft.headerText!.trim(),
+      ...(headerVars.length === 1 && draft.headerExample ? { example: draft.headerExample } : {}),
+    };
+  } else if (formato) {
+    header = { format: formato, sample_url: draft.headerSampleUrl ?? "" };
+  }
   return {
     name: draft.name,
     category: draft.category,
@@ -534,28 +744,20 @@ function toGatewayDraft(draft: TemplateDraft): chatrun.ChatrunTemplateDraft {
     body_text: draft.body,
     ...(vars.length ? { example_values: vars.map((_, i) => draft.bodyExamples?.[i] ?? "exemplo") } : {}),
     ...(draft.footerText?.trim() ? { footer_text: draft.footerText } : {}),
-    ...(draft.headerText?.trim()
-      ? {
-          header: {
-            format: "TEXT" as const,
-            text: draft.headerText,
-            ...(headerVars.length === 1 && draft.headerExample ? { example: draft.headerExample } : {}),
-          },
-        }
-      : {}),
+    ...(header ? { header } : {}),
     ...(draft.buttons?.length
       ? {
-          buttons: draft.buttons.map((b) =>
-            b.type === "URL"
-              ? {
-                  type: "URL" as const,
-                  text: b.text,
-                  url: b.url,
-                  // Link dinâmico ({{1}} no fim) precisa de um exemplo completo.
-                  ...(b.url.includes("{{1}}") ? { example: b.url.replace("{{1}}", "exemplo") } : {}),
-                }
-              : { type: "QUICK_REPLY" as const, text: b.text },
-          ),
+          buttons: botoesEmOrdem(draft.buttons).map((b) => {
+            if (b.type === "URL") {
+              // Link dinâmico ({{1}} no fim) precisa de um exemplo completo.
+              const example = exemploDaUrl(b);
+              return { type: "URL" as const, text: b.text, url: b.url, ...(example ? { example } : {}) };
+            }
+            if (b.type === "PHONE_NUMBER") {
+              return { type: "PHONE_NUMBER" as const, text: b.text, phone_number: b.phone_number.replace(/[\s()-]/g, "") };
+            }
+            return { type: "QUICK_REPLY" as const, text: b.text };
+          }),
         }
       : {}),
   };
@@ -575,6 +777,11 @@ export async function createTemplate(
     };
   }
   if (!creds.wabaId) throw new MetaApiError(400, "WABA ID não configurado");
+  // A amostra de mídia vai pela Resumable Upload API do app, que só o gateway faz.
+  const formato = formatoDoRascunho(draft);
+  if (formato && formato !== "TEXT") {
+    throw new MetaApiError(400, "Cabeçalho com mídia precisa do WhatsApp conectado pelo Chatrun Conexão.");
+  }
 
   const body = await graphFetch(creds, `/${creds.wabaId}/message_templates`, {
     method: "POST",

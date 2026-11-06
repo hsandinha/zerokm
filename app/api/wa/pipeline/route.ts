@@ -1,64 +1,84 @@
-// Pipeline de atendimento: as conversas agrupadas por etapa, com o que o
-// vendedor precisa ver no cartão (empresa, situação do cadastro, campanha).
+// Pipeline de atendimento: as conversas agrupadas pelas colunas do funil do
+// dono (wa/lib/funil.ts), com o que o vendedor precisa ver no cartão.
 //
-// Cada coluna traz as mais recentes; o total real vem dos contadores — em base
+// Cada coluna traz as mais recentes; o total real vem dos contadores. Em base
 // grande a coluna "abordado" teria milhares de cartões.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireScope, sameTenant, type Scope } from "@wa/lib/scope";
+import { requireScope, sameTenant, scopeError, type Scope } from "@wa/lib/scope";
 import dbConnect from "@/lib/mongodb";
 import { WaContact, WaConversation } from "@wa/models/wa";
-import { conversationCounts } from "@wa/lib/inbox";
-import { setConversationStage } from "@wa/lib/conversation-stage";
+import { moverParaColuna } from "@wa/lib/conversation-stage";
 import { daysAgoIso, startOfMonthIso } from "@wa/lib/dates";
-import { OPEN_STAGES, STAGES, STALLED_DAYS, isStage } from "@wa/lib/stages";
+import { OPEN_STAGES, STALLED_DAYS, type Stage } from "@wa/lib/stages";
+import {
+  FunilError,
+  colunasDo,
+  contarPorColuna,
+  faltamColunasPadrao,
+  filtroDaColuna,
+  filtroSemColuna,
+} from "@wa/lib/funil";
 
 export const dynamic = "force-dynamic";
 
-const PER_COLUMN: Record<string, number> = { abordado: 30, perdido: 40 };
+/** Cartões por coluna: abordado e perdido enchem rápido e importam menos. */
+function porColuna(systemKey: Stage | null): number {
+  if (systemKey === "abordado") return 30;
+  if (systemKey === "perdido") return 40;
+  return 80;
+}
 
 export async function GET() {
   let scope: Scope;
   try {
     scope = await requireScope("funil");
-  } catch {
-    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  } catch (err) {
+    const { error, status } = scopeError(err);
+    return NextResponse.json({ error }, { status });
   }
 
   await dbConnect();
+  const tenantId = scope.tenantId;
+  const colunas = await colunasDo(tenantId);
+  const semColuna = filtroSemColuna(colunas);
   const stalledCutoff = new Date(daysAgoIso(STALLED_DAYS));
   const month = new Date(startOfMonthIso());
 
-  const [columns, counts, stalled, wonMonth] = await Promise.all([
+  const [porCol, orfas, contagem, open, stalled, wonMonth] = await Promise.all([
     Promise.all(
-      STAGES.map((s) =>
-        WaConversation.find({ tenantId: scope.tenantId, stage: s.id })
+      colunas.map((c) =>
+        WaConversation.find({ tenantId, ...filtroDaColuna(c, colunas) })
           .sort({ stageChangedAt: -1 })
-          .limit(PER_COLUMN[s.id] ?? 80)
+          .limit(porColuna(c.systemKey))
           .lean(),
       ),
     ),
-    conversationCounts(null, undefined, scope.tenantId),
+    semColuna
+      ? WaConversation.find({ tenantId, ...semColuna }).sort({ stageChangedAt: -1 }).limit(80).lean()
+      : Promise.resolve([]),
+    contarPorColuna(tenantId, colunas),
+    WaConversation.countDocuments({ tenantId, stage: { $in: OPEN_STAGES } }),
     WaConversation.countDocuments({
-      tenantId: scope.tenantId,
+      tenantId,
       stage: { $in: OPEN_STAGES },
       lastMessageAt: { $lt: stalledCutoff },
     }),
-    WaConversation.countDocuments({
-      tenantId: scope.tenantId,
-      stage: "ganho",
-      stageChangedAt: { $gte: month },
-    }),
+    WaConversation.countDocuments({ tenantId, stage: "ganho", stageChangedAt: { $gte: month } }),
   ]);
 
-  const rows = columns.flat();
-  const contacts = await WaContact.find({ _id: { $in: rows.map((r) => r.contactId) } }).lean();
+  const linhas = [
+    ...porCol.flatMap((rows, i) => rows.map((row) => ({ row, colunaId: colunas[i].id }))),
+    ...orfas.map((row) => ({ row, colunaId: "sem" })),
+  ];
+  const contacts = await WaContact.find({ _id: { $in: linhas.map((l) => l.row.contactId) } }).lean();
   const byId = new Map(contacts.map((c) => [String(c._id), c]));
 
-  const items = rows.map((row) => {
+  const items = linhas.map(({ row, colunaId }) => {
     const contact = byId.get(String(row.contactId));
     return {
       id: String(row._id),
+      colunaId,
       stage: row.stage,
       status: row.status,
       outcome: row.outcome ?? null,
@@ -84,31 +104,30 @@ export async function GET() {
     };
   });
 
-  const open = OPEN_STAGES.reduce((acc, s) => acc + (counts.stages[s] ?? 0), 0);
-
   return NextResponse.json({
+    colunas,
+    podeEditar: scope.role === "admin",
+    faltamPadrao: faltamColunasPadrao(colunas),
     items,
-    stageCounts: counts.stages,
+    contagem,
     kpis: { open, stalled, wonMonth },
-    perColumn: STAGES.reduce<Record<string, number>>((acc, s) => {
-      acc[s.id] = PER_COLUMN[s.id] ?? 80;
-      return acc;
-    }, {}),
+    perColumn: Object.fromEntries(colunas.map((c) => [c.id, porColuna(c.systemKey)])),
   });
 }
 
-/** Movimento manual do kanban — o único jeito de marcar "assinante" à mão. */
+/** Movimento manual do quadro: põe o cartão numa coluna. */
 export async function PATCH(req: NextRequest) {
   let user: Scope;
   try {
     user = await requireScope("funil");
-  } catch {
-    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  } catch (err) {
+    const { error, status } = scopeError(err);
+    return NextResponse.json({ error }, { status });
   }
 
-  const body = (await req.json().catch(() => ({}))) as { id?: string; stage?: string };
-  if (!body.id || !isStage(body.stage)) {
-    return NextResponse.json({ error: "id/etapa inválidos" }, { status: 400 });
+  const body = (await req.json().catch(() => ({}))) as { id?: string; colunaId?: string };
+  if (!body.id || !body.colunaId) {
+    return NextResponse.json({ error: "id/coluna inválidos" }, { status: 400 });
   }
 
   await dbConnect();
@@ -117,13 +136,10 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Conversa não encontrada" }, { status: 404 });
   }
   try {
-    await setConversationStage(body.id, body.stage, user.email);
+    const { stage } = await moverParaColuna(body.id, body.colunaId, user.email);
+    return NextResponse.json({ ok: true, stage });
   } catch (err) {
-    const status = (err as { status?: number }).status ?? 500;
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Falha ao mover" },
-      { status },
-    );
+    const status = err instanceof FunilError ? err.status : (err as { status?: number }).status ?? 500;
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Falha ao mover" }, { status });
   }
-  return NextResponse.json({ ok: true, stage: body.stage });
 }

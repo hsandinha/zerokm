@@ -20,6 +20,33 @@ const lojaBase = {
     },
 };
 
+describe('prompt da IA da loja: horário de atendimento', () => {
+    // Loja que nunca abre: o bloco de fora do horário tem que aparecer.
+    const fechada = {
+        ...lojaBase,
+        operacao: {
+            horario: {
+                ativo: true,
+                dias: Array.from({ length: 7 }, (_, dia) => ({ dia, faixas: [] })),
+                feriados: [],
+                mensagem: '',
+                intervaloHoras: 12,
+            },
+        },
+    };
+
+    it('fora do horário, a IA sabe que não pode prometer vendedor em instantes', () => {
+        const p = buildStorePrompt({ store: fechada as never, channel: { kind: 'whatsapp', label: 'WhatsApp' } });
+        expect(p).toContain('Fora do horário de atendimento');
+        expect(p).toContain('Nunca diga "em instantes"');
+    });
+
+    it('sem horário configurado, nada muda no prompt', () => {
+        const p = buildStorePrompt({ store: lojaBase as never, channel: { kind: 'whatsapp', label: 'WhatsApp' } });
+        expect(p).not.toContain('Fora do horário de atendimento');
+    });
+});
+
 describe('prompt da IA da loja', () => {
     it('leva nome da loja, assistente e o que ela vende', () => {
         const p = buildStorePrompt({ store: lojaBase as never, channel: { kind: 'whatsapp', label: 'WhatsApp' } });

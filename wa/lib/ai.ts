@@ -14,7 +14,9 @@ import { registerClient, getFunnelStatus, type RegisterErrorCode } from "@wa/lib
 import { createPixPayment, createPaymentLink, getActivePlans } from "@wa/lib/payments";
 import { emitEvent } from "@wa/lib/webhooks";
 import { advanceConversationStage } from "@wa/lib/conversation-stage";
+import { registrarEventoDaColuna } from "@wa/lib/conversoes-meta-servidor";
 import type { IPlan } from "@/models/Plan";
+import { sincronizarOptOutNoGateway } from "@wa/lib/chatrun-bloqueio";
 
 export const LOGIN_URL = () =>
   `${process.env.ZEROKM_BASE_URL || "https://www.cnv0km.com.br"}/login`;
@@ -855,6 +857,7 @@ export async function runAiForConversation(conversationId: string) {
       if (input.motivo === "opt_out") {
         await WaContact.updateOne({ _id: contact._id }, { optOut: true });
         await emitEvent("contato.optout", { phone: contact.phone, via: "ia" }, { conversationId });
+        await sincronizarOptOutNoGateway(contact, true, "ia");
       }
       const outcome =
         input.motivo === "opt_out"
@@ -877,6 +880,8 @@ export async function runAiForConversation(conversationId: string) {
         { by: "ia", reason: input.motivo ?? null },
         { conversationId },
       );
+      // Foi para "Perdido": a coluna pode ter evento para a Meta.
+      if (conv.stage !== "ganho") await registrarEventoDaColuna({ conversationId, por: "ia" });
       return;
     }
   }

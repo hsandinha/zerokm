@@ -5,18 +5,21 @@
 // conectados pelo gateway), que chegam convertidos para este formato.
 
 import dbConnect from "@/lib/mongodb";
-import { WaAiJob, WaCampaign, WaCampaignRecipient, WaContact, WaConversation, WaMessage } from "@wa/models/wa";
+import { WaAiJob, WaCampaign, WaCampaignRecipient, WaContact, WaConversation, WaMessage, type IWaCampaignRecipient } from "@wa/models/wa";
 import { canonicalPhone } from "@wa/lib/phone";
 import type { ResolvedChannel } from "@wa/lib/channels";
 import type { MetaWebhookValue } from "@wa/lib/meta";
 import { processInbound, type NormalizedInbound } from "@wa/lib/inbound";
 import { isLocalUrl, siteUrl } from "@wa/lib/site-url";
+import { origemDoWhatsApp, type ReferralWhatsApp } from "@wa/lib/origem";
 
 export function normalize(value: MetaWebhookValue): NormalizedInbound[] {
   const contacts = value.contacts ?? [];
   return (value.messages ?? []).map((m) => {
     const name = contacts.find((c) => c.wa_id === m.from)?.profile?.name ?? null;
     const media = m.image ?? m.audio ?? m.video ?? m.document ?? m.sticker;
+    // Clique para WhatsApp: a primeira mensagem traz o anúncio (referral).
+    const anuncio = origemDoWhatsApp((m as typeof m & { referral?: ReferralWhatsApp }).referral);
     return {
       from: m.from,
       contactName: name,
@@ -34,6 +37,9 @@ export function normalize(value: MetaWebhookValue): NormalizedInbound[] {
       reaction: m.reaction
         ? { targetExternalId: m.reaction.message_id, emoji: m.reaction.emoji ?? "" }
         : null,
+      contextExternalId: m.context?.id ?? null,
+      filename: m.document?.filename ?? null,
+      ...(anuncio ? { anuncio } : {}),
     };
   });
 }
@@ -50,25 +56,31 @@ export async function handleStatuses(value: MetaWebhookValue) {
       { status: s.status, ...(erro ? { error: erro } : {}) },
     ).catch(() => {});
 
-    const recipient = await WaCampaignRecipient.findOne({ externalId: s.id });
+    // Cada transição é um update condicionado ao status de antes: o aviso
+    // de "lido" que chega junto com a resposta não desfaz o "respondeu", e o
+    // contador só sobe quando a troca aconteceu de fato.
+    const recipient = await WaCampaignRecipient.findOne({ externalId: s.id }).select("_id campaignId").lean();
     if (recipient) {
-      if (s.status === "delivered" && recipient.status === "sent") {
-        recipient.status = "delivered";
-        await recipient.save();
-        await WaCampaign.updateOne({ _id: recipient.campaignId }, { $inc: { delivered: 1 } });
-      } else if (s.status === "read" && recipient.status !== "read" && recipient.status !== "replied") {
-        const wasDelivered = recipient.status === "delivered";
-        recipient.status = "read";
-        await recipient.save();
-        await WaCampaign.updateOne(
-          { _id: recipient.campaignId },
-          { $inc: { read: 1, ...(wasDelivered ? {} : { delivered: 1 }) } },
+      const mudar = (de: IWaCampaignRecipient["status"][], para: Record<string, unknown>) =>
+        WaCampaignRecipient.updateOne({ _id: recipient._id, status: { $in: de } }, { $set: para }).then(
+          (r) => r.modifiedCount > 0,
         );
+      if (s.status === "delivered") {
+        if (await mudar(["sent"], { status: "delivered" })) {
+          await WaCampaign.updateOne({ _id: recipient.campaignId }, { $inc: { delivered: 1 } });
+        }
+      } else if (s.status === "read") {
+        // Lido sem o "entregue" antes: conta os dois.
+        if (await mudar(["delivered"], { status: "read" })) {
+          await WaCampaign.updateOne({ _id: recipient.campaignId }, { $inc: { read: 1 } });
+        } else if (await mudar(["sent"], { status: "read" })) {
+          await WaCampaign.updateOne({ _id: recipient.campaignId }, { $inc: { read: 1, delivered: 1 } });
+        }
       } else if (s.status === "failed") {
-        recipient.status = "failed";
-        recipient.error = erro;
-        await recipient.save();
-        await WaCampaign.updateOne({ _id: recipient.campaignId }, { $inc: { failed: 1 } });
+        // A Meta pode repetir o mesmo aviso: a falha conta uma vez.
+        if (await mudar(["sending", "sent", "delivered", "read"], { status: "failed", error: erro })) {
+          await WaCampaign.updateOne({ _id: recipient.campaignId }, { $inc: { failed: 1 } });
+        }
       }
     }
   }

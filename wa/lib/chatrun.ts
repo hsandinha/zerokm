@@ -162,6 +162,25 @@ export async function unlinkConnection(id: string): Promise<void> {
 
 // ── Mensagens ───────────────────────────────────────────────
 
+/** Parâmetro do cabeçalho do template, no formato do gateway (TemplateSend em
+ *  src/lib/server/meta.ts do chatrun-conexao): texto para o {{1}} do
+ *  cabeçalho de texto, ou o link público do arquivo do cabeçalho de mídia. */
+export type ChatrunHeaderParam =
+  | { type: "text"; text: string }
+  | { type: "image" | "video" | "document"; link: string };
+
+/** Final da URL de um botão de link dinâmico; `index` é a posição do botão
+ *  entre TODOS os botões do template (o mesmo `index` de `button_vars`). */
+export type ChatrunButtonUrlParam = { index: number; value: string };
+
+export type ChatrunTemplateSend = {
+  name: string;
+  language: string;
+  body_params?: string[];
+  header_params?: ChatrunHeaderParam[];
+  button_url_params?: ChatrunButtonUrlParam[];
+};
+
 export type ChatrunSend = {
   connectionId: string;
   to: string;
@@ -169,10 +188,13 @@ export type ChatrunSend = {
   text?: string;
   replyTo?: string | null;
   media?: { link: string; caption?: string | null; filename?: string | null };
-  template?: { name: string; language: string; body_params?: string[] };
+  template?: ChatrunTemplateSend;
   reaction?: { wamid: string; emoji: string };
   /** Messenger: resposta de gente entre 24 h e 7 dias (tag HUMAN_AGENT). */
   humanAgent?: boolean;
+  /** Idempotência do gateway: repetir o mesmo client_ref devolve a mensagem
+   *  já enviada, sem falar com a Meta de novo. */
+  clientRef?: string | null;
 };
 
 /**
@@ -191,11 +213,24 @@ export async function sendMessage(input: ChatrunSend): Promise<string> {
       ...(input.text != null ? { text: input.text } : {}),
       ...(input.replyTo ? { reply_to: input.replyTo } : {}),
       ...(input.media ? { media: input.media } : {}),
-      ...(input.template ? { template: input.template } : {}),
+      ...(input.template ? { template: limparTemplate(input.template) } : {}),
       ...(input.reaction ? { reaction: input.reaction } : {}),
+      ...(input.clientRef ? { client_ref: input.clientRef } : {}),
     }),
   });
   return r.message?.wamid ?? "";
+}
+
+/** Só manda header_params e button_url_params quando existem: o corpo do
+ *  pedido de um template simples continua igual ao de antes. */
+function limparTemplate(t: ChatrunTemplateSend): ChatrunTemplateSend {
+  return {
+    name: t.name,
+    language: t.language,
+    ...(t.body_params ? { body_params: t.body_params } : {}),
+    ...(t.header_params?.length ? { header_params: t.header_params } : {}),
+    ...(t.button_url_params?.length ? { button_url_params: t.button_url_params } : {}),
+  };
 }
 
 /** Marca como lida e mostra "digitando". */
@@ -239,7 +274,13 @@ export type ChatrunTemplate = {
   header_text: string | null;
   header_example?: string | null;
   body_example?: string[] | null;
+  /** Quantas variáveis distintas o corpo tem. */
+  var_count?: number;
+  /** Textos dos botões, na ordem. */
+  buttons?: string[];
   buttons_detail?: Array<{ type: string; text?: string; url?: string; phone_number?: string; example?: string }>;
+  /** Botões de URL dinâmica: precisam de um valor por envio (button_url_params). */
+  button_vars?: Array<{ index: number; text: string; url_prefix: string }>;
 };
 
 /** Todos os modelos da WABA da conexão (qualquer status). */
@@ -257,8 +298,16 @@ export type ChatrunTemplateDraft = {
   body_text: string;
   example_values?: string[];
   footer_text?: string;
-  header?: { format: "TEXT"; text: string; example?: string };
-  buttons?: Array<{ type: "QUICK_REPLY"; text: string } | { type: "URL"; text: string; url: string; example?: string }>;
+  /** Mídia: o gateway baixa a amostra de `sample_url` (https público) e sobe
+   *  na Meta; a zerokm manda o link assinado de /api/wa/midia/[id]. */
+  header?:
+    | { format: "TEXT"; text: string; example?: string }
+    | { format: "IMAGE" | "VIDEO" | "DOCUMENT"; sample_url: string };
+  buttons?: Array<
+    | { type: "QUICK_REPLY"; text: string }
+    | { type: "URL"; text: string; url: string; example?: string }
+    | { type: "PHONE_NUMBER"; text: string; phone_number: string }
+  >;
 };
 
 export async function createTemplate(
@@ -278,6 +327,127 @@ export async function deleteTemplate(connectionId: string, name: string): Promis
   );
 }
 
+// ── Iscas de comentário (Instagram e Página do Facebook) ────
+// Comentou no post → o gateway responde no comentário (opcional) e manda UMA
+// mensagem privada (Direct ou Messenger). Quem fala com a Meta, deduplica o
+// comentário e escolhe a isca é o gateway; aqui só se cadastra a regra e se
+// recebe o resultado (instagram.comment_reply / messenger.comment_reply).
+
+export type ChatrunCommentRule = {
+  id: string;
+  connection_id: string;
+  /** _id da isca na zerokm (WaIsca): é por ele que o evento acha a isca. */
+  external_ref: string | null;
+  /** null = todos os posts. No Messenger é o id do post da Página. */
+  media_id: string | null;
+  /** null = qualquer comentário. O gateway compara sem acento e sem caixa. */
+  keyword: string | null;
+  public_reply: string | null;
+  direct_message: string;
+  active: boolean;
+  priority: number;
+  expires_at: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+/** Campos que o gateway aceita (POST cria, PATCH altera o que vier). Texto
+ *  vazio ou null apaga o campo opcional. */
+export type ChatrunCommentRuleInput = {
+  media_id?: string | null;
+  keyword?: string | null;
+  public_reply?: string | null;
+  direct_message?: string;
+  external_ref?: string | null;
+  active?: boolean;
+  priority?: number;
+  expires_at?: string | null;
+};
+
+export type ChatrunCommentRuleStats = { comments: number; directs: number; failures: number };
+
+export async function listCommentRules(
+  filtro: { connectionId?: string; externalRef?: string; mediaId?: string; active?: boolean } = {},
+): Promise<ChatrunCommentRule[]> {
+  const q = new URLSearchParams();
+  if (filtro.connectionId) q.set("connection_id", filtro.connectionId);
+  if (filtro.externalRef) q.set("external_ref", filtro.externalRef);
+  if (filtro.mediaId) q.set("media_id", filtro.mediaId);
+  if (filtro.active !== undefined) q.set("active", String(filtro.active));
+  const qs = q.toString();
+  const r = await call<{ rules: ChatrunCommentRule[] }>(`/api/v1/comment-rules${qs ? `?${qs}` : ""}`);
+  return r.rules ?? [];
+}
+
+export async function createCommentRule(
+  input: ChatrunCommentRuleInput & { connection_id: string; direct_message: string },
+): Promise<{ rule: ChatrunCommentRule; warnings: string[] }> {
+  const r = await call<{ rule: ChatrunCommentRule; warnings?: string[] }>("/api/v1/comment-rules", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return { rule: r.rule, warnings: r.warnings ?? [] };
+}
+
+/** A isca e os números dela no gateway (comentários, privadas enviadas, falhas). */
+export async function getCommentRule(
+  id: string,
+): Promise<{ rule: ChatrunCommentRule; stats: ChatrunCommentRuleStats }> {
+  return call(`/api/v1/comment-rules/${encodeURIComponent(id)}`);
+}
+
+export async function updateCommentRule(id: string, patch: ChatrunCommentRuleInput): Promise<ChatrunCommentRule> {
+  const r = await call<{ rule: ChatrunCommentRule }>(`/api/v1/comment-rules/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+  return r.rule;
+}
+
+export async function deleteCommentRule(id: string): Promise<void> {
+  await call(`/api/v1/comment-rules/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export type ChatrunPost = {
+  id: string;
+  caption: string | null;
+  type: "image" | "video" | "carousel" | "reel" | "text";
+  image_url: string | null;
+  permalink: string | null;
+  created_at: string | null;
+};
+
+/**
+ * Posts recentes da conta (Instagram) ou da Página (Messenger), para escolher
+ * a isca pela foto. null = o gateway não respondeu a lista (rota ainda não
+ * publicada, Meta fora do ar, token): a tela volta ao campo do id do post.
+ * Nunca lança: a lista é conveniência, não pode travar o cadastro.
+ */
+export async function postsDaConexao(connectionId: string, limit = 24): Promise<ChatrunPost[] | null> {
+  try {
+    const n = Math.min(Math.max(Math.floor(limit) || 24, 1), 50);
+    const r = await call<{ posts?: unknown }>(
+      `/api/v1/connections/${encodeURIComponent(connectionId)}/posts?limit=${n}`,
+    );
+    if (!Array.isArray(r.posts)) return null;
+    return r.posts
+      .filter((p): p is ChatrunPost => Boolean(p && typeof (p as ChatrunPost).id === "string"))
+      .map((p) => ({
+        id: p.id,
+        caption: typeof p.caption === "string" ? p.caption : null,
+        type: p.type ?? "image",
+        image_url: typeof p.image_url === "string" ? p.image_url : null,
+        permalink: typeof p.permalink === "string" ? p.permalink : null,
+        created_at: typeof p.created_at === "string" ? p.created_at : null,
+      }));
+  } catch (err) {
+    if (!(err instanceof ChatrunError && err.status === 404)) {
+      console.warn("[chatrun] posts da conexão não listados:", err instanceof Error ? err.message : err);
+    }
+    return null;
+  }
+}
+
 // ── Eventos ─────────────────────────────────────────────────
 
 /** Assinatura dos eventos: sha256=<hmac(segredo, `${timestamp}.${corpo}`)>, até 5 min. */
@@ -291,4 +461,38 @@ export function validSignature(rawBody: string, headers: Headers): boolean {
   const expected = createHmac("sha256", secret).update(`${ts}.${rawBody}`, "utf8").digest("hex");
   const received = sig.slice("sha256=".length);
   return expected.length === received.length && timingSafeEqual(Buffer.from(expected), Buffer.from(received));
+}
+
+// ── Bloqueio (opt-out) ───────────────────────────────────────
+// O gateway tem um bloqueio por conta que vale para todas as plataformas. A
+// zerokm já respeita o opt-out nos próprios envios; o que ela grava lá é o
+// motivo "no_automation", que barra só o que o gateway manda sozinho (a isca
+// de comentário do Instagram) e deixa a equipe responder se a pessoa voltar a
+// escrever. Esse motivo não enfraquece um bloqueio que outra plataforma gravou.
+
+export async function blockContact(input: {
+  accountId: string;
+  phone: string;
+  detail?: string;
+  signal?: AbortSignal;
+}): Promise<void> {
+  await call("/api/v1/blocked", {
+    method: "POST",
+    body: JSON.stringify({
+      account_id: input.accountId,
+      phone: input.phone,
+      reason: "no_automation",
+      ...(input.detail ? { detail: input.detail.slice(0, 200) } : {}),
+    }),
+    signal: input.signal,
+  });
+}
+
+export async function unblockContact(input: { accountId: string; phone: string; signal?: AbortSignal }): Promise<void> {
+  await call("/api/v1/blocked", {
+    method: "DELETE",
+    // Com o motivo: tira só o bloqueio que a zerokm pôs, nunca o de outra plataforma.
+    body: JSON.stringify({ account_id: input.accountId, phone: input.phone, reason: "no_automation" }),
+    signal: input.signal,
+  });
 }

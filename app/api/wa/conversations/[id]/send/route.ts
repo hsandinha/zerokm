@@ -4,8 +4,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireScope, sameTenant, type Scope } from "@wa/lib/scope";
 import dbConnect from "@/lib/mongodb";
-import { WaAiJob, WaContact, WaConversation } from "@wa/models/wa";
+import { WaContact, WaConversation } from "@wa/models/wa";
 import { sendAndLogText } from "@wa/lib/send";
+import { assumirAoResponder, autorDoEscopo, wamidCitado } from "@wa/lib/central";
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   let user: Scope;
@@ -15,7 +16,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
   const { id } = await ctx.params;
-  const body = (await req.json().catch(() => ({}))) as { text?: string };
+  const body = (await req.json().catch(() => ({}))) as {
+    text?: string;
+    /** Mensagem da conversa que esta resposta cita (id nosso, não o wamid). */
+    replyToId?: string | null;
+  };
   const text = (body.text ?? "").trim();
   if (!text) return NextResponse.json({ error: "Mensagem vazia" }, { status: 400 });
 
@@ -25,8 +30,17 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const contact = await WaContact.findById(conv.contactId);
   if (!contact) return NextResponse.json({ error: "Contato não encontrado" }, { status: 404 });
 
+  const replyTo = await wamidCitado(id, body.replyToId);
+
   try {
-    await sendAndLogText({ conversationId: id, to: contact.phone, text, sender: "human" });
+    await sendAndLogText({
+      conversationId: id,
+      to: contact.phone,
+      text,
+      sender: "human",
+      replyTo,
+      author: autorDoEscopo(user),
+    });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Falha ao enviar" },
@@ -35,16 +49,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   }
 
   // Respondeu à mão: a conversa é dele, e a espera do SLA acaba aqui.
-  if (conv.status !== "human_active" || !conv.assignedTo) {
-    conv.status = "human_active";
-    conv.assignedTo = conv.assignedTo ?? user.email;
-    conv.waitingSince = null;
-    await conv.save();
-  }
-  await WaAiJob.updateMany(
-    { conversationId: conv._id, status: "pending" },
-    { status: "done", lastError: "cancelado: humano respondeu" },
-  );
+  await assumirAoResponder(conv, user.email);
 
   return NextResponse.json({ ok: true });
 }

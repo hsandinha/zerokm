@@ -22,7 +22,7 @@ import { requireScopeAdmin, type Scope } from "@wa/lib/scope";
 import { encrypt } from "@wa/lib/crypto";
 import { fetchPhoneInfo, MetaApiError } from "@wa/lib/meta";
 import { ChatrunError, chatrunConfigured } from "@wa/lib/chatrun";
-import { inviteFor, saveAccount, syncChannels } from "@wa/lib/chatrun-account";
+import { adoptReturnedAccount, inviteFor, syncChannels } from "@wa/lib/chatrun-account";
 import { configPathOf } from "@wa/lib/channels";
 import { siteUrl } from "@wa/lib/site-url";
 import { subscribeAppToWaba } from "@wa/lib/embedded-signup";
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ url });
       }
       // A conta da volta pode ser outra (o número já era de outra conta no gateway).
-      if (body.accountId) await saveAccount(tenantId, String(body.accountId));
+      await adoptReturnedAccount(tenantId, body.accountId ? String(body.accountId) : null, "whatsapp");
       const { connected, warning } = await syncChannels(tenantId, "whatsapp");
       return NextResponse.json({ ok: true, conectados: connected, aviso: warning });
     } catch (err) {

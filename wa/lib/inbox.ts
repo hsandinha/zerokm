@@ -5,7 +5,7 @@
 
 import dbConnect from "@/lib/mongodb";
 import { WaConversation } from "@wa/models/wa";
-import { SLA_MINUTES } from "@wa/lib/stages";
+import { slaDaLoja } from "@wa/lib/operacao";
 
 export type InboxCounts = {
   total: number;
@@ -15,17 +15,21 @@ export type InboxCounts = {
   closed: number;
   mine: number;
   sla: number;
+  /** Meta de primeira resposta usada na contagem (minutos). */
+  slaMinutes: number;
   stages: Record<string, number>;
 };
 
 export async function conversationCounts(
   email?: string | null,
-  slaMinutes = SLA_MINUTES,
+  /** Meta em minutos. Sem ela, vale a da loja (padrão 15). */
+  slaMinutes?: number,
   /** Loja (null = CNV). Cada painel conta só as conversas dele. */
   tenantId: string | null = null,
 ): Promise<InboxCounts> {
   await dbConnect();
-  const slaCutoff = new Date(Date.now() - slaMinutes * 60_000);
+  const meta = slaMinutes ?? (await slaDaLoja(tenantId));
+  const slaCutoff = new Date(Date.now() - meta * 60_000);
   // `tenantId: null` também casa com conversa sem o campo (as do CNV de antes
   // das lojas), no $match igual ao find.
   const daLoja = { tenantId };
@@ -62,6 +66,7 @@ export async function conversationCounts(
     closed: status.closed ?? 0,
     mine,
     sla,
+    slaMinutes: meta,
     stages,
   };
 }

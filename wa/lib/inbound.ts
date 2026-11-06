@@ -4,19 +4,16 @@
 // aqui já normalizados.
 
 import dbConnect from "@/lib/mongodb";
-import {
-  WaAiJob,
-  WaCampaign,
-  WaCampaignRecipient,
-  WaContact,
-  WaConversation,
-  WaFollowup,
-  WaMessage,
-} from "@wa/models/wa";
+import { WaAiJob, WaContact, WaConversation, WaFollowup, WaMessage } from "@wa/models/wa";
 import { WaChannel } from "@wa/models/channel";
 import { contactKeyFor, type ResolvedChannel } from "@wa/lib/channels";
 import { emitEvent } from "@wa/lib/webhooks";
 import { advanceConversationStage } from "@wa/lib/conversation-stage";
+import { atribuirRespostaDeCampanha } from "@wa/lib/campaign-reply";
+import { mensagemParaEquipe } from "@wa/lib/fila";
+import { registrarOrigem } from "@wa/lib/origem-loja";
+import type { OrigemRecebida } from "@wa/lib/origem";
+import { sincronizarOptOutNoGateway } from "@wa/lib/chatrun-bloqueio";
 
 const OPT_OUT_WORDS = [
   "parar",
@@ -44,6 +41,13 @@ export type NormalizedInbound = {
   mediaCaption?: string | null;
   mediaId?: string | null;
   reaction?: { targetExternalId: string; emoji: string } | null;
+  /** O cliente respondeu citando esta mensagem (wamid). */
+  contextExternalId?: string | null;
+  /** Nome do documento que o cliente mandou. */
+  filename?: string | null;
+
+  /** Anúncio de clique para mensagem que trouxe o cliente (referral). */
+  anuncio?: OrigemRecebida | null;
 };
 
 export async function processInbound(channel: ResolvedChannel, msg: NormalizedInbound) {
@@ -138,44 +142,14 @@ export async function processInbound(channel: ResolvedChannel, msg: NormalizedIn
   }
 
   // 2b. Atribuição de campanha: resposta em até 7 dias após um disparo.
-  // Campanha é disparo de template, e template só existe no WhatsApp.
-  if (!conversation.campaignId && kind === "whatsapp") {
-    const recipient = await WaCampaignRecipient.findOne({
-      tenantId,
-      phone,
-      status: { $in: ["sent", "delivered", "read"] },
-      sentAt: { $gte: new Date(Date.now() - 7 * 86400000) },
-    }).sort({ sentAt: -1 });
-    if (recipient) {
-      conversation.campaignId = recipient.campaignId;
-      await conversation.save();
-      await WaCampaignRecipient.updateOne(
-        { _id: recipient._id },
-        { status: "replied", conversationId: conversation._id },
-      );
-      await WaCampaign.updateOne({ _id: recipient.campaignId }, { $inc: { replied: 1 } });
-
-      // Campanha por pessoa: o bureau devolve vários celulares do mesmo sócio
-      // e não diz qual está ativo. Respondeu em um, os outros que ainda não
-      // saíram são cancelados — falar oito vezes com quem já respondeu é o
-      // caminho mais curto para virar spam.
-      if (recipient.partnerId) {
-        const cancelados = await WaCampaignRecipient.updateMany(
-          {
-            partnerId: recipient.partnerId,
-            status: "pending",
-            _id: { $ne: recipient._id },
-          },
-          { status: "skipped", error: "a pessoa já respondeu em outro número" },
-        );
-        if (cancelados.modifiedCount > 0) {
-          await WaCampaign.updateOne(
-            { _id: recipient.campaignId },
-            { $inc: { skipped: cancelados.modifiedCount } },
-          );
-        }
-      }
-    }
+  // Campanha é disparo de template, e template só existe no WhatsApp. Não
+  // depende do campaignId da conversa: o worker grava esse campo ao disparar,
+  // e por isso o "respondeu" nunca contava (ver wa/lib/campaign-reply.ts).
+  if (kind === "whatsapp") {
+    await atribuirRespostaDeCampanha({ tenantId, phone, conversationId: conversation._id }).catch((err) => {
+      // Métrica não pode derrubar o atendimento: a mensagem segue para a IA.
+      console.error("[inbound] atribuição de campanha falhou", err);
+    });
   }
 
   // Respondeu: a cadência agendada perde a razão de existir.
@@ -183,6 +157,20 @@ export async function processInbound(channel: ResolvedChannel, msg: NormalizedIn
     { conversationId: conversation._id, status: "pending" },
     { status: "cancelled" },
   );
+
+  // Respondeu: o follow-up da coluna do funil recomeça do primeiro toque
+  // (wa/lib/funil-followup.ts). Só escreve se havia contagem.
+  await WaConversation.updateOne(
+    { _id: conversation._id, followupCount: { $gt: 0 } },
+    { $set: { followupCount: 0 } },
+  );
+
+  // Cliente que volta a uma conversa encerrada começa um atendimento novo,
+  // sem o vendedor do ciclo anterior (folga, saiu da loja): senão a fila da
+  // equipe nasceria com ele e só ele seria avisado (wa/lib/fila.ts).
+  if (conversation.status === "closed" && conversation.assignedTo) {
+    await WaConversation.updateOne({ _id: conversation._id, status: "closed" }, { assignedTo: null });
+  }
 
   // Conversa fechada ou esquecida com humano → IA reassume.
   const silenceMs = Date.now() - new Date(conversation.lastMessageAt ?? 0).getTime();
@@ -207,6 +195,8 @@ export async function processInbound(channel: ResolvedChannel, msg: NormalizedIn
     mediaId: msg.mediaId || undefined,
     externalId: msg.externalId,
     status: "delivered",
+    ...(msg.contextExternalId ? { contextExternalId: msg.contextExternalId } : {}),
+    ...(msg.filename ? { filename: msg.filename.slice(0, 200) } : {}),
   }).catch((err) => {
     // Corrida do dedupe (duas entregas simultâneas do mesmo wamid)
     if ((err as { code?: number })?.code !== 11000) throw err;
@@ -222,6 +212,13 @@ export async function processInbound(channel: ResolvedChannel, msg: NormalizedIn
       $inc: { unreadCount: 1 },
     },
   );
+
+  // Origem do lead: o anúncio fica na conversa e no contato (best-effort).
+  if (msg.anuncio) {
+    await registrarOrigem({ tenantId, contactId: contact._id, conversationId: conversation._id, origem: msg.anuncio }).catch(
+      (err) => console.error("[inbound] origem do anúncio não gravada", err),
+    );
+  }
 
   // Respondeu: sai de "abordado" e entra no funil de conversa.
   await advanceConversationStage(String(conversation._id), "conversa");
@@ -256,7 +253,17 @@ export async function processInbound(channel: ResolvedChannel, msg: NormalizedIn
       { phone: contact.phone, via: "palavra-chave" },
       { conversationId: String(conversation._id) },
     );
+    // Instagram/Messenger: o gateway também precisa saber (isca de comentário).
+    await sincronizarOptOutNoGateway(contact, true, "palavra-chave");
     return;
+  }
+
+  // Conversa que já está com a equipe: avisa o responsável (push) e, fora do
+  // horário da loja, responde com a mensagem automática (wa/lib/fila.ts).
+  if (conversation.status !== "ai_active") {
+    await mensagemParaEquipe(String(conversation._id)).catch((err) => {
+      console.error("[inbound] operação da equipe falhou", err);
+    });
   }
 
   // Se humano/fila já cuida da conversa, não aciona IA

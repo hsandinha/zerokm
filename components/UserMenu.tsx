@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { signOut, useSession } from 'next-auth/react';
+import { desligarAvisosDoAparelho } from '@wa/lib/push-aparelho';
 import Link from 'next/link';
 import { UserRound, Repeat2, Sun, Moon, LogOut } from 'lucide-react';
 import { useTheme } from '@/lib/contexts/ThemeContext';
@@ -95,6 +96,8 @@ export default function UserMenu({ name, email, role, credits, isDropup, alignLe
     }, []);
 
     const handleLogout = async () => {
+        // O aparelho para de receber os avisos do atendimento de quem saiu.
+        await desligarAvisosDoAparelho();
         await signOut({ callbackUrl: '/' });
     };
 

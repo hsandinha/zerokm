@@ -23,6 +23,8 @@ import { filtroPlanoRepasseAtivo } from "@/lib/utils/planoRepasse";
 import { concessionariasForaDaVitrine, filtroLojaNaVitrine } from "@/lib/services/vitrineConcessionaria";
 import { acessoBloqueado } from "@/lib/utils/acessoAssinatura";
 import type { IWaStore } from "@wa/models/store";
+import { FILTRO_OFERECIVEL } from "@wa/lib/estoque-ficha";
+import { linkDaFotoEstoque } from "@wa/lib/foto-estoque";
 
 export type Origem = "0km" | "usado" | "local";
 
@@ -41,6 +43,14 @@ export type Oferta = {
   prazoDias: number | null;
   opcionais: string | null;
   observacoes: string | null;
+  /** Foto do catálogo (0km) ou a capa do carro do pátio (link relativo e
+   *  assinado, para a tela). O repasse não guarda foto (ver RepasseVehicle). */
+  foto?: string | null;
+  /** Só do pátio: as fotos na ordem (a primeira é a capa) e a ficha extra. */
+  fotoIds?: string[];
+  portas?: number | null;
+  unicoDono?: boolean | null;
+  aceitaTroca?: boolean | null;
 };
 
 export type FiltrosEstoque = {
@@ -143,6 +153,7 @@ async function buscar0km(
         prazoDias: typeof d.prazo === "number" ? d.prazo : null,
         opcionais: v.opcionais ?? null,
         observacoes: null,
+        foto: typeof v.imagemUrl === "string" && v.imagemUrl.trim() ? v.imagemUrl.trim() : null,
       };
     })
     .filter((o) => dentroDoPreco(o.preco, filtros))
@@ -158,31 +169,75 @@ async function buscarUsados(
 ): Promise<Oferta[]> {
   const docs = await RepasseVehicle.find({
     ativo: true,
+    // Reservado, vendido e pausado não são oferecidos (só o pátio tem situação).
+    ...FILTRO_OFERECIVEL,
     ...filtroLoja,
-    ...filtroPorTermo(filtros.termo, ["marca", "modelo", "descricaoFipe", "transmissao", "combustivel", "cor"]),
+    ...filtroPorTermo(filtros.termo, ["marca", "modelo", "versao", "descricaoFipe", "transmissao", "combustivel", "cor"]),
     ...(filtros.anoMin ? { anoModelo: { $gte: filtros.anoMin } } : {}),
   })
     .sort({ preco: 1 })
     .limit(60)
     .lean();
   return docs
-    .map((d) => ({
-      ref: refDe(origem === "local" ? "L" : "U", d._id),
-      origem,
-      titulo: [d.marca, d.modelo].filter(Boolean).join(" "),
-      ano: d.ano || String(d.anoModelo ?? ""),
-      km: typeof d.km === "number" ? d.km : null,
-      cores: d.cor ? [d.cor] : [],
-      combustivel: d.combustivel ?? null,
-      cambio: d.transmissao ?? null,
-      // Margem só no que o lojista revende da rede; o local já tem o preço dele.
-      preco: origem === "local" ? Number(d.preco) : aplicarMargem(Number(d.preco), margem),
-      prazoDias: null,
-      opcionais: d.opcionais ?? null,
-      observacoes: origem === "local" ? (d.observacoes ?? null) : null,
-    }))
+    .map((d) => ofertaDoUsado(d, origem, margem))
     .filter((o) => dentroDoPreco(o.preco, filtros))
     .slice(0, limite);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function ofertaDoUsado(d: any, origem: "usado" | "local", margem: Margem | null): Oferta {
+  return {
+    ref: refDe(origem === "local" ? "L" : "U", d._id),
+    origem,
+    titulo: [d.marca, d.modelo, origem === "local" ? d.versao : null].filter(Boolean).join(" "),
+    ano: d.ano || String(d.anoModelo ?? ""),
+    km: typeof d.km === "number" ? d.km : null,
+    cores: d.cor ? [d.cor] : [],
+    combustivel: d.combustivel ?? null,
+    cambio: d.transmissao ?? null,
+    // Margem só no que o lojista revende da rede; o local já tem o preço dele.
+    preco: origem === "local" ? Number(d.preco) : aplicarMargem(Number(d.preco), margem),
+    prazoDias: null,
+    opcionais: d.opcionais ?? null,
+    observacoes: origem === "local" ? (d.observacoes ?? null) : null,
+    ...(origem === "local" ? fotosDoPatio(d) : { foto: null }),
+  };
+}
+
+/**
+ * Um carro do pátio pelo código que a IA viu na consulta ([L1A2B3]), com as
+ * mesmas regras da busca (só disponível). null = não é do pátio desta loja.
+ */
+export async function ofertaDoPatio(
+  store: Pick<IWaStore, "kind" | "ownerUserId">,
+  ref: string,
+): Promise<Oferta | null> {
+  const r = ref.trim().toUpperCase().replace(/^\[|\]$/g, "");
+  if (store.kind !== "lojista" || !store.ownerUserId || !/^L[0-9A-F]{6}$/.test(r)) return null;
+  await dbConnect();
+  const docs = await RepasseVehicle.find({ lojistaId: store.ownerUserId, ativo: true, ...FILTRO_OFERECIVEL })
+    .limit(500)
+    .lean();
+  const d = docs.find((x) => refDe("L", x._id) === r);
+  return d ? ofertaDoUsado(d, "local", null) : null;
+}
+
+/** Fotos e ficha extra do carro do pátio. A placa interna e o preço FIPE
+ *  nunca entram: a oferta vai para a IA e para o cartão do cliente. */
+function fotosDoPatio(d: {
+  fotos?: unknown[];
+  portas?: number;
+  unicoDono?: boolean;
+  aceitaTroca?: boolean;
+}): Pick<Oferta, "foto" | "fotoIds" | "portas" | "unicoDono" | "aceitaTroca"> {
+  const fotoIds = (d.fotos ?? []).map(String);
+  return {
+    foto: fotoIds[0] ? linkDaFotoEstoque("", fotoIds[0]) : null,
+    fotoIds,
+    portas: typeof d.portas === "number" ? d.portas : null,
+    unicoDono: d.unicoDono ?? null,
+    aceitaTroca: d.aceitaTroca ?? null,
+  };
 }
 
 function dentroDoPreco(preco: number, f: FiltrosEstoque): boolean {
@@ -260,6 +315,9 @@ export function ofertasParaIa(ofertas: Oferta[]): string {
         BRL.format(o.preco),
         o.origem === "0km" && o.prazoDias ? `entrega em ~${o.prazoDias} dias` : null,
         o.origem === "local" ? "no pátio da loja" : null,
+        o.origem === "local" && o.unicoDono ? "único dono" : null,
+        o.origem === "local" && o.aceitaTroca ? "aceita troca" : null,
+        o.origem === "local" && o.fotoIds?.length ? `${o.fotoIds.length} foto${o.fotoIds.length === 1 ? "" : "s"}` : null,
         o.observacoes ? `obs: ${o.observacoes.slice(0, 120)}` : null,
       ];
       return `- ${partes.filter(Boolean).join(" · ")}`;

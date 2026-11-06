@@ -11,6 +11,8 @@ import { InstagramChannels } from "@wa/components/config-screen";
 import { ConectarWhatsApp } from "@wa/components/conectar-whatsapp";
 import { CanaisExtras } from "@wa/components/canais-extras";
 import { usePodeUsar } from "@wa/components/wa-panel";
+import { OperacaoDaLoja } from "@wa/components/operacao-config";
+import { EventosParaMeta } from "@wa/components/conversoes-meta";
 
 type Member = { email: string; name: string | null; role: "gestor" | "atendente" };
 type Loja = {
@@ -303,6 +305,14 @@ export function StoreConfig() {
           </button>
           {notice && <p className="text-sm text-ink-800">{notice}</p>}
         </div>
+
+        {/* Horário de atendimento, distribuição e SLA: salvam à parte
+            (wa/components/operacao-config.tsx). */}
+        <OperacaoDaLoja />
+
+        {/* API de Conversões da Meta: salva à parte, em modal
+            (wa/components/conversoes-meta.tsx). */}
+        <EventosParaMeta />
       </div>
 
       {podeUsar("ia") && <SimuladorDaLoja />}

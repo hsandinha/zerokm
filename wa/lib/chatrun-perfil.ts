@@ -14,6 +14,8 @@ export type MensagemDoPerfil = {
   type?: string;
   text?: string | null;
   media_url?: string | null;
+  /** Mensagem citada (reply_to.mid no Direct e no Messenger). */
+  context_wamid?: string | null;
 };
 
 export type ContatoDoPerfil = {
@@ -62,6 +64,7 @@ export function entradaDoPerfil(
     type,
     text,
     externalId: m.wamid,
+    contextExternalId: m.context_wamid ?? null,
   };
 }
 

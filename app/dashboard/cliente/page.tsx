@@ -13,7 +13,7 @@ import { SubscriptionControls } from './SubscriptionControls';
 import { DashboardShell, shellStyles } from '@/components/dashboard/DashboardShell';
 import { Page, PageHeader, pageStyles } from '@/components/ui/Page';
 import { useFavoritos } from '@/lib/hooks/useFavoritos';
-import { AlertTriangle, CarFront, CheckCircle2, Clock3, Heart, MessagesSquare, PlayCircle, UserRound, Wallet } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock3, PlayCircle, Wallet } from 'lucide-react';
 import { MeuPerfil } from '@/components/profile/MeuPerfil';
 import { Financeiro } from '@/components/profile/Financeiro';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
@@ -21,6 +21,7 @@ import { VideoTutorial } from '@/components/cliente/VideoTutorial';
 import { BoasVindas } from './BoasVindas';
 import { AvisosAssinante } from '@/components/cliente/AvisosAssinante';
 import { useRecursos } from '@/lib/hooks/useRecursos';
+import { abasDoCliente } from '@/components/dashboard/abas-dos-paineis';
 
 function PaymentBanner() {
     const searchParams = useSearchParams();
@@ -236,13 +237,11 @@ function ClienteShell({ userInfo, isInvitee, onUpgradeClick, aviso, videoTutoria
         window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
     }, []);
 
-    const tabs = [
-        { id: 'veiculos', label: 'Veículos', icon: <CarFront size={20} aria-hidden="true" /> },
-        ...(podeFavoritar ? [{ id: 'favoritos', label: 'Favoritos', icon: <Heart size={20} aria-hidden="true" />, badge: aba === 'favoritos' ? 0 : totalNovos }] : []),
-        { id: 'perfil', label: 'Meu perfil', icon: <UserRound size={20} aria-hidden="true" /> },
-        // Atendimento com IA (WhatsApp/Instagram) da loja: área própria, fora das abas.
-        ...(pode('atendimento') ? [{ id: 'atendimento', label: 'Atendimento', icon: <MessagesSquare size={20} aria-hidden="true" /> }] : []),
-    ];
+    const tabs = abasDoCliente({
+        podeFavoritar,
+        novosFavoritos: aba === 'favoritos' ? 0 : totalNovos,
+        podeAtendimento: pode('atendimento'),
+    });
     const abaAtual: AbaCliente = aba === 'favoritos' && !podeFavoritar ? 'veiculos' : aba;
     const consultaAtual = abaConsulta === 'favoritos' && !podeFavoritar ? 'veiculos' : abaConsulta;
     const naConsulta = abaAtual === 'veiculos' || abaAtual === 'favoritos';

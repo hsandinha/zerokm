@@ -19,10 +19,10 @@ import { AdminDealershipVehicles } from '../../../components/admin/AdminDealersh
 import KanbanBoard from '../../../components/crm/KanbanBoard';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { Page, pageStyles } from '@/components/ui/Page';
-import { LayoutDashboard, Users, CarFront, Warehouse, BookOpen, Building2, Truck, Settings2, CreditCard, Receipt, ContactRound, Funnel, Plug, Images, MessageCircle, Megaphone, SlidersHorizontal } from 'lucide-react';
 import { AvisosManagement } from '@/components/admin/AvisosManagement';
 import { RecursosManagement } from '@/components/admin/RecursosManagement';
 import { useRouter } from 'next/navigation';
+import { ABAS_ADMIN, abasDoAdmin } from '@/components/dashboard/abas-dos-paineis';
 
 const VehicleConsultation = dynamic<any>(
     () =>
@@ -93,6 +93,17 @@ export default function AdminDashboard() {
         }
     };
 
+    // Vindo do WhatsApp (o mesmo menu lateral): abre a aba pedida.
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const view = params.get('view');
+        if (!view || !ABAS_ADMIN.some(t => t.id === view && !t.rota)) return;
+        setActiveTab(view as TabType);
+        params.delete('view');
+        const query = params.toString();
+        window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
+    }, []);
+
     useEffect(() => {
         getSession()
             .then((session) => {
@@ -113,41 +124,8 @@ export default function AdminDashboard() {
             });
     }, []);
 
-    const allTabs: Array<{ id: string; label: string; icon: React.ReactNode; rota?: string }> = [
-        { id: 'visao-geral', label: 'Visão Geral', icon: <LayoutDashboard size={20} aria-hidden="true" /> },
-        { id: 'usuarios', label: 'Equipe', icon: <Users size={20} aria-hidden="true" /> },
-        { id: 'veiculos', label: 'Veículos', icon: <CarFront size={20} aria-hidden="true" /> },
-        { id: 'estoque-concessionarias', label: 'Estoque', icon: <Warehouse size={20} aria-hidden="true" /> },
-        { id: 'catalogo', label: 'Catálogo', icon: <BookOpen size={20} aria-hidden="true" /> },
-        { id: 'concessionarias', label: 'Concessionárias', icon: <Building2 size={20} aria-hidden="true" /> },
-        // O que cada concessionária e cada lojista pode usar (lib/recursos.ts), como no Chatrun.
-        { id: 'funcionalidades', label: 'Funcionalidades', icon: <SlidersHorizontal size={20} aria-hidden="true" /> },
-        { id: 'transportadoras', label: 'Frete', icon: <Truck size={20} aria-hidden="true" /> },
-        { id: 'configuracoes', label: 'Configurações', icon: <Settings2 size={20} aria-hidden="true" /> },
-        { id: 'planos', label: 'Planos', icon: <CreditCard size={20} aria-hidden="true" /> },
-        { id: 'cobrancas', label: 'Cobranças', icon: <Receipt size={20} aria-hidden="true" /> },
-        { id: 'crm', label: 'CRM', icon: <ContactRound size={20} aria-hidden="true" /> },
-        { id: 'funil', label: 'Leads', icon: <Funnel size={20} aria-hidden="true" /> },
-        { id: 'integracoes', label: 'Integrações', icon: <Plug size={20} aria-hidden="true" /> },
-        { id: 'banners', label: 'Banners', icon: <Images size={20} aria-hidden="true" /> },
-        { id: 'avisos', label: 'Avisos', icon: <Megaphone size={20} aria-hidden="true" /> },
-        // O WhatsApp tem rotas próprias (/dashboard/admin/whatsapp/*), com a
-        // navegação dele por dentro — por isso navega em vez de trocar de aba.
-        { id: 'whatsapp', label: 'WhatsApp', icon: <MessageCircle size={20} aria-hidden="true" />, rota: '/dashboard/admin/whatsapp' }
-    ];
-
-    // Gerente não vê equipe, planos, carteira de clientes, leads, cobranças nem
-    // integrações. A API de cada uma também recusa o perfil: esconder o menu
-    // sozinho não protege nada.
-    const OCULTAS_GERENTE = new Set(['usuarios', 'planos', 'crm', 'funil', 'cobrancas', 'integracoes', 'whatsapp', 'avisos', 'funcionalidades']);
-
-    const tabs = allTabs.filter(tab => {
-        if (userInfo.profile === 'marketing') {
-            return tab.id === 'funil' || tab.id === 'integracoes';
-        }
-        if (userInfo.profile === 'gerente') return !OCULTAS_GERENTE.has(tab.id);
-        return true;
-    });
+    const allTabs = ABAS_ADMIN;
+    const tabs = abasDoAdmin(userInfo.profile).map(({ rota: _rota, ...t }) => t);
 
     const abrirTab = (id: string) => {
         const destino = allTabs.find((t) => t.id === id)?.rota;

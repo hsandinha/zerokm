@@ -9,7 +9,11 @@ export type ParamType =
   | "city"
   | "state"
   | "phone"
-  | "fixed";
+  | "fixed"
+  // Colunas extras do CSV ("Variável extra 1-3" no mapeamento do arquivo).
+  | "var1"
+  | "var2"
+  | "var3";
 
 export type ParamMapItem = {
   type: ParamType;
@@ -23,6 +27,9 @@ export type RecipientRow = {
   company?: string | null;
   city?: string | null;
   state?: string | null;
+  var1?: string | null;
+  var2?: string | null;
+  var3?: string | null;
 };
 
 export const PARAM_LABEL: Record<ParamType, string> = {
@@ -33,13 +40,29 @@ export const PARAM_LABEL: Record<ParamType, string> = {
   state: "UF",
   phone: "Telefone",
   fixed: "Texto fixo",
+  var1: "Variável extra 1 (CSV)",
+  var2: "Variável extra 2 (CSV)",
+  var3: "Variável extra 3 (CSV)",
 };
 
 /** Contato sem nome vira "tudo bem" genérico, mas envia. */
 export const NAME_FALLBACK = "tudo bem";
+/** Só na prospecção do CNV, que fala com lojas. O cliente final de uma loja
+ *  não tem "loja": lá, empresa vazia é variável vazia (e o destinatário fica
+ *  de fora), em vez de "Olá, sua loja". */
 export const COMPANY_FALLBACK = "sua loja";
 
-export function resolveParam(p: ParamMapItem, row: RecipientRow): string {
+export type ResolveOpts = {
+  /** undefined = padrão do CNV ("sua loja"); null = sem substituto. */
+  companyFallback?: string | null;
+};
+
+/** Substitutos de quem dispara: a loja nunca usa o "sua loja" do CNV. */
+export function fallbacksDe(tenantId: string | null | undefined): ResolveOpts {
+  return { companyFallback: tenantId ? null : COMPANY_FALLBACK };
+}
+
+export function resolveParam(p: ParamMapItem, row: RecipientRow, opts: ResolveOpts = {}): string {
   switch (p.type) {
     case "first_name": {
       const first = row.contactName?.trim().split(/\s+/)[0];
@@ -49,7 +72,7 @@ export function resolveParam(p: ParamMapItem, row: RecipientRow): string {
     case "full_name":
       return row.contactName?.trim() || NAME_FALLBACK;
     case "company":
-      return row.company?.trim() || COMPANY_FALLBACK;
+      return row.company?.trim() || (opts.companyFallback === undefined ? COMPANY_FALLBACK : (opts.companyFallback ?? ""));
     case "city":
       return row.city?.trim() || "";
     case "state":
@@ -58,11 +81,52 @@ export function resolveParam(p: ParamMapItem, row: RecipientRow): string {
       return row.phone;
     case "fixed":
       return p.value?.trim() ?? "";
+    case "var1":
+      return row.var1?.trim() || "";
+    case "var2":
+      return row.var2?.trim() || "";
+    case "var3":
+      return row.var3?.trim() || "";
+    default:
+      // Tipo desconhecido (payload antigo ou adulterado): vazio, e o
+      // destinatário fica de fora em vez de receber "undefined".
+      return "";
   }
 }
 
-export function resolveParams(map: ParamMapItem[], row: RecipientRow): string[] {
-  return map.map((p) => resolveParam(p, row));
+export function resolveParams(map: ParamMapItem[], row: RecipientRow, opts: ResolveOpts = {}): string[] {
+  return map.map((p) => resolveParam(p, row, opts));
+}
+
+export const PARAM_TYPES: ParamType[] = [
+  "first_name",
+  "full_name",
+  "company",
+  "city",
+  "state",
+  "phone",
+  "fixed",
+  "var1",
+  "var2",
+  "var3",
+];
+
+export function isParamType(v: unknown): v is ParamType {
+  return typeof v === "string" && (PARAM_TYPES as string[]).includes(v);
+}
+
+/** Mapeamento vindo do cliente, saneado: tipo desconhecido vira texto fixo vazio. */
+export function sanitizeParamMap(map: unknown, n: number): ParamMapItem[] {
+  const lista = Array.isArray(map) ? map : [];
+  const out: ParamMapItem[] = lista.slice(0, n).map((p): ParamMapItem => {
+    const item = (p ?? {}) as { type?: unknown; value?: unknown };
+    return isParamType(item.type)
+      ? { type: item.type, value: typeof item.value === "string" ? item.value : "" }
+      : { type: "fixed" as const, value: "" };
+  });
+  const padrao = defaultParamMap(n);
+  while (out.length < n) out.push(padrao[out.length]);
+  return out;
 }
 
 /**

@@ -8,6 +8,7 @@ import { runAiForConversation } from "@wa/lib/ai";
 import { runStoreAiForConversation } from "@wa/lib/ai-loja";
 import { sendAndLogText } from "@wa/lib/send";
 import { LlmAuthError, LlmTransientError } from "@wa/lib/llm";
+import { FALA_UM_INSTANTE, aposTurnoDaIa, transferenciaForaDoHorario } from "@wa/lib/fila";
 
 export const maxDuration = 120;
 
@@ -25,19 +26,27 @@ function authorized(req: NextRequest): boolean {
 async function failToHuman(conversationId: string, note: string) {
   await WaConversation.updateOne(
     { _id: conversationId },
-    { status: "waiting_human", transferReason: "falha_ia" },
+    { status: "waiting_human", transferReason: "falha_ia", waitingSince: new Date() },
   );
   const conv = await WaConversation.findById(conversationId);
   const contact = conv ? await WaContact.findById(conv.contactId) : null;
-  if (contact) {
+  // Loja fechada: o "um instante" prometeria alguém agora. No lugar dele vai
+  // o aviso de quando a equipe volta (wa/lib/fila.ts).
+  const fechada = await transferenciaForaDoHorario(conversationId).catch((err) => {
+    console.error("[worker/ai] aviso fora do horário falhou", err);
+    return false;
+  });
+  if (contact && !fechada) {
     await sendAndLogText({
       conversationId,
       to: contact.phone,
-      text: "Um instante — vou pedir para alguém da nossa equipe continuar seu atendimento por aqui. 😊",
+      text: FALA_UM_INSTANTE,
       sender: "system",
     }).catch(() => {});
   }
   console.error(`[worker/ai] conversa ${conversationId} → humano (${note})`);
+  // Fila da equipe: distribui, avisa e, fora do horário, diz quando volta.
+  await aposTurnoDaIa(conversationId, "ai_active").catch(() => {});
 }
 
 async function processJobs(): Promise<{ processed: number }> {
@@ -54,9 +63,14 @@ async function processJobs(): Promise<{ processed: number }> {
 
     try {
       // Conversa de loja tem o cérebro de venda de carro; sem loja, é a Vera.
-      const own = await WaConversation.findById(job.conversationId).select("tenantId").lean();
+      const own = await WaConversation.findById(job.conversationId).select("tenantId status").lean();
       if (own?.tenantId) await runStoreAiForConversation(job.conversationId.toString());
       else await runAiForConversation(job.conversationId.toString());
+      // O turno passou a conversa para a equipe? Distribui, avisa e, fora do
+      // horário da loja, diz ao cliente quando a equipe volta (wa/lib/fila.ts).
+      await aposTurnoDaIa(job.conversationId.toString(), own?.status).catch((err) => {
+        console.error("[worker/ai] fila da equipe falhou", err);
+      });
       job.status = "done";
       await job.save();
       processed++;

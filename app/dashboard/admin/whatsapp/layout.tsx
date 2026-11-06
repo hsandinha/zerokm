@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { WhatsAppTheme } from "@wa/components/admin-theme";
 import { Shell } from "@wa/components/shell";
 import { requireWaPage } from "@wa/lib/guard";
 import "@wa/styles/whatsapp.css";
@@ -19,9 +18,7 @@ export default async function WhatsAppLayout({
   // rotas do módulo, inclusive as que ainda não existem.
   await requireWaPage();
 
-  return (
-    <WhatsAppTheme>
-      <Shell>{children}</Shell>
-    </WhatsAppTheme>
-  );
+  // O Shell usa o menu lateral da Administração e põe o tema do WhatsApp só
+  // no conteúdo: o menu fica igual ao das outras telas.
+  return <Shell>{children}</Shell>;
 }

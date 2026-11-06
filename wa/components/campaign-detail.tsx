@@ -5,10 +5,21 @@
 // ("130472") não diz a ninguém se o problema é o número, o template ou nada
 // disso.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import clsx from "clsx";
-import { ArrowLeft, Ban, Loader2, MessageCircle, Pause, Play, RefreshCw } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Ban,
+  Loader2,
+  MessageCircle,
+  Pause,
+  Play,
+  RefreshCw,
+  Trash2,
+} from "lucide-react";
 import {
   CAMPAIGN_STATUS_CLS,
   CAMPAIGN_STATUS_LABEL,
@@ -53,7 +64,13 @@ type Campaign = {
   skipped: number;
   createdAt: string;
   createdBy: string | null;
+  lastError?: string | null;
+  fontes?: string[] | null;
+  filters?: { colunaNome?: string; janela24h?: boolean; origem?: string } | null;
+  headerMedia?: { tipo: string; filename: string | null } | null;
 };
+
+type Motivo = { motivo: string; n: number };
 
 type Recipient = {
   id: string;
@@ -72,10 +89,45 @@ type Payload = {
   recipients: Recipient[];
   exibidos: number;
   totalNoFiltro: number;
+  motivos?: { falhas: Motivo[]; pulados: Motivo[] };
 };
+
+const FONTE_LABEL: Record<string, string> = {
+  contatos: "contatos",
+  coluna: "coluna do funil",
+  colar: "lista colada",
+  csv: "CSV",
+  cnpja: "CNPJá",
+  targets: "empresas da base",
+  pessoa: "por pessoa (Procob)",
+  manual: "manual",
+};
+
+const NOME_MIDIA: Record<string, string> = { image: "imagem", video: "vídeo", document: "documento" };
+
+/** Mesmo erro da Meta com textos diferentes (código, título) vira um grupo
+ *  só, pelo significado. */
+function agruparFalhas(motivos: Motivo[]) {
+  const grupos = new Map<string, { titulo: string; explicacao: string | null; reenviar: string | null; n: number }>();
+  for (const m of motivos) {
+    const info = metaErrorInfo(m.motivo);
+    const chave = info?.titulo ?? m.motivo;
+    const atual = grupos.get(chave);
+    if (atual) atual.n += m.n;
+    else
+      grupos.set(chave, {
+        titulo: info?.titulo ?? m.motivo,
+        explicacao: info?.explicacao ?? null,
+        reenviar: info ? REENVIO_LABEL[info.reenviar] : null,
+        n: m.n,
+      });
+  }
+  return [...grupos.values()].sort((a, b) => b.n - a.n);
+}
 
 const STATUS_DEST: Record<string, { label: string; cls: string }> = {
   pending: { label: "Na fila", cls: "bg-ink-100 text-ink-800" },
+  sending: { label: "Enviando", cls: "bg-sky-100 text-sky-700" },
   sent: { label: "Enviada", cls: "bg-sky-100 text-sky-700" },
   delivered: { label: "Entregue", cls: "bg-brand-100 text-brand-700" },
   read: { label: "Lida", cls: "bg-violet-100 text-violet-700" },
@@ -84,7 +136,8 @@ const STATUS_DEST: Record<string, { label: string; cls: string }> = {
   skipped: { label: "Pulado", cls: "bg-amber-100 text-amber-700" },
 };
 
-const FILTROS = ["todos", "pending", "sent", "delivered", "read", "replied", "failed", "skipped"];
+const FILTROS = ["todos", "pending", "sending", "sent", "delivered", "read", "replied", "failed", "skipped"];
+const APAGAVEIS = ["draft", "completed", "cancelled", "failed"];
 
 /** Código cru da Meta vira explicação de quem opera. */
 function ErroMeta({ erro }: { erro: string }) {
@@ -103,6 +156,7 @@ function ErroMeta({ erro }: { erro: string }) {
 
 export function CampaignDetail({ id, statusInicial }: { id: string; statusInicial?: string }) {
   const { base } = useWaPanel();
+  const router = useRouter();
   const { confirm: confirmar, feedback } = useFeedback();
   const [data, setData] = useState<Payload | null>(null);
   const [filtro, setFiltro] = useState(statusInicial ?? "todos");
@@ -146,6 +200,35 @@ export function CampaignDetail({ id, statusInicial }: { id: string; statusInicia
       setAgindo(false);
     }
   }
+
+  async function apagar() {
+    if (
+      !(await confirmar({
+        title: "Apagar a campanha?",
+        description: "A campanha e a lista de destinatários somem. As conversas continuam na Central.",
+        confirmLabel: "Apagar campanha",
+        cancelLabel: "Voltar",
+        danger: true,
+      }))
+    ) {
+      return;
+    }
+    setAgindo(true);
+    try {
+      const res = await fetch(`/api/wa/campaigns/${id}`, { method: "DELETE" });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setErro(body.error ?? "Falha ao apagar");
+        return;
+      }
+      router.push(`${base}/campanhas`);
+    } finally {
+      setAgindo(false);
+    }
+  }
+
+  const falhas = useMemo(() => agruparFalhas(data?.motivos?.falhas ?? []), [data?.motivos?.falhas]);
+  const pulados = data?.motivos?.pulados ?? [];
 
   if (erro && !data) {
     return (
@@ -235,8 +318,33 @@ export function CampaignDetail({ id, statusInicial }: { id: string; statusInicia
               <Ban size={13} /> Cancelar
             </button>
           )}
+          {APAGAVEIS.includes(c.status) && (
+            <button
+              className="btn-ghost px-3 py-1.5 text-xs text-red-600"
+              disabled={agindo}
+              onClick={apagar}
+            >
+              <Trash2 size={13} /> Apagar
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Pausa automática do worker: o motivo, e o que fazer. */}
+      {c.lastError && (
+        <p className="flex items-start gap-2 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+          <span>
+            <b className="block">
+              {c.status === "paused" ? "A campanha foi pausada sozinha" : "Último problema do disparo"}
+            </b>
+            {c.lastError}
+            {c.status === "paused" && (
+              <span className="mt-1 block text-xs">Resolva e clique em Retomar: o que não saiu continua na fila.</span>
+            )}
+          </span>
+        </p>
+      )}
 
       {erro && (
         <p className="rounded-2xl border border-red-300 bg-red-50 px-4 py-2.5 text-xs text-red-600">
@@ -301,6 +409,24 @@ export function CampaignDetail({ id, statusInicial }: { id: string; statusInicia
               : "sem follow-up"
           }
         />
+        {c.fontes && c.fontes.length > 0 && (
+          <Linha
+            label="Público"
+            value={[
+              c.fontes.map((f) => FONTE_LABEL[f] ?? f).join(" + "),
+              c.filters?.colunaNome ? `coluna ${c.filters.colunaNome}` : null,
+              c.filters?.janela24h ? "só quem falou nas últimas 24h" : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          />
+        )}
+        {c.headerMedia && (
+          <Linha
+            label="Cabeçalho"
+            value={`${NOME_MIDIA[c.headerMedia.tipo] ?? "arquivo"}${c.headerMedia.filename ? `: ${c.headerMedia.filename}` : ""}`}
+          />
+        )}
         <Linha
           label="Variáveis"
           value={
@@ -319,6 +445,53 @@ export function CampaignDetail({ id, statusInicial }: { id: string; statusInicia
             Mensagem enviada
           </p>
           <p className="whitespace-pre-wrap text-sm">{c.templateBody}</p>
+        </div>
+      )}
+
+      {/* Por que não chegou: todas as falhas, agrupadas pelo significado. */}
+      {(falhas.length > 0 || pulados.length > 0) && (
+        <div className="card space-y-3">
+          {falhas.length > 0 && (
+            <>
+              <p className="text-sm font-bold">Por que não chegou</p>
+              <ul className="space-y-2">
+                {falhas.map((g) => (
+                  <li key={g.titulo} className="flex items-start gap-3 rounded-xl bg-red-50 px-3 py-2">
+                    <span className="min-w-10 shrink-0 text-right text-sm font-bold text-red-600">
+                      {formatNumber(g.n)}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-xs font-semibold text-red-700">{g.titulo}</span>
+                      {g.explicacao && (
+                        <span className="mt-0.5 block text-[11px] leading-snug text-muted">{g.explicacao}</span>
+                      )}
+                      {g.reenviar && (
+                        <span className="mt-0.5 block text-[10px] uppercase tracking-wide text-ink-300">
+                          {g.reenviar}
+                        </span>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <button className="text-xs font-semibold text-red-600 hover:underline" onClick={() => setFiltro("failed")}>
+                Ver quem falhou
+              </button>
+            </>
+          )}
+          {pulados.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Ficaram de fora sem envio</p>
+              <ul className="mt-1 space-y-0.5 text-xs">
+                {pulados.map((m) => (
+                  <li key={m.motivo} className="flex justify-between gap-3">
+                    <span className="text-muted">{m.motivo}</span>
+                    <span className="font-semibold">{formatNumber(m.n)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 

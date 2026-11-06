@@ -61,7 +61,9 @@ describe('conectar WhatsApp da loja pelo Chatrun', () => {
     it('o convite leva a loja no external_ref e volta para a Configuração', async () => {
         const res = await POST(pedido({ acao: 'convite' }));
         expect(await res.json()).toEqual({ url: 'https://gateway.teste/conectar/tok' });
-        expect(chamadas[0].body).toEqual({ email: 'gestor@loja.com', name: 'Concessionária Centro' });
+        // Só o nome da loja: o e-mail de quem clica acharia a conta de outro
+        // cliente no gateway (o operador usa o mesmo e-mail em várias).
+        expect(chamadas[0].body).toEqual({ name: 'Concessionária Centro' });
         expect(chamadas[1].body).toEqual({
             account_id: 'acc-9',
             channel: 'whatsapp',
@@ -76,6 +78,20 @@ describe('conectar WhatsApp da loja pelo Chatrun', () => {
         chamadas.length = 0;
         await POST(pedido({ acao: 'convite' }));
         expect(chamadas[0].body).toEqual({ account_id: 'acc-9' });
+    });
+
+    it('conta antiga, achada pelo e-mail, não é reaproveitada', async () => {
+        await WaStore.updateOne({ _id: escopo.tenantId }, { chatrunAccountId: 'acc-de-outro-cliente', $unset: { chatrunAccountProprio: 1 } });
+        chamadas.length = 0;
+        await POST(pedido({ acao: 'convite' }));
+        expect(chamadas[0].body).toEqual({ name: 'Concessionária Centro' });
+        expect(chamadas[1].body.account_id).toBe('acc-9');
+        expect((await WaStore.findById(escopo.tenantId).lean())?.chatrunAccountId).toBe('acc-9');
+    });
+
+    it('o retorno não troca a conta por uma que não tem conexão da loja', async () => {
+        await POST(pedido({ acao: 'retorno', accountId: 'acc-de-outro-cliente' }));
+        expect((await WaStore.findById(escopo.tenantId).lean())?.chatrunAccountId).toBe('acc-9');
     });
 
     it('o retorno cria o canal da loja sem token', async () => {

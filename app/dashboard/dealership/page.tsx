@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getSession } from 'next-auth/react';
-import { Building2, CarFront, CircleCheck, Clock, ContactRound, Images, LayoutDashboard, MessagesSquare, Plus, Tag, TriangleAlert } from 'lucide-react';
+import { Building2, CarFront, CircleCheck, Clock, Plus, Tag, TriangleAlert } from 'lucide-react';
 import { VehicleConsultation } from '@/components/operator/VehicleConsultation';
 import KanbanBoard from '@/components/crm/KanbanBoard';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
@@ -15,7 +15,7 @@ import { Concessionaria } from '@/lib/services/concessionariaService';
 import { Button, EmptyState, Page, PageHeader, SectionCard, StatCard, StatGrid, pageStyles } from '@/components/ui/Page';
 import { InlineNotice } from '@/components/ui/Feedback';
 import { useRecursos } from '@/lib/hooks/useRecursos';
-import type { Recurso } from '@/lib/recursos';
+import { ABAS_CONCESSIONARIA } from '@/components/dashboard/abas-dos-paineis';
 
 type Aba = 'visao-geral' | 'veiculos' | 'precos' | 'perfil' | 'crm' | 'anuncios';
 
@@ -26,16 +26,7 @@ interface DealershipMetrics {
     chartData: { label: string; value: number }[];
 }
 
-const TABS: Array<{ id: string; label: string; icon: React.ReactNode; recurso?: Recurso }> = [
-    { id: 'visao-geral', label: 'Visão geral', icon: <LayoutDashboard size={20} aria-hidden="true" /> },
-    { id: 'veiculos', label: 'Meus veículos', icon: <CarFront size={20} aria-hidden="true" /> },
-    { id: 'precos', label: 'Estoque e preços', icon: <Tag size={20} aria-hidden="true" /> },
-    { id: 'perfil', label: 'Meu perfil', icon: <Building2 size={20} aria-hidden="true" /> },
-    { id: 'crm', label: 'CRM', icon: <ContactRound size={20} aria-hidden="true" />, recurso: 'crm' },
-    { id: 'anuncios', label: 'Meus anúncios', icon: <Images size={20} aria-hidden="true" />, recurso: 'anuncios' },
-    // Atendimento com IA (WhatsApp/Instagram) da loja: área própria, fora das abas.
-    { id: 'atendimento', label: 'Atendimento', icon: <MessagesSquare size={20} aria-hidden="true" />, recurso: 'atendimento' },
-];
+const TABS = ABAS_CONCESSIONARIA;
 
 // Concessionária não usa margem: a consulta mostra o preço da própria loja.
 const SEM_MARGEM = { margem: 0, fixedMargin: 0, marginMode: 'percent' as const, setMargem: () => { }, setMarginConfig: () => { } };
@@ -46,6 +37,17 @@ export default function DealershipDashboard() {
     // Abas que o CNV liberou para esta concessionária (lib/recursos.ts).
     const { pode } = useRecursos();
     const tabs = TABS.filter(t => !t.recurso || pode(t.recurso)).map(({ recurso: _recurso, ...t }) => t);
+
+    // Vindo da área de Atendimento (o mesmo menu lateral): abre a aba pedida.
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const view = params.get('view');
+        if (!view || !TABS.some(t => t.id === view && t.id !== 'atendimento')) return;
+        setAba(view as Aba);
+        params.delete('view');
+        const query = params.toString();
+        window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
+    }, []);
 
     useEffect(() => {
         getSession()

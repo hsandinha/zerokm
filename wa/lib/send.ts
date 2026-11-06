@@ -12,13 +12,33 @@ import {
   whatsappChannelOf,
   type ResolvedChannel,
 } from "@wa/lib/channels";
-import { sendText, markReadWithTyping, sendTemplate, sendReaction } from "@wa/lib/meta";
+import {
+  sendText,
+  sendMedia,
+  markReadWithTyping,
+  sendTemplate,
+  sendReaction,
+  type TemplateButtonUrlParam,
+  type TemplateHeaderParam,
+  type WhatsAppMediaType,
+} from "@wa/lib/meta";
 import { igReact, igSendText, igTypingOn } from "@wa/lib/instagram";
 import { fbReact, fbSendText, fbTypingOn } from "@wa/lib/messenger";
 import { sendSms } from "@wa/lib/sms";
 import { emitEvent } from "@wa/lib/webhooks";
 
 const DAY_MS = 24 * 3600_000;
+
+/** Quem da equipe mandou (a Central, a mensagem programada). Vira
+ *  authorEmail/authorName na mensagem: o balão mostra o nome e os relatórios
+ *  contam por atendente. */
+export type AutorDaMensagem = { email: string; name?: string | null };
+
+function camposDoAutor(sender: string, author: AutorDaMensagem | null | undefined) {
+  const email = author?.email?.toLowerCase().trim();
+  if (sender !== "human" || !email) return {};
+  return { authorEmail: email, ...(author?.name?.trim() ? { authorName: author.name.trim() } : {}) };
+}
 
 async function conversationChannel(conversationId: string): Promise<{
   channel: ResolvedChannel;
@@ -43,6 +63,10 @@ export async function sendAndLogText(params: {
   to: string; // telefone canônico +55..., "ig:<IGSID>" ou "fb:<PSID>"
   text: string;
   sender: "ai" | "human" | "system";
+  /** wamid da mensagem citada. Só o WhatsApp mostra a citação; nos outros
+   *  canais a resposta sai normal (e a Central ainda guarda o vínculo). */
+  replyTo?: string | null;
+  author?: AutorDaMensagem | null;
 }): Promise<boolean> {
   const { channel, lastInboundAt } = await conversationChannel(params.conversationId);
 
@@ -78,7 +102,7 @@ export async function sendAndLogText(params: {
     }));
   } else {
     if (!channel.whatsapp) throw new Error("WABA não configurado (token/phone_number_id)");
-    ({ external_id } = await sendText(channel.whatsapp, params.to, params.text));
+    ({ external_id } = await sendText(channel.whatsapp, params.to, params.text, params.replyTo));
   }
 
   await WaMessage.create({
@@ -89,7 +113,9 @@ export async function sendAndLogText(params: {
     mediaType: "text",
     externalId: external_id || undefined,
     status: "sent",
+    ...camposDoAutor(params.sender, params.author),
     ...(via ? { via } : {}),
+    ...(params.replyTo ? { contextExternalId: params.replyTo } : {}),
   });
   await WaConversation.updateOne(
     { _id: params.conversationId },
@@ -114,6 +140,86 @@ export async function sendAndLogText(params: {
   return true;
 }
 
+/** Prévia da conversa na fila para uma mídia (a legenda, quando houver). */
+const PREVIA_DA_MIDIA: Record<WhatsAppMediaType, string> = {
+  image: "📷 Foto",
+  video: "🎬 Vídeo",
+  audio: "🎤 Áudio",
+  document: "📄 Documento",
+  sticker: "Figurinha",
+};
+
+/**
+ * Mídia por link público (o arquivo anexado na Central, já guardado em
+ * wa/lib/midia-saida.ts, ou a foto do catálogo). Só no WhatsApp: o Direct, o
+ * Messenger e o SMS daqui ainda mandam só texto.
+ */
+export async function sendAndLogMedia(params: {
+  conversationId: string;
+  to: string;
+  link: string;
+  type: WhatsAppMediaType;
+  caption?: string | null;
+  filename?: string | null;
+  sender: "ai" | "human" | "system";
+  replyTo?: string | null;
+  /** WaMidiaSaida, quando o arquivo é nosso (a Central mostra por ele). */
+  midiaId?: string | null;
+  author?: AutorDaMensagem | null;
+}): Promise<string> {
+  const { channel } = await conversationChannel(params.conversationId);
+  if (channel.kind !== "whatsapp") {
+    throw new Error("Anexo só sai pelo WhatsApp por enquanto. Neste canal, mande o texto.");
+  }
+  if (!channel.whatsapp) throw new Error("WABA não configurado (token/phone_number_id)");
+
+  const caption = params.caption?.trim() || undefined;
+  const { external_id } = await sendMedia(
+    channel.whatsapp,
+    params.to,
+    params.link,
+    params.type,
+    caption,
+    params.filename ?? undefined,
+    params.replyTo,
+  );
+
+  await WaMessage.create({
+    conversationId: params.conversationId,
+    direction: "outbound",
+    sender: params.sender,
+    content: caption,
+    mediaType: params.type,
+    externalId: external_id || undefined,
+    status: "sent",
+    ...camposDoAutor(params.sender, params.author),
+    ...(params.midiaId ? { midiaId: params.midiaId } : { mediaUrl: params.link }),
+    ...(params.filename ? { filename: params.filename } : {}),
+    ...(params.replyTo ? { contextExternalId: params.replyTo } : {}),
+  });
+  await WaConversation.updateOne(
+    { _id: params.conversationId },
+    {
+      lastMessageAt: new Date(),
+      lastMessagePreview: (caption ?? params.filename ?? PREVIA_DA_MIDIA[params.type]).slice(0, 120),
+    },
+  );
+
+  await emitEvent(
+    "mensagem.enviada",
+    {
+      message: {
+        text: caption ?? null,
+        type: params.type,
+        sender: params.sender,
+        externalId: external_id || null,
+      },
+    },
+    { conversationId: params.conversationId },
+  );
+  return external_id;
+}
+
 /** Template — único caminho permitido fora da janela de 24h da Meta. */
 export async function sendAndLogTemplate(params: {
   conversationId: string;
@@ -126,6 +232,12 @@ export async function sendAndLogTemplate(params: {
   renderedText?: string;
   /** Cadência e campanha são "system"; template escolhido na Central é "human". */
   sender?: "system" | "human";
+  /** Cabeçalho: {{1}} do texto ou o arquivo do cabeçalho de mídia. Opcional:
+   *  template sem isso continua igual (ver wa/lib/template-envio.ts). */
+  headerParams?: TemplateHeaderParam[];
+  /** Final da URL dos botões de link dinâmico. */
+  buttonUrlParams?: TemplateButtonUrlParam[];
+  author?: AutorDaMensagem | null;
 }): Promise<string> {
   let { channel } = await conversationChannel(params.conversationId);
   // Conversa que está no SMS é de telefone: o template sai pelo WhatsApp da
@@ -154,6 +266,7 @@ export async function sendAndLogTemplate(params: {
     params.templateName,
     params.language ?? "pt_BR",
     params.bodyParams ?? [],
+    { headerParams: params.headerParams, buttonUrlParams: params.buttonUrlParams },
   );
 
   await WaMessage.create({
@@ -164,6 +277,7 @@ export async function sendAndLogTemplate(params: {
     mediaType: "template",
     externalId: external_id || undefined,
     status: "sent",
+    ...camposDoAutor(params.sender ?? "system", params.author),
   });
   await WaConversation.updateOne(
     { _id: params.conversationId },
@@ -241,4 +355,20 @@ export async function reactOnChannel(params: {
 export function isWithin24hWindow(lastInboundAt: Date | string | null | undefined): boolean {
   if (!lastInboundAt) return false;
   return Date.now() - new Date(lastInboundAt).getTime() < DAY_MS;
+}
+
+/**
+ * A equipe pode mandar mensagem livre agora? A mesma regra que a Central usa
+ * para travar o campo: WhatsApp, 24h desde a última do cliente; Direct e
+ * Messenger, 7 dias (tag de atendimento humano); SMS, sempre. Barrar aqui
+ * evita gravar um anexo que a Meta vai recusar de qualquer jeito.
+ */
+export function podeMandarLivre(
+  kind: string,
+  lastInboundAt: Date | string | null | undefined,
+): boolean {
+  if (kind === "sms") return true;
+  if (!lastInboundAt) return false;
+  const limite = kind === "instagram" || kind === "messenger" ? 7 * DAY_MS : DAY_MS;
+  return Date.now() - new Date(lastInboundAt).getTime() < limite;
 }

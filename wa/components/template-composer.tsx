@@ -6,8 +6,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
-import { Loader2, MessageSquarePlus, SendHorizonal, X } from "lucide-react";
+import { FileUp, Loader2, MessageSquarePlus, SendHorizonal, X } from "lucide-react";
 import { formatPhoneBr, parsePhoneBr } from "@wa/lib/phone";
+import { useWaPanel } from "@wa/components/wa-panel";
 
 type Template = {
   id: string;
@@ -21,6 +22,17 @@ type Template = {
   footer: string | null;
   buttons: Array<{ type?: string; text?: string }>;
   examples: string[];
+  /** null = sem cabeçalho. IMAGE/VIDEO/DOCUMENT pedem o arquivo no envio. */
+  headerFormat?: "TEXT" | "IMAGE" | "VIDEO" | "DOCUMENT" | "LOCATION" | null;
+  headerVariables?: number;
+  headerExample?: string | null;
+  buttonVariables?: Array<{ index: number; text: string; urlPrefix: string; example: string | null }>;
+};
+
+const MIDIA_DO_CABECALHO: Record<string, { label: string; accept: string }> = {
+  IMAGE: { label: "imagem (JPG ou PNG)", accept: "image/jpeg,image/png" },
+  VIDEO: { label: "vídeo (MP4)", accept: "video/mp4" },
+  DOCUMENT: { label: "documento (PDF)", accept: "application/pdf" },
 };
 
 export type ComposerTarget =
@@ -50,17 +62,24 @@ export function TemplateComposer({
   onClose: () => void;
   onSent: (conversationId: string) => void;
 }) {
+  const { store } = useWaPanel();
   const [templates, setTemplates] = useState<Template[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [phone, setPhone] = useState(target.mode === "reopen" ? target.phone : "");
   const [name, setName] = useState(target.mode === "reopen" ? (target.name ?? "") : "");
   const [selected, setSelected] = useState<string>("");
   const [values, setValues] = useState<string[]>([]);
+  // Cabeçalho e botão de link: sem eles a Meta recusa a mensagem inteira.
+  const [headerText, setHeaderText] = useState("");
+  const [headerFile, setHeaderFile] = useState<{ id: string; filename: string | null } | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [urlValues, setUrlValues] = useState<Record<number, string>>({});
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/wa/templates")
+    // Lista da Central: só aprovados, sem exigir o recurso de campanhas.
+    fetch("/api/wa/conversations/templates")
       .then(async (r) => {
         const body = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(body.error ?? "Falha ao listar templates");
@@ -86,13 +105,45 @@ export function TemplateComposer({
     setValues((prev) =>
       Array.from({ length: template.variables }, (_, i) => prev[i] ?? (i === 0 && name.trim() ? name.trim().split(" ")[0] : "")),
     );
+    setHeaderText("");
+    setHeaderFile(null);
+    setUrlValues({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [template?.name]);
 
   const parsed = parsePhoneBr(phone);
   const phoneOk = target.mode === "reopen" || (parsed.valid && parsed.kind === "movel");
-  const missing = template ? values.slice(0, template.variables).filter((v) => !v.trim()).length : 0;
-  const canSend = Boolean(template) && phoneOk && missing === 0 && !sending;
+  const midiaHeader = template?.headerFormat ? MIDIA_DO_CABECALHO[template.headerFormat] ?? null : null;
+  const precisaTextoHeader = (template?.headerVariables ?? 0) > 0;
+  const botoesUrl = template?.buttonVariables ?? [];
+  const missing = template
+    ? values.slice(0, template.variables).filter((v) => !v.trim()).length +
+      (precisaTextoHeader && !headerText.trim() ? 1 : 0) +
+      botoesUrl.filter((b) => !(urlValues[b.index] ?? "").trim()).length
+    : 0;
+  const faltaArquivo = Boolean(midiaHeader) && !headerFile;
+  const canSend = Boolean(template) && phoneOk && missing === 0 && !faltaArquivo && !uploading && !sending;
+
+  async function enviarArquivo(file: File) {
+    if (!template?.headerFormat) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      form.set("uso", "conversa");
+      form.set("formato", template.headerFormat);
+      const res = await fetch("/api/wa/campaigns/midia", { method: "POST", body: form });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(body.error ?? "Não foi possível anexar o arquivo.");
+        return;
+      }
+      setHeaderFile({ id: body.id, filename: body.filename ?? file.name });
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function send() {
     if (!template || !canSend) return;
@@ -102,6 +153,9 @@ export function TemplateComposer({
       templateName: template.name,
       language: template.language,
       params: values.slice(0, template.variables),
+      headerText: precisaTextoHeader ? headerText.trim() : null,
+      headerMediaId: headerFile?.id ?? null,
+      buttonUrlParams: botoesUrl.map((b) => ({ index: b.index, value: (urlValues[b.index] ?? "").trim() })),
     };
     const res =
       target.mode === "new"
@@ -181,7 +235,9 @@ export function TemplateComposer({
                 <p className="text-xs text-muted">Carregando templates da Meta…</p>
               ) : templates.length === 0 ? (
                 <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                  Nenhum template aprovado neste WABA. Crie e submeta um em Templates — a aprovação é da Meta.
+                  {store
+                    ? "Nenhum template aprovado no WhatsApp da loja. Crie um em Templates: a aprovação é da Meta."
+                    : "Nenhum template aprovado neste WABA. Crie e submeta um em Templates — a aprovação é da Meta."}
                 </p>
               ) : (
                 <div className="max-h-56 space-y-1 overflow-y-auto rounded-2xl border border-line p-1">
@@ -231,6 +287,61 @@ export function TemplateComposer({
                 ))}
               </div>
             )}
+
+            {template && precisaTextoHeader && (
+              <div>
+                <label className="label">Variável do cabeçalho</label>
+                <input
+                  className="input py-2"
+                  placeholder={template.headerExample ? `ex.: ${template.headerExample}` : "Valor de {{1}} no cabeçalho"}
+                  value={headerText}
+                  onChange={(e) => setHeaderText(e.target.value)}
+                />
+              </div>
+            )}
+
+            {template && midiaHeader && (
+              <div>
+                <label className="label">Arquivo do cabeçalho</label>
+                <label className="flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-line px-3 py-2.5 text-xs text-ink-700 hover:bg-canvas">
+                  {uploading ? <Loader2 size={14} className="animate-spin" /> : <FileUp size={14} />}
+                  <span className="min-w-0 flex-1 truncate">
+                    {headerFile
+                      ? headerFile.filename ?? "arquivo anexado"
+                      : `Este template pede ${midiaHeader.label}. Escolha o arquivo.`}
+                  </span>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept={midiaHeader.accept}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) enviarArquivo(f);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              </div>
+            )}
+
+            {template && botoesUrl.length > 0 && (
+              <div className="space-y-2">
+                <label className="label">Link dos botões</label>
+                {botoesUrl.map((b) => (
+                  <div key={b.index}>
+                    <p className="mb-1 text-[11px] text-muted">
+                      {b.text}: <span className="font-mono">{b.urlPrefix}</span>…
+                    </p>
+                    <input
+                      className="input py-2"
+                      placeholder={b.example ? `ex.: ${b.example}` : "Final do link"}
+                      value={urlValues[b.index] ?? ""}
+                      onChange={(e) => setUrlValues((v) => ({ ...v, [b.index]: e.target.value }))}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div>
@@ -240,7 +351,16 @@ export function TemplateComposer({
                 <p className="text-xs text-muted">Escolha um template para ver como a mensagem chega no WhatsApp.</p>
               ) : (
                 <div className="ml-auto max-w-[95%] rounded-2xl bg-brand-100 px-3.5 py-2 text-sm leading-relaxed">
-                  {template.header && <p className="mb-1 font-bold">{template.header}</p>}
+                  {midiaHeader && (
+                    <p className="mb-1.5 rounded-xl bg-paper/70 px-2 py-3 text-center text-[11px] text-muted">
+                      {headerFile ? `${midiaHeader.label}: ${headerFile.filename ?? "anexado"}` : midiaHeader.label}
+                    </p>
+                  )}
+                  {template.header && (
+                    <p className="mb-1 font-bold">
+                      {precisaTextoHeader && headerText.trim() ? template.header.replace("{{1}}", headerText.trim()) : template.header}
+                    </p>
+                  )}
                   <p className="whitespace-pre-wrap">{preview}</p>
                   {template.footer && <p className="mt-1 text-[11px] text-muted">{template.footer}</p>}
                   {template.buttons?.length > 0 && (
@@ -257,8 +377,11 @@ export function TemplateComposer({
             </div>
             {template && missing > 0 && (
               <p className="mt-2 text-[11px] text-amber-700">
-                Falta preencher {missing} variáve{missing === 1 ? "l" : "is"} — a Meta recusa a mensagem com variável vazia.
+                Falta preencher {missing} campo{missing === 1 ? "" : "s"}. A Meta recusa a mensagem com variável vazia.
               </p>
+            )}
+            {template && faltaArquivo && (
+              <p className="mt-2 text-[11px] text-amber-700">Falta o arquivo do cabeçalho.</p>
             )}
           </div>
         </div>

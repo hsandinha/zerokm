@@ -2,6 +2,7 @@
 // em coleções novas prefixadas com `wa_` para não colidir com as da zerokm.
 
 import mongoose, { Schema, Document, Model } from "mongoose";
+import { OrigemSchema, type WaOrigem } from "@wa/models/origem";
 
 // ── Configuração (documento único) ───────────────────────────
 export interface IWaSettings extends Document {
@@ -23,6 +24,9 @@ export interface IWaSettings extends Document {
   wabaDisplayPhone?: string;
   /** Conta do CNV no Chatrun Conexão (onde ficam os canais da Vera). */
   chatrunAccountId?: string;
+  /** A conta acima é a do CNV (criada pelo nome ou devolvida pela Meta no
+   *  convite). Conta antiga, achada pelo e-mail de quem conectou, não vale. */
+  chatrunAccountProprio?: boolean;
   updatedAt: Date;
 }
 
@@ -42,6 +46,7 @@ const WaSettingsSchema: Schema = new Schema(
     wabaVerifyToken: { type: String },
     wabaDisplayPhone: { type: String },
     chatrunAccountId: { type: String },
+    chatrunAccountProprio: { type: Boolean },
   },
   { timestamps: true, collection: "wa_settings" },
 );
@@ -71,6 +76,12 @@ export interface IWaContact extends Document {
   fbPsid?: string;
   /** Celular que a pessoa informou fora do WhatsApp (ex.: no Direct, para o cadastro). */
   whatsappPhone?: string;
+
+  /** Anúncio por onde a pessoa chegou pela primeira vez (wa/lib/origem-loja.ts). */
+  origemPrimeira?: WaOrigem | null;
+  /** O anúncio mais recente por onde ela chegou. */
+  origemUltima?: WaOrigem | null;
+
   userId?: string; // _id do User da zerokm quando o cadastro foi criado
   firebaseUid?: string;
   // A empresa que originou a abordagem. Um sócio com 5 empresas tem UM
@@ -101,6 +112,10 @@ const WaContactSchema: Schema = new Schema(
     igUsername: { type: String },
     fbPsid: { type: String },
     whatsappPhone: { type: String },
+
+    origemPrimeira: { type: OrigemSchema, default: undefined },
+    origemUltima: { type: OrigemSchema, default: undefined },
+
     userId: { type: String },
     firebaseUid: { type: String },
     targetId: { type: Schema.Types.ObjectId, ref: "WaTarget" },
@@ -113,6 +128,35 @@ const WaContactSchema: Schema = new Schema(
 WaContactSchema.index({ tenantId: 1, phone: 1 }, { unique: true });
 WaContactSchema.index({ name: 1 });
 WaContactSchema.index({ document: 1 });
+
+// ── Ficha do contato (cadastro à mão, importação, automações) ─
+// Bloco à parte (a interface se junta à de cima): o que a loja preenche na
+// ficha. Sem `tipo` gravado o contato é cliente (todo mundo que já existia).
+export interface IWaContact {
+  tipo?: "cliente" | "fornecedor" | "parceiro" | "outros";
+  /** Aniversário "AAAA-MM-DD". Mês e dia ficam também separados: o filtro de
+   *  aniversariantes e a automação do dia consultam pelo índice. */
+  birthDate?: string;
+  birthMonth?: number;
+  birthDay?: number;
+  address?: { zip?: string; street?: string; number?: string; complement?: string; district?: string };
+  notes?: string;
+}
+WaContactSchema.add({
+  tipo: { type: String, enum: ["cliente", "fornecedor", "parceiro", "outros"] },
+  birthDate: { type: String },
+  birthMonth: { type: Number },
+  birthDay: { type: Number },
+  address: {
+    zip: { type: String },
+    street: { type: String },
+    number: { type: String },
+    complement: { type: String },
+    district: { type: String },
+  },
+  notes: { type: String, maxlength: 2000 },
+});
+WaContactSchema.index({ tenantId: 1, birthMonth: 1, birthDay: 1 });
 
 // ── Conversa ─────────────────────────────────────────────────
 export type WaConversationStatus = "ai_active" | "waiting_human" | "human_active" | "closed";
@@ -136,6 +180,9 @@ export interface IWaConversation extends Document {
   channelId?: mongoose.Types.ObjectId;
   status: WaConversationStatus;
   stage: WaStage;
+  /** Coluna do funil em que o cartão foi posto à mão (WaFunilColuna). Ausente
+   *  ou incompatível com a etapa = a coluna de sistema da etapa. */
+  stageId?: mongoose.Types.ObjectId | null;
   stageChangedAt: Date;
   /** E-mail de quem assumiu a conversa na Central (filtro "Minhas"). */
   assignedTo?: string;
@@ -144,6 +191,12 @@ export interface IWaConversation extends Document {
   outcome?: "interessado" | "sem_interesse" | "sem_resposta" | "opt_out" | null;
   transferReason?: string;
   campaignId?: mongoose.Types.ObjectId;
+
+  /** Anúncio que abriu (ou reabriu) a conversa: o cartão no topo e a Origem. */
+  origem?: WaOrigem | null;
+  /** Etiquetas da loja (WaEtiqueta) aplicadas na conversa. */
+  etiquetas?: mongoose.Types.ObjectId[];
+
   lastMessageAt?: Date;
   lastInboundAt?: Date;
   lastMessagePreview?: string;
@@ -167,6 +220,7 @@ const WaConversationSchema: Schema = new Schema(
       enum: ["abordado", "conversa", "cadastro", "pagamento", "ganho", "perdido"],
       default: "conversa",
     },
+    stageId: { type: Schema.Types.ObjectId, ref: "WaFunilColuna", default: null },
     stageChangedAt: { type: Date, default: Date.now },
     assignedTo: { type: String },
     waitingSince: { type: Date, default: null },
@@ -177,6 +231,10 @@ const WaConversationSchema: Schema = new Schema(
     },
     transferReason: { type: String },
     campaignId: { type: Schema.Types.ObjectId, ref: "WaCampaign" },
+
+    origem: { type: OrigemSchema, default: undefined },
+    etiquetas: { type: [{ type: Schema.Types.ObjectId, ref: "WaEtiqueta" }], default: undefined },
+
     lastMessageAt: { type: Date },
     lastInboundAt: { type: Date },
     lastMessagePreview: { type: String },
@@ -187,14 +245,62 @@ const WaConversationSchema: Schema = new Schema(
 WaConversationSchema.index({ lastMessageAt: -1 });
 WaConversationSchema.index({ tenantId: 1, lastMessageAt: -1 });
 WaConversationSchema.index({ stage: 1, stageChangedAt: -1 });
+WaConversationSchema.index({ tenantId: 1, stageId: 1 });
 WaConversationSchema.index({ status: 1, waitingSince: 1 });
 WaConversationSchema.index({ assignedTo: 1, status: 1 });
+
+// Filtro por etiqueta na Central e o relatório de Origens por período.
+WaConversationSchema.index({ tenantId: 1, etiquetas: 1 });
+WaConversationSchema.index({ tenantId: 1, "origem.em": -1 });
+// ── Follow-up da coluna e automações ─────────────────────────
+// Bloco à parte (a interface se junta à de cima). O follow-up conta os toques
+// da coluna em que o cartão está (outra coluna recomeça do zero) e a resposta
+// do cliente zera a contagem (wa/lib/inbound.ts).
+export interface IWaConversation {
+  /** Quando foi encerrada (pós-atendimento). Gravado sozinho pelo gancho abaixo. */
+  closedAt?: Date | null;
+  followupCount?: number;
+  followupLastAt?: Date | null;
+  followupColunaId?: mongoose.Types.ObjectId | null;
+  /** Última mensagem automática (follow-up ou automação): uma não sai em
+   *  cima da outra. */
+  ultimoAutomaticoAt?: Date | null;
+}
+WaConversationSchema.add({
+  closedAt: { type: Date, default: null },
+  followupCount: { type: Number, default: 0 },
+  followupLastAt: { type: Date, default: null },
+  followupColunaId: { type: Schema.Types.ObjectId, ref: "WaFunilColuna", default: null },
+  ultimoAutomaticoAt: { type: Date, default: null },
+});
+WaConversationSchema.index({ status: 1, closedAt: -1 });
+// Todo caminho que encerra (Central, IA, opt-out) grava só `status: "closed"`:
+// o horário do encerramento sai daqui, sem cada um precisar lembrar.
+function marcarEncerramento(this: mongoose.Query<unknown, unknown>) {
+  const u = this.getUpdate() as Record<string, unknown> | null;
+  if (!u || Array.isArray(u)) return;
+  const set = (u.$set ?? {}) as Record<string, unknown>;
+  const status = u.status ?? set.status;
+  if (status === "closed" && u.closedAt === undefined && set.closedAt === undefined) {
+    this.set("closedAt", new Date());
+  }
+}
+WaConversationSchema.pre(["updateOne", "updateMany", "findOneAndUpdate"], marcarEncerramento);
+WaConversationSchema.pre("save", function (this: IWaConversation) {
+  if (!this.isNew && this.isModified("status") && this.status === "closed") this.closedAt = new Date();
+});
 
 // ── Mensagem ─────────────────────────────────────────────────
 export interface IWaMessage extends Document {
   conversationId: mongoose.Types.ObjectId;
   direction: "inbound" | "outbound";
   sender: "contact" | "ai" | "human" | "system";
+
+  /** Quem da equipe escreveu (sender "human" pela Central). Os relatórios
+   *  por atendente leem este campo; mensagem antiga ou do celular não tem. */
+  authorEmail?: string;
+  authorName?: string;
+
   content?: string;
   mediaType: string; // text | image | audio | video | document | sticker | template | unknown
   mediaId?: string; // media id da Meta (proxy sob demanda em /api/wa/media)
@@ -206,6 +312,16 @@ export interface IWaMessage extends Document {
   /** Canal SMS: por onde a mensagem foi de fato. Com agente RCS sai "rcs", e
    *  o status da Zenvia corrige para "sms" quando ela caiu para SMS. */
   via?: "sms" | "rcs";
+  /** wamid da mensagem citada (resposta a uma mensagem). Vale nos dois
+   *  sentidos: o cliente respondendo a algo nosso e a equipe citando o cliente. */
+  contextExternalId?: string;
+  /** Arquivo mandado pela Central (WaMidiaSaida). O mediaId acima é só da Meta,
+   *  para o que chega; o que sai mora aqui. */
+  midiaId?: string;
+  /** Mídia mandada por link público (foto do carro do catálogo). */
+  mediaUrl?: string;
+  /** Nome do documento, para a Central mostrar o arquivo pelo nome. */
+  filename?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -215,6 +331,10 @@ const WaMessageSchema: Schema = new Schema(
     conversationId: { type: Schema.Types.ObjectId, ref: "WaConversation", required: true },
     direction: { type: String, enum: ["inbound", "outbound"], required: true },
     sender: { type: String, enum: ["contact", "ai", "human", "system"], required: true },
+
+    authorEmail: { type: String, lowercase: true, trim: true },
+    authorName: { type: String },
+
     content: { type: String },
     mediaType: { type: String, default: "text" },
     mediaId: { type: String },
@@ -223,11 +343,17 @@ const WaMessageSchema: Schema = new Schema(
     error: { type: String },
     reaction: { type: String },
     via: { type: String, enum: ["sms", "rcs"] },
+    contextExternalId: { type: String },
+    midiaId: { type: String },
+    mediaUrl: { type: String },
+    filename: { type: String },
   },
   { timestamps: true, collection: "wa_messages" },
 );
 WaMessageSchema.index({ conversationId: 1, createdAt: 1 });
 WaMessageSchema.index({ createdAt: -1 });
+// O proxy de mídia acha a mensagem pelo id da Meta.
+WaMessageSchema.index({ mediaId: 1 }, { sparse: true });
 
 // ── Fila de IA ───────────────────────────────────────────────
 export interface IWaAiJob extends Document {
@@ -269,6 +395,31 @@ export type WaCampaignStatus =
   | "cancelled"
   | "failed";
 
+/** Fontes de público. As da loja (contatos, coluna, colar, csv) são as únicas
+ *  que uma loja pode usar; cnpja, targets e pessoa são a prospecção do CNV. */
+export type WaCampaignSource =
+  | "cnpja"
+  | "csv"
+  | "manual"
+  | "targets"
+  | "pessoa"
+  | "contatos"
+  | "coluna"
+  | "colar"
+  | "misto";
+
+export const FONTES_DA_LOJA = ["csv", "contatos", "coluna", "colar"] as const;
+export type FonteDaLoja = (typeof FONTES_DA_LOJA)[number];
+
+/** Arquivo do cabeçalho de mídia do template (wa/lib/midia-saida.ts). É o
+ *  mesmo para todos os destinatários da campanha. */
+export type WaHeaderMedia = {
+  midiaId: string;
+  tipo: "image" | "video" | "document";
+  filename?: string | null;
+  mime?: string | null;
+};
+
 export interface IWaCampaign extends Document {
   /** Loja que dispara (WaStore). null/ausente = CNV. */
   tenantId?: string | null;
@@ -279,13 +430,41 @@ export interface IWaCampaign extends Document {
    *  destinatário sai daqui + params. Sem isto a Central e a IA veriam só um
    *  rótulo no lugar da mensagem de abertura. */
   templateBody?: string;
+  /** Cabeçalho de texto do template (com {{1}} quando tem variável). */
+  templateHeaderText?: string;
   templateCategory?: string;
   status: WaCampaignStatus;
-  source: "cnpja" | "csv" | "manual" | "targets" | "pessoa";
-  filters?: { cnae?: string; uf?: string; city?: string };
+  source: WaCampaignSource;
+  /** Todas as fontes somadas no público (a loja pode juntar várias). */
+  fontes?: string[];
+  filters?: {
+    cnae?: string;
+    uf?: string;
+    city?: string;
+    /** Coluna do funil (fonte "coluna"). */
+    colunaId?: string;
+    colunaNome?: string;
+    /** Contatos: só quem escreveu nas últimas 24h. */
+    janela24h?: boolean;
+    /** Contatos: origem do cadastro (whatsapp, sms, csv, manual...). */
+    origem?: string;
+  };
   importId?: mongoose.Types.ObjectId;
   /** Como cada {{n}} do template é preenchido (ver src/lib/campaign-params.ts). */
   paramsMap: Array<{ type: string; value?: string }>;
+  /** Cabeçalho de texto com {{1}}: de onde vem o valor. */
+  headerParamsMap?: Array<{ type: string; value?: string }>;
+  /** Botões de link dinâmico (URL com {{1}} no fim): o índice do botão no
+   *  template e de onde vem o final do endereço. */
+  buttonParamsMap?: Array<{ index: number; type: string; value?: string }>;
+  /** Cabeçalho de imagem, vídeo ou documento. Sem ele a Meta recusa 100% dos
+   *  envios de um template com mídia no cabeçalho. */
+  headerMedia?: WaHeaderMedia | null;
+  /** Por que o worker pausou a campanha (WhatsApp desconectado, arquivo do
+   *  cabeçalho vencido, template recusado). Iniciar ou retomar limpa. */
+  lastError?: string | null;
+  /** Última rodada do worker: quem rodou há mais tempo vai primeiro. */
+  lastRunAt?: Date | null;
   // Ritmo e janela
   throttlePerRun: number; // envios por rodada do worker (1 rodada/min)
   throttleSeconds: number; // espaçamento entre envios dentro da rodada
@@ -311,6 +490,16 @@ export interface IWaCampaign extends Document {
   updatedAt: Date;
 }
 
+const HeaderMediaSchema = new Schema(
+  {
+    midiaId: { type: String, required: true },
+    tipo: { type: String, enum: ["image", "video", "document"], required: true },
+    filename: String,
+    mime: String,
+  },
+  { _id: false },
+);
+
 const WaCampaignSchema: Schema = new Schema(
   {
     tenantId: { type: String, default: null },
@@ -318,6 +507,7 @@ const WaCampaignSchema: Schema = new Schema(
     templateName: { type: String, required: true },
     templateLanguage: { type: String, default: "pt_BR" },
     templateBody: { type: String },
+    templateHeaderText: { type: String },
     templateCategory: { type: String },
     status: {
       type: String,
@@ -326,12 +516,29 @@ const WaCampaignSchema: Schema = new Schema(
     },
     source: {
       type: String,
-      enum: ["cnpja", "csv", "manual", "targets", "pessoa"],
+      enum: ["cnpja", "csv", "manual", "targets", "pessoa", "contatos", "coluna", "colar", "misto"],
       default: "manual",
     },
-    filters: { cnae: String, uf: String, city: String },
+    fontes: { type: [String], default: undefined },
+    filters: {
+      cnae: String,
+      uf: String,
+      city: String,
+      colunaId: String,
+      colunaNome: String,
+      janela24h: Boolean,
+      origem: String,
+    },
     importId: { type: Schema.Types.ObjectId, ref: "WaImport" },
     paramsMap: { type: [{ _id: false, type: { type: String }, value: String }], default: [] },
+    headerParamsMap: { type: [{ _id: false, type: { type: String }, value: String }], default: [] },
+    buttonParamsMap: {
+      type: [{ _id: false, index: Number, type: { type: String }, value: String }],
+      default: [],
+    },
+    headerMedia: { type: HeaderMediaSchema, default: null },
+    lastError: { type: String, default: null },
+    lastRunAt: { type: Date, default: null },
     throttlePerRun: { type: Number, default: 10 },
     throttleSeconds: { type: Number, default: 4 },
     dailyLimit: { type: Number, default: 0 },
@@ -369,8 +576,18 @@ export interface IWaCampaignRecipient extends Document {
   phone: string;
   name?: string;
   params: string[]; // variáveis {{1}}, {{2}}... do template
-  status: "pending" | "sent" | "delivered" | "read" | "failed" | "replied" | "skipped";
+  /** Valor do {{1}} do cabeçalho de texto (vazio = cabeçalho sem variável). */
+  headerParams: string[];
+  /** Final da URL de cada botão de link dinâmico, pelo índice do botão. */
+  buttonParams: Array<{ index: number; value: string }>;
+  /** "sending" = reservado por uma rodada do worker e a caminho da Meta. Nunca
+   *  volta sozinho para "pending": se a rodada cair, vira "failed" (ver
+   *  wa/lib/campaign-queue.ts). */
+  status: "pending" | "sending" | "sent" | "delivered" | "read" | "failed" | "replied" | "skipped";
+  /** Quando a rodada reservou (relógio do banco). */
+  claimedAt?: Date;
   sentAt?: Date;
+  repliedAt?: Date;
   externalId?: string;
   error?: string;
   conversationId?: mongoose.Types.ObjectId;
@@ -388,12 +605,16 @@ const WaCampaignRecipientSchema: Schema = new Schema(
     phone: { type: String, required: true },
     name: { type: String },
     params: { type: [String], default: [] },
+    headerParams: { type: [String], default: [] },
+    buttonParams: { type: [{ _id: false, index: Number, value: String }], default: [] },
     status: {
       type: String,
-      enum: ["pending", "sent", "delivered", "read", "failed", "replied", "skipped"],
+      enum: ["pending", "sending", "sent", "delivered", "read", "failed", "replied", "skipped"],
       default: "pending",
     },
+    claimedAt: { type: Date },
     sentAt: { type: Date },
+    repliedAt: { type: Date },
     externalId: { type: String },
     error: { type: String },
     conversationId: { type: Schema.Types.ObjectId, ref: "WaConversation" },
@@ -402,6 +623,9 @@ const WaCampaignRecipientSchema: Schema = new Schema(
 );
 WaCampaignRecipientSchema.index({ campaignId: 1, status: 1 });
 WaCampaignRecipientSchema.index({ phone: 1, sentAt: -1 });
+// Atribuição de resposta (o último disparo para este número, nesta loja) e a
+// checagem de "já recebeu este modelo" da reserva.
+WaCampaignRecipientSchema.index({ tenantId: 1, phone: 1, sentAt: -1 });
 WaCampaignRecipientSchema.index({ partnerId: 1, status: 1 });
 // Um telefone só entra uma vez na mesma campanha.
 WaCampaignRecipientSchema.index({ campaignId: 1, phone: 1 }, { unique: true });

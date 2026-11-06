@@ -1,6 +1,6 @@
 "use client";
 
-// Importação de base: um CSV vira empresas (`alvos`) e contatos.
+// Importação de base: uma planilha (CSV ou .xlsx) vira empresas (`alvos`) e contatos.
 //
 // Não há layout obrigatório — as colunas são detectadas pelo nome e quem
 // importa confirma antes de gravar. O arquivo sobe em lotes porque uma
@@ -14,7 +14,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import clsx from "clsx";
 import { AlertTriangle, Check, FileUp, Loader2, Upload } from "lucide-react";
-import { parseCsv } from "@wa/lib/audience/csv";
+import { ACEITA_PLANILHA, lerPlanilha, PlanilhaError } from "@wa/lib/audience/planilha";
 import type { AudienceField, ColumnMapping } from "@wa/lib/audience/types";
 import { dateTime, formatNumber } from "@wa/lib/stages";
 
@@ -83,8 +83,13 @@ export function ImportScreen() {
   async function escolher(file: File) {
     setErro(null);
     setResultado(null);
-    const text = await file.text();
-    const parsed = parseCsv(text);
+    let parsed;
+    try {
+      parsed = await lerPlanilha(file);
+    } catch (err) {
+      setErro(err instanceof PlanilhaError ? err.message : "Não consegui ler a planilha.");
+      return;
+    }
     if (parsed.raw.length === 0) {
       setErro("O arquivo não tem linhas de dados.");
       return;
@@ -172,7 +177,7 @@ export function ImportScreen() {
           <Upload size={22} /> Importação
         </h1>
         <p className="mt-1 text-sm text-muted">
-          Um CSV com telefone e/ou CNPJ vira base de disparo. As colunas são detectadas pelo nome —
+          Uma planilha (CSV ou Excel) com telefone e/ou CNPJ vira base de disparo. As colunas são detectadas pelo nome:
           confira antes de gravar.
         </p>
       </div>
@@ -221,10 +226,10 @@ export function ImportScreen() {
 
       <div className="card space-y-3">
         <label className="btn-ghost inline-flex cursor-pointer px-4 py-2 text-sm">
-          <FileUp size={15} /> Escolher arquivo CSV
+          <FileUp size={15} /> Escolher planilha (CSV ou Excel)
           <input
             type="file"
-            accept=".csv,text/csv"
+            accept={ACEITA_PLANILHA}
             className="hidden"
             onChange={(e) => e.target.files?.[0] && escolher(e.target.files[0])}
           />
