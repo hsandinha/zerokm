@@ -1,5 +1,6 @@
 import type { Session } from 'next-auth';
 import User from '@/models/User';
+import { acessoLiberado } from '@/lib/utils/atendentesLoja';
 import { recursosDaConta } from '@/lib/services/recursosConta';
 import { MSG_RECURSO_DESLIGADO } from '@/lib/recursos';
 
@@ -31,7 +32,7 @@ export async function resolveCrmScope(session: Session | null): Promise<CrmScope
 
     if (DEALERSHIP_PROFILES.includes(profile)) {
         const user = await User.findOne({ email: session.user.email });
-        if (!user?.dealershipId) {
+        if (!user?.dealershipId || !acessoLiberado(user)) {
             return { ok: false, error: 'Concessionária não vinculada', status: 400 };
         }
         // CRM é funcionalidade liberada pelo CNV, loja a loja (lib/recursos.ts).

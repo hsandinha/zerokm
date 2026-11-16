@@ -29,6 +29,8 @@ import { VehicleActionsHeader, VehicleHeaderActions, ViewToggle } from './Vehicl
 import { BRAZIL_STATES, STATUS_OPTIONS, YEAR_REGEX, fuelLookup, statusLookup, transmissionLookup } from '../../lib/utils/constants';
 import { calculateDaysSinceUpdate, formatDate, formatDateForInput, getUpdateStatusColor, normalizeString } from '../../lib/utils/formatters';
 import { formatKm } from '../../lib/utils/repasse';
+import { aplicarMargem } from '@/lib/utils/margem';
+import { MargemFaixas, faixasDaEdicao, faixasParaEdicao, type FaixaEmEdicao } from './MargemFaixas';
 
 interface VehicleConsultationProps {
     onClose?: () => void;
@@ -177,11 +179,13 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
     // esconder o botão só evita oferecer o que daria 401.
     const podeCriarBanner = ['admin', 'administrador', 'administrativo'].includes(role);
     const [veiculoParaBanner, setVeiculoParaBanner] = useState<Vehicle | null>(null);
-    const { margem, fixedMargin, marginMode, setMargem, setMarginConfig } = useConfig();
+    const { margem, fixedMargin, marginMode, faixas, setMargem, setMarginConfig } = useConfig();
     const [showMargemModal, setShowMargemModal] = useState(false);
     const [inputMargem, setInputMargem] = useState<string>(margem.toString());
     const [inputFixedMargin, setInputFixedMargin] = useState<string>(fixedMargin.toString());
     const [inputMarginMode, setInputMarginMode] = useState<'percent' | 'fixed'>(marginMode);
+    const [inputFaixas, setInputFaixas] = useState<FaixaEmEdicao[]>(() => faixasParaEdicao(faixas));
+    const [erroMargem, setErroMargem] = useState<string | null>(null);
 
     useEffect(() => {
         setInputMargem(margem.toString());
@@ -189,13 +193,31 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
         setInputMarginMode(marginMode);
     }, [margem, fixedMargin, marginMode]);
 
+    // As faixas salvas entram no formulário quando chegam do servidor e a cada
+    // abertura do modal (cancelar descarta o que foi digitado).
+    useEffect(() => {
+        setInputFaixas(faixasParaEdicao(faixas));
+        setErroMargem(null);
+    }, [faixas, showMargemModal]);
+
     const handleSaveMargem = async () => {
         const newMargem = parseFloat(inputMargem) || 0;
         const newFixedMargin = parseFloat(inputFixedMargin) || 0;
+        // O teto de 100% é da margem da equipe (/api/config/margem); a do lojista não tem.
+        if (role !== 'client' && inputMarginMode === 'percent' && newMargem > 100) {
+            setErroMargem('A margem percentual vai de 0 a 100.');
+            return;
+        }
+        const lidas = faixasDaEdicao(inputFaixas);
+        if ('erro' in lidas) {
+            setErroMargem(lidas.erro);
+            return;
+        }
+        setErroMargem(null);
 
         // Usar setMarginConfig se disponível para atualizar todos os valores
         if (setMarginConfig) {
-            setMarginConfig({ margem: newMargem, marginMode: inputMarginMode, fixedMargin: newFixedMargin });
+            setMarginConfig({ margem: newMargem, marginMode: inputMarginMode, fixedMargin: newFixedMargin, faixas: lidas.faixas });
         } else {
             setMargem(newMargem);
         }
@@ -203,8 +225,9 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
         const margemLabel = inputMarginMode === 'percent'
             ? `${newMargem}%`
             : `R$ ${newFixedMargin.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        const comFaixas = lidas.faixas.length === 1 ? ' e 1 faixa de preço' : lidas.faixas.length > 1 ? ` e ${lidas.faixas.length} faixas de preço` : '';
 
-        notify(`Margem de ${margemLabel} salva. Os preços já aparecem recalculados.`, 'positive');
+        notify(`Margem de ${margemLabel}${comFaixas} salva. Os preços já aparecem recalculados.`, 'positive');
 
         setShowMargemModal(false);
     };
@@ -339,7 +362,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                 // Generate CSV
                 const headers = [
                     'Origem', 'Modelo', 'Transmissão', 'Combustível', 'Cor', 'Ano', 'KM',
-                    'Opcionais', 'Preço Compra', 'Status',
+                    'Opcionais', 'Preço Compra', 'FIPE', 'Status',
                     'Data Entrada', 'Cidade', 'Estado', 'Concessionária',
                     'Operador', 'Contato', 'Observações'
                 ];
@@ -366,6 +389,8 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                             escapeCsv(v.origem === 'repasse' ? v.km : 0),
                             escapeCsv(v.opcionais),
                             escapeCsv((v.preco || 0).toFixed(2)),
+                            // FIPE de referência do repasse, sem margem. Vazio no 0KM e sem vínculo.
+                            escapeCsv(v.origem === 'repasse' && v.precoFipe ? v.precoFipe.toFixed(2) : ''),
                             escapeCsv(v.status),
                             escapeCsv(v.dataEntrada ? new Date(v.dataEntrada).toLocaleDateString('pt-BR') : ''),
                             escapeCsv(v.cidade),
@@ -986,21 +1011,11 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
     }, [pendingSearchTerm, processInput, filters]);
 
     // Função para calcular preço com margem (percentual ou valor fixo)
-    const calculatePriceWithMargin = (basePrice: number) => {
-        if (marginMode === 'fixed') {
-            return (basePrice || 0) + (fixedMargin || 0);
-        }
-        return (basePrice || 0) * (1 + margem / 100);
-    };
+    const calculatePriceWithMargin = (basePrice: number) =>
+        aplicarMargem(basePrice, { margem, marginMode, fixedMargin, faixas });
 
     // Calcula o preço exibido ao cliente usando o preço base e a margem configurada.
-    const calculateClientPrice = (vehicle: { preco?: number }) => {
-        const basePrice = vehicle.preco || 0;
-        if (marginMode === 'fixed') {
-            return basePrice + (fixedMargin || 0);
-        }
-        return basePrice * (1 + margem / 100);
-    };
+    const calculateClientPrice = (vehicle: { preco?: number }) => calculatePriceWithMargin(vehicle.preco || 0);
 
     // Função para editar veículo
     const handleEditVehicle = (vehicle: Vehicle) => {
@@ -1175,15 +1190,9 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                     const data = await res.json();
                     notify(`Data atualizada em ${data.modifiedCount} ${data.modifiedCount === 1 ? 'veículo' : 'veículos'}.`, 'positive');
                     setSelectedIds([]);
-                    // Recarregar lista para refletir mudanças
-                    const effectiveSearch = searchTerm && searchTerm.length < 3 ? '' : searchTerm;
-                    await getVehiclesPaginated({
-                        page: currentPage,
-                        itemsPerPage: itemsPerPage === -1 ? 1000 : itemsPerPage,
-                        searchTerm: effectiveSearch,
-                        filters,
-                        sortConfig: sortConfig.key ? sortConfig : undefined
-                    });
+                    // Recarrega a mesma busca da tela (segmento, filtros e página).
+                    // Antes refazia a busca sem o segmento e a lista voltava diferente.
+                    await refreshVehicles();
                 } else {
                     notify('Não foi possível atualizar a data dos veículos.');
                 }
@@ -1459,6 +1468,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                                 margem={margem}
                                 fixedMargin={fixedMargin}
                                 marginMode={marginMode}
+                                faixas={faixas}
                                 handleSelectAll={handleSelectAll}
                                 handleSort={handleSort as any}
                                 handleSelectOne={handleSelectOne}
@@ -1479,6 +1489,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                                 margem={margem}
                                 fixedMargin={fixedMargin}
                                 marginMode={marginMode}
+                                faixas={faixas}
                                 onWhatsApp={handleWhatsAppClick}
                                 onCreateBanner={podeCriarBanner ? setVeiculoParaBanner : undefined}
                                 onLocationClick={handleLocationClick}
@@ -1600,7 +1611,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                     title="Configurar margem"
                     subtitle="Margem aplicada ao preço de compra para calcular o preço de venda sugerido."
                     onClose={() => setShowMargemModal(false)}
-                    size="sm"
+                    size="md"
                     footer={<>
                         <button
                             type="button"
@@ -1625,7 +1636,7 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                         {/* Seletor de Modo */}
                         {(['admin', 'administrador', 'gerente', 'operator', 'operador', 'client'].includes(role)) && (
                             <fieldset className={adminModal.group}>
-                                <legend className={adminModal.groupLabel}>Tipo de margem</legend>
+                                <legend className={adminModal.groupLabel}>Margem geral</legend>
                                 <div className={adminModal.choices}>
                                     <label className={adminModal.choice}>
                                         <input
@@ -1689,6 +1700,12 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                                 />
                             </label>
                         )}
+
+                        {/* Faixas de preço, cada uma com a sua margem */}
+                        {(['admin', 'administrador', 'gerente', 'operator', 'operador', 'client'].includes(role)) && (
+                            <MargemFaixas linhas={inputFaixas} onChange={(l) => { setInputFaixas(l); setErroMargem(null); }} disabled={isInvitee} />
+                        )}
+                        {erroMargem && <span className={adminModal.fieldError} role="alert">{erroMargem}</span>}
 
                         {/* Informação da margem atual e exemplo */}
                         <div className={adminModal.facts}>

@@ -54,6 +54,8 @@ describe('repasse: cadastro pela FIPE em modal', () => {
 
         await waitFor(() => expect(posts).toHaveLength(1));
         expect(posts[0]).toMatchObject({ marca: 'CHEVROLET', modelo: 'Onix Hatch LT 1.0 12V Flex 5p Mec.', codigoFipe: '004099-6', combustivel: 'Gasolina', ano: '19/20' });
+        // O preço FIPE da consulta vai junto, para aparecer abaixo do preço na listagem.
+        expect(posts[0]).toMatchObject({ precoFipe: 'R$ 58.000,00', referenciaFipe: 'setembro de 2026' });
         await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     });
 
@@ -90,5 +92,33 @@ describe('repasse: cadastro pela FIPE em modal', () => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
         fireEvent.keyDown(document, { key: 'Escape' });
         await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    });
+});
+
+describe('repasse: FIPE abaixo do preço na listagem', () => {
+    it('mostra a FIPE na mesma coluna do preço, só para quem tem', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string) => {
+            if (url.startsWith('/api/dealership/plano-repasse')) return ok({ plano: { ativo: true, planName: 'REPASSE', status: 'active' } });
+            if (url.startsWith('/api/dealership/repasse')) return ok({
+                total: 2,
+                contagem: { 'Disponível': 2 },
+                data: [
+                    { id: '1', tipoVeiculo: 'carro', marca: 'CHEVROLET', modelo: 'ONIX LT', ano: '19/20', anoModelo: 2020, km: 48500, preco: 55000, precoFipe: 58000, referenciaFipe: 'setembro de 2026', cor: '', combustivel: '', transmissao: '', opcionais: '', observacoes: '', updatedAt: '' },
+                    { id: '2', tipoVeiculo: 'carro', marca: 'GURGEL', modelo: 'BR-800', ano: '1990', anoModelo: 1990, km: 90000, preco: 15000, precoFipe: null, referenciaFipe: '', cor: '', combustivel: '', transmissao: '', opcionais: '', observacoes: '', updatedAt: '' },
+                ],
+            });
+            return ok([]);
+        }));
+        render(<RepasseCatalog />);
+
+        const linhaOnix = (await screen.findByText('CHEVROLET ONIX LT')).closest('tr')!;
+        const fipe = within(linhaOnix).getByText(/^FIPE R\$\s58\.000$/);
+        expect(fipe).toHaveAttribute('title', expect.stringContaining('setembro de 2026'));
+        // Mesma célula do preço anunciado, e nenhuma coluna FIPE separada.
+        expect(fipe.closest('td')).toBe(within(linhaOnix).getByText(/55\.000,00/).closest('td'));
+        expect(screen.queryByRole('columnheader', { name: /FIPE/ })).toBeNull();
+
+        const linhaGurgel = screen.getByText('GURGEL BR-800').closest('tr')!;
+        expect(within(linhaGurgel).queryByText(/FIPE/)).toBeNull();
     });
 });

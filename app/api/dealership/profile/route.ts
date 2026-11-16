@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Concessionaria from '@/models/Concessionaria';
 import User from '@/models/User';
+import { acessoLiberado, papelDoUsuario } from '@/lib/utils/atendentesLoja';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
 
         const user = await User.findOne({ email: session.user.email });
 
-        if (!user || !user.dealershipId) {
+        if (!user || !user.dealershipId || !acessoLiberado(user)) {
             return NextResponse.json({ error: 'Usuário não associado a uma concessionária' }, { status: 404 });
         }
 
@@ -30,6 +31,12 @@ export async function GET(request: Request) {
 
         if (!dealership) {
             return NextResponse.json({ error: 'Concessionária não encontrada' }, { status: 404 });
+        }
+
+        // O atendente vê os dados da loja, mas não o token de integração nem o plano.
+        if (papelDoUsuario(user) === 'atendente') {
+            const { webhookSecret: _token, planoRepasse: _plano, limiteAtendentes: _limite, ...dados } = dealership.toObject();
+            return NextResponse.json(dados);
         }
 
         return NextResponse.json(dealership);

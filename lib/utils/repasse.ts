@@ -189,6 +189,54 @@ export function parseRepasseFipe(input: { codigoFipe?: unknown; descricaoFipe?: 
     return { codigoFipe: `${digits.slice(0, 6)}-${digits.slice(6)}`, descricaoFipe: text(input.descricaoFipe) || null };
 }
 
+const PRECO_FIPE_MAX = 100_000_000;
+
+/**
+ * Preço FIPE de referência vindo do formulário (o valor que a consulta FIPE
+ * devolveu quando a loja escolheu o carro). Ausente no corpo = não mexe
+ * (undefined); vazio = limpa (null). Valor que não é preço é ignorado em vez de
+ * virar erro: FIPE é referência, não pode impedir o cadastro do carro.
+ */
+export function parseRepassePrecoFipe(input: { precoFipe?: unknown; referenciaFipe?: unknown }): { precoFipe?: number | null; referenciaFipe?: string | null } {
+    if (!Object.prototype.hasOwnProperty.call(input || {}, 'precoFipe')) return {};
+    const preco = parsePreco(input.precoFipe);
+    if (preco === null || preco > PRECO_FIPE_MAX) return { precoFipe: null, referenciaFipe: null };
+    return { precoFipe: Math.round(preco * 100) / 100, referenciaFipe: text(input.referenciaFipe).slice(0, 40) || null };
+}
+
+/** Combustível do cadastro → sufixo do código de ano da FIPE (2020-1 = 2020 gasolina). */
+const FIPE_SUFIXO_COMBUSTIVEL: Record<string, string> = {
+    gasolina: '1', flex: '1', etanol: '2', alcool: '2', diesel: '3',
+};
+
+/**
+ * Entre os anos que a FIPE lista para um código (2020-1, 2020-3, 32000-1...),
+ * escolhe o do ano-modelo do carro. Mais de um combustível no mesmo ano:
+ * desempata pelo combustível do cadastro; sem como desempatar, não escolhe
+ * (melhor ficar sem FIPE do que mostrar a de outro motor). 32000 é "zero km"
+ * e nunca serve para usado.
+ */
+export function escolherAnoFipe(opcoes: Array<{ code: string }>, anoModelo: number | undefined | null, combustivel?: string | null): string | null {
+    if (!anoModelo) return null;
+    const doAno = opcoes.map(o => String(o.code)).filter(code => code.split('-')[0] === String(anoModelo));
+    if (doAno.length <= 1) return doAno[0] || null;
+    const chave = (combustivel || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const sufixo = FIPE_SUFIXO_COMBUSTIVEL[chave];
+    return (sufixo && doAno.find(code => code.split('-')[1] === sufixo)) || null;
+}
+
+/** "FIPE R$ 85.000" para a segunda linha do preço. Sem FIPE devolve null: a linha não aparece. */
+export function rotuloFipe(precoFipe: number | null | undefined): string | null {
+    if (typeof precoFipe !== 'number' || !Number.isFinite(precoFipe) || precoFipe <= 0) return null;
+    return `FIPE R$ ${precoFipe.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`;
+}
+
+/** Texto do tooltip da linha FIPE: de quando é a tabela. */
+export function referenciaFipeTitulo(referenciaFipe?: string | null): string {
+    const ref = (referenciaFipe || '').trim();
+    return ref ? `Tabela FIPE de ${ref}. Valor de referência, não é o preço do anúncio.` : 'Tabela FIPE. Valor de referência, não é o preço do anúncio.';
+}
+
 /** Formato devolvido ao painel da concessionária. */
 export function serializeRepasse(doc: any) {
     const obj = typeof doc.toObject === 'function' ? doc.toObject() : doc;
@@ -211,6 +259,8 @@ export function serializeRepasse(doc: any) {
         foraDoCatalogo: Boolean(obj.foraDoCatalogo),
         codigoFipe: obj.codigoFipe || '',
         descricaoFipe: obj.descricaoFipe || '',
+        precoFipe: typeof obj.precoFipe === 'number' && obj.precoFipe > 0 ? obj.precoFipe : null,
+        referenciaFipe: obj.referenciaFipe || '',
         status: obj.status,
         createdAt: obj.createdAt,
         updatedAt: obj.updatedAt,

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import connectDB from '@/lib/mongodb';
 import mongoose from 'mongoose';
+import { faixasSalvas, validarFaixas, type FaixaDeMargem } from '@/lib/utils/margem';
 
 interface ConfigDocument {
     _id?: string;
@@ -10,6 +11,7 @@ interface ConfigDocument {
     value: number; // percent value
     mode?: 'percent' | 'fixed';
     fixedMargin?: number; // absolute addition when mode === 'fixed'
+    faixas?: FaixaDeMargem[]; // margem por faixa de preço
     updatedAt: Date;
     updatedBy?: string;
 }
@@ -30,13 +32,14 @@ export async function GET() {
 
         if (!margemConfig) {
             // Retorna margem padrão se não existir
-            return NextResponse.json({ margem: 0, marginMode: 'percent', fixedMargin: 0 });
+            return NextResponse.json({ margem: 0, marginMode: 'percent', fixedMargin: 0, faixas: [] });
         }
 
         return NextResponse.json({
             margem: margemConfig.value,
             marginMode: margemConfig.mode || 'percent',
-            fixedMargin: margemConfig.fixedMargin || 0
+            fixedMargin: margemConfig.fixedMargin || 0,
+            faixas: faixasSalvas(margemConfig.faixas)
         });
     } catch (error) {
         console.error('Erro ao buscar margem:', error);
@@ -69,7 +72,14 @@ export async function POST(request: Request) {
             );
         }
 
-        const { margem, marginMode = 'percent', fixedMargin = 0 } = await request.json();
+        const { margem, marginMode = 'percent', fixedMargin = 0, faixas: faixasRecebidas } = await request.json();
+
+        // Faixas: só mexe quando vieram no pedido (tela antiga não apaga as salvas).
+        const validacao = faixasRecebidas === undefined ? null : validarFaixas(faixasRecebidas);
+        if (validacao && 'erro' in validacao) {
+            return NextResponse.json({ error: validacao.erro }, { status: 400 });
+        }
+        const faixas = validacao && 'faixas' in validacao ? validacao.faixas : undefined;
 
         if (marginMode === 'percent') {
             if (typeof margem !== 'number' || margem < 0 || margem > 100) {
@@ -109,6 +119,7 @@ export async function POST(request: Request) {
                     value: margem,
                     mode: marginMode,
                     fixedMargin: fixedMargin,
+                    ...(faixas ? { faixas } : {}),
                     updatedAt: new Date(),
                     updatedBy: session.user.email || session.user.name || 'unknown'
                 }
@@ -121,6 +132,7 @@ export async function POST(request: Request) {
             margem,
             marginMode,
             fixedMargin,
+            ...(faixas ? { faixas } : {}),
             message: 'Margem atualizada com sucesso'
         });
     } catch (error) {

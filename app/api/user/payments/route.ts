@@ -21,13 +21,15 @@ export async function GET(req: NextRequest) {
 
     await connectDB();
 
-    const user = await User.findOne({ firebaseUid: session.user.uid }).select('_id');
+    const user = await User.findOne({ firebaseUid: session.user.uid }).select('_id papelLoja');
     if (!user) {
         return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
     }
 
     // Build query with optional month filter
     const query: Record<string, unknown> = { userId: user._id };
+    // Cobrança da concessionária é do titular: o atendente não a vê por aqui.
+    if ((user as any).papelLoja === 'atendente') query.concessionariaId = null;
     const monthParam = req.nextUrl.searchParams.get('month');
     if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
         const [year, month] = monthParam.split('-').map(Number);

@@ -6,20 +6,23 @@
 
 import type { ReactNode } from 'react';
 import {
-    BookOpen, Building2, CarFront, ContactRound, CreditCard, Funnel, Heart, Images, LayoutDashboard, Megaphone,
+    BookOpen, Building2, CarFront, ContactRound, CreditCard, Funnel, Headset, Heart, Images, LayoutDashboard, Megaphone,
     MessageCircle, MessagesSquare, Plug, Receipt, Settings2, SlidersHorizontal, Tag, Truck, UserRound, Users, Warehouse,
 } from 'lucide-react';
 import type { Recurso } from '@/lib/recursos';
 
-export type AbaDoPainel = { id: string; label: string; icon: ReactNode; recurso?: Recurso; badge?: number };
+export type AbaDoPainel = { id: string; label: string; icon: ReactNode; recurso?: Recurso; badge?: number; /** Só o titular da concessionária vê (lib/utils/atendentesLoja.ts). */ soTitular?: boolean };
 
 export const ABAS_CONCESSIONARIA: AbaDoPainel[] = [
     { id: 'visao-geral', label: 'Visão geral', icon: <LayoutDashboard size={20} aria-hidden="true" /> },
     { id: 'veiculos', label: 'Meus veículos', icon: <CarFront size={20} aria-hidden="true" /> },
     { id: 'precos', label: 'Estoque e preços', icon: <Tag size={20} aria-hidden="true" /> },
     { id: 'perfil', label: 'Meu perfil', icon: <Building2 size={20} aria-hidden="true" /> },
+    { id: 'atendentes', label: 'Atendentes', icon: <Headset size={20} aria-hidden="true" />, soTitular: true },
     { id: 'crm', label: 'CRM', icon: <ContactRound size={20} aria-hidden="true" />, recurso: 'crm' },
     { id: 'anuncios', label: 'Meus anúncios', icon: <Images size={20} aria-hidden="true" />, recurso: 'anuncios' },
+    // Boletos e pagamentos da loja (plano de repasse, banners, cobranças avulsas).
+    { id: 'cobrancas', label: 'Cobranças', icon: <Receipt size={20} aria-hidden="true" />, soTitular: true },
     // Atendimento com IA (WhatsApp/Instagram) da loja: rotas próprias, mesmo menu.
     { id: 'atendimento', label: 'Atendimento', icon: <MessagesSquare size={20} aria-hidden="true" />, recurso: 'atendimento' },
 ];

@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/authOptions';
 import connectDB from '@/lib/mongodb';
 import { mpPost } from '@/lib/mercadopago';
 import Banner from '@/models/Banner';
+import { barrarAtendente } from '@/lib/services/acessoLoja';
 import User from '@/models/User';
 import mongoose from 'mongoose';
 import { validateCPF } from '@/lib/utils/cpf';
@@ -22,6 +23,10 @@ export async function POST(req: NextRequest) {
     }
 
     await connectDB();
+
+    // Anúncio é pago: na concessionária, só o titular contrata.
+    const recusa = await barrarAtendente(session, 'cobranca');
+    if (recusa) return recusa;
 
     const user = await User.findOne({ firebaseUid: session.user.uid });
     if (!user) {

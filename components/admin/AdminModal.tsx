@@ -5,7 +5,7 @@ import styles from './AdminModal.module.css';
 
 export { styles as modalStyles };
 
-type Size = 'sm' | 'md' | 'lg' | 'xl';
+type Size = 'sm' | 'md' | 'lg' | 'xl' | 'xxl';
 
 /** Modais abertos, do mais antigo ao mais novo: o Esc fecha só o de cima (ex.: confirmação aberta sobre um modal). */
 const pilhaDeModais: symbol[] = [];

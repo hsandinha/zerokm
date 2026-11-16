@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
+import { acessoLiberado, ehPerfilDaLoja, nomeDeQuemAtualizou } from '@/lib/utils/atendentesLoja';
 import DealerVehiclePrice from '@/models/DealerVehiclePrice';
 import Concessionaria from '@/models/Concessionaria';
 import VehicleVariation from '@/models/VehicleVariation';
@@ -23,8 +24,8 @@ async function resolveConcessionaria(session: any, request: Request) {
     }
 
     if (profile && DEALERSHIP_PROFILES.has(profile)) {
-        const user = await User.findOne({ email: session.user.email }).select('dealershipId');
-        if (!user?.dealershipId) return null;
+        const user = await User.findOne({ email: session.user.email }).select('dealershipId papelLoja atendenteInativo');
+        if (!user?.dealershipId || !acessoLiberado(user)) return null;
         return Concessionaria.findById(user.dealershipId);
     }
 
@@ -87,6 +88,7 @@ export async function PATCH(request: Request) {
             return NextResponse.json({ error: 'Concessionária não encontrada ou acesso não permitido' }, { status: 403 });
         }
         const concessionariaId = concessionaria._id;
+        const atualizadoPor = ehPerfilDaLoja(session.user?.profile) ? nomeDeQuemAtualizou(session.user) : 'Equipe CNV';
 
         const body = await request.json();
         const items = body.items; // Array of items from CSV
@@ -108,6 +110,7 @@ export async function PATCH(request: Request) {
                     preco: ativo ? u.preco : null,
                     ativo,
                     updatedAt: new Date(),
+                    atualizadoPor,
                 };
                 if (!ativo) {
                     $set.quantidade = 0;
@@ -212,6 +215,7 @@ export async function PATCH(request: Request) {
                                 observacoes: item.observacoes || null,
                                 frete: item.frete > 0 ? item.frete : null,
                                 updatedAt: new Date(),
+                                atualizadoPor,
                                 // Prazo do CSV só vale para item ativo; sem preço
                                 // o registro é zerado e o prazo vai junto.
                                 ...(ativo

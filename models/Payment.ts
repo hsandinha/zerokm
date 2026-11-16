@@ -56,6 +56,17 @@ export interface IPayment extends Document {
         por?: string;
         em?: Date;
     };
+    /**
+     * Cobrança emitida para a concessionária (lib/services/cobrancaConcessionariaService.ts).
+     * `concessionariaId` diz de quem é; estes campos dizem o que foi cobrado.
+     */
+    tipoCobranca?: 'plano' | 'banner' | 'avulsa';
+    descricao?: string;
+    vencimento?: Date;
+    /** E-mail de quem emitiu (equipe) ou 'concessionaria' quando a própria loja gerou. */
+    emitidoPor?: string;
+    /** Banner liberado quando esta cobrança for paga. */
+    bannerId?: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -113,6 +124,12 @@ const PaymentSchema: Schema = new Schema({
         por: { type: String },
         em: { type: Date },
     },
+    // Cobrança da concessionária
+    tipoCobranca: { type: String, enum: ['plano', 'banner', 'avulsa'] },
+    descricao: { type: String },
+    vencimento: { type: Date },
+    emitidoPor: { type: String },
+    bannerId: { type: String },
 }, {
     timestamps: true,
 });

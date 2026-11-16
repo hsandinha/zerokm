@@ -41,6 +41,30 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         }
 
         const plan = payment.planId ? await Plan.findById(payment.planId).select('name').lean() as any : null;
+
+        // Boleto da concessionária: vai para o e-mail da loja, com o texto da
+        // cobrança (não é renovação de assinatura de lojista).
+        if (payment.concessionariaId) {
+            const destinoLoja = String(body?.email || '').trim() || payment.boletoEmailTo || payment.payerEmail || '';
+            if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(destinoLoja)) {
+                return NextResponse.json({ error: 'Informe um e-mail válido para o reenvio.' }, { status: 400 });
+            }
+            const descricao = payment.descricao || `Plano de Repasse ${plan?.name || ''}`.trim();
+            const envio = await enviarBoletoPorEmail({
+                payment,
+                para: destinoLoja,
+                nomeCliente: payment.payerName,
+                nomePlano: descricao,
+                descricao,
+                vencimento: payment.vencimento || null,
+            });
+            if (!envio.ok) {
+                return NextResponse.json({ error: envio.error || 'Falha ao enviar o e-mail', configuracaoAusente: envio.skipped === true }, { status: 502 });
+            }
+            console.log('[cobrancas] Boleto da concessionária reenviado', { paymentId: id, destino: destinoLoja, por: session.user?.email });
+            return NextResponse.json({ ok: true, para: destinoLoja, emailId: envio.id });
+        }
+
         const res = await enviarBoletoPorEmail({
             payment,
             para: destino,

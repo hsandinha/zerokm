@@ -49,6 +49,8 @@ export interface IConcessionaria extends Document {
         activatedBy?: string;
         lastPaymentId?: string;
     };
+    /** Quantos atendentes ativos a loja pode ter. Sem o campo, o padrão (lib/utils/atendentesLoja.ts). */
+    limiteAtendentes?: number;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -97,6 +99,7 @@ const ConcessionariaSchema: Schema = new Schema({
         activatedBy: { type: String },
         lastPaymentId: { type: String },
     },
+    limiteAtendentes: { type: Number, min: 0 },
 }, {
     timestamps: true
 });

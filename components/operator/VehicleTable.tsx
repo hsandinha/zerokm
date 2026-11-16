@@ -6,12 +6,14 @@ import { HighlightText } from '../HighlightText';
 import { FavoriteButton, VehiclePhoto, getStatusColor } from './VehicleGrid';
 import { EditableTextCell, EditableSelectCell, EditableAutocompleteCell, EditableYearCell, EditableCurrencyCell, EditableNumberCell, EditablePrazoCell } from './EditableCells';
 import { formatPrazo } from '../../lib/utils/prazo';
-import { formatKm } from '../../lib/utils/repasse';
+import { formatKm, referenciaFipeTitulo, rotuloFipe } from '../../lib/utils/repasse';
 import { FaWhatsapp } from 'react-icons/fa';
 import { Images } from 'lucide-react';
 import { TRANSPORTADORA_PARCEIRA, whatsappTransportadora } from '../../lib/utils/transportadora';
 import { abrirCotacaoDoVeiculo } from '../../lib/utils/cotacaoVeiculo';
 import styles from './VehicleConsultation.module.css';
+import { aplicarMargem, type FaixaDeMargem } from '@/lib/utils/margem';
+import { BarraHorizontalFixa } from '@/components/ui/BarraHorizontalFixa';
 
 type SortKey = keyof Vehicle | 'updatedAt';
 
@@ -33,6 +35,8 @@ interface VehicleTableProps {
     margem: number;
     fixedMargin: number;
     marginMode: 'percent' | 'fixed';
+    /** Margem por faixa de preço (opcional). */
+    faixas?: FaixaDeMargem[];
 
     handleSelectAll: (e: React.ChangeEvent<HTMLInputElement>) => void;
     handleSort: (key: SortKey) => void;
@@ -77,6 +81,7 @@ export function VehicleTable({
     margem,
     fixedMargin,
     marginMode,
+    faixas,
     handleSort,
     handleUpdateVehicleField,
     handleUpdateOpcionais,
@@ -97,13 +102,10 @@ export function VehicleTable({
     const showOperador = role !== 'client' && role !== 'gratis';
     const showRowActions = ACTION_ROLES.includes(role || '');
 
-    const calculateClientPrice = (vehicle: Vehicle) => {
-        const basePrice = vehicle.preco || 0;
-        if (marginMode === 'fixed') {
-            return basePrice + (fixedMargin || 0);
-        }
-        return basePrice * (1 + margem / 100);
-    };
+    const tabelaRef = React.useRef<HTMLDivElement>(null);
+
+    const calculateClientPrice = (vehicle: Vehicle) =>
+        aplicarMargem(vehicle.preco, { margem, marginMode, fixedMargin, faixas });
 
     const sortableHeader = (key: SortKey, label: string, extraClass = '') => (
         <th
@@ -117,7 +119,8 @@ export function VehicleTable({
     );
 
     return (
-        <div className={styles.tableContainer}>
+        <>
+        <div className={styles.tableContainer} ref={tabelaRef}>
             <table className={`${styles.table} ${styles.vehicleTable}`}>
                 <thead>
                     <tr>
@@ -297,6 +300,12 @@ export function VehicleTable({
                                             />
                                         )}
                                     </div>
+                                    {/* Repasse: FIPE de referência logo abaixo do preço. Sem margem. */}
+                                    {isRepasse && rotuloFipe(vehicle.precoFipe) && (
+                                        <div className={styles.cellMuted} title={referenciaFipeTitulo(vehicle.referenciaFipe)}>
+                                            {rotuloFipe(vehicle.precoFipe)}
+                                        </div>
+                                    )}
                                     {showUfAndFrete && (
                                         <div className={`${styles.cellMuted} ${styles.inlineEdits}`}>
                                             {/* Sem frete próprio no anúncio, mostra o valor da tabela do
@@ -492,5 +501,8 @@ export function VehicleTable({
                 </tbody>
             </table>
         </div>
+        {/* A barra horizontal acompanha a tela: não é preciso descer até o fim da tabela. */}
+        <BarraHorizontalFixa alvo={tabelaRef} />
+        </>
     );
 }

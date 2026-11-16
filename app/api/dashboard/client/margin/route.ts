@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/authOptions';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import Invite from '@/models/Invite';
+import { faixasSalvas, validarFaixas } from '@/lib/utils/margem';
 
 export async function GET(req: NextRequest) {
     try {
@@ -36,6 +37,7 @@ export async function GET(req: NextRequest) {
             margem: marginConfig.percentValue || 0,
             fixedMargin: marginConfig.fixedValue || 0,
             marginMode: marginConfig.mode || 'percent',
+            faixas: faixasSalvas(marginConfig.faixas),
             isInvitee: !!user.isInvitee
         });
     } catch (error) {
@@ -63,7 +65,7 @@ export async function PATCH(req: NextRequest) {
             return NextResponse.json({ error: 'Convidados não podem alterar a margem' }, { status: 403 });
         }
 
-        const { margem, marginMode, fixedMargin } = await req.json();
+        const { margem, marginMode, fixedMargin, faixas: faixasRecebidas } = await req.json();
 
         // Validate
         if (typeof margem !== 'number' || margem < 0) {
@@ -76,10 +78,17 @@ export async function PATCH(req: NextRequest) {
             return NextResponse.json({ error: 'Modo de margem inválido.' }, { status: 400 });
         }
 
+        // Faixas: só mexe quando vieram no pedido (tela antiga não apaga as salvas).
+        const validacao = faixasRecebidas === undefined ? null : validarFaixas(faixasRecebidas);
+        if (validacao && 'erro' in validacao) {
+            return NextResponse.json({ error: validacao.erro }, { status: 400 });
+        }
+
         user.marginConfig = {
             mode: marginMode,
             percentValue: margem,
-            fixedValue: fixedMargin
+            fixedValue: fixedMargin,
+            faixas: validacao && 'faixas' in validacao ? validacao.faixas : faixasSalvas(user.marginConfig?.faixas)
         };
 
         await user.save();

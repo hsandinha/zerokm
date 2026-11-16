@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { BadgeCheck, Check, CircleCheck, Clock, Copy, FileText, Landmark, MailWarning, Receipt, RefreshCw, Search, Send } from 'lucide-react';
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { BadgeCheck, Check, CircleCheck, Clock, Copy, FileText, Landmark, MailWarning, Receipt, RefreshCw, Search, Send, Store } from 'lucide-react';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
+import { EmitirBoletoConcessionariaModal } from '@/components/admin/EmitirBoletoConcessionariaModal';
 import {
     Button, EmptyState, IconAction, Page, PageHeader, Panel, PanelFooter, PanelToolbar, PrimaryCell, RowActions,
     SearchField, Segmented, SkeletonRows, StatCard, StatGrid, StatusBadge, TwoLine, pageStyles, type BadgeTone,
@@ -27,6 +28,9 @@ type Cobranca = {
     origem: 'sistema' | 'painel';
     podeReenviar: boolean;
     clienteConfirmado?: boolean;
+    /** Cobrança emitida para uma concessionária (e não para um lojista). */
+    concessionaria?: { id: string; nome: string } | null;
+    vencimento?: string | null;
     baixaManual?: { por: string | null; em: string; forma: string | null; dataPagamento: string | null } | null;
     email: {
         enviadoEm: string | null;
@@ -87,7 +91,13 @@ const STATUS_EMAIL: Record<string, { label: string; tone: BadgeTone }> = {
     clicked: { label: 'Clicou', tone: 'positive' },
 };
 
-export function CobrancasManagement() {
+/**
+ * Cobranças do sistema. Com `concessionaria`, vira o miolo da aba Cobranças da
+ * ficha da loja: só os boletos dela, sem o cabeçalho da página, e o boleto novo
+ * já sai para ela. As regras por perfil são as mesmas rotas nos dois casos.
+ */
+export function CobrancasManagement({ concessionaria }: { concessionaria?: { id: string; nome?: string } } = {}) {
+    const daLoja = concessionaria?.id || '';
     const [rows, setRows] = useState<Cobranca[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -102,6 +112,8 @@ export function CobrancasManagement() {
     const [baixando, setBaixando] = useState(false);
     const [baixaErro, setBaixaErro] = useState<string | null>(null);
     const { notify, feedback } = useFeedback();
+    const [podeEmitir, setPodeEmitir] = useState(false);
+    const [emitindoParaLoja, setEmitindoParaLoja] = useState(false);
 
     /** Cobrança que aceita baixa manual: não paga, ou paga no painel do MP sem dono no sistema. */
     const podeDarBaixa = (row: Cobranca) => !row.baixaManual && (row.status !== 'approved' || row.origem === 'painel');
@@ -142,7 +154,9 @@ export function CobrancasManagement() {
             const body = await res.json();
             if (!res.ok) throw new Error(body.error || 'Não foi possível dar baixa');
             setBaixa(null);
-            const vence = body.novoVencimento ? ` Assinatura renovada até ${data(body.novoVencimento)}.` : body.motivo ? ` ${body.motivo}` : '';
+            const vence = body.concessionaria
+                ? (body.liberado === 'plano' ? ` Plano de repasse válido até ${data(body.novoVencimento)}.` : body.liberado === 'banner' ? ' Banner enviado para análise.' : body.motivo ? ` ${body.motivo}` : '')
+                : body.novoVencimento ? ` Assinatura renovada até ${data(body.novoVencimento)}.` : body.motivo ? ` ${body.motivo}` : '';
             notify(`Baixa registrada.${vence}`, 'positive');
             if (body.avisoMP) notify(body.avisoMP);
             await load();
@@ -160,17 +174,19 @@ export function CobrancasManagement() {
             const params = new URLSearchParams({ limit: '50' });
             if (search.trim()) params.set('search', search.trim());
             if (status) params.set('status', status);
+            if (daLoja) params.set('concessionariaId', daLoja);
             const res = await fetch(`/api/admin/cobrancas?${params.toString()}`);
             const body = await res.json();
             if (!res.ok) throw new Error(body.error || 'Erro ao carregar cobranças');
             setRows(body.data || []);
             setAvisoMP(body.avisoMP || null);
+            setPodeEmitir(body.podeEmitirParaConcessionaria === true);
         } catch (err: any) {
             setError(err?.message || 'Erro ao carregar cobranças');
         } finally {
             setLoading(false);
         }
-    }, [search, status]);
+    }, [search, status, daLoja]);
 
     useEffect(() => {
         const t = setTimeout(load, 300);
@@ -231,13 +247,29 @@ export function CobrancasManagement() {
     const doPainel = rows.filter(r => r.origem === 'painel').length;
     const carregando = loading && rows.length === 0;
 
+    const emitir = podeEmitir && (
+        <Button variant="primary" icon={<Store size={16} aria-hidden="true" />} onClick={() => setEmitindoParaLoja(true)}>
+            {daLoja ? 'Emitir boleto' : 'Emitir boleto para concessionária'}
+        </Button>
+    );
+    const atualizar = <Button icon={<RefreshCw size={16} aria-hidden="true" />} onClick={load} disabled={loading}>{loading ? 'Atualizando...' : 'Atualizar'}</Button>;
+    const Moldura = daLoja ? Embutido : PaginaLarga;
+
     return (
-        <Page wide>
+        <Moldura>
+            {daLoja ? (
+                <div className={pageStyles.modalToolbar}>
+                    <span className={pageStyles.muted}>
+                        {carregando ? 'Carregando cobranças...' : `${aguardando.length} aguardando (${brl(valorAguardando)}) · ${pagos.length} ${pagos.length === 1 ? 'pago' : 'pagos'}`}
+                    </span>
+                    <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>{atualizar}{emitir}</span>
+                </div>
+            ) : <>
             <PageHeader
                 title="Cobranças"
                 count={carregando ? null : rows.length}
                 description="Boletos do sistema e os emitidos no painel do Mercado Pago, com a situação do e-mail. O status é consultado no Mercado Pago a cada abertura."
-                actions={<Button icon={<RefreshCw size={16} aria-hidden="true" />} onClick={load} disabled={loading}>{loading ? 'Atualizando...' : 'Atualizar'}</Button>}
+                actions={<>{atualizar}{emitir}</>}
             />
 
             <StatGrid>
@@ -246,6 +278,7 @@ export function CobrancasManagement() {
                 <StatCard label="E-mails com falha" icon={<MailWarning size={18} />} value={carregando ? '-' : falhasEmail} tone={falhasEmail > 0 ? 'negative' : 'default'} caption="Precisam de reenvio" />
                 <StatCard label="Emitidos no painel MP" icon={<Landmark size={18} />} value={carregando ? '-' : doPainel} caption="Sem envio pelo sistema" />
             </StatGrid>
+            </>}
 
             <Panel>
                 <PanelToolbar>
@@ -260,7 +293,7 @@ export function CobrancasManagement() {
                             { value: 'cancelled', label: 'Cancelados' },
                         ]}
                     />
-                    <SearchField value={search} onChange={setSearch} placeholder="Cliente, e-mail ou id do pagamento" />
+                    {!daLoja && <SearchField value={search} onChange={setSearch} placeholder="Cliente, e-mail ou id do pagamento" />}
                 </PanelToolbar>
 
                 {(error || avisoMP) && (
@@ -291,7 +324,7 @@ export function CobrancasManagement() {
                                     <tr key={row.id}>
                                         <td className={pageStyles.colMain}>
                                             <PrimaryCell
-                                                title={<>{row.cliente}{row.origem === 'painel' && <> <StatusBadge dot={false}>{row.clienteConfirmado ? 'Painel MP' : 'Painel MP · cliente incerto'}</StatusBadge></>}</>}
+                                                title={<>{row.cliente}{row.origem === 'painel' && <> <StatusBadge dot={false}>{row.clienteConfirmado ? 'Painel MP' : 'Painel MP · cliente incerto'}</StatusBadge></>}{row.concessionaria && <> <StatusBadge tone="info" dot={false}>Concessionária</StatusBadge></>}</>}
                                                 subtitle={<>
                                                     {row.clienteEmail}
                                                     {row.assinaturaExpiraEm && <span className={pageStyles.subLine}>Assinatura vence {data(row.assinaturaExpiraEm)}</span>}
@@ -300,7 +333,10 @@ export function CobrancasManagement() {
                                         </td>
                                         <td>{row.plano}</td>
                                         <td className={pageStyles.num}><strong>{brl(row.valor)}</strong></td>
-                                        <td><span className={pageStyles.nowrap}>{data(row.criadoEm)}</span></td>
+                                        <td>
+                                            <span className={pageStyles.nowrap}>{data(row.criadoEm)}</span>
+                                            {row.vencimento && <span className={pageStyles.subLine}>Vence {data(row.vencimento)}</span>}
+                                        </td>
                                         <td>
                                             {row.baixaManual ? (
                                                 <TwoLine
@@ -340,7 +376,7 @@ export function CobrancasManagement() {
                                                 )}
                                                 {podeDarBaixa(row) && (
                                                     <IconAction
-                                                        label={row.status === 'approved' ? 'Ligar ao cliente e renovar a assinatura' : 'Dar baixa: marcar como pago'}
+                                                        label={row.status === 'approved' ? (row.concessionaria ? 'Liberar o que foi pago' : 'Ligar ao cliente e renovar a assinatura') : 'Dar baixa: marcar como pago'}
                                                         onClick={() => abrirBaixa(row)}
                                                     >
                                                         <BadgeCheck size={17} aria-hidden="true" />
@@ -359,7 +395,7 @@ export function CobrancasManagement() {
                     <EmptyState
                         icon={search || status ? <Search size={20} /> : <Receipt size={20} />}
                         title={search || status ? 'Nenhuma cobrança encontrada' : 'Nenhum boleto emitido ainda'}
-                        description={search || status ? 'Ajuste a busca ou o filtro de pagamento.' : 'Os boletos aparecem aqui assim que um cliente escolhe pagar por boleto.'}
+                        description={search || status ? 'Ajuste a busca ou o filtro de pagamento.' : daLoja ? 'Os boletos desta loja aparecem aqui assim que forem emitidos.' : 'Os boletos aparecem aqui assim que um cliente escolhe pagar por boleto.'}
                     />
                 )}
 
@@ -389,7 +425,9 @@ export function CobrancasManagement() {
                         <p className={modalStyles.flush}>
                             {baixa.row.status === 'approved'
                                 ? 'Este boleto foi pago no Mercado Pago, mas foi emitido no painel e não está ligado a nenhum cliente. Informe o cliente para registrar o pagamento e renovar o acesso dele.'
-                                : 'Use quando o cliente pagou por fora do boleto (PIX direto, transferência). A cobrança fica como paga e o acesso do cliente é renovado.'}
+                                : baixa.row.concessionaria
+                                    ? 'Use quando a concessionária pagou por fora do boleto (PIX direto, transferência). A cobrança fica como paga e o que foi cobrado é liberado: o plano de repasse é renovado ou o banner segue para análise.'
+                                    : 'Use quando o cliente pagou por fora do boleto (PIX direto, transferência). A cobrança fica como paga e o acesso do cliente é renovado.'}
                         </p>
                         {baixa.row.origem === 'painel' && (
                             <label className={modalStyles.field}>
@@ -423,7 +461,7 @@ export function CobrancasManagement() {
                             )}
                             <label className={modalStyles.choice}>
                                 <input type="checkbox" checked={baixa.renovarAssinatura} onChange={e => setBaixa({ ...baixa, renovarAssinatura: e.target.checked })} />
-                                Renovar a assinatura do cliente
+                                {baixa.row.concessionaria ? 'Liberar o que foi cobrado (plano de repasse ou banner)' : 'Renovar a assinatura do cliente'}
                             </label>
                         </div>
                         {baixaErro && <InlineNotice>{baixaErro}</InlineNotice>}
@@ -460,7 +498,23 @@ export function CobrancasManagement() {
                     </div>
                 </AdminModal>
             )}
+            {emitindoParaLoja && (
+                <EmitirBoletoConcessionariaModal
+                    concessionaria={concessionaria}
+                    onClose={() => setEmitindoParaLoja(false)}
+                    onEmitido={() => { void load(); }}
+                />
+            )}
             {feedback}
-        </Page>
+        </Moldura>
     );
+}
+
+function PaginaLarga({ children }: { children: ReactNode }) {
+    return <Page wide>{children}</Page>;
+}
+
+/** Dentro da ficha da concessionária: sem a moldura de página. */
+function Embutido({ children }: { children: ReactNode }) {
+    return <div className={modalStyles.stack}>{children}</div>;
 }

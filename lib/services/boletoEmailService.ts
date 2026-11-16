@@ -16,8 +16,10 @@ export async function enviarBoletoPorEmail(params: {
     nomeCliente?: string;
     nomePlano: string;
     vencimento?: Date | null;
+    /** Cobrança da concessionária: o que está sendo cobrado (ver buildBoletoEmail). */
+    descricao?: string | null;
 }): Promise<{ ok: boolean; id?: string; error?: string; skipped?: boolean }> {
-    const { payment, para, nomeCliente, nomePlano, vencimento } = params;
+    const { payment, para, nomeCliente, nomePlano, vencimento, descricao } = params;
 
     const conteudo = buildBoletoEmail({
         customerName: nomeCliente,
@@ -26,6 +28,7 @@ export async function enviarBoletoPorEmail(params: {
         dueDate: vencimento || null,
         boletoUrl: payment.boletoUrl,
         barcode: payment.boletoBarcode,
+        descricao,
     });
 
     const res = await sendEmail({ to: para, subject: conteudo.subject, html: conteudo.html, text: conteudo.text });

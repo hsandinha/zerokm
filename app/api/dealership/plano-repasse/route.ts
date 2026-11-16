@@ -5,6 +5,8 @@ import connectDB from '@/lib/mongodb';
 import Plan from '@/models/Plan';
 import { resolveDealershipScope } from '@/lib/services/dealershipScope';
 import { serializePlanoRepasse } from '@/lib/utils/planoRepasse';
+import { acessoDaLoja } from '@/lib/services/acessoLoja';
+import { PERFIS_EMITEM_BOLETO_CONCESSIONARIA } from '@/lib/utils/cobrancaConcessionaria';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,10 +24,23 @@ export async function GET(request: Request) {
         if (scope.kind === 'none') return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
         if (!scope.concessionaria) return NextResponse.json({ error: 'Concessionária não encontrada' }, { status: 404 });
 
+        // O atendente opera o repasse, mas não vê plano nem cobrança: recebe só
+        // se o repasse está liberado, sem nome de plano, validade, forma ou preços.
+        if (scope.kind === 'dealership' && (await acessoDaLoja(session))?.papel !== 'titular') {
+            const ativo = serializePlanoRepasse(scope.concessionaria.planoRepasse).ativo;
+            return NextResponse.json({
+                plano: { ativo, status: ativo ? 'active' : 'inactive', planId: null, planName: null, billingType: null, expiresAt: null, activationMethod: null },
+                planos: [],
+                somenteSituacao: true,
+            });
+        }
+
         const planos = await Plan.find({ publico: 'concessionaria', active: true }).sort({ price: 1 }).lean();
 
         return NextResponse.json({
             plano: serializePlanoRepasse(scope.concessionaria.planoRepasse),
+            // Só admin e administrativo emitem boleto para a loja (a tela mostra o botão).
+            podeEmitirBoleto: scope.kind === 'staff' && PERFIS_EMITEM_BOLETO_CONCESSIONARIA.has(session.user?.profile as string),
             planos: planos.map((p: any) => ({
                 id: p._id.toString(),
                 name: p.name,

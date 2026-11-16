@@ -3,7 +3,7 @@
 // conversa que entra fora do horário esperando a abertura, o aviso ao cliente
 // no máximo uma vez a cada N horas e o registro do atendimento. Coleções
 // falsas em memória; push e envio são espiões.
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
 
 const fakes = vi.hoisted(() => ({}) as Record<string, any>);
@@ -218,6 +218,16 @@ describe('rodízio', () => {
 });
 
 describe('fora do horário', () => {
+    // Relógio fixo numa quarta ao meio-dia: alguns testes abrem a loja só na
+    // segunda, e rodando numa segunda de manhã ela estaria aberta de verdade.
+    beforeEach(() => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(new Date('2026-11-04T15:00:00Z'));
+    });
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
     it('a conversa espera a abertura: sem dono, sem aviso; ao abrir, conta dali e distribui', async () => {
         espioes.op = operacao({ aberta: false });
         const c = conversa({ waitingSince: recente(8 * 3600_000) });

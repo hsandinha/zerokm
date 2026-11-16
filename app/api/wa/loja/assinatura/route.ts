@@ -10,8 +10,9 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   let tenantId: string | null;
+  let role: "admin" | "operador";
   try {
-    ({ tenantId } = await requireScope());
+    ({ tenantId, role } = await requireScope());
   } catch {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
@@ -19,9 +20,13 @@ export async function GET() {
   if (!store) return NextResponse.json({ error: "Só para lojas" }, { status: 404 });
 
   await dbConnect();
-  const planos = await Plan.find({ publico: "atendimento", active: true, especial: { $ne: true } })
-    .sort({ price: 1 })
-    .lean();
+  // Planos e preços são de quem contrata (gestor da loja). O atendente só
+  // precisa saber se o atendimento está liberado.
+  const planos = role === "admin"
+    ? await Plan.find({ publico: "atendimento", active: true, especial: { $ne: true } })
+        .sort({ price: 1 })
+        .lean()
+    : [];
   return NextResponse.json({
     access: storeAccess(store),
     planos: planos.map((p) => ({

@@ -11,6 +11,9 @@ export interface Vehicle {
     origem?: 'novo' | 'repasse';
     /** Quilometragem. 0 para 0KM. */
     km?: number;
+    /** Só repasse: preço FIPE de referência (sem margem) e o mês da tabela. */
+    precoFipe?: number;
+    referenciaFipe?: string;
     transmissao: 'Manual' | 'Automático' | 'CVT';
     combustivel: 'Flex' | 'Gasolina' | 'Etanol' | 'Diesel' | 'Elétrico' | 'Híbrido';
     cor: string;

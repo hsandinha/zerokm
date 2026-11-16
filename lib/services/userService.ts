@@ -13,7 +13,9 @@ export async function getUserAllowedProfiles(email: string): Promise<{ profiles:
         const userRecord = await adminAuth.getUserByEmail(email);
         const user = await User.findOne({ firebaseUid: userRecord.uid });
 
-        let profiles: UserProfile[] = ['operador'];
+        // Sem cadastro no banco, sem perfil: conta só do Firebase não entra em
+        // painel nenhum (antes virava operador, ou administrador pelo e-mail).
+        let profiles: UserProfile[] = [];
         let forcePasswordChange = false;
         let canViewLocation = false;
         let credits = 0;
@@ -149,11 +151,6 @@ export async function getUserAllowedProfiles(email: string): Promise<{ profiles:
 
                 freeTrialExpired = isFreeTrialExpired(freeTrialExpiresAt, now);
             }
-        } else {
-            // Fallback logic if no profiles in DB (Legacy/Hardcoded)
-            if (email.includes('admin')) profiles = ['administrador'];
-            else if (email.includes('dealership') || email.includes('concessionaria')) profiles = ['concessionaria'];
-            else if (email.includes('client') || email.includes('cliente')) profiles = ['cliente'];
         }
 
         return {
@@ -173,9 +170,9 @@ export async function getUserAllowedProfiles(email: string): Promise<{ profiles:
         };
     } catch (error) {
         console.error('Error fetching user profiles:', error);
-        // Fallback logic in case of DB error
-        let profiles: UserProfile[] = ['operador'];
-        if (email.includes('admin')) profiles = ['administrador'];
+        // Erro de banco ou conta que não existe: nenhum perfil. Dar um perfil
+        // de equipe aqui abriria o painel para quem não tem cadastro.
+        const profiles: UserProfile[] = [];
         return { profiles, forcePasswordChange: false, canViewLocation: false, credits: 0, profileCompletion: 0, daysUntilExpiry: null, subscriptionPlanId: null, subscriptionExpiresAt: null, subscriptionBillingType: null, freeTrialExpiresAt: null, freeTrialExpired: false, profileVersion: 0, displayName: null };
     }
 }

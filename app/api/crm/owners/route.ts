@@ -19,7 +19,8 @@ export async function GET() {
         }
 
         const filter = scope.concessionariaId
-            ? { dealershipId: scope.concessionariaId }
+            // Titular e atendentes da loja; atendente desativado não recebe lead.
+            ? { dealershipId: scope.concessionariaId, atendenteInativo: { $ne: true } }
             : { allowedProfiles: { $in: COMMERCIAL_PROFILES } };
 
         const users = await User.find(filter).select('_id displayName email').sort({ displayName: 1 }).lean();

@@ -1,5 +1,6 @@
 'use server';
 
+import { gerarSenhaProvisoria } from '@/lib/utils/senhaProvisoria';
 import { adminAuth } from '@/lib/firebase-admin';
 import { UserProfile } from '@/lib/types/auth';
 import { getServerSession } from 'next-auth';
@@ -245,7 +246,8 @@ export async function listarUsuariosDaLoja(dealershipId: string): Promise<{ succ
     try {
         if (!(await canManageUsers())) return { success: false, error: 'Unauthorized' };
         await connectDB();
-        const docs = await User.find({ dealershipId }).select('firebaseUid email displayName').lean() as any[];
+        // Atendentes têm tela própria (components/dealership/Atendentes.tsx); aqui ficam os titulares.
+        const docs = await User.find({ dealershipId, papelLoja: { $ne: 'atendente' } }).select('firebaseUid email displayName').lean() as any[];
         const usuarios: UsuarioDaLoja[] = [];
         for (const doc of docs) {
             const registro = doc.firebaseUid ? await adminAuth.getUser(doc.firebaseUid).catch(() => null) : null;
@@ -264,6 +266,10 @@ export async function listarUsuariosDaLoja(dealershipId: string): Promise<{ succ
     }
 }
 
+/** Perfis da equipe do CNV: conta com um deles nunca vira login de loja nem tem a senha trocada pela ficha. */
+const PERFIS_DE_EQUIPE_INTERNA = ['admin', 'administrador', 'gerente', 'marketing', 'operador', 'operator', 'vendedor', 'administrativo'];
+const ehDaEquipeInterna = (perfis?: string[] | null) => (perfis || []).some(p => PERFIS_DE_EQUIPE_INTERNA.includes(p));
+
 /**
  * Cria o login da concessionária já vinculado à loja. Se o e-mail já existe,
  * só vincula (e garante o perfil concessionária), sem criar outra conta.
@@ -281,12 +287,22 @@ export async function criarUsuarioDaLoja(data: { dealershipId: string; email: st
             if (existente.dealershipId && existente.dealershipId !== data.dealershipId) {
                 return { success: false, error: 'Este e-mail já é usuário de outra concessionária.' };
             }
-            const perfis = Array.from(new Set([...(existente.allowedProfiles || []), 'concessionaria']));
-            await User.updateOne({ _id: existente._id }, { $set: { dealershipId: data.dealershipId, allowedProfiles: perfis } });
+            if (ehDaEquipeInterna(existente.allowedProfiles)) {
+                return { success: false, error: 'Este e-mail é de alguém da equipe. Use outro e-mail para o login da loja.' };
+            }
+            // O teste grátis de lojista sai: com ele o login abriria a vitrine
+            // inteira em vez do painel da loja. E o perfil padrão passa a ser o da loja.
+            const perfis = Array.from(new Set([...(existente.allowedProfiles || []).filter((p: string) => p !== 'gratis'), 'concessionaria']));
+            await User.updateOne(
+                { _id: existente._id },
+                { $set: { dealershipId: data.dealershipId, allowedProfiles: perfis, defaultProfile: 'concessionaria' }, $inc: { profileVersion: 1 } },
+            );
+            // Quem foi desvinculado antes ficou com o login desativado: vincular de novo reativa.
+            if (existente.firebaseUid) await adminAuth.updateUser(existente.firebaseUid, { disabled: false }).catch(() => undefined);
             return { success: true, vinculado: true };
         }
 
-        const senha = data.password || 'mudar123';
+        const senha = data.password || gerarSenhaProvisoria();
         const userRecord = await adminAuth.createUser({
             email,
             password: senha,
@@ -307,7 +323,7 @@ export async function criarUsuarioDaLoja(data: { dealershipId: string; email: st
     } catch (error: any) {
         console.error('Error creating dealership user:', error);
         const jaExiste = error?.code === 'auth/email-already-exists';
-        return { success: false, error: jaExiste ? 'Este e-mail já tem login no Firebase. Vincule pela tela Equipe.' : (error.message || 'Falha ao criar usuário') };
+        return { success: false, error: jaExiste ? 'Este e-mail já tem login, mas não tem cadastro na plataforma. Fale com o suporte técnico.' : (error.message || 'Falha ao criar usuário') };
     }
 }
 
@@ -319,13 +335,42 @@ export async function desvincularUsuarioDaLoja(uid: string) {
         const doc = await User.findOne({ firebaseUid: uid });
         if (!doc) return { success: false, error: 'Usuário não encontrado' };
         const perfis = (doc.allowedProfiles || []).filter((p: string) => p !== 'concessionaria' && p !== 'dealership');
-        await User.updateOne({ _id: doc._id }, { $unset: { dealershipId: '' }, $set: { allowedProfiles: perfis } });
+        await User.updateOne({ _id: doc._id }, { $unset: { dealershipId: '', papelLoja: '', atendenteInativo: '' }, $set: { allowedProfiles: perfis } });
         // Sem nenhum perfil, o login fica desativado para não entrar num painel vazio.
         if (perfis.length === 0) await adminAuth.updateUser(uid, { disabled: true }).catch(() => undefined);
         return { success: true };
     } catch (error: any) {
         console.error('Error unlinking dealership user:', error);
         return { success: false, error: error.message || 'Falha ao desvincular' };
+    }
+}
+
+/**
+ * Ficha da concessionária: troca a senha do titular por uma provisória que a
+ * equipe informa. A senha não volta na resposta; no próximo acesso a pessoa
+ * cria a dela, e as sessões abertas caem.
+ */
+export async function redefinirSenhaDoUsuarioDaLoja(data: { dealershipId: string; uid: string; password: string }) {
+    try {
+        if (!(await canManageUsers())) return { success: false, error: 'Unauthorized' };
+        const senha = data.password || '';
+        if (senha.length < 6) return { success: false, error: 'A senha precisa ter pelo menos 6 caracteres.' };
+        await connectDB();
+        const doc = await User.findOne({ firebaseUid: data.uid }).select('dealershipId papelLoja allowedProfiles');
+        if (doc && ehDaEquipeInterna(doc.allowedProfiles)) {
+            return { success: false, error: 'Este usuário é da equipe: a senha dele não se troca pela ficha da loja.' };
+        }
+        // Só o login desta loja: o uid sozinho não basta para trocar a senha de alguém.
+        if (!doc || !data.dealershipId || String(doc.dealershipId) !== String(data.dealershipId) || doc.papelLoja === 'atendente') {
+            return { success: false, error: 'Usuário não encontrado nesta concessionária.' };
+        }
+        await adminAuth.updateUser(data.uid, { password: senha });
+        await adminAuth.revokeRefreshTokens(data.uid).catch(() => undefined);
+        await User.updateOne({ _id: doc._id }, { $set: { forcePasswordChange: true } });
+        return { success: true };
+    } catch (error: any) {
+        console.error('Error resetting dealership user password:', error);
+        return { success: false, error: error.message || 'Falha ao redefinir a senha' };
     }
 }
 

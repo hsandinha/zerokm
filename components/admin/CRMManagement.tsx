@@ -1,88 +1,18 @@
 'use client';
 
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import styles from './CRMManagement.module.css';
-import { AdminModal, modalStyles } from './AdminModal';
-import { CalendarPlus, ContactRound, Eye, IdCard, MessageCircle, Plus, Search, UserCheck, Users } from 'lucide-react';
+import { CalendarPlus, ContactRound, Eye, IdCard, MessageCircle, Search, UserCheck, Users } from 'lucide-react';
 import {
-    Avatar, Button, EmptyState, IconAction, Page, PageHeader, Panel, PanelFooter, PanelToolbar, PrimaryCell, RowActions,
+    Avatar, EmptyState, IconAction, Page, PageHeader, Panel, PanelFooter, PanelToolbar, PrimaryCell, RowActions,
     SearchField, Segmented, ShowingCount, SkeletonRows, SortHeader, StatCard, StatGrid, StatusBadge, TwoLine, pageStyles,
     type BadgeTone,
 } from '@/components/ui/Page';
-import { InlineNotice, useFeedback } from '@/components/ui/Feedback';
-import { ClienteFinanceiro } from './ClienteFinanceiro';
-import { ClienteLogoField } from './ClienteLogoField';
-import { ValorCombinadoCliente } from './ValorCombinadoCliente';
-import { linkInstagram, normalizarInstagram } from '@/lib/utils/instagram';
-import { getUserAccessStatus, updateUserProfiles, toggleUserStatus, deleteUser } from '@/app/dashboard/admin/users/actions';
-import { toggleProfileSelection, DIRETIVO_PROFILES, OPERACIONAL_PROFILES, CLIENT_PROFILES } from '@/lib/utils/userProfiles';
-import type { UserProfile } from '@/lib/types/auth';
-
-interface CRMClient {
-    id: string;
-    displayName: string;
-    email: string;
-    phoneNumber: string;
-    cpf: string;
-    instagram?: string;
-    address: {
-        street: string;
-        number: string;
-        complement?: string;
-        neighborhood: string;
-        city: string;
-        state: string;
-        zipCode: string;
-    } | null;
-    profileType: 'cliente' | 'gratis';
-    credits: number;
-    status: 'active' | 'expired' | 'no_plan';
-    planId?: string | null;
-    planName: string | null;
-    planType: string | null;
-    /** Valor do plano que o cliente paga (tabela ou combinado), sem telas extras. */
-    valorPlano?: number | null;
-    valorTabela?: number | null;
-    valorCombinadoAtivo?: boolean;
-    expiresAt: string | null;
-    daysUntilExpiry: number | null;
-    activationMethod: 'manual' | 'cortesia' | 'card' | 'pix' | 'boleto' | null;
-    paymentMethod?: 'pix' | 'boleto' | 'card' | null;
-    billingType: 'monthly' | 'annual' | null;
-    createdAt: string;
-    firebaseUid?: string | null;
-    hasCard: boolean;
-    cardBrand?: string | null;
-    cardLastFour?: string | null;
-    profileCompletion: number;
-    inviteCount: number;
-    /** Telas extras ativas desta conta (não aparecem como clientes à parte). */
-    telasExtras?: TelaExtra[];
-    isInvitee: boolean;
-    vendedorId?: string | null;
-    vendedorNome?: string | null;
-    freeTrialExpiresAt?: string | null;
-    freeTrialExpired?: boolean;
-}
-
-interface Plan {
-    id: string;
-    name: string;
-    type: 'monthly' | 'credits';
-    credits: number | null;
-    price: number;
-    annualPrice?: number | null;
-    active: boolean;
-    /** Condição especial: fora do checkout, só atribuída aqui. */
-    especial?: boolean;
-}
-
-/** Tela extra (convidado) de uma conta: aparece dentro do cliente principal. */
-interface TelaExtra {
-    id: string;
-    nome: string;
-    email: string;
-}
+import { InlineNotice } from '@/components/ui/Feedback';
+import { FichaClienteModal, type AbaDaFicha } from './FichaCliente';
+import { NovoCadastroButton } from './NovoCadastro';
+import { STATUS_LABELS, STATUS_TONE, formatDate, getPaymentInfo, whatsappLink, type CRMClient, type PaymentInfo } from './cliente/tipos';
+import { pendenciasDoCliente, type PendenciaDoCliente } from '@/lib/utils/pendenciasDoCliente';
 
 interface CRMSummary {
     total: number;
@@ -92,126 +22,37 @@ interface CRMSummary {
     cortesia: number;
 }
 
-type FilterTab = 'all' | 'active' | 'expired' | 'no_plan' | 'cortesia';
+type FilterTab = 'all' | 'active' | 'expired' | 'no_plan' | 'cortesia' | 'pendencia';
 type SortKey = 'createdAt' | 'displayName' | 'daysUntilExpiry' | 'status' | 'payment' | 'vendedor';
 
-const STATUS_LABELS: Record<CRMClient['status'], string> = {
-    active: 'Ativo',
-    expired: 'Expirado',
-    no_plan: 'Sem plano',
-};
-
-const STATUS_TONE: Record<CRMClient['status'], BadgeTone> = {
-    active: 'positive',
-    expired: 'negative',
-    no_plan: 'warning',
-};
+const SEM_RESUMO: CRMSummary = { total: 0, active: 0, expired: 0, no_plan: 0, cortesia: 0 };
 
 interface CRMManagementProps {
     highlightEmail?: string | null;
 }
 
-type AssignPlanModal = {
-    client: CRMClient;
-    planId: string;
-    startDate: string;
-    /** Vencimento definido à mão (cliente especial). Vazio = início + 30/365 dias. */
-    expiresAtManual?: string;
-    activationMethod?: 'manual' | 'cortesia';
-    paymentMethod?: 'pix' | 'boleto' | 'card';
-    paymentFrequency?: 'monthly' | 'annual';
-    /** Valor do plano para este cliente, sem telas extras. Vazio = tabela ou o combinado que ele já tem. */
-    valorPlano?: string;
-    /** Guardar o valor como combinado: as próximas cobranças usam ele. */
-    salvarValorCombinado?: boolean;
-};
-
-type PaymentInfo = {
-    kind: 'courtesy' | 'pix' | 'boleto' | 'card' | 'unlinked';
-    label: string;
-};
-
+/**
+ * Lista dos lojistas (clientes). O detalhe de cada um abre na ficha do cliente
+ * (components/admin/FichaCliente.tsx) e o cadastro, no "Novo cadastro"
+ * (components/admin/NovoCadastro.tsx): esta tela ficou só com a lista.
+ */
 export function CRMManagement({ highlightEmail }: CRMManagementProps) {
     const [clients, setClients] = useState<CRMClient[]>([]);
-    const [summary, setSummary] = useState<CRMSummary>({ total: 0, active: 0, expired: 0, no_plan: 0, cortesia: 0 });
+    const [summary, setSummary] = useState<CRMSummary>(SEM_RESUMO);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [filterTab, setFilterTab] = useState<FilterTab>('all');
     const [search, setSearch] = useState('');
     const [sortKey, setSortKey] = useState<SortKey>('createdAt');
     const [sortAsc, setSortAsc] = useState(false);
-    const [selectedClient, setSelectedClient] = useState<CRMClient | null>(null);
-
-    // Plans
-    const [plans, setPlans] = useState<Plan[]>([]);
-
-    // Assign plan modal
-    const [assignModal, setAssignModal] = useState<AssignPlanModal | null>(null);
-    const [assigning, setAssigning] = useState(false);
-    const [assignError, setAssignError] = useState<string | null>(null);
-
-    // Charge state
-    const [chargingId, setChargingId] = useState<string | null>(null);
-    const { confirm, notify, feedback } = useFeedback();
-
-    // Invite management
-    const [inviteModal, setInviteModal] = useState<{ client: CRMClient } | null>(null);
-    const [invites, setInvites] = useState<{ id: string; nome: string; email: string; telefone: string; status: string; monthlyPrice: number; createdAt: string }[]>([]);
-    const [invitesLoading, setInvitesLoading] = useState(false);
-    const [inviteForm, setInviteForm] = useState({ nome: '', email: '', telefone: '' });
-    const [inviteSending, setInviteSending] = useState(false);
-    const [inviteFeedback, setInviteFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
-    const [tempPassword, setTempPassword] = useState<string | null>(null);
-    const [editingInvite, setEditingInvite] = useState<{ id: string; nome: string; email: string; telefone: string } | null>(null);
-    const [editSaving, setEditSaving] = useState(false);
-
-    // Renew free trial
-    const [renewingTrialId, setRenewingTrialId] = useState<string | null>(null);
-    const [renewTrialResult, setRenewTrialResult] = useState<{ ok: boolean; msg: string } | null>(null);
-
-    // Create client
-    const [createModal, setCreateModal] = useState(false);
-    const [createForm, setCreateForm] = useState({
-        nome: '', email: '', telefone: '', cpf: '',
-        address: { street: '', number: '', complement: '', neighborhood: '', city: '', state: '', zipCode: '' }
-    });
-    const [createSending, setCreateSending] = useState(false);
-    const [createFeedback, setCreateFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
-    const [createdPassword, setCreatedPassword] = useState<string | null>(null);
-
-    const handleCreateCepChange = async (val: string) => {
-        const zipCode = val.replace(/\D/g, '');
-        let formatted = zipCode;
-        if (zipCode.length > 5) {
-            formatted = `${zipCode.slice(0, 5)}-${zipCode.slice(5, 8)}`;
-        }
-        setCreateForm(f => ({ ...f, address: { ...f.address, zipCode: formatted } }));
-
-        if (zipCode.length === 8) {
-            try {
-                const res = await fetch(`https://viacep.com.br/ws/${zipCode}/json/`);
-                const data = await res.json();
-                if (!data.erro) {
-                    setCreateForm(f => ({
-                        ...f,
-                        address: {
-                            ...f.address,
-                            street: data.logradouro || f.address.street,
-                            neighborhood: data.bairro || f.address.neighborhood,
-                            city: data.localidade || f.address.city,
-                            state: data.uf || f.address.state,
-                        }
-                    }));
-                }
-            } catch (err) {
-                console.error('Erro ao buscar CEP no cadastro:', err);
-            }
-        }
-    };
+    /** Ficha aberta: o cliente e a aba em que ela abre. */
+    const [ficha, setFicha] = useState<{ id: string; aba: AbaDaFicha } | null>(null);
 
     // Vendedores
     const [vendedores, setVendedores] = useState<{ id: string; displayName: string; email: string }[]>([]);
     const [assigningVendedor, setAssigningVendedor] = useState<string | null>(null);
+
+    const abrirFicha = (client: CRMClient, aba: AbaDaFicha = 'dados') => setFicha({ id: client.id, aba });
 
     // Auto-open from external highlight (e.g. "Ver no CRM" button in Users tab)
     const highlightOpenedRef = useRef<string | null>(null);
@@ -221,49 +62,26 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
         const client = clients.find(c => c.email === highlightEmail);
         if (client) {
             highlightOpenedRef.current = highlightEmail;
-            setSelectedClient(client);
-            setModalTab('dados');
-            setEditMode(false);
-            setEditClientError(null);
-            setEditForm(null);
+            setFicha({ id: client.id, aba: 'dados' });
         }
     }, [highlightEmail, clients]);
 
-    // Modal tabs & client edit
-    const [modalTab, setModalTab] = useState<'dados' | 'assinatura' | 'financeiro' | 'acessos'>('dados');
-    // Acessos do usuário (Firebase): carregados sob demanda ao abrir a aba.
-    const [acesso, setAcesso] = useState<{ disabled: boolean; profiles: UserProfile[] } | null>(null);
-    const [acessoLoading, setAcessoLoading] = useState(false);
-    const [acessoMsg, setAcessoMsg] = useState<{ ok: boolean; texto: string } | null>(null);
-    const [editMode, setEditMode] = useState(false);
-    const [editClientError, setEditClientError] = useState<string | null>(null);
-    const [editSavingClient, setEditSavingClient] = useState(false);
-    const [editForm, setEditForm] = useState<{
-        displayName: string;
-        phoneNumber: string;
-        cpf: string;
-        instagram: string;
-        address: { street: string; number: string; complement: string; neighborhood: string; city: string; state: string; zipCode: string };
-    } | null>(null);
-
-    useEffect(() => {
-        setLoading(true);
-        // Load CRM data and plans independently so a plans failure won't block client list
+    const reloadClients = useCallback(() => {
         fetch('/api/admin/crm')
             .then(r => r.json())
             .then(data => {
                 if (data.error) { setError(data.error); return; }
+                setError(null);
                 setClients(data.clients || []);
-                setSummary(data.summary || { total: 0, active: 0, expired: 0, no_plan: 0 });
+                setSummary(data.summary || SEM_RESUMO);
             })
             .catch(() => setError('Erro ao carregar dados de CRM'))
             .finally(() => setLoading(false));
+    }, []);
 
-        fetch('/api/admin/plans')
-            .then(r => r.json())
-            // CRM ativa assinatura de lojista: plano de concessionária fica de fora.
-            .then(data => setPlans((Array.isArray(data) ? data : []).filter((p: Plan) => p.active && !['concessionaria', 'atendimento'].includes((p as any).publico))))
-            .catch(() => { /* plans are optional, silently ignore */ });
+    useEffect(() => {
+        setLoading(true);
+        reloadClients();
 
         // Load vendedores
         fetch('/api/admin/vendedores')
@@ -279,18 +97,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                 }
             })
             .catch(() => {});
-    }, []);
-
-    const reloadClients = () => {
-        fetch('/api/admin/crm')
-            .then(r => r.json())
-            .then(data => {
-                setClients(data.clients || []);
-                setSummary(data.summary || { total: 0, active: 0, expired: 0, no_plan: 0, cortesia: 0 });
-                // A ficha aberta acompanha (ex.: valor combinado alterado na aba Financeiro).
-                setSelectedClient(prev => (prev ? (data.clients || []).find((c: CRMClient) => c.id === prev.id) || prev : prev));
-            });
-    };
+    }, [reloadClients]);
 
     const handleAssignVendedor = async (clientId: string, vendedorMongoId: string) => {
         setAssigningVendedor(clientId);
@@ -315,440 +122,13 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
         }
     };
 
-    const openClientModal = (client: CRMClient) => {
-        setSelectedClient(client);
-        setModalTab('dados');
-        // Acessos são por usuário: zera para não vazar o estado do cliente anterior.
-        setAcesso(null);
-        setAcessoMsg(null);
-        setEditMode(false);
-        setEditClientError(null);
-        setEditForm(null);
-    };
-
-    const startEditClient = (client: CRMClient) => {
-        setEditForm({
-            displayName: client.displayName,
-            phoneNumber: client.phoneNumber,
-            cpf: client.cpf || '',
-            instagram: client.instagram || '',
-            address: {
-                street: client.address?.street || '',
-                number: client.address?.number || '',
-                complement: client.address?.complement || '',
-                neighborhood: client.address?.neighborhood || '',
-                city: client.address?.city || '',
-                state: client.address?.state || '',
-                zipCode: client.address?.zipCode || '',
-            },
-        });
-        setEditMode(true);
-        setEditClientError(null);
-    };
-
-    const handleCepChange = async (val: string) => {
-        const zipCode = val.replace(/\D/g, '');
-        let formatted = zipCode;
-        if (zipCode.length > 5) {
-            formatted = `${zipCode.slice(0, 5)}-${zipCode.slice(5, 8)}`;
-        }
-        setEditForm(f => f ? { ...f, address: { ...f.address, zipCode: formatted } } : f);
-
-        if (zipCode.length === 8) {
-            try {
-                const res = await fetch(`https://viacep.com.br/ws/${zipCode}/json/`);
-                const data = await res.json();
-                if (!data.erro) {
-                    setEditForm(f => f ? {
-                        ...f,
-                        address: {
-                            ...f.address,
-                            street: data.logradouro || f.address.street,
-                            neighborhood: data.bairro || f.address.neighborhood,
-                            city: data.localidade || f.address.city,
-                            state: data.uf || f.address.state,
-                        }
-                    } : f);
-                }
-            } catch (err) {
-                console.error('Erro ao buscar CEP:', err);
-            }
-        }
-    };
-
-    const handleSaveClientEdit = async () => {
-        if (!selectedClient || !editForm) return;
-        setEditSavingClient(true);
-        setEditClientError(null);
-        try {
-            const res = await fetch('/api/admin/crm/edit', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    userId: selectedClient.id,
-                    displayName: editForm.displayName,
-                    phoneNumber: editForm.phoneNumber,
-                    cpf: editForm.cpf,
-                    instagram: editForm.instagram,
-                    address: editForm.address,
-                }),
-            });
-            const data = await res.json();
-            if (data.ok) {
-                const updated = {
-                    ...selectedClient,
-                    displayName: editForm.displayName,
-                    phoneNumber: editForm.phoneNumber,
-                    cpf: editForm.cpf,
-                    instagram: editForm.instagram.trim() ? (normalizarInstagram(editForm.instagram) || editForm.instagram) : '',
-                    address: editForm.address,
-                };
-                setSelectedClient(updated);
-                setClients(prev => prev.map(c => c.id === selectedClient.id ? updated : c));
-                setEditMode(false);
-            } else {
-                setEditClientError(data.error || 'Erro ao salvar.');
-            }
-        } catch {
-            setEditClientError('Erro de conexão.');
-        } finally {
-            setEditSavingClient(false);
-        }
-    };
-
-    const getVendedorNome = (vendedorId: string | null | undefined) => {
-        if (!vendedorId) return null;
-        return vendedores.find(v => v.id === vendedorId)?.displayName || null;
-    };
-
-    const toDateInputValue = (value?: string | null) => {
-        const date = value ? new Date(value) : new Date();
-        const safeDate = Number.isNaN(date.getTime()) ? new Date() : date;
-        const year = safeDate.getFullYear();
-        const month = String(safeDate.getMonth() + 1).padStart(2, '0');
-        const day = String(safeDate.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    };
-
-    const openAssignPlanModal = (client: CRMClient) => {
-        setAssignError(null);
-        setAssignModal({
-            client,
-            planId: client.planId && plans.some(p => p.id === client.planId) ? client.planId : plans[0]?.id ?? '',
-            startDate: toDateInputValue(client.expiresAt),
-            paymentFrequency: client.billingType === 'annual' ? 'annual' : 'monthly',
-            salvarValorCombinado: true,
-        });
-    };
-
-    const handleAssignPlan = async () => {
-        if (!assignModal || !assignModal.planId) return;
-        const selectedPlan = plans.find(plan => plan.id === assignModal.planId);
-        const requiresStartDate = selectedPlan?.type === 'monthly';
-
-        if (requiresStartDate && !assignModal.startDate) {
-            setAssignError('Informe a data de início do plano.');
-            return;
-        }
-
-        setAssigning(true);
-        setAssignError(null);
-        try {
-            const res = await fetch('/api/admin/crm', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    userId: assignModal.client.id, 
-                    planId: assignModal.planId,
-                    paymentFrequency: assignModal.paymentFrequency || 'monthly',
-                    activationMethod: assignModal.planId === '__gratis__' ? undefined : (assignModal.activationMethod || 'manual'),
-                    paymentMethod: assignModal.paymentMethod || 'pix',
-                    startDate: requiresStartDate ? assignModal.startDate : undefined,
-                    expiresAt: requiresStartDate && assignModal.expiresAtManual ? assignModal.expiresAtManual : undefined,
-                    valorPlano: assignModal.valorPlano?.trim() ? assignModal.valorPlano.trim() : undefined,
-                    salvarValorCombinado: Boolean(assignModal.valorPlano?.trim() && assignModal.salvarValorCombinado),
-                }),
-            });
-            const text = await res.text();
-            let data: any;
-            try { data = JSON.parse(text); } catch { data = { error: text || `Erro ${res.status}` }; }
-            if (data.ok) {
-                setAssignModal(null);
-                reloadClients();
-                if (selectedClient?.id === assignModal.client.id) setSelectedClient(null);
-            } else {
-                setAssignError(data.error || 'Erro ao atribuir plano.');
-            }
-        } catch (err: any) {
-            setAssignError(err?.message || 'Erro de conexão.');
-        } finally {
-            setAssigning(false);
-        }
-    };
-
-    const handleChargeCard = async (client: CRMClient) => {
-        const ok = await confirm({
-            title: 'Cobrar no cartão',
-            description: <>Cobra agora o cartão salvo de <strong>{client.displayName || client.email}</strong> e renova o plano atual.</>,
-            confirmLabel: 'Cobrar e renovar',
-        });
-        if (!ok) return;
-        setChargingId(client.id);
-        try {
-            const res = await fetch('/api/admin/crm/charge', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: client.id }),
-            });
-            const data = await res.json();
-            if (data.ok) {
-                notify('Cobrança aprovada. Plano renovado.', 'positive');
-                reloadClients();
-                if (selectedClient?.id === client.id) setSelectedClient(null);
-            } else {
-                notify(data.error || 'Cobrança recusada pelo cartão.');
-            }
-        } catch {
-            notify('Falha de conexão ao cobrar o cartão.');
-        } finally {
-            setChargingId(null);
-        }
-    };
-
-    const loadInvitesForClient = async (clientEmail: string) => {
-        setInvitesLoading(true);
-        try {
-            const res = await fetch(`/api/admin/crm/invites?email=${encodeURIComponent(clientEmail)}`);
-            const data = await res.json();
-            setInvites(Array.isArray(data) ? data : []);
-        } catch { setInvites([]); }
-        finally { setInvitesLoading(false); }
-    };
-
-    const handleSendInviteFromCRM = async () => {
-        if (!inviteModal) return;
-        if (!inviteForm.nome.trim()) { setInviteFeedback({ type: 'error', msg: 'Nome é obrigatório.' }); return; }
-        if (!inviteForm.email.trim()) { setInviteFeedback({ type: 'error', msg: 'E-mail é obrigatório.' }); return; }
-        setInviteSending(true);
-        setInviteFeedback(null);
-        setTempPassword(null);
-        try {
-            const res = await fetch('/api/admin/crm/invites', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...inviteForm, inviterEmail: inviteModal.client.email }),
-            });
-            const data = await res.json();
-            if (res.ok) {
-                setTempPassword(data.tempPassword);
-                setInviteForm({ nome: '', email: '', telefone: '' });
-                loadInvitesForClient(inviteModal.client.email);
-            } else {
-                setInviteFeedback({ type: 'error', msg: data.error || 'Erro ao adicionar convidado.' });
-            }
-        } catch {
-            setInviteFeedback({ type: 'error', msg: 'Erro de conexão.' });
-        } finally {
-            setInviteSending(false);
-        }
-    };
-
-    const handleCancelInviteCRM = async (id: string) => {
-        if (!inviteModal) return;
-        const ok = await confirm({ title: 'Remover convidado', description: 'O convidado perde o acesso e deixa de ser cobrado na próxima fatura.', confirmLabel: 'Remover convidado', danger: true });
-        if (!ok) return;
-        try {
-            await fetch(`/api/admin/crm/invites?id=${id}`, { method: 'DELETE' });
-            loadInvitesForClient(inviteModal.client.email);
-        } catch { /* ignore */ }
-    };
-
-    const handleReactivateInviteCRM = async (id: string) => {
-        if (!inviteModal) return;
-        try {
-            const res = await fetch('/api/admin/crm/invites', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id, reactivate: true }),
-            });
-            const text = await res.text();
-            let data: any;
-            try { data = JSON.parse(text); } catch { data = { error: text || `Erro ${res.status}` }; }
-            if (data.ok) {
-                setInviteFeedback({ type: 'success', msg: 'Convidado reativado com sucesso!' });
-                loadInvitesForClient(inviteModal.client.email);
-            } else {
-                setInviteFeedback({ type: 'error', msg: data.error || 'Erro ao reativar.' });
-            }
-        } catch (err: any) {
-            setInviteFeedback({ type: 'error', msg: err?.message || 'Erro de conexão.' });
-        }
-    };
-
-    const handleEditInviteCRM = async () => {
-        if (!editingInvite || !inviteModal) return;
-        setEditSaving(true);
-        setInviteFeedback(null);
-        try {
-            const res = await fetch('/api/admin/crm/invites', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    id: editingInvite.id,
-                    nome: editingInvite.nome,
-                    email: editingInvite.email,
-                    telefone: editingInvite.telefone,
-                }),
-            });
-            const data = await res.json();
-            if (data.ok) {
-                setEditingInvite(null);
-                setInviteFeedback({ type: 'success', msg: 'Convidado atualizado com sucesso!' });
-                loadInvitesForClient(inviteModal.client.email);
-            } else {
-                setInviteFeedback({ type: 'error', msg: data.error || 'Erro ao atualizar.' });
-            }
-        } catch {
-            setInviteFeedback({ type: 'error', msg: 'Erro de conexão.' });
-        } finally {
-            setEditSaving(false);
-        }
-    };
-
-    const handleCreateClient = async () => {
-        if (!createForm.nome.trim()) { setCreateFeedback({ type: 'error', msg: 'Nome é obrigatório.' }); return; }
-        if (!createForm.email.trim()) { setCreateFeedback({ type: 'error', msg: 'E-mail é obrigatório.' }); return; }
-        setCreateSending(true);
-        setCreateFeedback(null);
-        setCreatedPassword(null);
-        try {
-            const res = await fetch('/api/admin/crm', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(createForm),
-            });
-            const data = await res.json();
-            if (res.ok) {
-                setCreatedPassword(data.tempPassword);
-                setCreateForm({
-                    nome: '', email: '', telefone: '', cpf: '',
-                    address: { street: '', number: '', complement: '', neighborhood: '', city: '', state: '', zipCode: '' }
-                });
-                reloadClients();
-            } else {
-                setCreateFeedback({ type: 'error', msg: data.error || 'Erro ao criar cliente.' });
-            }
-        } catch {
-            setCreateFeedback({ type: 'error', msg: 'Erro de conexão.' });
-        } finally {
-            setCreateSending(false);
-        }
-    };
-
-    const handleRenewFreeTrial = async (client: CRMClient) => {
-        setRenewingTrialId(client.id);
-        setRenewTrialResult(null);
-        try {
-            const res = await fetch('/api/admin/crm/renew-trial', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: client.id }),
-            });
-            const data = await res.json();
-            if (data.ok) {
-                setRenewTrialResult({ ok: true, msg: 'Trial renovado por +24h!' });
-                const updated = {
-                    ...client,
-                    freeTrialExpiresAt: data.freeTrialExpiresAt,
-                    freeTrialExpired: false,
-                };
-                setClients(prev => prev.map(c => c.id === client.id ? updated : c));
-                if (selectedClient?.id === client.id) setSelectedClient(updated);
-            } else {
-                setRenewTrialResult({ ok: false, msg: data.error || 'Erro ao renovar trial.' });
-            }
-        } catch {
-            setRenewTrialResult({ ok: false, msg: 'Erro de conexão.' });
-        } finally {
-            setRenewingTrialId(null);
-        }
-    };
-
-    const getPaymentInfo = (client: CRMClient): PaymentInfo | null => {
-        if (client.status !== 'active' && client.status !== 'expired') return null;
-        if (client.activationMethod === 'cortesia') return { kind: 'courtesy', label: 'Cortesia' };
-        if (client.paymentMethod === 'pix' || client.activationMethod === 'pix') return { kind: 'pix', label: 'PIX' };
-        if (client.paymentMethod === 'boleto' || client.activationMethod === 'boleto') return { kind: 'boleto', label: 'Boleto' };
-        if (client.paymentMethod === 'card' || client.activationMethod === 'card') return { kind: 'card', label: 'Cartão' };
-        return { kind: 'unlinked', label: 'Não associado' };
-    };
-
-    const carregarAcesso = async (client: CRMClient) => {
-        if (!client.firebaseUid) {
-            setAcessoMsg({ ok: false, texto: 'Usuário sem vínculo com o Firebase — acesso não gerenciável por aqui.' });
-            return;
-        }
-        setAcessoLoading(true);
-        setAcessoMsg(null);
-        const r = await getUserAccessStatus(client.firebaseUid);
-        if (r.success) {
-            setAcesso({ disabled: !!r.disabled, profiles: (r.allowedProfiles ?? []) as UserProfile[] });
-        } else {
-            setAcessoMsg({ ok: false, texto: r.error || 'Falha ao consultar o acesso.' });
-        }
-        setAcessoLoading(false);
-    };
-
-    const alternarStatusAcesso = async (client: CRMClient) => {
-        if (!client.firebaseUid || !acesso) return;
-        const novo = !acesso.disabled;
-        const ok = await confirm(novo
-            ? { title: 'Desativar acesso', description: <><strong>{client.displayName || client.email}</strong> perde o acesso na hora. A assinatura e os dados continuam salvos.</>, confirmLabel: 'Desativar acesso', danger: true }
-            : { title: 'Ativar acesso', description: <><strong>{client.displayName || client.email}</strong> volta a entrar na plataforma.</>, confirmLabel: 'Ativar acesso' });
-        if (!ok) return;
-        setAcessoLoading(true);
-        const r = await toggleUserStatus(client.firebaseUid, novo);
-        if (r.success) {
-            setAcesso({ ...acesso, disabled: novo });
-            setAcessoMsg({ ok: true, texto: novo ? 'Acesso desativado.' : 'Acesso reativado.' });
-        } else {
-            setAcessoMsg({ ok: false, texto: 'Não foi possível alterar o status.' });
-        }
-        setAcessoLoading(false);
-    };
-
-    const salvarPerfisAcesso = async (client: CRMClient) => {
-        if (!client.firebaseUid || !acesso) return;
-        setAcessoLoading(true);
-        const r = await updateUserProfiles(client.firebaseUid, acesso.profiles);
-        if (r.success) {
-            setAcessoMsg({ ok: true, texto: 'Perfis atualizados. Se o cliente perdeu os perfis de cliente, ele passa a aparecer só na tela Equipe.' });
-            reloadClients();
-        } else {
-            setAcessoMsg({ ok: false, texto: 'Não foi possível salvar os perfis.' });
-        }
-        setAcessoLoading(false);
-    };
-
-    const excluirUsuario = async (client: CRMClient) => {
-        if (!client.firebaseUid) return;
-        const ok = await confirm({
-            title: 'Excluir cliente',
-            description: <>Apaga o login, o perfil e o histórico de assinatura de <strong>{client.displayName || client.email}</strong>. Não dá para desfazer.</>,
-            confirmLabel: 'Excluir cliente',
-            danger: true,
-        });
-        if (!ok) return;
-        setAcessoLoading(true);
-        const r = await deleteUser(client.firebaseUid);
-        if (r.success) {
-            setSelectedClient(null);
-            reloadClients();
-        } else {
-            setAcessoMsg({ ok: false, texto: r.error || 'Não foi possível excluir.' });
-            setAcessoLoading(false);
-        }
-    };
+    // Pendências de cada cliente, calculadas sobre a própria lista (sem consulta por linha).
+    const pendenciasPorCliente = useMemo(() => {
+        const mapa = new Map<string, PendenciaDoCliente[]>();
+        for (const c of clients) mapa.set(c.id, pendenciasDoCliente(c));
+        return mapa;
+    }, [clients]);
+    const comPendencia = useMemo(() => clients.filter(c => (pendenciasPorCliente.get(c.id)?.length ?? 0) > 0).length, [clients, pendenciasPorCliente]);
 
     const filtered = useMemo(() => {
         let list = [...clients];
@@ -759,6 +139,8 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
             // Cortesia tem aba própria: repetir aqui inflava "Plano ativo" e
             // misturava quem paga com quem foi bonificado.
             list = list.filter(c => c.status === 'active' && c.activationMethod !== 'cortesia');
+        } else if (filterTab === 'pendencia') {
+            list = list.filter(c => (pendenciasPorCliente.get(c.id)?.length ?? 0) > 0);
         } else if (filterTab !== 'all') {
             list = list.filter(c => c.status === filterTab);
         }
@@ -811,18 +193,13 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
         });
 
         return list;
-    }, [clients, filterTab, search, sortKey, sortAsc, vendedores]);
+    }, [clients, filterTab, search, sortKey, sortAsc, vendedores, pendenciasPorCliente]);
 
     const handleSort = (key: SortKey) => {
         if (sortKey === key) setSortAsc(p => !p);
         // Data começa da mais recente: o uso da coluna é ver quem acabou de
         // entrar. Nas demais, A→Z / menor→maior é o esperado.
         else { setSortKey(key); setSortAsc(key !== 'createdAt'); }
-    };
-
-    const formatDate = (iso: string | null) => {
-        if (!iso) return '—';
-        return new Date(iso).toLocaleDateString('pt-BR');
     };
 
     /** "hoje", "3 dias", "2 meses" — mostra o ritmo de entrada sem fazer conta. */
@@ -837,56 +214,6 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
         return meses === 1 ? 'há 1 mês' : `há ${meses} meses`;
     };
 
-    const selectedAssignPlan = assignModal
-        ? plans.find(plan => plan.id === assignModal.planId)
-        : null;
-    const assignPlanRequiresStartDate = selectedAssignPlan?.type === 'monthly';
-    /** Preço que vale se o campo Valor ficar vazio: o combinado do cliente (mesmo plano e periodicidade) ou a tabela. */
-    const assignValorPadrao = (() => {
-        if (!assignModal || !selectedAssignPlan) return null;
-        const anual = assignModal.paymentFrequency === 'annual';
-        const tabela = anual && selectedAssignPlan.annualPrice ? selectedAssignPlan.annualPrice : selectedAssignPlan.price;
-        const c = assignModal.client;
-        const mesmoPlano = c.planId === selectedAssignPlan.id && (c.billingType === 'annual') === anual;
-        if (mesmoPlano && c.valorCombinadoAtivo && typeof c.valorPlano === 'number') return { valor: c.valorPlano, tabela, combinado: true };
-        return { valor: tabela, tabela, combinado: false };
-    })();
-
-    const whatsappLink = (phone: string, name: string, status: CRMClient['status']) => {
-        const clean = phone.replace(/\D/g, '');
-        if (!clean) return null;
-        let msg = '';
-        if (status === 'no_plan') {
-            msg = encodeURIComponent(`Olá ${name}, vi que você se cadastrou em nossa plataforma. Posso te ajudar a encontrar o plano ideal?`);
-        } else if (status === 'expired') {
-            msg = encodeURIComponent(`Olá ${name}, seu plano na ZeroKM expirou. Que tal renovar e continuar com acesso completo?`);
-        } else {
-            msg = encodeURIComponent(`Olá ${name}, tudo bem?`);
-        }
-        return `https://wa.me/55${clean}?text=${msg}`;
-    };
-
-    const emailLink = (email: string, name: string, status: CRMClient['status']) => {
-        let subject = '', body = '';
-        if (status === 'no_plan') {
-            subject = encodeURIComponent('Bem-vindo à ZeroKM — conheça nossos planos');
-            body = encodeURIComponent(`Olá ${name},\n\nVimos que você se cadastrou em nossa plataforma e gostaríamos de apresentar nossos planos para acesso completo.\n\nAcesse: ${window.location.origin}/dashboard/cliente\n\nAtenciosamente,\nEquipe ZeroKM`);
-        } else if (status === 'expired') {
-            subject = encodeURIComponent('Renove seu plano ZeroKM');
-            body = encodeURIComponent(`Olá ${name},\n\nSeu plano expirou. Renove agora para continuar aproveitando todos os recursos.\n\nAtenciosamente,\nEquipe ZeroKM`);
-        }
-        return `mailto:${email}?subject=${subject}&body=${body}`;
-    };
-
-    const abrirCadastro = () => {
-        setCreateModal(true);
-        setCreateForm({
-            nome: '', email: '', telefone: '', cpf: '',
-            address: { street: '', number: '', complement: '', neighborhood: '', city: '', state: '', zipCode: '' }
-        });
-        setCreateFeedback(null);
-        setCreatedPassword(null);
-    };
 
     const PAYMENT_TONE: Record<PaymentInfo['kind'], BadgeTone> = { courtesy: 'accent', pix: 'info', boleto: 'info', card: 'info', unlinked: 'neutral' };
     const trintaDias = Date.now() - 30 * 86_400_000;
@@ -904,7 +231,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                 title="Clientes"
                 count={loading ? null : summary.total}
                 description="Lojistas e revendas com acesso à consulta, plano e situação da assinatura."
-                actions={<Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={abrirCadastro}>Novo cliente</Button>}
+                actions={<NovoCadastroButton perfilInicial="lojista" onFechar={reloadClients} />}
             />
 
             <StatGrid>
@@ -926,6 +253,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                             { value: 'expired', label: 'Expirados', count: summary.expired },
                             { value: 'no_plan', label: 'Sem plano', count: summary.no_plan },
                             { value: 'cortesia', label: 'Cortesia', count: summary.cortesia },
+                            { value: 'pendencia', label: 'Com pendência', count: comPendencia },
                         ]}
                     />
                     <SearchField value={search} onChange={setSearch} placeholder="Nome, e-mail ou telefone" />
@@ -960,6 +288,8 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                 const statusTone: BadgeTone = isExpiringSoon ? 'negative'
                                     : client.profileType === 'gratis' && client.status !== 'active' ? 'warning'
                                         : STATUS_TONE[client.status];
+                                // O selo que repete a situação da coluna Assinatura não entra de novo.
+                                const pendencias = (pendenciasPorCliente.get(client.id) || []).filter(p => p.rotulo !== statusLabel);
                                 const vencimento = client.planType === 'credits'
                                     ? `${client.credits} ${client.credits === 1 ? 'crédito disponível' : 'créditos disponíveis'}`
                                     : client.expiresAt
@@ -970,12 +300,12 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                         key={client.id}
                                         className={pageStyles.clickableRow}
                                         tabIndex={0}
-                                        onClick={() => openClientModal(client)}
+                                        onClick={() => abrirFicha(client)}
                                         onKeyDown={event => {
                                             if (event.target !== event.currentTarget) return;
                                             if (event.key === 'Enter' || event.key === ' ') {
                                                 event.preventDefault();
-                                                openClientModal(client);
+                                                abrirFicha(client);
                                             }
                                         }}
                                         aria-label={`Abrir detalhes de ${client.displayName || client.email}`}
@@ -992,6 +322,15 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                                     {(client.telasExtras?.length ?? 0) > 0 && (
                                                         <span className={pageStyles.subLine} title={client.telasExtras!.map(t => `${t.nome} (${t.email})`).join('\n')}>
                                                             + {client.telasExtras!.length} {client.telasExtras!.length === 1 ? 'tela extra' : 'telas extras'}: {client.telasExtras!.map(t => t.nome || t.email).join(', ')}
+                                                        </span>
+                                                    )}
+                                                    {pendencias.length > 0 && (
+                                                        <span className={`${pageStyles.badgeList} ${styles.pendencias}`} onClick={event => event.stopPropagation()}>
+                                                            {pendencias.map(p => (
+                                                                <button key={p.codigo} type="button" className={styles.pendencia} title={`${p.detalhe} Clique para resolver na ficha.`} aria-label={`Pendência: ${p.rotulo}`} onClick={() => abrirFicha(client, p.aba)}>
+                                                                    <StatusBadge tone={p.tom} dot={false}>{p.rotulo}</StatusBadge>
+                                                                </button>
+                                                            ))}
                                                         </span>
                                                     )}
                                                 </>}
@@ -1033,7 +372,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                                                         <MessageCircle size={17} aria-hidden="true" />
                                                     </IconAction>
                                                 )}
-                                                <IconAction label="Ver detalhes" onClick={() => openClientModal(client)}>
+                                                <IconAction label="Ver detalhes" onClick={() => abrirFicha(client)}>
                                                     <Eye size={17} aria-hidden="true" />
                                                 </IconAction>
                                             </RowActions>
@@ -1047,7 +386,7 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
 
                 {!loading && filtered.length === 0 && (
                     clients.length === 0
-                        ? <EmptyState icon={<ContactRound size={20} />} title="Nenhum cliente ainda" description="Os lojistas aparecem aqui assim que se cadastram no site. Você também pode cadastrar um manualmente." action={<Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={abrirCadastro}>Novo cliente</Button>} />
+                        ? <EmptyState icon={<ContactRound size={20} />} title="Nenhum cliente ainda" description="Os lojistas aparecem aqui assim que se cadastram no site. Você também pode cadastrar um manualmente." action={<NovoCadastroButton perfilInicial="lojista" onFechar={reloadClients} />} />
                         : <EmptyState icon={<Search size={20} />} title="Nenhum cliente encontrado" description="Ajuste a busca ou o filtro de situação." />
                 )}
 
@@ -1058,1088 +397,15 @@ export function CRMManagement({ highlightEmail }: CRMManagementProps) {
                 )}
             </Panel>
 
-            {/* Client Detail Modal */}
-            {selectedClient && (
-                <AdminModal
-                    size="lg"
-                    onClose={() => setSelectedClient(null)}
-                    bodyClassName={styles.clientModalBody}
-                    leading={<div className={styles.clientModalAvatar}>{(selectedClient.displayName || selectedClient.email)[0].toUpperCase()}</div>}
-                    title={selectedClient.displayName || '(sem nome)'}
-                    titleAside={
-                        <StatusBadge tone={STATUS_TONE[selectedClient.status]}>{STATUS_LABELS[selectedClient.status]}</StatusBadge>
-                    }
-                    subtitle={<>
-                        <span>{selectedClient.email}{selectedClient.phoneNumber ? ` · ${selectedClient.phoneNumber}` : ''}</span>
-                        {/* O essencial no cabeçalho: plano e vencimento sem trocar de aba. */}
-                        <div className={styles.headerFacts}>
-                            <span className={styles.fact}><em>Plano</em>{selectedClient.planName || 'Sem plano'}</span>
-                            <span className={styles.fact}>
-                                <em>{selectedClient.status === 'expired' ? 'Expirou' : 'Expira'}</em>
-                                {selectedClient.expiresAt ? formatDate(selectedClient.expiresAt) : '-'}
-                            </span>
-                            <span className={styles.fact}><em>Pagamento</em>{getPaymentInfo(selectedClient)?.label.replace(/^[^ ]+ /, '') || 'Sem pagamento'}</span>
-                            {typeof selectedClient.valorPlano === 'number' && (
-                                <span className={styles.fact}>
-                                    <em>{selectedClient.valorCombinadoAtivo ? 'Valor combinado' : 'Valor'}</em>
-                                    R$ {selectedClient.valorPlano.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}{selectedClient.billingType === 'annual' ? '/ano' : '/mês'}
-                                </span>
-                            )}
-                        </div>
-                    </>}
-                    toolbar={
-                        <div className={styles.clientModalTabs} role="tablist">
-                            {([['dados', 'Dados do cliente'], ['assinatura', 'Assinatura e ações'], ['financeiro', 'Financeiro'], ['acessos', 'Acessos']] as const).map(([tab, label]) => (
-                                <button
-                                    key={tab}
-                                    type="button"
-                                    role="tab"
-                                    aria-selected={modalTab === tab}
-                                    className={`${styles.clientModalTab} ${modalTab === tab ? styles.clientModalTabActive : ''}`}
-                                    onClick={() => { setModalTab(tab); if (tab === 'acessos' && !acesso) carregarAcesso(selectedClient); }}
-                                >
-                                    {label}
-                                </button>
-                            ))}
-                        </div>
-                    }
-                >
-
-                            {/* ── Dados tab ── */}
-                            {modalTab === 'dados' && (
-                                <div>
-                                    {/* Personal info */}
-                                    <div className={styles.clientSection}>
-                                        <div className={styles.clientSectionHeader}>
-                                            <span className={styles.clientSectionTitle}>Informações Pessoais</span>
-                                            {!editMode && (
-                                                <button className={styles.editToggleBtn} onClick={() => startEditClient(selectedClient)}>
-                                                    Editar
-                                                </button>
-                                            )}
-                                        </div>
-                                        <div className={styles.clientFormGrid}>
-                                            <div className={styles.clientFormField}>
-                                                <label className={styles.clientFormLabel}>Nome</label>
-                                                {editMode ? (
-                                                    <input className={styles.planSelect} value={editForm?.displayName || ''} onChange={e => setEditForm(f => f ? { ...f, displayName: e.target.value } : f)} />
-                                                ) : (
-                                                    <span className={styles.clientFormValue}>{selectedClient.displayName || '—'}</span>
-                                                )}
-                                            </div>
-                                            <div className={styles.clientFormField}>
-                                                <label className={styles.clientFormLabel}>CPF / CNPJ</label>
-                                                {editMode ? (
-                                                    <input className={styles.planSelect} value={editForm?.cpf || ''} onChange={e => setEditForm(f => f ? { ...f, cpf: e.target.value } : f)} placeholder="000.000.000-00" />
-                                                ) : (
-                                                    <span className={styles.clientFormValue}>{selectedClient.cpf || '—'}</span>
-                                                )}
-                                            </div>
-                                            <div className={styles.clientFormField}>
-                                                <label className={styles.clientFormLabel}>Telefone</label>
-                                                {editMode ? (
-                                                    <input className={styles.planSelect} value={editForm?.phoneNumber || ''} onChange={e => setEditForm(f => f ? { ...f, phoneNumber: e.target.value } : f)} placeholder="(11) 99999-9999" />
-                                                ) : (
-                                                    <span className={styles.clientFormValue}>{selectedClient.phoneNumber || '—'}</span>
-                                                )}
-                                            </div>
-                                            <div className={styles.clientFormField}>
-                                                <label className={styles.clientFormLabel}>Email</label>
-                                                <span className={styles.clientFormValue} style={{ color: 'var(--color-text-muted)' }}>{selectedClient.email}</span>
-                                            </div>
-                                            <div className={styles.clientFormField}>
-                                                <label className={styles.clientFormLabel}>Instagram</label>
-                                                {editMode ? (
-                                                    <input className={styles.planSelect} value={editForm?.instagram || ''} onChange={e => setEditForm(f => f ? { ...f, instagram: e.target.value } : f)} placeholder="@loja" />
-                                                ) : linkInstagram(selectedClient.instagram) ? (
-                                                    <a className={styles.clientFormValue} href={linkInstagram(selectedClient.instagram)!} target="_blank" rel="noopener noreferrer">{selectedClient.instagram}</a>
-                                                ) : (
-                                                    <span className={styles.clientFormValue}>—</span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Logo do orçamento: só a equipe coloca, depois da assinatura. */}
-                                    <div className={styles.clientSection}>
-                                        <div className={styles.clientSectionHeader}>
-                                            <span className={styles.clientSectionTitle}>Logo no orçamento</span>
-                                        </div>
-                                        <ClienteLogoField userId={selectedClient.id} nomeCliente={selectedClient.displayName} />
-                                    </div>
-
-                                    {/* Address */}
-                                    <div className={styles.clientSection}>
-                                        <div className={styles.clientSectionHeader}>
-                                            <span className={styles.clientSectionTitle}>Endereço</span>
-                                        </div>
-                                        <div className={styles.clientFormGrid}>
-                                            <div className={styles.clientFormField}>
-                                                <label className={styles.clientFormLabel}>CEP</label>
-                                                {editMode ? (
-                                                    <input className={styles.planSelect} value={editForm?.address.zipCode || ''} onChange={e => handleCepChange(e.target.value)} placeholder="00000-000" />
-                                                ) : (
-                                                    <span className={styles.clientFormValue}>{selectedClient.address?.zipCode || '—'}</span>
-                                                )}
-                                            </div>
-                                            <div className={styles.clientFormField}>
-                                                <label className={styles.clientFormLabel}>Estado</label>
-                                                {editMode ? (
-                                                    <input className={styles.planSelect} value={editForm?.address.state || ''} onChange={e => setEditForm(f => f ? { ...f, address: { ...f.address, state: e.target.value } } : f)} placeholder="SP" maxLength={2} />
-                                                ) : (
-                                                    <span className={styles.clientFormValue}>{selectedClient.address?.state || '—'}</span>
-                                                )}
-                                            </div>
-                                            <div className={`${styles.clientFormField} ${styles.spanFull}`}>
-                                                <label className={styles.clientFormLabel}>Rua</label>
-                                                {editMode ? (
-                                                    <input className={styles.planSelect} value={editForm?.address.street || ''} onChange={e => setEditForm(f => f ? { ...f, address: { ...f.address, street: e.target.value } } : f)} placeholder="Av. Paulista" />
-                                                ) : (
-                                                    <span className={styles.clientFormValue}>{selectedClient.address?.street || '—'}</span>
-                                                )}
-                                            </div>
-                                            <div className={styles.clientFormField}>
-                                                <label className={styles.clientFormLabel}>Número</label>
-                                                {editMode ? (
-                                                    <input className={styles.planSelect} value={editForm?.address.number || ''} onChange={e => setEditForm(f => f ? { ...f, address: { ...f.address, number: e.target.value } } : f)} placeholder="123" />
-                                                ) : (
-                                                    <span className={styles.clientFormValue}>{selectedClient.address?.number || '—'}</span>
-                                                )}
-                                            </div>
-                                            <div className={styles.clientFormField}>
-                                                <label className={styles.clientFormLabel}>Complemento</label>
-                                                {editMode ? (
-                                                    <input className={styles.planSelect} value={editForm?.address.complement || ''} onChange={e => setEditForm(f => f ? { ...f, address: { ...f.address, complement: e.target.value } } : f)} placeholder="Apto 42" />
-                                                ) : (
-                                                    <span className={styles.clientFormValue}>{selectedClient.address?.complement || '—'}</span>
-                                                )}
-                                            </div>
-                                            <div className={styles.clientFormField}>
-                                                <label className={styles.clientFormLabel}>Bairro</label>
-                                                {editMode ? (
-                                                    <input className={styles.planSelect} value={editForm?.address.neighborhood || ''} onChange={e => setEditForm(f => f ? { ...f, address: { ...f.address, neighborhood: e.target.value } } : f)} placeholder="Bela Vista" />
-                                                ) : (
-                                                    <span className={styles.clientFormValue}>{selectedClient.address?.neighborhood || '—'}</span>
-                                                )}
-                                            </div>
-                                            <div className={styles.clientFormField}>
-                                                <label className={styles.clientFormLabel}>Cidade</label>
-                                                {editMode ? (
-                                                    <input className={styles.planSelect} value={editForm?.address.city || ''} onChange={e => setEditForm(f => f ? { ...f, address: { ...f.address, city: e.target.value } } : f)} placeholder="São Paulo" />
-                                                ) : (
-                                                    <span className={styles.clientFormValue}>{selectedClient.address?.city || '—'}</span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Profile completion */}
-                                    <div className={styles.clientSection}>
-                                        <div className={styles.clientSectionHeader}>
-                                            <span className={styles.clientSectionTitle}>Perfil Preenchido</span>
-                                            <span style={{ fontWeight: 700, fontSize: '0.85rem', color: selectedClient.profileCompletion < 40 ? 'var(--color-negative)' : selectedClient.profileCompletion < 100 ? 'var(--color-warning)' : 'var(--color-positive)' }}>
-                                                {selectedClient.profileCompletion}%
-                                            </span>
-                                        </div>
-                                        <div className={styles.completionBarWrap}>
-                                            <div className={styles.completionBarFill} style={{
-                                                width: `${selectedClient.profileCompletion}%`,
-                                                background: selectedClient.profileCompletion < 40 ? 'var(--color-negative)' : selectedClient.profileCompletion < 100 ? 'var(--color-warning)' : 'var(--color-positive)',
-                                            }} />
-                                        </div>
-                                    </div>
-
-                                    {/* Edit actions */}
-                                    {editMode && (
-                                        <div>
-                                            {editClientError && (
-                                                <p style={{ color: 'var(--color-negative)', fontSize: '0.85rem', marginBottom: '0.75rem' }}>{editClientError}</p>
-                                            )}
-                                            <div className={styles.detailActions}>
-                                                <button
-                                                    className={styles.detailBtn}
-                                                    style={{ flex: 1, background: 'var(--color-highlight)', color: 'var(--color-text)', border: '1px solid var(--color-highlight)' }}
-                                                    onClick={() => setEditMode(false)}
-                                                    disabled={editSavingClient}
-                                                >
-                                                    Cancelar
-                                                </button>
-                                                <button
-                                                    className={`${styles.detailBtn} ${styles.btnPlanLg}`}
-                                                    disabled={editSavingClient}
-                                                    onClick={handleSaveClientEdit}
-                                                >
-                                                    {editSavingClient ? 'Salvando...' : 'Salvar'}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* ── Assinatura tab ── */}
-                            {modalTab === 'assinatura' && (
-                                <div>
-                                    <div className={styles.clientSection}>
-                                        <div className={styles.clientSectionHeader}>
-                                            <span className={styles.clientSectionTitle}>Assinatura</span>
-                                        </div>
-                                        <div className={styles.clientFormGrid}>
-                                            <div className={`${styles.clientFormField} ${styles.spanFull}`}>
-                                                <label className={styles.clientFormLabel}>Plano</label>
-                                                <span className={styles.clientFormValue} style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                                    {selectedClient.planName
-                                                        ? `${selectedClient.planName} (${selectedClient.planType === 'monthly' ? (selectedClient.billingType === 'annual' ? 'anual' : 'mensal') : 'créditos'})`
-                                                        : '—'}
-                                                    {selectedClient.billingType === 'annual' && selectedClient.planType === 'monthly' && (
-                                                        <StatusBadge tone="positive" dot={false}>Anual</StatusBadge>
-                                                    )}
-                                                    {selectedClient.activationMethod === 'cortesia' && (
-                                                        <StatusBadge tone="accent" dot={false}>Cortesia</StatusBadge>
-                                                    )}
-                                                    {selectedClient.activationMethod === 'boleto' && (
-                                                        <StatusBadge dot={false}>Boleto</StatusBadge>
-                                                    )}
-                                                </span>
-                                            </div>
-                                            <div className={styles.clientFormField}>
-                                                <label className={styles.clientFormLabel}>Status</label>
-                                                <StatusBadge tone={STATUS_TONE[selectedClient.status]}>{STATUS_LABELS[selectedClient.status]}</StatusBadge>
-                                            </div>
-                                            <div className={styles.clientFormField}>
-                                                <label className={styles.clientFormLabel}>Expira em</label>
-                                                <span className={styles.clientFormValue} style={{ color: selectedClient.status === 'expired' ? 'var(--color-negative)' : (selectedClient.daysUntilExpiry !== null && selectedClient.daysUntilExpiry <= 7) ? 'var(--color-warning)' : 'inherit' }}>
-                                                    {formatDate(selectedClient.expiresAt)}
-                                                    {selectedClient.daysUntilExpiry !== null && (
-                                                        <span className={styles.daysHint}>
-                                                            {selectedClient.daysUntilExpiry >= 0 ? ` (${selectedClient.daysUntilExpiry}d)` : ` (há ${Math.abs(selectedClient.daysUntilExpiry)}d)`}
-                                                        </span>
-                                                    )}
-                                                </span>
-                                            </div>
-                                            <div className={styles.clientFormField}>
-                                                <label className={styles.clientFormLabel}>Créditos avulsos</label>
-                                                <span className={styles.clientFormValue}>
-                                                    {selectedClient.credits > 0 ? <span className={styles.credits}>{selectedClient.credits}</span> : '0'}
-                                                </span>
-                                            </div>
-                                            <div className={styles.clientFormField}>
-                                                <label className={styles.clientFormLabel}>Vendedor</label>
-                                                <span className={styles.clientFormValue}>{getVendedorNome(selectedClient.vendedorId) || '—'}</span>
-                                            </div>
-                                            <div className={styles.clientFormField}>
-                                                <label className={styles.clientFormLabel}>Cadastrado em</label>
-                                                <span className={styles.clientFormValue}>{formatDate(selectedClient.createdAt)}</span>
-                                            </div>
-                                            {selectedClient.hasCard && (
-                                                <div className={styles.clientFormField}>
-                                                    <label className={styles.clientFormLabel}>Cartão</label>
-                                                    <span className={styles.clientFormValue}>
-                                                        {selectedClient.cardBrand ? `${selectedClient.cardBrand} ` : ''}
-                                                        {selectedClient.cardLastFour ? `•••• ${selectedClient.cardLastFour}` : 'Cadastrado'}
-                                                    </span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Free Trial info for gratis clients */}
-                                    {selectedClient.profileType === 'gratis' && (
-                                        <div className={styles.clientSection}>
-                                            <div className={styles.clientSectionHeader}>
-                                                <span className={styles.clientSectionTitle}>Teste Grátis (24h)</span>
-                                                {selectedClient.freeTrialExpired ? <StatusBadge tone="negative">Expirado</StatusBadge> : <StatusBadge tone="positive">Ativo</StatusBadge>}
-                                            </div>
-                                            <div className={styles.clientFormGrid}>
-                                                <div className={styles.clientFormField}>
-                                                    <label className={styles.clientFormLabel}>Expira em</label>
-                                                    <span className={styles.clientFormValue} style={{
-                                                        color: selectedClient.freeTrialExpired ? 'var(--color-negative)' : 'inherit'
-                                                    }}>
-                                                        {selectedClient.freeTrialExpiresAt
-                                                            ? new Date(selectedClient.freeTrialExpiresAt).toLocaleString('pt-BR')
-                                                            : 'Nunca iniciado'}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <div className={styles.clientSection}>
-                                        <div className={styles.clientSectionHeader}>
-                                            <span className={styles.clientSectionTitle}>Ações</span>
-                                        </div>
-                                        <div className={styles.clientActionsGrid}>
-                                            {whatsappLink(selectedClient.phoneNumber, selectedClient.displayName, selectedClient.status) && (
-                                                <a
-                                                    href={whatsappLink(selectedClient.phoneNumber, selectedClient.displayName, selectedClient.status)!}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className={`${styles.detailBtn} ${styles.btnWhatsappLg}`}
-                                                >
-                                                    <svg viewBox="0 0 32 32" width="14" height="14" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-                                                        <circle cx="16" cy="16" r="16" fill="#25D366" />
-                                                        <path d="M22.9 9.1A9.7 9.7 0 0 0 16 6.4a9.7 9.7 0 0 0-8.4 14.6L6.4 25.6l4.7-1.2a9.7 9.7 0 0 0 4.9 1.3 9.7 9.7 0 0 0 9.7-9.7 9.7 9.7 0 0 0-2.8-6.9zm-6.9 14.9a8 8 0 0 1-4.1-1.1l-.3-.2-3 .8.8-2.9-.2-.3a8 8 0 0 1-1.2-4.3 8 8 0 0 1 8-8 8 8 0 0 1 5.7 2.4 8 8 0 0 1 2.3 5.7 8 8 0 0 1-8 7.9zm4.4-6c-.2-.1-1.4-.7-1.6-.8-.2-.1-.4-.1-.5.1-.2.2-.6.8-.8 1-.1.1-.3.1-.5 0a6.4 6.4 0 0 1-1.9-1.2 7.1 7.1 0 0 1-1.3-1.6c-.1-.2 0-.4.1-.5l.4-.4.2-.4v-.4l-.8-1.8c-.2-.5-.4-.4-.5-.4h-.5c-.2 0-.4.1-.6.3a2.6 2.6 0 0 0-.8 1.9c0 1.1.8 2.2.9 2.4.1.1 1.5 2.4 3.8 3.3.5.2.9.3 1.2.4.5.1 1 .1 1.4 0 .4-.1 1.3-.5 1.5-1.1.2-.5.2-1 .1-1.1-.1-.1-.3-.2-.5-.3z" fill="#fff" />
-                                                    </svg>
-                                                    WhatsApp
-                                                </a>
-                                            )}
-                                            <a
-                                                href={emailLink(selectedClient.email, selectedClient.displayName, selectedClient.status)}
-                                                className={`${styles.detailBtn} ${styles.btnEmailLg}`}
-                                            >
-                                                Enviar e-mail
-                                            </a>
-                                            {!selectedClient.isInvitee && (
-                                                <button
-                                                    className={`${styles.detailBtn} ${styles.btnPlanLg}`}
-                                                    onClick={() => {
-                                                        openAssignPlanModal(selectedClient);
-                                                        setSelectedClient(null);
-                                                    }}
-                                                >
-                                                    Atribuir plano
-                                                </button>
-                                            )}
-                                            {!selectedClient.isInvitee && (
-                                                <button
-                                                    className={`${styles.detailBtn} ${styles.btnPlanLg}`}
-                                                    onClick={() => {
-                                                        setInviteModal({ client: selectedClient });
-                                                        setInviteForm({ nome: '', email: '', telefone: '' });
-                                                        setInviteFeedback(null);
-                                                        setTempPassword(null);
-                                                        loadInvitesForClient(selectedClient.email);
-                                                        setSelectedClient(null);
-                                                    }}
-                                                >
-                                                    Gerenciar convidados
-                                                    {selectedClient.inviteCount > 0 && ` (${selectedClient.inviteCount})`}
-                                                </button>
-                                            )}
-                                            {selectedClient.status === 'expired' && selectedClient.hasCard && (
-                                                <button
-                                                    className={`${styles.detailBtn} ${styles.btnChargeLg}`}
-                                                    disabled={chargingId === selectedClient.id}
-                                                    onClick={() => {
-                                                        const c = selectedClient;
-                                                        setSelectedClient(null);
-                                                        handleChargeCard(c);
-                                                    }}
-                                                >
-                                                    {chargingId === selectedClient.id ? 'Processando...' : 'Cobrar cartão'}
-                                                </button>
-                                            )}
-                                            {selectedClient.profileCompletion < 100 && (
-                                                <a
-                                                    href={`mailto:${selectedClient.email}?subject=${encodeURIComponent('Complete seu cadastro na ZeroKM')}&body=${encodeURIComponent(`Olá ${selectedClient.displayName || ''},\n\nSeu cadastro na plataforma ZeroKM está ${selectedClient.profileCompletion}% completo. Para aproveitar todos os recursos, por favor finalize seu perfil em: ${typeof window !== 'undefined' ? window.location.origin : ''}/dashboard/profile\n\nAtenciosamente,\nEquipe ZeroKM`)}`}
-                                                    className={`${styles.detailBtn} ${styles.btnProfileLg}`}
-                                                    onClick={() => setSelectedClient(null)}
-                                                >
-                                                    Solicitar conclusão ({selectedClient.profileCompletion}%)
-                                                </a>
-                                            )}
-                                            {selectedClient.profileType === 'gratis' && (
-                                                <button
-                                                    className={`${styles.detailBtn} ${styles.btnPlanLg}`}
-                                                    disabled={renewingTrialId === selectedClient.id}
-                                                    onClick={() => handleRenewFreeTrial(selectedClient)}
-                                                >
-                                                    {renewingTrialId === selectedClient.id ? 'Renovando...' : 'Renovar 24h'}
-                                                </button>
-                                            )}
-                                            {renewTrialResult && selectedClient && (
-                                                <div className={styles.fullRow}>
-                                                    <InlineNotice tone={renewTrialResult.ok ? 'positive' : 'negative'}>{renewTrialResult.msg}</InlineNotice>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {selectedClient.status === 'no_plan' && (
-                                        <div className={styles.conversionTip}>
-                                            <strong>Dica de conversão:</strong> Este cliente se cadastrou mas ainda não assinou nenhum plano. Entre em contato e ofereça um período de teste ou desconto.
-                                        </div>
-                                    )}
-                                    {selectedClient.status === 'expired' && (
-                                        <div className={styles.renewalTip}>
-                                            <strong>Oportunidade de renovação:</strong> Plano expirado há {selectedClient.daysUntilExpiry !== null ? Math.abs(selectedClient.daysUntilExpiry) : '?'} dia(s). Excelente momento para reativar.
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* ── Financeiro tab ── */}
-                            {modalTab === 'financeiro' && (
-                                <div>
-                                    <div className={styles.clientSection}>
-                                        <div className={styles.clientSectionHeader}>
-                                            <span className={styles.clientSectionTitle}>Valor do plano</span>
-                                        </div>
-                                        <ValorCombinadoCliente userId={selectedClient.id} onChange={reloadClients} />
-                                    </div>
-                                    <div className={styles.clientSection}>
-                                        <div className={styles.clientSectionHeader}>
-                                            <span className={styles.clientSectionTitle}>Cobranças e envios</span>
-                                        </div>
-                                        <ClienteFinanceiro userId={selectedClient.id} />
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* ── Acessos tab ── */}
-                            {modalTab === 'acessos' && (
-                                <div>
-                                    <div className={styles.clientSection}>
-                                        <div className={styles.clientSectionHeader}>
-                                            <span className={styles.clientSectionTitle}>Acesso ao sistema</span>
-                                        </div>
-
-                                        {acessoMsg && (
-                                            <div className={styles.noticeGap}><InlineNotice tone={acessoMsg.ok ? 'positive' : 'negative'}>{acessoMsg.texto}</InlineNotice></div>
-                                        )}
-
-                                        {acessoLoading && !acesso ? (
-                                            <p style={{ color: 'var(--color-text-muted)' }}>Consultando acesso…</p>
-                                        ) : acesso ? (
-                                            <>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                                                    <StatusBadge tone={acesso.disabled ? 'negative' : 'positive'}>{acesso.disabled ? 'Login desativado' : 'Login ativo'}</StatusBadge>
-                                                    <button className={styles.textBtn} disabled={acessoLoading} onClick={() => alternarStatusAcesso(selectedClient)}>
-                                                        {acesso.disabled ? 'Reativar acesso' : 'Desativar acesso'}
-                                                    </button>
-                                                </div>
-
-                                                <div className={styles.clientSectionHeader}>
-                                                    <span className={styles.clientSectionTitle}>Perfis</span>
-                                                </div>
-                                                <p style={{ margin: '0 0 0.5rem', fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
-                                                    Conceder perfil de equipe faz a pessoa aparecer também na tela Equipe; o vínculo de concessionária é concluído lá.
-                                                </p>
-                                                {/* cliente/gratis não são clicáveis em lugar nenhum: quem
-                                                    concede e retira é a assinatura (atribuir plano, trial,
-                                                    pagamento). Aqui só informam o estado atual. */}
-                                                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                                                    {CLIENT_PROFILES.filter(p => acesso.profiles.includes(p)).map(perfil => (
-                                                        <StatusBadge key={perfil} tone="info" dot={false}>{perfil === 'gratis' ? 'Teste grátis' : 'Cliente'} · via assinatura</StatusBadge>
-                                                    ))}
-                                                </div>
-                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                                                    {[...DIRETIVO_PROFILES, ...OPERACIONAL_PROFILES, 'concessionaria' as UserProfile].map(perfil => (
-                                                        <label key={perfil} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', border: '1px solid var(--color-highlight)', borderRadius: '9999px', cursor: 'pointer', fontSize: '0.8rem' }}>
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={acesso.profiles.includes(perfil)}
-                                                                onChange={() => setAcesso({ ...acesso, profiles: toggleProfileSelection(acesso.profiles, perfil) })}
-                                                            />
-                                                            {perfil}
-                                                        </label>
-                                                    ))}
-                                                </div>
-                                                <button className={styles.textBtn} disabled={acessoLoading} onClick={() => salvarPerfisAcesso(selectedClient)}>
-                                                    Salvar perfis
-                                                </button>
-
-                                                <div className={styles.clientSectionHeader} style={{ marginTop: '1.5rem' }}>
-                                                    <span className={`${styles.clientSectionTitle} ${styles.dangerTitle}`}>Zona de risco</span>
-                                                </div>
-                                                <button
-                                                    className={`${styles.textBtn} ${styles.textBtnDanger}`}
-                                                    disabled={acessoLoading}
-                                                    onClick={() => excluirUsuario(selectedClient)}
-                                                >
-                                                    Excluir usuário definitivamente
-                                                </button>
-                                            </>
-                                        ) : !acessoMsg ? (
-                                            <button className={styles.textBtn} onClick={() => carregarAcesso(selectedClient)}>Carregar acesso</button>
-                                        ) : null}
-                                    </div>
-                                </div>
-                            )}
-                </AdminModal>
+            {ficha && (
+                <FichaClienteModal
+                    key={ficha.id}
+                    userId={ficha.id}
+                    abaInicial={ficha.aba}
+                    onClose={() => setFicha(null)}
+                    onMudou={reloadClients}
+                />
             )}
-
-            {/* Assign Plan Modal */}
-            {assignModal && (
-                <AdminModal
-                    size="sm"
-                    title="Atribuir plano"
-                    subtitle={assignModal.client.displayName || assignModal.client.email}
-                    onClose={() => setAssignModal(null)}
-                    busy={assigning}
-                    footer={<>
-                        <button type="button" className={modalStyles.secondary} onClick={() => setAssignModal(null)} disabled={assigning}>Cancelar</button>
-                        <button
-                            type="button"
-                            className={modalStyles.primary}
-                            disabled={assigning || !assignModal.planId || (assignPlanRequiresStartDate && !assignModal.startDate)}
-                            onClick={handleAssignPlan}
-                        >
-                            {assigning ? 'Salvando...' : 'Confirmar'}
-                        </button>
-                    </>}
-                >
-
-                        <div style={{ marginBottom: '1.25rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                Plano
-                            </label>
-                            <select
-                                className={styles.planSelect}
-                                value={assignModal.planId}
-                                onChange={e => setAssignModal({ ...assignModal, planId: e.target.value })}
-                            >
-                                <option value="">Selecione um plano...</option>
-                                <option value="__gratis__">🔓 Grátis (sem plano)</option>
-                                {([
-                                    ['Planos do checkout', plans.filter(p => !p.especial)],
-                                    ['Planos especiais (só pelo CRM)', plans.filter(p => p.especial)],
-                                ] as const).filter(([, lista]) => lista.length > 0).map(([grupo, lista]) => (
-                                    <optgroup key={grupo} label={grupo}>
-                                        {lista.map(p => {
-                                            const isAnnual = assignModal.paymentFrequency === 'annual';
-                                            const displayPrice = isAnnual && p.annualPrice ? p.annualPrice : p.price;
-                                            return (
-                                                <option key={p.id} value={p.id}>
-                                                    {p.name} · R$ {displayPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                                    {p.type === 'monthly' ? (isAnnual ? ' (ano)' : ' (mês)') : ` (${p.credits} créditos)`}
-                                                </option>
-                                            );
-                                        })}
-                                    </optgroup>
-                                ))}
-                            </select>
-                            {plans.every(p => !p.especial) && (
-                                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem', margin: '0.4rem 0 0' }}>
-                                    Para um cliente com condição especial, crie em Planos um plano marcado como especial: ele fica fora do checkout e aparece aqui.
-                                </p>
-                            )}
-                        </div>
-
-                        {assignModal.planId && assignModal.planId !== '__gratis__' && (
-                            <div style={{ marginBottom: '1.25rem' }}>
-                                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                    Recorrência de Pagamento
-                                </label>
-                                <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem' }}>
-                                        <input 
-                                            type="radio" 
-                                            name="paymentFrequency" 
-                                            value="monthly" 
-                                            checked={assignModal.paymentFrequency !== 'annual'}
-                                            onChange={() => setAssignModal({ ...assignModal, paymentFrequency: 'monthly' })}
-                                        />
-                                        <span>Mensal (30 dias)</span>
-                                    </label>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem' }}>
-                                        <input 
-                                            type="radio" 
-                                            name="paymentFrequency" 
-                                            value="annual" 
-                                            checked={assignModal.paymentFrequency === 'annual'}
-                                            onChange={() => setAssignModal({ ...assignModal, paymentFrequency: 'annual' })}
-                                        />
-                                        <span>Anual (365 dias)</span>
-                                    </label>
-                                </div>
-                            </div>
-                        )}
-
-                        {assignPlanRequiresStartDate && (
-                            <div style={{ marginBottom: '1.25rem' }}>
-                                <label htmlFor="plan-start-date" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                    Data de início do plano
-                                </label>
-                                <input
-                                    id="plan-start-date"
-                                    className={styles.planSelect}
-                                    type="date"
-                                    value={assignModal.startDate}
-                                    onChange={event => setAssignModal({ ...assignModal, startDate: event.target.value })}
-                                    required
-                                />
-                                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem', margin: '0.4rem 0 0' }}>
-                                    {assignModal.client.expiresAt
-                                        ? 'Preenchida com a expiração atual do cliente. Ajuste para a data em que o pagamento foi recebido, se necessário.'
-                                        : 'Preenchida com a data de hoje. Ajuste para a data em que o pagamento foi recebido, se necessário.'}
-                                </p>
-                            </div>
-                        )}
-
-                        {assignPlanRequiresStartDate && (
-                            <div style={{ marginBottom: '1.25rem' }}>
-                                <label htmlFor="plan-expires-manual" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                    Vencimento manual (opcional)
-                                </label>
-                                <input
-                                    id="plan-expires-manual"
-                                    className={styles.planSelect}
-                                    type="date"
-                                    value={assignModal.expiresAtManual || ''}
-                                    min={assignModal.startDate || undefined}
-                                    onChange={event => setAssignModal({ ...assignModal, expiresAtManual: event.target.value })}
-                                />
-                                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem', margin: '0.4rem 0 0' }}>
-                                    Para cliente especial: o acesso vai até esta data, em vez de 30 dias (ou 1 ano) a partir do início.
-                                </p>
-                            </div>
-                        )}
-
-                        {assignModal.planId && assignModal.planId !== '__gratis__' && (
-                            <div style={{ marginBottom: '1.25rem' }}>
-                                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                    Origem da Ativação (Financeiro)
-                                </label>
-                                <select
-                                    className={styles.planSelect}
-                                    value={assignModal.activationMethod || 'manual'}
-                                    onChange={e => setAssignModal({ ...assignModal, activationMethod: e.target.value as 'manual' | 'cortesia' })}
-                                >
-                                    <option value="manual">💰 Recebimento Externo (Gera extrato com o valor do plano)</option>
-                                    <option value="cortesia">🎁 Cortesia / Bonificação (Gera extrato gratuito de R$ 0,00)</option>
-                                </select>
-                            </div>
-                        )}
-
-                        {assignModal.planId && assignModal.planId !== '__gratis__' && assignModal.activationMethod !== 'cortesia' && (
-                            <div style={{ marginBottom: '1.25rem' }}>
-                                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                    Forma de Pagamento (Recorrência)
-                                </label>
-                                <select
-                                    className={styles.planSelect}
-                                    value={assignModal.paymentMethod || 'pix'}
-                                    onChange={e => setAssignModal({ ...assignModal, paymentMethod: e.target.value as 'pix' | 'boleto' | 'card' })}
-                                >
-                                    <option value="pix">PIX</option>
-                                    <option value="boleto">Boleto</option>
-                                    <option value="card">Cartão de crédito</option>
-                                </select>
-                            </div>
-                        )}
-
-                        {assignPlanRequiresStartDate && assignModal.activationMethod !== 'cortesia' && assignValorPadrao && (
-                            <div style={{ marginBottom: '1.25rem' }}>
-                                <label htmlFor="plan-valor" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                    Valor do plano {assignModal.paymentFrequency === 'annual' ? '(ano)' : '(mês)'}
-                                </label>
-                                <input
-                                    id="plan-valor"
-                                    className={styles.planSelect}
-                                    inputMode="decimal"
-                                    value={assignModal.valorPlano || ''}
-                                    onChange={event => setAssignModal({ ...assignModal, valorPlano: event.target.value })}
-                                    placeholder={assignValorPadrao.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                />
-                                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem', margin: '0.4rem 0 0' }}>
-                                    Vazio: R$ {assignValorPadrao.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ({assignValorPadrao.combinado ? 'valor combinado do cliente' : 'preço da tabela'}).
-                                    Para cliente que paga diferente, digite o valor. Telas extras continuam somadas à parte.
-                                </p>
-                                {assignModal.valorPlano?.trim() && (
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.6rem', fontSize: '0.85rem', cursor: 'pointer' }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={assignModal.salvarValorCombinado !== false}
-                                            onChange={event => setAssignModal({ ...assignModal, salvarValorCombinado: event.target.checked })}
-                                        />
-                                        <span>Usar este valor nas próximas cobranças deste cliente</span>
-                                    </label>
-                                )}
-                            </div>
-                        )}
-
-                        {assignError && (
-                            <p style={{ color: 'var(--color-negative)', fontSize: '0.85rem', marginBottom: '1rem' }}>{assignError}</p>
-                        )}
-
-                </AdminModal>
-            )}
-
-            {/* Invite Management Modal */}
-            {inviteModal && (
-                <AdminModal
-                    size="lg"
-                    title={`Convidados de ${inviteModal.client.displayName || inviteModal.client.email}`}
-                    subtitle="Adicione ou gerencie usuários vinculados a esta conta."
-                    onClose={() => setInviteModal(null)}
-                >
-
-                        {/* Add invite form */}
-                        <div style={{
-                            background: 'var(--color-bg)',
-                            border: '1px solid var(--color-highlight)',
-                            borderRadius: '10px',
-                            padding: '1rem',
-                            marginBottom: '1rem',
-                        }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Nome *</label>
-                                    <input
-                                        type="text"
-                                        className={styles.planSelect}
-                                        value={inviteForm.nome}
-                                        onChange={e => setInviteForm(f => ({ ...f, nome: e.target.value }))}
-                                        placeholder="Nome completo"
-                                    />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>E-mail *</label>
-                                    <input
-                                        type="email"
-                                        className={styles.planSelect}
-                                        value={inviteForm.email}
-                                        onChange={e => setInviteForm(f => ({ ...f, email: e.target.value }))}
-                                        placeholder="email@exemplo.com"
-                                    />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Telefone</label>
-                                    <input
-                                        type="tel"
-                                        className={styles.planSelect}
-                                        value={inviteForm.telefone}
-                                        onChange={e => {
-                                            const d = e.target.value.replace(/\D/g, '').slice(0, 11);
-                                            const v = d.length <= 10
-                                                ? d.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3')
-                                                : d.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3');
-                                            setInviteForm(f => ({ ...f, telefone: v }));
-                                        }}
-                                        placeholder="(11) 99999-9999"
-                                    />
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                                    <button
-                                        className={`${styles.detailBtn} ${styles.btnPlanLg}`}
-                                        style={{ width: '100%', marginBottom: 0 }}
-                                        onClick={handleSendInviteFromCRM}
-                                        disabled={inviteSending || !inviteForm.nome.trim() || !inviteForm.email.trim()}
-                                    >
-                                        {inviteSending ? 'Adicionando...' : '+ Adicionar'}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        {inviteFeedback && (
-                            <p style={{ color: inviteFeedback.type === 'error' ? 'var(--color-negative)' : 'var(--color-positive)', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
-                                {inviteFeedback.msg}
-                            </p>
-                        )}
-
-                        {tempPassword && (
-                            <div className={styles.passwordBox} role="status">
-                                <strong>Convidado criado.</strong>
-                                <span>Envie a senha temporária para o primeiro acesso:</span>
-                                <code className={styles.passwordValue}>{tempPassword}</code>
-                            </div>
-                        )}
-
-                        {/* Invites list */}
-                        {invitesLoading ? (
-                            <p style={{ color: 'var(--color-text-muted)', textAlign: 'center', padding: '1rem' }}>Carregando...</p>
-                        ) : invites.length === 0 ? (
-                            <p style={{ color: 'var(--color-text-muted)', textAlign: 'center', padding: '1rem', fontStyle: 'italic' }}>Nenhum convidado vinculado.</p>
-                        ) : (
-                            <div style={{ background: 'var(--color-bg)', border: '1px solid var(--color-highlight)', borderRadius: '10px', overflow: 'hidden' }}>
-                                <table className={styles.table} style={{ fontSize: '0.85rem' }}>
-                                    <thead>
-                                        <tr>
-                                            <th className={styles.tableHeader}>Nome</th>
-                                            <th className={styles.tableHeader}>E-mail</th>
-                                            <th className={styles.tableHeader}>Telefone</th>
-                                            <th className={styles.tableHeader}>Status</th>
-                                            <th className={styles.tableHeader}></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {invites.map(inv => (
-                                            <tr key={inv.id} className={styles.tableRow}>
-                                                <td className={styles.tableCell} style={{ fontWeight: 600 }}>
-                                                    {editingInvite?.id === inv.id ? (
-                                                        <input
-                                                            className={styles.planSelect}
-                                                            style={{ padding: '4px 8px', fontSize: '0.82rem' }}
-                                                            value={editingInvite.nome}
-                                                            onChange={e => setEditingInvite(prev => prev ? { ...prev, nome: e.target.value } : prev)}
-                                                        />
-                                                    ) : inv.nome}
-                                                </td>
-                                                <td className={styles.tableCell}>
-                                                    {editingInvite?.id === inv.id ? (
-                                                        <input
-                                                            className={styles.planSelect}
-                                                            style={{ padding: '4px 8px', fontSize: '0.82rem' }}
-                                                            value={editingInvite.email}
-                                                            onChange={e => setEditingInvite(prev => prev ? { ...prev, email: e.target.value } : prev)}
-                                                        />
-                                                    ) : inv.email}
-                                                </td>
-                                                <td className={styles.tableCell}>
-                                                    {editingInvite?.id === inv.id ? (
-                                                        <input
-                                                            className={styles.planSelect}
-                                                            style={{ padding: '4px 8px', fontSize: '0.82rem' }}
-                                                            value={editingInvite.telefone}
-                                                            onChange={e => {
-                                                                const d = e.target.value.replace(/\D/g, '').slice(0, 11);
-                                                                const v = d.length <= 10
-                                                                    ? d.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3')
-                                                                    : d.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3');
-                                                                setEditingInvite(prev => prev ? { ...prev, telefone: v } : prev);
-                                                            }}
-                                                        />
-                                                    ) : (inv.telefone || '—')}
-                                                </td>
-                                                <td className={styles.tableCell}>
-                                                    <StatusBadge tone={inv.status === 'accepted' ? 'positive' : inv.status === 'pending' ? 'warning' : 'negative'}>
-                                                        {inv.status === 'accepted' ? 'Ativo' : inv.status === 'pending' ? 'Pendente' : 'Cancelado'}
-                                                    </StatusBadge>
-                                                </td>
-                                                <td className={styles.tableCell}>
-                                                    <div className={styles.actions}>
-                                                        {editingInvite?.id === inv.id ? (
-                                                            <>
-                                                                <button
-                                                                    className={`${styles.actionBtn}`}
-                                                                    style={{ color: 'var(--color-positive)', fontSize: '0.8rem' }}
-                                                                    onClick={handleEditInviteCRM}
-                                                                    disabled={editSaving}
-                                                                    title="Salvar"
-                                                                >
-                                                                    {editSaving ? '⏳' : '✓'}
-                                                                </button>
-                                                                <button
-                                                                    className={`${styles.actionBtn}`}
-                                                                    style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem' }}
-                                                                    onClick={() => setEditingInvite(null)}
-                                                                    title="Cancelar"
-                                                                >
-                                                                    ✕
-                                                                </button>
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                {inv.status !== 'cancelled' && (
-                                                                    <>
-                                                                        <button
-                                                                            className={`${styles.actionBtn}`}
-                                                                            style={{ color: 'var(--color-accent)', fontSize: '0.8rem' }}
-                                                                            onClick={() => setEditingInvite({ id: inv.id, nome: inv.nome, email: inv.email, telefone: inv.telefone })}
-                                                                            title="Editar convidado"
-                                                                        >
-                                                                            ✏️
-                                                                        </button>
-                                                                        <button
-                                                                            className={`${styles.actionBtn}`}
-                                                                            style={{ color: 'var(--color-negative)', fontSize: '0.8rem' }}
-                                                                            onClick={() => handleCancelInviteCRM(inv.id)}
-                                                                            title="Remover convidado"
-                                                                        >
-                                                                            🗑️
-                                                                        </button>
-                                                                    </>
-                                                                )}
-                                                                {inv.status === 'cancelled' && (
-                                                                    <button
-                                                                        className={`${styles.actionBtn}`}
-                                                                        style={{ color: 'var(--color-positive)', fontSize: '0.8rem' }}
-                                                                        onClick={() => handleReactivateInviteCRM(inv.id)}
-                                                                        title="Reativar convidado"
-                                                                    >
-                                                                        🔄
-                                                                    </button>
-                                                                )}
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-                </AdminModal>
-            )}
-
-            {/* Create Client Modal */}
-            {createModal && (
-                <AdminModal
-                    title="Cadastrar novo cliente"
-                    subtitle="Preencha os dados abaixo para cadastrar um novo cliente na plataforma."
-                    onClose={() => setCreateModal(false)}
-                    busy={createSending}
-                    footer={createdPassword
-                        ? <button type="button" className={modalStyles.primary} onClick={() => setCreateModal(false)}>Concluir</button>
-                        : <>
-                            <button type="button" className={modalStyles.secondary} onClick={() => setCreateModal(false)} disabled={createSending}>Cancelar</button>
-                            <button
-                                type="button"
-                                className={modalStyles.primary}
-                                onClick={handleCreateClient}
-                                disabled={createSending || !createForm.nome.trim() || !createForm.email.trim()}
-                            >
-                                {createSending ? 'Cadastrando...' : 'Cadastrar cliente'}
-                            </button>
-                        </>}
-                >
-
-                        <div style={{
-                            background: 'var(--color-bg)',
-                            border: '1px solid var(--color-highlight)',
-                            borderRadius: '10px',
-                            padding: '1rem',
-                            marginBottom: '1rem',
-                        }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Nome *</label>
-                                    <input
-                                        type="text"
-                                        className={styles.planSelect}
-                                        value={createForm.nome}
-                                        onChange={e => setCreateForm(f => ({ ...f, nome: e.target.value }))}
-                                        placeholder="Nome completo"
-                                    />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>E-mail *</label>
-                                    <input
-                                        type="email"
-                                        className={styles.planSelect}
-                                        value={createForm.email}
-                                        onChange={e => setCreateForm(f => ({ ...f, email: e.target.value }))}
-                                        placeholder="email@exemplo.com"
-                                    />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Telefone</label>
-                                    <input
-                                        type="tel"
-                                        className={styles.planSelect}
-                                        value={createForm.telefone}
-                                        onChange={e => {
-                                            const d = e.target.value.replace(/\D/g, '').slice(0, 11);
-                                            const v = d.length <= 10
-                                                ? d.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3')
-                                                : d.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3');
-                                            setCreateForm(f => ({ ...f, telefone: v }));
-                                        }}
-                                        placeholder="(11) 99999-9999"
-                                    />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>CPF</label>
-                                    <input
-                                        type="text"
-                                        className={styles.planSelect}
-                                        value={createForm.cpf}
-                                        onChange={e => setCreateForm(f => ({ ...f, cpf: e.target.value }))}
-                                        placeholder="000.000.000-00"
-                                    />
-                                </div>
-                            </div>
-
-                            <div style={{ marginTop: '1.25rem', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                Endereço
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>CEP</label>
-                                    <input
-                                        type="text"
-                                        className={styles.planSelect}
-                                        value={createForm.address.zipCode}
-                                        onChange={e => handleCreateCepChange(e.target.value)}
-                                        placeholder="00000-000"
-                                    />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Estado</label>
-                                    <input
-                                        type="text"
-                                        className={styles.planSelect}
-                                        value={createForm.address.state}
-                                        onChange={e => setCreateForm(f => ({ ...f, address: { ...f.address, state: e.target.value } }))}
-                                        placeholder="SP"
-                                        maxLength={2}
-                                    />
-                                </div>
-                                <div style={{ gridColumn: 'span 2' }}>
-                                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Rua</label>
-                                    <input
-                                        type="text"
-                                        className={styles.planSelect}
-                                        value={createForm.address.street}
-                                        onChange={e => setCreateForm(f => ({ ...f, address: { ...f.address, street: e.target.value } }))}
-                                        placeholder="Av. Paulista"
-                                    />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Número</label>
-                                    <input
-                                        type="text"
-                                        className={styles.planSelect}
-                                        value={createForm.address.number}
-                                        onChange={e => setCreateForm(f => ({ ...f, address: { ...f.address, number: e.target.value } }))}
-                                        placeholder="123"
-                                    />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Complemento</label>
-                                    <input
-                                        type="text"
-                                        className={styles.planSelect}
-                                        value={createForm.address.complement}
-                                        onChange={e => setCreateForm(f => ({ ...f, address: { ...f.address, complement: e.target.value } }))}
-                                        placeholder="Apto 42"
-                                    />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Bairro</label>
-                                    <input
-                                        type="text"
-                                        className={styles.planSelect}
-                                        value={createForm.address.neighborhood}
-                                        onChange={e => setCreateForm(f => ({ ...f, address: { ...f.address, neighborhood: e.target.value } }))}
-                                        placeholder="Centro"
-                                    />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cidade</label>
-                                    <input
-                                        type="text"
-                                        className={styles.planSelect}
-                                        value={createForm.address.city}
-                                        onChange={e => setCreateForm(f => ({ ...f, address: { ...f.address, city: e.target.value } }))}
-                                        placeholder="São Paulo"
-                                    />
-                                </div>
-                            </div>
-
-                        </div>
-
-                        {createFeedback && (
-                            <p style={{ color: createFeedback.type === 'error' ? 'var(--color-negative)' : 'var(--color-positive)', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
-                                {createFeedback.msg}
-                            </p>
-                        )}
-
-                        {createdPassword && (
-                            <div className={styles.successBox} role="status">
-                                <strong>Cliente criado com sucesso</strong>
-                                <p>A senha padrão é:</p>
-                                <code className={styles.passwordBox}>{createdPassword}</code>
-                                <p>O usuário será solicitado a trocar a senha no primeiro acesso.</p>
-                            </div>
-                        )}
-                </AdminModal>
-            )}
-            {feedback}
         </Page>
     );
 }

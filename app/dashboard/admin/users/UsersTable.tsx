@@ -1,60 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { AdminUser, listAllUsers, updateUserProfiles, toggleUserStatus, createUser, deleteUser } from './actions';
+import { AdminUser, listAllUsers, updateUserProfiles, toggleUserStatus, deleteUser } from './actions';
 import { UserProfile } from '@/lib/types/auth';
 import { toggleProfileSelection } from '@/lib/utils/userProfiles';
-import { ConcessionariaService, Concessionaria } from '@/lib/services/concessionariaService';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
-import { ContactRound, Pencil, Plus, Search, Trash2, UserCheck, UserX, Users } from 'lucide-react';
+import { ContactRound, Info, Pencil, Search, Trash2, UserCheck, UserX, Users } from 'lucide-react';
 import {
-    Avatar, Button, EmptyState, IconAction, Page, PageHeader, Panel, PanelFooter, PanelToolbar, PrimaryCell, RowActions,
+    Avatar, Button, Callout, EmptyState, IconAction, Page, PageHeader, Panel, PanelFooter, PanelToolbar, PrimaryCell, RowActions,
     SearchField, Segmented, ShowingCount, SkeletonRows, SortHeader, StatCard, StatGrid, StatusBadge, TwoLine, nextSort, pageStyles,
     type BadgeTone, type SortDirection,
 } from '@/components/ui/Page';
 import { useFeedback } from '@/components/ui/Feedback';
-
-const PROFILE_GROUPS: Array<{ key: string; label: string; hint: string; type: 'radio' | 'checkbox'; profiles: Array<{ value: UserProfile; label: string }> }> = [
-    { key: 'diretivo', label: 'Diretivo', hint: 'escolha um', type: 'radio', profiles: [{ value: 'administrador', label: 'Administrador' }, { value: 'gerente', label: 'Gerente' }, { value: 'marketing', label: 'Marketing' }] },
-    { key: 'operacional', label: 'Operacional', hint: 'escolha um', type: 'radio', profiles: [{ value: 'operador', label: 'Operador' }, { value: 'vendedor', label: 'Vendedor' }, { value: 'administrativo', label: 'Administrativo' }] },
-    { key: 'concessionaria', label: 'Concessionária', hint: 'acesso ao painel da loja', type: 'checkbox', profiles: [{ value: 'concessionaria', label: 'Concessionária' }] },
-];
-
-/** Grupos de perfis. Radio com clique para desmarcar: cada grupo é opcional. */
-function ProfileChoices({ name, selected, restricted, onToggle }: { name: string; selected: UserProfile[]; restricted: UserProfile[]; onToggle: (profile: UserProfile) => void }) {
-    return <>
-        {PROFILE_GROUPS.map(group => (
-            <fieldset key={group.key} className={modalStyles.group}>
-                <legend className={modalStyles.groupLabel}>{group.label} <span className={modalStyles.groupHint}>· {group.hint}</span></legend>
-                <div className={modalStyles.choices}>
-                    {group.profiles.map(profile => {
-                        const disabled = restricted.includes(profile.value);
-                        return (
-                            <label key={profile.value} className={modalStyles.choice}>
-                                {group.type === 'radio'
-                                    ? <input type="radio" name={`${name}-${group.key}`} checked={selected.includes(profile.value)} onClick={() => !disabled && onToggle(profile.value)} disabled={disabled} readOnly />
-                                    : <input type="checkbox" checked={selected.includes(profile.value)} onChange={() => !disabled && onToggle(profile.value)} disabled={disabled} />}
-                                {profile.label}
-                            </label>
-                        );
-                    })}
-                </div>
-            </fieldset>
-        ))}
-    </>;
-}
-
-function DealershipSelect({ dealerships, value, onChange, required }: { dealerships: Concessionaria[]; value: string; onChange: (value: string) => void; required?: boolean }) {
-    return (
-        <label className={modalStyles.field}>
-            Vincular concessionária
-            <select value={value} onChange={event => onChange(event.target.value)} required={required}>
-                <option value="">Selecione uma concessionária...</option>
-                {dealerships.map(dealership => <option key={dealership.id} value={dealership.id}>{dealership.nome}</option>)}
-            </select>
-        </label>
-    );
-}
+import { NovoCadastroButton } from '@/components/admin/NovoCadastro';
+import { PerfisDaEquipe } from '@/components/admin/PerfisDaEquipe';
 
 interface CrmEntry {
     status: 'active' | 'expired' | 'no_plan';
@@ -76,15 +35,15 @@ const TOM_PERFIL: Partial<Record<UserProfile, BadgeTone>> = {
 
 const ehCliente = (u: AdminUser) => !!u.allowedProfiles?.some(p => p === 'cliente' || p === 'gratis');
 /**
- * Usuário só de concessionária (o login da loja). Fica num filtro próprio: na
- * Equipe eles se misturavam com a equipe interna. São criados e vinculados na
- * tela Concessionárias.
+ * Usuário só de concessionária (o login da loja). Não aparece na Equipe: é
+ * criado e gerido na ficha de cada loja, em Concessionárias. Cliente puro já
+ * fica de fora em listAllUsers (é do CRM).
  */
 const ehLoja = (u: AdminUser) => !ehCliente(u) && (u.allowedProfiles?.length ?? 0) > 0
     && u.allowedProfiles.every(p => p === 'concessionaria' || p === 'dealership');
 
 type Coluna = 'usuario' | 'perfis' | 'status' | 'acesso' | 'criado';
-type Segmento = 'todos' | 'equipe' | 'lojas' | 'clientes' | 'inativos';
+type Segmento = 'todos' | 'ativos' | 'inativos';
 
 function dataCurta(valor?: string | null) {
     if (!valor) return '';
@@ -110,38 +69,28 @@ function tempoRelativo(valor?: string | null) {
 interface UsersTableProps {
     onViewInCRM?: (email: string) => void;
     restrictedProfiles?: UserProfile[];
+    /** Atalhos do aviso "onde ficam os outros logins". Sem o destino, o aviso fica só com o texto. */
+    destinos?: { concessionarias?: () => void; crm?: () => void };
 }
 
-export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableProps) {
+export function UsersTable({ onViewInCRM, restrictedProfiles = [], destinos }: UsersTableProps) {
+    // Só a equipe interna: o login de concessionária fica na ficha da loja e o cliente, no CRM.
     const [users, setUsers] = useState<AdminUser[]>([]);
     const [loading, setLoading] = useState(true);
     const [crmDataMap, setCrmDataMap] = useState<Map<string, CrmEntry>>(new Map());
     const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
     const [selectedProfiles, setSelectedProfiles] = useState<UserProfile[]>([]);
-    const [dealerships, setDealerships] = useState<Concessionaria[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [sort, setSort] = useState<{ column: Coluna | null; direction: SortDirection }>({ column: null, direction: 'asc' });
-    // Abre na equipe interna: os logins das concessionárias ficam no filtro próprio.
-    const [segmento, setSegmento] = useState<Segmento>('equipe');
+    const [segmento, setSegmento] = useState<Segmento>('todos');
     const [saving, setSaving] = useState(false);
     const { confirm, notify, feedback } = useFeedback();
-
-    // Add User Modal State
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [newUser, setNewUser] = useState({
-        displayName: '',
-        email: '',
-        password: '',
-        allowedProfiles: ['operador'] as UserProfile[],
-        dealershipId: '',
-    });
-    const [isCreating, setIsCreating] = useState(false);
 
     const fetchUsers = async () => {
         setLoading(true);
         try {
             const data = await listAllUsers();
-            setUsers(data);
+            setUsers(data.filter(u => !ehLoja(u)));
         } catch (error) {
             console.error('Failed to fetch users', error);
         } finally {
@@ -149,18 +98,8 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableP
         }
     };
 
-    const fetchDealerships = async () => {
-        try {
-            const data = await ConcessionariaService.getAllConcessionarias();
-            setDealerships(data);
-        } catch (error) {
-            console.error('Failed to fetch dealerships', error);
-        }
-    };
-
     useEffect(() => {
         fetchUsers();
-        fetchDealerships();
         fetch('/api/admin/crm')
             .then(r => r.json())
             .then(data => {
@@ -179,45 +118,6 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableP
             })
             .catch(() => {});
     }, []);
-
-    const handleCreateUser = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsCreating(true);
-
-        try {
-            const result = await createUser({
-                email: newUser.email,
-                password: newUser.password,
-                displayName: newUser.displayName,
-                allowedProfiles: newUser.allowedProfiles,
-                dealershipId: newUser.allowedProfiles.includes('concessionaria') ? newUser.dealershipId : undefined,
-            });
-
-            if (result.success) {
-                setIsAddModalOpen(false);
-                setNewUser({
-                    displayName: '',
-                    email: '',
-                    password: '',
-                    allowedProfiles: ['operador'],
-                    dealershipId: '',
-                });
-                fetchUsers();
-                notify('Usuário criado. Ele já pode entrar com o e-mail e a senha inicial.', 'positive');
-            } else {
-                notify(`Não foi possível criar o usuário: ${result.error}`);
-            }
-        } catch (error) {
-            console.error('Error creating user:', error);
-            notify('Falha de conexão ao criar o usuário. Tente de novo.');
-        } finally {
-            setIsCreating(false);
-        }
-    };
-
-    const toggleNewUserProfile = (profile: UserProfile) => {
-        setNewUser({ ...newUser, allowedProfiles: toggleProfileSelection(newUser.allowedProfiles, profile) });
-    };
 
     const [selectedDealershipId, setSelectedDealershipId] = useState<string>('');
 
@@ -268,7 +168,7 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableP
             editingUser.uid,
             selectedProfiles,
             undefined,
-            selectedProfiles.includes('concessionaria') ? selectedDealershipId : undefined
+            selectedProfiles.includes('concessionaria') ? (selectedDealershipId || undefined) : undefined
         );
         setSaving(false);
 
@@ -291,9 +191,7 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableP
     const noSegmento = (u: AdminUser) =>
         segmento === 'todos' ? true
             : segmento === 'inativos' ? u.disabled
-                : segmento === 'clientes' ? ehCliente(u)
-                    : segmento === 'lojas' ? ehLoja(u)
-                        : !ehCliente(u) && !ehLoja(u);
+                : !u.disabled;
     const filteredAndSorted = [...users]
         .filter(noSegmento)
         .filter(u => {
@@ -327,9 +225,7 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableP
         });
 
     const ativos = users.filter(u => !u.disabled).length;
-    const lojas = users.filter(ehLoja).length;
-    const equipe = users.filter(u => !ehCliente(u) && !ehLoja(u)).length;
-    const clientes = users.filter(ehCliente).length;
+    const administradores = users.filter(u => u.allowedProfiles?.some(p => p === 'administrador' || p === 'admin')).length;
     const inativos = users.length - ativos;
     const trintaDias = Date.now() - 30 * 86_400_000;
     const acessaram = users.filter(u => u.lastSignInTime && new Date(u.lastSignInTime).getTime() >= trintaDias).length;
@@ -362,14 +258,25 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableP
             <PageHeader
                 title="Equipe"
                 count={loading ? null : users.length}
-                description="Quem acessa a plataforma e com quais perfis. Assinaturas de clientes ficam no CRM."
-                actions={<Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={() => setIsAddModalOpen(true)}>Novo usuário</Button>}
+                description="A equipe interna: quem trabalha na plataforma e com quais perfis."
+                actions={<NovoCadastroButton perfilInicial="equipe" onFechar={fetchUsers} />}
             />
 
+            <Callout
+                icon={<Info size={18} aria-hidden="true" />}
+                title="Aqui fica só a equipe interna"
+                action={(destinos?.concessionarias || destinos?.crm) ? <>
+                    {destinos.concessionarias && <Button onClick={destinos.concessionarias}>Ir para Concessionárias</Button>}
+                    {destinos.crm && <Button onClick={destinos.crm}>Ir para o CRM</Button>}
+                </> : undefined}
+            >
+                Logins de concessionária ficam na ficha de cada loja, em Concessionárias. Clientes ficam no CRM.
+            </Callout>
+
             <StatGrid>
-                <StatCard label="Total de acessos" icon={<Users size={18} />} value={loading ? '-' : users.length} caption="Equipe, concessionárias e clientes" />
+                <StatCard label="Equipe interna" icon={<Users size={18} />} value={loading ? '-' : users.length} caption="Pessoas com acesso de equipe" />
                 <StatCard label="Ativos" icon={<UserCheck size={18} />} value={loading ? '-' : ativos} progress={pct(ativos)} caption={`${Math.round(pct(ativos))}% da base`} />
-                <StatCard label="Equipe interna" icon={<ContactRound size={18} />} value={loading ? '-' : equipe} caption="Sem perfil de cliente" />
+                <StatCard label="Administradores" icon={<ContactRound size={18} />} value={loading ? '-' : administradores} caption="Com acesso total" />
                 <StatCard label="Entraram em 30 dias" icon={<UserCheck size={18} />} value={loading ? '-' : acessaram} progress={pct(acessaram)} caption="Último acesso no último mês" />
             </StatGrid>
 
@@ -381,9 +288,7 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableP
                         onChange={setSegmento}
                         options={[
                             { value: 'todos', label: 'Todos', count: users.length },
-                            { value: 'equipe', label: 'Equipe', count: equipe },
-                            { value: 'lojas', label: 'Concessionárias', count: lojas },
-                            { value: 'clientes', label: 'Clientes', count: clientes },
+                            { value: 'ativos', label: 'Ativos', count: ativos },
                             { value: 'inativos', label: 'Inativos', count: inativos },
                         ]}
                     />
@@ -459,7 +364,7 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableP
 
                 {!loading && filteredAndSorted.length === 0 && (
                     users.length === 0
-                        ? <EmptyState icon={<Users size={20} />} title="Nenhum usuário cadastrado" description="Crie o primeiro acesso da equipe." action={<Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={() => setIsAddModalOpen(true)}>Novo usuário</Button>} />
+                        ? <EmptyState icon={<Users size={20} />} title="Nenhum usuário cadastrado" description="Crie o primeiro acesso da equipe." action={<NovoCadastroButton perfilInicial="equipe" onFechar={fetchUsers} />} />
                         : <EmptyState icon={<Search size={20} />} title="Nenhum usuário encontrado" description="Ajuste a busca ou o filtro." />
                 )}
 
@@ -469,41 +374,6 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableP
                     </PanelFooter>
                 )}
             </Panel>
-
-            {isAddModalOpen && (
-                <AdminModal
-                    title="Novo usuário"
-                    subtitle="Cria o acesso e define o que a pessoa pode usar na plataforma."
-                    onClose={() => setIsAddModalOpen(false)}
-                    busy={isCreating}
-                    onSubmit={handleCreateUser}
-                    footer={<>
-                        <button type="button" className={modalStyles.secondary} onClick={() => setIsAddModalOpen(false)} disabled={isCreating}>Cancelar</button>
-                        <button type="submit" className={modalStyles.primary} disabled={isCreating}>{isCreating ? 'Criando...' : 'Criar usuário'}</button>
-                    </>}
-                >
-                    <div className={modalStyles.stack}>
-                        <div className={modalStyles.grid2}>
-                            <label className={`${modalStyles.field} ${modalStyles.span2}`}>
-                                Nome completo
-                                <input type="text" value={newUser.displayName} onChange={e => setNewUser({ ...newUser, displayName: e.target.value })} required placeholder="Ex.: João Silva" />
-                            </label>
-                            <label className={modalStyles.field}>
-                                E-mail
-                                <input type="email" value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} required placeholder="email@exemplo.com" />
-                            </label>
-                            <label className={modalStyles.field}>
-                                Senha inicial
-                                <input type="password" value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} required placeholder="Mínimo 6 caracteres" minLength={6} />
-                            </label>
-                        </div>
-                        <ProfileChoices name="new" selected={newUser.allowedProfiles} restricted={restrictedProfiles} onToggle={toggleNewUserProfile} />
-                        {newUser.allowedProfiles.includes('concessionaria') && (
-                            <DealershipSelect dealerships={dealerships} value={newUser.dealershipId} onChange={value => setNewUser({ ...newUser, dealershipId: value })} required />
-                        )}
-                    </div>
-                </AdminModal>
-            )}
 
             {editingUser && (
                 <AdminModal
@@ -517,14 +387,16 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [] }: UsersTableP
                     </>}
                 >
                     <div className={modalStyles.stack}>
-                        <ProfileChoices name="edit" selected={selectedProfiles} restricted={restrictedProfiles} onToggle={toggleProfile} />
+                        <PerfisDaEquipe name="edit" selected={selectedProfiles} restricted={restrictedProfiles} onToggle={toggleProfile} />
                         {(selectedProfiles.includes('cliente') || selectedProfiles.includes('gratis')) && (
                             <p className={`${modalStyles.hint} ${modalStyles.flush}`}>
                                 Este usuário também tem perfil de {selectedProfiles.includes('cliente') ? 'cliente' : 'teste grátis'}. Esse acesso é controlado pela assinatura, no CRM.
                             </p>
                         )}
                         {selectedProfiles.includes('concessionaria') && (
-                            <DealershipSelect dealerships={dealerships} value={selectedDealershipId} onChange={setSelectedDealershipId} />
+                            <p className={`${modalStyles.hint} ${modalStyles.flush}`}>
+                                Este usuário também é login de concessionária. O vínculo com a loja é mantido e é gerido na ficha da loja, em Concessionárias.
+                            </p>
                         )}
                     </div>
                 </AdminModal>

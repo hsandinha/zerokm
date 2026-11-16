@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Warehouse } from 'lucide-react';
 import { Concessionaria } from '../../lib/services/concessionariaService';
 import { DealerInventory } from '../dealership/DealerInventory';
+import { SeletorDeConcessionaria } from './SeletorDeConcessionaria';
 import { EmptyState, Page, PageHeader, Panel, PanelToolbar, StatusBadge, pageStyles } from '@/components/ui/Page';
 import { InlineNotice } from '@/components/ui/Feedback';
 
@@ -42,22 +43,12 @@ export function AdminDealershipVehicles() {
             <PageHeader
                 title="Estoque"
                 count={loading ? null : concessionarias.length}
-                description="Escolha a concessionária para ver e ajustar o catálogo 0KM e os veículos de repasse dela."
+                description="Busque a concessionária por nome, CNPJ, cidade ou marca para ver e ajustar o catálogo 0KM e os veículos de repasse dela."
             />
 
             <Panel>
                 <PanelToolbar>
-                    <label className={pageStyles.toolbarField}>
-                        <span>Concessionária</span>
-                        <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)} disabled={loading}>
-                            <option value="">{loading ? 'Carregando...' : 'Selecione uma concessionária'}</option>
-                            {ordenadas.map((c) => (
-                                <option key={c.id} value={c.id}>
-                                    {c.nome}{c.marca ? ` (${c.marca})` : ''}{c.cidade ? ` · ${c.cidade}/${c.uf}` : ''}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
+                    <SeletorDeConcessionaria lojas={ordenadas} value={selectedId} onChange={setSelectedId} loading={loading} />
                     {selecionada && (
                         <StatusBadge tone={(selecionada.totalAtivos || 0) > 0 ? 'positive' : 'neutral'}>
                             {(selecionada.totalAtivos || 0).toLocaleString('pt-BR')} {(selecionada.totalAtivos || 0) === 1 ? 'veículo ativo' : 'veículos ativos'}
@@ -69,7 +60,7 @@ export function AdminDealershipVehicles() {
                     <EmptyState
                         icon={<Warehouse size={20} />}
                         title="Nenhuma concessionária selecionada"
-                        description="O estoque aparece aqui assim que você escolher a loja no seletor acima."
+                        description="O estoque aparece aqui assim que você escolher a loja na busca acima."
                     />
                 )}
             </Panel>

@@ -6,6 +6,8 @@ import Banner from '@/models/Banner';
 import { deactivateExpiredBanners } from '@/lib/services/bannerService';
 import { sessaoPodeUsar } from '@/lib/services/recursosConta';
 import { MSG_RECURSO_DESLIGADO } from '@/lib/recursos';
+import User from '@/models/User';
+import { acessoDaLoja } from '@/lib/services/acessoLoja';
 
 export async function GET() {
     try {
@@ -19,7 +21,15 @@ export async function GET() {
 
         await connectDB();
         await deactivateExpiredBanners();
-        const banners = await Banner.find({ dealershipId: session.user.uid }).lean() as any[];
+        // O banner é gravado com o uid de quem contratou. Na concessionária a
+        // equipe inteira (titular e atendentes) vê os anúncios da loja.
+        let donos: string[] = [session.user.uid];
+        const acesso = await acessoDaLoja(session);
+        if (acesso) {
+            const equipe = await User.find({ dealershipId: acesso.concessionariaId }).select('firebaseUid').limit(200).lean();
+            donos = Array.from(new Set([session.user.uid, ...equipe.map(u => u.firebaseUid).filter(Boolean)]));
+        }
+        const banners = await Banner.find({ dealershipId: { $in: donos } }).lean() as any[];
         
         // Sort in memory to bypass MongoDB 32MB sort limit
         banners.sort((a, b) => {

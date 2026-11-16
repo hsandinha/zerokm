@@ -27,7 +27,8 @@ const SITUACAO: Record<string, { label: string; tone: BadgeTone }> = {
     expired: { label: 'Expirado', tone: 'neutral' },
 };
 
-export function MeusAnuncios() {
+/** `podeContratar: false` para o atendente da loja: vê os anúncios, mas quem contrata e paga é o titular. */
+export function MeusAnuncios({ podeContratar = true }: { podeContratar?: boolean } = {}) {
     const [banners, setBanners] = useState<Banner[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isCreating, setIsCreating] = useState(false);
@@ -173,7 +174,7 @@ export function MeusAnuncios() {
                 title="Meus anúncios"
                 count={isLoading ? null : banners.length}
                 description={<>Seu banner aparece no topo da consulta dos clientes. Cada anúncio custa <strong>{preco}</strong> e fica no ar por <strong>{bannerConfig.duration_days} dias</strong> depois de aprovado.</>}
-                actions={<Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={openCreate}>Novo anúncio</Button>}
+                actions={podeContratar ? <Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={openCreate}>Novo anúncio</Button> : undefined}
             />
 
             <Panel>
@@ -213,7 +214,7 @@ export function MeusAnuncios() {
                         icon={<Images size={20} />}
                         title="Nenhum anúncio ainda"
                         description="Destaque um veículo para todos os clientes da plataforma. O anúncio entra no ar depois do pagamento e da aprovação da equipe."
-                        action={<Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={openCreate}>Novo anúncio</Button>}
+                        action={podeContratar ? <Button variant="primary" icon={<Plus size={16} aria-hidden="true" />} onClick={openCreate}>Novo anúncio</Button> : undefined}
                     />
                 )}
 

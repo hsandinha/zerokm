@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Building2, SlidersHorizontal, Store } from 'lucide-react';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
 import {
@@ -171,27 +171,145 @@ export function RecursosManagement() {
     );
 }
 
+/** Lista de funcionalidades com as dependências (sem atendimento não há IA). Usada no modal e na ficha. */
+function ListaDeRecursos({ tipo, marcados, onChange, disabled }: {
+    tipo: TipoConta;
+    marcados: Recursos;
+    onChange: (chave: Recurso, valor: boolean) => void;
+    disabled?: boolean;
+}) {
+    // Mesmas dependências do servidor: desligar a IA apaga o simulador na tela.
+    const efetivo = lerRecursos(marcados, tipo);
+    return (
+        <>
+            {GRUPOS_DE_RECURSOS.map(grupo => {
+                const itens = grupo.itens.filter(i => recursoAplica(i.chave, tipo));
+                if (!itens.length) return null;
+                return (
+                    <section key={grupo.grupo} className={styles.grupo}>
+                        <h3 className={styles.grupoTitulo}>{grupo.grupo}</h3>
+                        {itens.map(item => {
+                            const bloqueado = Boolean(item.depende && !efetivo[item.depende]);
+                            return (
+                                <label key={item.chave} className={styles.item}>
+                                    <input
+                                        type="checkbox"
+                                        checked={efetivo[item.chave]}
+                                        disabled={bloqueado || disabled}
+                                        onChange={e => onChange(item.chave, e.target.checked)}
+                                    />
+                                    <span className={styles.itemTexto}>
+                                        <span className={styles.itemRotulo}>{item.rotulo}</span>
+                                        <span className={styles.itemDescricao}>{item.descricao}</span>
+                                        {bloqueado && item.depende && (
+                                            <span className={styles.itemAviso}>
+                                                Depende de “{GRUPOS_DE_RECURSOS.flatMap(g => g.itens).find(i => i.chave === item.depende)?.rotulo}”.
+                                            </span>
+                                        )}
+                                    </span>
+                                </label>
+                            );
+                        })}
+                    </section>
+                );
+            })}
+        </>
+    );
+}
+
+async function salvarRecursos(conta: Pick<Conta, 'tipo' | 'id'>, recursos: Recursos): Promise<Conta> {
+    const res = await fetch('/api/admin/recursos', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo: conta.tipo, id: conta.id, recursos }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
+    return data;
+}
+
+/**
+ * Funcionalidades de uma conta só, sem a lista em volta: a aba Funcionalidades
+ * da ficha da concessionária. Mesma rota e mesma lista do modal desta tela.
+ */
+export function RecursosDaConta({ tipo, id, onSalvo }: { tipo: TipoConta; id: string; onSalvo?: () => void }) {
+    const [conta, setConta] = useState<Conta | null>(null);
+    const [marcados, setMarcados] = useState<Recursos | null>(null);
+    const [erro, setErro] = useState<string | null>(null);
+    const [aviso, setAviso] = useState<string | null>(null);
+    const [salvando, setSalvando] = useState(false);
+
+    useEffect(() => {
+        let vivo = true;
+        fetch(`/api/admin/recursos?${new URLSearchParams({ tipo, id })}`)
+            .then(async res => ({ ok: res.ok, data: await res.json().catch(() => ({})) }))
+            .then(({ ok, data }) => {
+                if (!vivo) return;
+                const achada: Conta | undefined = ok ? data.data?.[0] : undefined;
+                if (!achada) { setErro(data.error || 'Não foi possível carregar as funcionalidades desta conta.'); return; }
+                setConta(achada);
+                setMarcados(achada.recursos);
+            })
+            .catch(() => { if (vivo) setErro('Não foi possível carregar as funcionalidades desta conta.'); });
+        return () => { vivo = false; };
+    }, [tipo, id]);
+
+    const salvar = async () => {
+        if (!conta || !marcados) return;
+        setSalvando(true);
+        setErro(null);
+        setAviso(null);
+        try {
+            const salva = await salvarRecursos(conta, marcados);
+            setConta(salva);
+            setMarcados(salva.recursos);
+            setAviso('Funcionalidades salvas.');
+            onSalvo?.();
+        } catch (e) {
+            setErro(e instanceof Error ? e.message : 'Erro ao salvar.');
+        } finally {
+            setSalvando(false);
+        }
+    };
+
+    if (!conta || !marcados) return erro ? <InlineNotice>{erro}</InlineNotice> : <p className={pageStyles.muted}>Carregando funcionalidades...</p>;
+
+    const at = situacaoAtendimento(conta);
+    const mudou = JSON.stringify(lerRecursos(marcados, tipo)) !== JSON.stringify(conta.recursos);
+    return (
+        <div className={modalStyles.stack}>
+            <p className={`${modalStyles.hint} ${modalStyles.flush}`}>
+                <strong>{conta.liberados}</strong> de {conta.total} liberadas. O que estiver desligado some do painel da loja.
+                {' '}Atendimento: <StatusBadge tone={at.tone}>{at.label}</StatusBadge>{at.detalhe ? ` ${at.detalhe}` : ''}
+            </p>
+            <div>
+                <ListaDeRecursos tipo={tipo} marcados={marcados} disabled={salvando} onChange={(chave, valor) => { setAviso(null); setMarcados(prev => (prev ? { ...prev, [chave]: valor } : prev)); }} />
+            </div>
+            {erro && <InlineNotice>{erro}</InlineNotice>}
+            {aviso && <InlineNotice tone="positive">{aviso}</InlineNotice>}
+            <div>
+                <button type="button" className={modalStyles.primary} onClick={salvar} disabled={salvando || !mudou}>
+                    {salvando ? 'Salvando...' : 'Salvar funcionalidades'}
+                </button>
+            </div>
+        </div>
+    );
+}
+
 function EditarRecursos({ conta, onClose, onSaved }: { conta: Conta; onClose: () => void; onSaved: (c: Conta) => void }) {
     const [marcados, setMarcados] = useState<Recursos>(conta.recursos);
     const [salvando, setSalvando] = useState(false);
     const [erro, setErro] = useState<string | null>(null);
-    // Mesmas dependências do servidor: desligar a IA apaga o simulador na tela.
-    const efetivo = lerRecursos(marcados, conta.tipo);
 
     const alternar = (chave: Recurso, valor: boolean) => setMarcados(prev => ({ ...prev, [chave]: valor }));
 
-    async function salvar() {
+    async function salvar(event?: FormEvent) {
+        // Sem isto o envio do formulário recarregava a página antes de salvar.
+        event?.preventDefault();
         setSalvando(true);
         setErro(null);
         try {
-            const res = await fetch('/api/admin/recursos', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tipo: conta.tipo, id: conta.id, recursos: marcados }),
-            });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
-            onSaved(data);
+            onSaved(await salvarRecursos(conta, marcados));
         } catch (e) {
             setErro(e instanceof Error ? e.message : 'Erro ao salvar.');
         } finally {
@@ -213,37 +331,7 @@ function EditarRecursos({ conta, onClose, onSaved }: { conta: Conta; onClose: ()
             </>}
         >
             {erro && <InlineNotice>{erro}</InlineNotice>}
-            {GRUPOS_DE_RECURSOS.map(grupo => {
-                const itens = grupo.itens.filter(i => recursoAplica(i.chave, conta.tipo));
-                if (!itens.length) return null;
-                return (
-                    <section key={grupo.grupo} className={styles.grupo}>
-                        <h3 className={styles.grupoTitulo}>{grupo.grupo}</h3>
-                        {itens.map(item => {
-                            const bloqueado = Boolean(item.depende && !efetivo[item.depende]);
-                            return (
-                                <label key={item.chave} className={styles.item}>
-                                    <input
-                                        type="checkbox"
-                                        checked={efetivo[item.chave]}
-                                        disabled={bloqueado || salvando}
-                                        onChange={e => alternar(item.chave, e.target.checked)}
-                                    />
-                                    <span className={styles.itemTexto}>
-                                        <span className={styles.itemRotulo}>{item.rotulo}</span>
-                                        <span className={styles.itemDescricao}>{item.descricao}</span>
-                                        {bloqueado && item.depende && (
-                                            <span className={styles.itemAviso}>
-                                                Depende de “{GRUPOS_DE_RECURSOS.flatMap(g => g.itens).find(i => i.chave === item.depende)?.rotulo}”.
-                                            </span>
-                                        )}
-                                    </span>
-                                </label>
-                            );
-                        })}
-                    </section>
-                );
-            })}
+            <ListaDeRecursos tipo={conta.tipo} marcados={marcados} disabled={salvando} onChange={alternar} />
         </AdminModal>
     );
 }

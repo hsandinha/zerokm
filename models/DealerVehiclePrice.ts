@@ -8,6 +8,8 @@ export interface IDealerVehiclePrice extends Document {
     coresDisponiveis?: string[];
     observacoes?: string;
     operador?: string;
+    /** Nome de quem da loja (titular ou atendente) mexeu por último no preço/estoque. */
+    atualizadoPor?: string;
     statusVeiculo?: string;
     quantidade?: number;
     prazo?: number | null;
@@ -34,6 +36,7 @@ const DealerVehiclePriceSchema: Schema = new Schema({
     coresDisponiveis: { type: [String], default: [] },
     observacoes: { type: String },
     operador: { type: String },
+    atualizadoPor: { type: String, trim: true },
     statusVeiculo: { type: String },
     quantidade: { type: Number, min: 0, default: 0 },
     prazo: { type: Number, min: 0, default: null },

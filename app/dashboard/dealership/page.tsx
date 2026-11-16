@@ -7,8 +7,9 @@ import { VehicleConsultation } from '@/components/operator/VehicleConsultation';
 import KanbanBoard from '@/components/crm/KanbanBoard';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { MeusAnuncios } from '@/components/dealership/MeusAnuncios';
+import { CobrancasDaLoja } from '@/components/dealership/CobrancasDaLoja';
 import { DealerInventory } from '@/components/dealership/DealerInventory';
-import { StockReminderModal } from '@/components/dealership/StockReminderModal';
+import { StockReminderModal, confirmarEstoqueDaLoja } from '@/components/dealership/StockReminderModal';
 import { AvisosAssinante } from '@/components/cliente/AvisosAssinante';
 import { ConfigContext } from '@/lib/contexts/ConfigContext';
 import { Concessionaria } from '@/lib/services/concessionariaService';
@@ -16,8 +17,10 @@ import { Button, EmptyState, Page, PageHeader, SectionCard, StatCard, StatGrid, 
 import { InlineNotice } from '@/components/ui/Feedback';
 import { useRecursos } from '@/lib/hooks/useRecursos';
 import { ABAS_CONCESSIONARIA } from '@/components/dashboard/abas-dos-paineis';
+import { AtendentesDaLoja } from '@/components/dealership/Atendentes';
+import { usePapelDaLoja } from '@/lib/hooks/usePapelDaLoja';
 
-type Aba = 'visao-geral' | 'veiculos' | 'precos' | 'perfil' | 'crm' | 'anuncios';
+type Aba = 'visao-geral' | 'veiculos' | 'precos' | 'perfil' | 'crm' | 'anuncios' | 'atendentes' | 'cobrancas';
 
 interface DealershipMetrics {
     veiculosCadastrados: number;
@@ -36,7 +39,15 @@ export default function DealershipDashboard() {
     const [usuario, setUsuario] = useState<{ name?: string | null; email?: string | null }>({});
     // Abas que o CNV liberou para esta concessionária (lib/recursos.ts).
     const { pode } = useRecursos();
-    const tabs = TABS.filter(t => !t.recurso || pode(t.recurso)).map(({ recurso: _recurso, ...t }) => t);
+    // Sobe a cada confirmação de estoque: a Visão geral busca os indicadores de novo.
+    const [versaoEstoque, setVersaoEstoque] = useState(0);
+    const estoqueConfirmado = () => setVersaoEstoque(v => v + 1);
+    // Atendentes (cadastro da equipe) é só do titular; o atendente não vê a aba e a API recusa.
+    const { ehTitular, papel, carregado: papelCarregado } = usePapelDaLoja();
+    useEffect(() => {
+        if (papelCarregado && !ehTitular && (aba === 'atendentes' || aba === 'cobrancas')) setAba('visao-geral');
+    }, [papelCarregado, ehTitular, aba]);
+    const tabs = TABS.filter(t => (!t.soTitular || ehTitular) && (!t.recurso || pode(t.recurso))).map(({ recurso: _recurso, soTitular: _soTitular, ...t }) => t);
 
     // Vindo da área de Atendimento (o mesmo menu lateral): abre a aba pedida.
     useEffect(() => {
@@ -63,11 +74,11 @@ export default function DealershipDashboard() {
                 activeId={aba}
                 onSelect={id => (id === 'atendimento' ? window.location.assign('/dashboard/atendimento') : setAba(id as Aba))}
                 primaryIds={['visao-geral', 'veiculos', 'precos', 'crm', 'atendimento']}
-                user={{ name: usuario.name || 'Concessionária', email: usuario.email, role: 'Concessionária' }}
+                user={{ name: usuario.name || 'Concessionária', email: usuario.email, role: papel === 'atendente' ? 'Atendente' : 'Concessionária' }}
             >
-                <StockReminderModal onUpdateStock={() => setAba('precos')} />
+                <StockReminderModal onUpdateStock={() => setAba('precos')} onConfirmado={estoqueConfirmado} />
                 <AvisosAssinante />
-                {aba === 'visao-geral' && <VisaoGeral onAtualizar={() => setAba('precos')} />}
+                {aba === 'visao-geral' && <VisaoGeral versao={versaoEstoque} onRevisar={() => setAba('precos')} onConfirmado={estoqueConfirmado} />}
                 {aba === 'veiculos' && <VehicleConsultation role="dealership" />}
                 {aba === 'precos' && (
                     <Page wide>
@@ -77,7 +88,10 @@ export default function DealershipDashboard() {
                 )}
                 {aba === 'crm' && pode('crm') && <KanbanBoard />}
                 {aba === 'perfil' && <PerfilLoja onCadastrarVeiculo={() => setAba('precos')} />}
-                {aba === 'anuncios' && pode('anuncios') && <MeusAnuncios />}
+                {aba === 'anuncios' && pode('anuncios') && <MeusAnuncios podeContratar={papel !== 'atendente'} />}
+                {aba === 'atendentes' && ehTitular && <AtendentesDaLoja />}
+                {/* Cobrança é do titular: o atendente não vê nem paga. */}
+                {aba === 'cobrancas' && ehTitular && <CobrancasDaLoja />}
             </DashboardShell>
         </ConfigContext.Provider>
     );
@@ -90,16 +104,34 @@ function situacaoEstoque(dias: number) {
     return { tone: 'negative' as const, texto: 'Estoque desatualizado' };
 }
 
-function VisaoGeral({ onAtualizar }: { onAtualizar: () => void }) {
+function VisaoGeral({ versao, onRevisar, onConfirmado }: { versao: number; onRevisar: () => void; onConfirmado: () => void }) {
     const [m, setM] = useState<DealershipMetrics | null>(null);
     const [erro, setErro] = useState(false);
+    const [confirmando, setConfirmando] = useState(false);
+    const [aviso, setAviso] = useState<{ texto: string; ok: boolean } | null>(null);
 
     useEffect(() => {
-        fetch('/api/dealership/metrics')
+        fetch('/api/dealership/metrics', { cache: 'no-store' })
             .then(res => (res.ok ? res.json() : Promise.reject()))
-            .then(setM)
+            .then(dados => { setM(dados); setErro(false); })
             .catch(() => setErro(true));
-    }, []);
+    }, [versao]);
+
+    // Confirmar grava a data de hoje nos anúncios da loja. O botão antigo
+    // ("Atualizar estoque") só abria a aba de preços e não gravava nada.
+    const confirmar = async () => {
+        setConfirmando(true);
+        setAviso(null);
+        try {
+            const { total } = await confirmarEstoqueDaLoja();
+            setAviso({ ok: true, texto: total === 1 ? 'Estoque confirmado: 1 veículo com a data de hoje.' : `Estoque confirmado: ${total} veículos com a data de hoje.` });
+            onConfirmado();
+        } catch (error: any) {
+            setAviso({ ok: false, texto: error?.message || 'Não foi possível confirmar o estoque. Tente de novo.' });
+        } finally {
+            setConfirmando(false);
+        }
+    };
 
     const s = m ? situacaoEstoque(m.daysSinceUpdate) : null;
     const grafico = m?.chartData ?? [];
@@ -111,8 +143,14 @@ function VisaoGeral({ onAtualizar }: { onAtualizar: () => void }) {
             <PageHeader
                 title="Visão geral"
                 description="Seu estoque no CNV e há quanto tempo ele foi atualizado."
-                actions={<Button variant="primary" icon={<Tag size={16} aria-hidden="true" />} onClick={onAtualizar}>Atualizar estoque</Button>}
+                actions={<>
+                    <Button icon={<Tag size={16} aria-hidden="true" />} onClick={onRevisar}>Revisar preços</Button>
+                    <Button variant="primary" icon={<CircleCheck size={16} aria-hidden="true" />} onClick={confirmar} disabled={confirmando || !m || m.veiculosCadastrados === 0}>
+                        {confirmando ? 'Confirmando...' : 'Confirmar estoque atualizado'}
+                    </Button>
+                </>}
             />
+            {aviso && <InlineNotice tone={aviso.ok ? 'positive' : undefined}>{aviso.texto}</InlineNotice>}
             {erro && <InlineNotice>Não foi possível carregar os indicadores. Atualize a página.</InlineNotice>}
 
             <StatGrid>

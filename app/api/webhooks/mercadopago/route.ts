@@ -15,6 +15,8 @@ import {
 } from '../../../../lib/services/mercadoPagoSubscriptionService';
 import Banner from '../../../../models/Banner';
 import { DEALER_PLAN_PREFIX, processarPagamentoPlanoRepasse } from '@/lib/services/planoRepasseService';
+import { processarPagamentoCobrancaConcessionaria } from '@/lib/services/cobrancaConcessionariaService';
+import { BANNER_PREFIX, DEALER_COB_PREFIX } from '@/lib/utils/cobrancaConcessionaria';
 import { ATENDIMENTO_PREFIX, processarPagamentoAtendimento } from '@wa/lib/assinatura-atendimento';
 
 /**
@@ -417,6 +419,15 @@ export async function POST(req: NextRequest) {
         if (externalRef.startsWith(DEALER_PLAN_PREFIX)) {
             await connectDB();
             await processarPagamentoPlanoRepasse(payment, String(paymentId));
+            return NextResponse.json({ ok: true });
+        }
+
+        // Cobrança avulsa da concessionária e banner: também desviam antes do
+        // parse. "BANNER:<id>" era lido como firebaseUid:plano, o usuário nunca
+        // era achado e o banner pago ficava parado em "aguardando pagamento".
+        if (externalRef.startsWith(DEALER_COB_PREFIX) || externalRef.startsWith(BANNER_PREFIX)) {
+            await connectDB();
+            await processarPagamentoCobrancaConcessionaria(payment, String(paymentId));
             return NextResponse.json({ ok: true });
         }
 

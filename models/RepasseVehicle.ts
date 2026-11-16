@@ -53,9 +53,15 @@ export interface IRepasseVehicle extends Document {
     unicoDono?: boolean;
     /** Placa para a equipe achar o carro no pátio. Nunca vai à IA nem ao cliente. */
     placaInterna?: string;
-    /** Preço FIPE de referência no cadastro (só a equipe vê). */
+    /**
+     * Preço FIPE de referência e o mês da tabela. No estoque local só a equipe
+     * da loja vê; no repasse da concessionária aparece logo abaixo do preço
+     * para todos que veem a listagem. É referência: nunca recebe margem.
+     */
     precoFipe?: number;
     referenciaFipe?: string;
+    /** Última tentativa de buscar a FIPE que faltava (lib/services/repasseFipe.ts). */
+    fipeTentativaEm?: Date | null;
     /** disponivel | reservado | vendido | pausado. Ausente = disponível. A IA só oferece disponível. */
     situacao?: 'disponivel' | 'reservado' | 'vendido' | 'pausado';
     situacaoEm?: Date | null;
@@ -100,6 +106,7 @@ const RepasseVehicleSchema: Schema = new Schema({
     placaInterna: { type: String, trim: true, uppercase: true },
     precoFipe: { type: Number, min: 0 },
     referenciaFipe: { type: String, trim: true },
+    fipeTentativaEm: { type: Date },
     situacao: { type: String, enum: ['disponivel', 'reservado', 'vendido', 'pausado'] },
     situacaoEm: { type: Date, default: null },
     fotos: { type: [{ type: Schema.Types.ObjectId, ref: 'WaFotoEstoque' }], default: undefined },

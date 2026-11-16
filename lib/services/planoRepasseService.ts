@@ -120,9 +120,23 @@ export async function processarPagamentoPlanoRepasse(payment: any, paymentId: st
     }
 
     const status: string = payment.status;
-    const userId = ref.userId || (await User.findOne({ dealershipId: ref.concessionariaId }).select('_id').lean() as any)?._id;
+    // Sem usuário na referência: o titular da loja, nunca um atendente.
+    const userId = ref.userId || (await User.findOne({ dealershipId: ref.concessionariaId, papelLoja: { $ne: 'atendente' } })
+        .sort({ createdAt: 1 }).select('_id').lean() as any)?._id;
 
-    if (userId) {
+    // Baixa manual da equipe manda (mesma regra do lojista): o boleto que ela
+    // cancelou no Mercado Pago chega aqui como "cancelled" e não pode derrubar
+    // o "pago"; e o boleto pago depois da baixa não renova o plano outra vez.
+    const anterior = await Payment.findOne({ mpPaymentId: String(paymentId) }).select('baixaManual assinaturaAplicadaEm').lean() as any;
+    const comBaixa = Boolean(anterior?.baixaManual?.em);
+    // Exceção: a baixa foi dada sem liberar o plano e o boleto acabou pago.
+    // Aí o pagamento libera, como no banner e na cobrança avulsa.
+    if (comBaixa && !(status === 'approved' && !anterior.assinaturaAplicadaEm)) {
+        console.log(`[Webhook] Plano de repasse ${paymentId} já teve baixa manual; status do MP (${status}) ignorado.`);
+        return;
+    }
+
+    if (userId && !comBaixa) {
         await Payment.findOneAndUpdate(
             { mpPaymentId: String(paymentId) },
             {
@@ -155,6 +169,23 @@ export async function processarPagamentoPlanoRepasse(payment: any, paymentId: st
         return;
     }
 
+    // Marca no próprio pagamento que ele já liberou o plano. `lastPaymentId`
+    // só lembra o último: com dois boletos pagos, o aviso repetido do primeiro
+    // passaria por ele. É o mesmo campo que a baixa manual e a sincronização
+    // da tela de Cobranças usam (cobrancaConcessionariaService).
+    let marcado = false;
+    if (userId) {
+        const dono = await Payment.findOneAndUpdate(
+            { mpPaymentId: String(paymentId), assinaturaAplicadaEm: { $exists: false } },
+            { $set: { assinaturaAplicadaEm: new Date() } },
+        );
+        if (!dono) {
+            console.log(`[Webhook] Plano de repasse ${paymentId} já tinha sido liberado; nada a fazer.`);
+            return;
+        }
+        marcado = true;
+    }
+
     const result = await aplicarPlanoRepasse({
         concessionariaId: ref.concessionariaId,
         planId: ref.planId,
@@ -166,26 +197,46 @@ export async function processarPagamentoPlanoRepasse(payment: any, paymentId: st
 
     if (!result.ok) {
         console.error('[Webhook] Não foi possível ativar o plano de repasse:', result.error, ref);
+        if (marcado) await Payment.updateOne({ mpPaymentId: String(paymentId) }, { $unset: { assinaturaAplicadaEm: '' } });
         return;
     }
 
     if (result.aplicado && userId) {
-        const now = new Date();
-        await Transaction.findOneAndUpdate(
-            { referenceId: String(paymentId) },
-            {
-                $set: {
-                    userId,
-                    type: 'subscription',
-                    description: `Plano de Repasse - ${result.concessionaria?.planoRepasse?.planName || ''} (${ref.billingType === 'annual' ? 'Anual' : 'Mensal'})`,
-                    amount: payment.transaction_amount || 0,
-                    referenceId: String(paymentId),
-                    month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
-                    status: 'paid',
-                },
-            },
-            { upsert: true },
-        );
+        await registrarTransacaoPlanoRepasse({
+            userId,
+            referenceId: String(paymentId),
+            planName: result.concessionaria?.planoRepasse?.planName,
+            billingType: ref.billingType,
+            amount: payment.transaction_amount || 0,
+        });
     }
     console.log(`[Webhook] Plano de repasse ${result.aplicado ? 'ativado' : 'já aplicado'} para a concessionária ${ref.concessionariaId}.`);
+}
+
+/** Lançamento no extrato de quem pagou o plano de repasse. Um por pagamento. */
+export async function registrarTransacaoPlanoRepasse(params: {
+    userId: unknown;
+    referenceId: string;
+    planName?: string;
+    billingType: 'monthly' | 'annual';
+    amount: number;
+    now?: Date;
+}) {
+    if (!params.userId) return;
+    const now = params.now || new Date();
+    await Transaction.findOneAndUpdate(
+        { referenceId: params.referenceId },
+        {
+            $set: {
+                userId: params.userId,
+                type: 'subscription',
+                description: `Plano de Repasse - ${params.planName || ''} (${params.billingType === 'annual' ? 'Anual' : 'Mensal'})`,
+                amount: params.amount,
+                referenceId: params.referenceId,
+                month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
+                status: 'paid',
+            },
+        },
+        { upsert: true },
+    );
 }

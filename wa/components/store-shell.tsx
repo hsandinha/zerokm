@@ -31,6 +31,7 @@ import {
 import { DashboardShell, type ShellTab } from "@/components/dashboard/DashboardShell";
 import { ABAS_CONCESSIONARIA, abasDoCliente, type AbaDoPainel } from "@/components/dashboard/abas-dos-paineis";
 import { useRecursos } from "@/lib/hooks/useRecursos";
+import { usePapelDaLoja } from "@/lib/hooks/usePapelDaLoja";
 import { useFavoritos } from "@/lib/hooks/useFavoritos";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { WaPanelProvider, STORE_PANEL } from "@wa/components/wa-panel";
@@ -92,6 +93,8 @@ export function StoreShell({
   const [waiting, setWaiting] = useState(0);
   const gestor = store?.role === "admin";
   const { pode } = useRecursos();
+  // Aba Atendentes do painel da concessionária: só o titular vê.
+  const { ehTitular } = usePapelDaLoja(painel.tipo === "concessionaria");
   const podeFavoritar = painel.tipo === "cliente" && !painel.gratis && pode("favoritos");
   const { totalNovos } = useFavoritos(podeFavoritar);
 
@@ -139,7 +142,9 @@ export function StoreShell({
   const tabs: ShellTab[] = useMemo(() => {
     const doPainel: AbaDoPainel[] =
       painel.tipo === "concessionaria"
-        ? ABAS_CONCESSIONARIA.filter((t) => !t.recurso || t.id === "atendimento" || pode(t.recurso))
+        ? ABAS_CONCESSIONARIA.filter(
+            (t) => (!t.soTitular || ehTitular) && (!t.recurso || t.id === "atendimento" || pode(t.recurso)),
+          )
         : painel.tipo === "cliente"
           ? abasDoCliente({ podeFavoritar, novosFavoritos: totalNovos, podeAtendimento: true })
           : [{ id: "painel", label: "Painel", icon: icone(MessagesSquare, 20) }];
@@ -153,7 +158,7 @@ export function StoreShell({
       ...(badge ? { badge } : {}),
       ...(id === "atendimento" ? { children: telas } : {}),
     }));
-  }, [painel.tipo, pode, podeFavoritar, totalNovos, telas]);
+  }, [painel.tipo, pode, ehTitular, podeFavoritar, totalNovos, telas]);
 
   // Tela ativa pela rota: /dashboard/atendimento/<tela>/...
   const slug = pathname.startsWith(`${BASE}/`) ? pathname.slice(BASE.length + 1).split("/")[0] : "central";

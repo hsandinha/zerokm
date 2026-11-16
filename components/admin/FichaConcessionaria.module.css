@@ -1,0 +1,44 @@
+/* Ficha da concessionária: abas na faixa do modal e corpo com altura estável entre as abas. */
+.abas { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+.abas::-webkit-scrollbar { display: none; }
+.abaPonto {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--color-warning, #d97706);
+}
+
+.corpo { min-height: min(620px, 70dvh); }
+
+.selos { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.selo {
+    display: inline-flex; padding: 0; border: 0; background: transparent; cursor: pointer; border-radius: 999px;
+}
+.selo:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+.pendencias { display: flex; flex-direction: column; gap: 8px; margin: 0 0 16px; padding: 0; list-style: none; }
+.pendencia {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    padding: 10px 12px; border: 1px solid var(--admin-border, var(--color-highlight)); border-radius: 10px;
+    font-size: 14px; color: var(--color-text);
+}
+.pendenciaTexto { display: flex; align-items: center; gap: 10px; min-width: 0; }
+
+.secao + .secao { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--admin-border, var(--color-highlight)); }
+.secaoTitulo { margin: 0 0 4px; font-size: 15px; font-weight: 650; color: var(--color-text); }
+.secaoTexto { margin: 0 0 14px; font-size: 13px; color: var(--color-text-muted); }
+
+.cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 20px; align-items: start; }
+
+.marcas { display: flex; flex-wrap: wrap; gap: 8px; max-height: 360px; overflow: auto; padding: 2px; }
+
+.acoesDaAba { display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+
+/* Cadastro guiado */
+.passos { display: flex; gap: 6px; margin: 0; padding: 12px 0; list-style: none; overflow-x: auto; scrollbar-width: none; }
+.passo {
+    display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; white-space: nowrap;
+    font-size: 13px; font-weight: 500; color: var(--color-text-muted);
+    border: 1px solid var(--admin-border, var(--color-highlight));
+}
+.passo[data-estado='atual'] { color: var(--color-surface); background: var(--color-primary); border-color: transparent; font-weight: 600; }
+.passo[data-estado='feito'] { color: var(--color-text); }
+.passoNumero { font-variant-numeric: tabular-nums; }

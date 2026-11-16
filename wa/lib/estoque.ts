@@ -25,6 +25,7 @@ import { acessoBloqueado } from "@/lib/utils/acessoAssinatura";
 import type { IWaStore } from "@wa/models/store";
 import { FILTRO_OFERECIVEL } from "@wa/lib/estoque-ficha";
 import { linkDaFotoEstoque } from "@wa/lib/foto-estoque";
+import { aplicarMargem as aplicarMargemDaVitrine, faixasSalvas } from "@/lib/utils/margem";
 
 export type Origem = "0km" | "usado" | "local";
 
@@ -62,12 +63,19 @@ export type FiltrosEstoque = {
   tipo?: "0km" | "usado" | "todos";
 };
 
-type Margem = { mode: "percent" | "fixed"; percentValue: number; fixedValue: number };
+type Margem = { mode: "percent" | "fixed"; percentValue: number; fixedValue: number; faixas?: unknown };
 
+// A mesma conta da vitrine (lib/utils/margem.ts), faixas de preço incluídas.
 function aplicarMargem(preco: number, m: Margem | null): number {
   if (!m) return preco;
-  const v = m.mode === "fixed" ? preco + (m.fixedValue || 0) : preco * (1 + (m.percentValue || 0) / 100);
-  return Math.round(v);
+  return Math.round(
+    aplicarMargemDaVitrine(preco, {
+      margem: m.percentValue || 0,
+      marginMode: m.mode === "fixed" ? "fixed" : "percent",
+      fixedMargin: m.fixedValue || 0,
+      faixas: faixasSalvas(m.faixas),
+    }),
+  );
 }
 
 function escapar(s: string): string {

@@ -5,6 +5,7 @@ import connectDB from '@/lib/mongodb';
 import { mpPost } from '@/lib/mercadopago';
 import Plan from '@/models/Plan';
 import User from '@/models/User';
+import { barrarAtendente } from '@/lib/services/acessoLoja';
 import { DEALERSHIP_PROFILES, resolveDealershipScope } from '@/lib/services/dealershipScope';
 import { buildDealerPlanReference } from '@/lib/services/planoRepasseService';
 import { isPlanoConcessionaria, precoPlano } from '@/lib/utils/planoRepasse';
@@ -26,6 +27,9 @@ export async function POST(request: Request) {
         }
 
         await connectDB();
+        // Contratar e pagar plano é do titular; o atendente só opera.
+        const recusa = await barrarAtendente(session, 'cobranca');
+        if (recusa) return recusa;
         const scope = await resolveDealershipScope(session, request);
         const concessionaria = scope.concessionaria;
         if (!concessionaria) return NextResponse.json({ error: 'Concessionária não encontrada' }, { status: 404 });

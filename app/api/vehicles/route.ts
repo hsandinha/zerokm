@@ -17,6 +17,10 @@ import { authOptions } from '@/lib/authOptions';
 import { createExpiredFreeTrialWindow, isFreeTrialExpired } from '@/lib/utils/freeTrial';
 import { rotuloAno } from '@/lib/utils/anoVeiculo';
 import { acessoBloqueado } from '@/lib/utils/acessoAssinatura';
+import { agendarPreenchimentoFipe } from '@/lib/services/repasseFipe';
+import { DEALERSHIP_PROFILES, STAFF_PROFILES, resolveDealershipScope } from '@/lib/services/dealershipScope';
+import { atualizarDataDosAnuncios } from '@/lib/services/estoqueAtualizacao';
+import { lojaTemMarca, perfilDaConsulta } from '@/lib/utils/marcasDaLoja';
 
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const normalizeAccessProfile = (profile?: string | null) => profile === 'dealership' ? 'concessionaria' : profile;
@@ -82,6 +86,12 @@ function repasseAsVitrineStages(now: Date = new Date()) {
                 statusVeiculo: '$status',
                 ativo: { $literal: true },
                 km: 1,
+                // FIPE de referência do usado (não recebe margem) e o que o
+                // preenchimento dos cadastros antigos precisa para buscar.
+                precoFipe: 1,
+                referenciaFipe: 1,
+                codigoFipe: 1,
+                fipeTentativaEm: 1,
                 createdAt: 1,
                 updatedAt: 1,
                 variation: {
@@ -113,7 +123,12 @@ export async function GET(request: Request) {
         await connectDB();
 
         const { searchParams } = new URL(request.url);
-        const effectiveProfile = getEffectiveProfile(session, searchParams.get('accessProfile'));
+        let effectiveProfile = getEffectiveProfile(session, searchParams.get('accessProfile'));
+        // Login de concessionária com teste grátis de lojista: vale a loja, não a vitrine inteira.
+        if (effectiveProfile === 'gratis' && session.user?.email) {
+            const vinculo = await User.findOne({ email: session.user.email }).select('dealershipId').lean() as any;
+            effectiveProfile = perfilDaConsulta(effectiveProfile, vinculo);
+        }
 
         // --- Verificações de Assinatura e Teste Grátis ---
         if ((effectiveProfile === 'gratis' || effectiveProfile === 'cliente') && session.user?.email) {
@@ -159,6 +174,11 @@ export async function GET(request: Request) {
 
             if (!restrictedDealershipId) {
                 return NextResponse.json({ data: [], total: 0, hasNextPage: false, page: 1, totalPages: 0 });
+            }
+            // Sem marca vinculada pela equipe, a concessionária não vê nada.
+            const loja = await Concessionaria.findById(restrictedDealershipId).select('marcaIds marcas marcaId marca').lean();
+            if (!lojaTemMarca(loja as any)) {
+                return NextResponse.json({ data: [], total: 0, hasNextPage: false, page: 1, totalPages: 0, code: 'BRAND_NOT_LINKED' });
             }
         }
 
@@ -364,6 +384,10 @@ export async function GET(request: Request) {
                 statusVeiculo: 1,
                 ativo: 1,
                 km: 1,
+                precoFipe: 1,
+                referenciaFipe: 1,
+                codigoFipe: 1,
+                fipeTentativaEm: 1,
                 createdAt: 1,
                 updatedAt: 1,
                 variation: {
@@ -431,6 +455,20 @@ export async function GET(request: Request) {
             ]),
         ]);
 
+        // Repasse antigo sem preço FIPE nesta página: busca depois da resposta,
+        // poucos por vez e no máximo uma tentativa por dia para cada carro.
+        agendarPreenchimentoFipe(
+            data.filter((doc: any) => doc.origem === 'repasse').map((doc: any) => ({
+                _id: doc._id,
+                tipoVeiculo: doc.variation?.tipoVeiculo,
+                codigoFipe: doc.codigoFipe,
+                anoModelo: doc.variation?.anoModelo,
+                combustivel: doc.variation?.combustivel,
+                precoFipe: doc.precoFipe,
+                fipeTentativaEm: doc.fipeTentativaEm,
+            })),
+        );
+
         const total = totais[0]?.total || 0;
         const totalQuantidade = totais[0]?.quantidade || 0;
 
@@ -446,6 +484,10 @@ export async function GET(request: Request) {
                 variationId: isRepasse ? undefined : v._id.toString(),
                 origem: isRepasse ? 'repasse' : 'novo',
                 km: isRepasse ? doc.km : 0,
+                // Referência FIPE do usado, para a linha abaixo do preço. Sem margem.
+                ...(isRepasse && typeof doc.precoFipe === 'number' && doc.precoFipe > 0
+                    ? { precoFipe: doc.precoFipe, referenciaFipe: doc.referenciaFipe || '' }
+                    : {}),
                 concessionariaId: c._id?.toString(),
                 
                 // Mapped from Variation
@@ -530,14 +572,23 @@ export async function PATCH(request: Request) {
             if (!ids || !Array.isArray(ids) || ids.length === 0) {
                 return NextResponse.json({ error: 'IDs são obrigatórios' }, { status: 400 });
             }
-            const now = new Date();
-            const result = await DealerVehiclePrice.updateMany(
-                { _id: { $in: ids } },
-                { $set: { updatedAt: now } }
-            );
+            // Só quem tem o botão "Atualizar data" na consulta: a equipe (com o
+            // vendedor) em qualquer loja, e a concessionária apenas nos anúncios
+            // dela. Antes qualquer usuário logado carimbava qualquer anúncio.
+            const perfil = session.user?.profile || '';
+            const ehLoja = DEALERSHIP_PROFILES.has(perfil);
+            if (!ehLoja && !STAFF_PROFILES.has(perfil) && perfil !== 'vendedor') {
+                return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
+            }
+            const scope = ehLoja ? await resolveDealershipScope(session, request) : null;
+            if (ehLoja && !scope?.concessionaria) {
+                return NextResponse.json({ error: 'Usuário sem concessionária vinculada' }, { status: 403 });
+            }
+            // 0KM e repasse: a lista mistura os dois e o repasse ficava de fora.
+            const modifiedCount = await atualizarDataDosAnuncios(ids, scope?.concessionaria ? scope.concessionaria._id : null);
             return NextResponse.json({
-                message: `Data de atualização atualizada para ${result.modifiedCount} veículos`,
-                modifiedCount: result.modifiedCount
+                message: `Data de atualização atualizada para ${modifiedCount} veículos`,
+                modifiedCount
             });
         }
 

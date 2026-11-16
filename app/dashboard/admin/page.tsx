@@ -23,6 +23,7 @@ import { AvisosManagement } from '@/components/admin/AvisosManagement';
 import { RecursosManagement } from '@/components/admin/RecursosManagement';
 import { useRouter } from 'next/navigation';
 import { ABAS_ADMIN, abasDoAdmin } from '@/components/dashboard/abas-dos-paineis';
+import { faixasSalvas, type FaixaDeMargem } from '@/lib/utils/margem';
 
 const VehicleConsultation = dynamic<any>(
     () =>
@@ -46,6 +47,7 @@ export default function AdminDashboard() {
     const [margem, setMargem] = useState<number>(0);
     const [fixedMargin, setFixedMargin] = useState<number>(0);
     const [marginMode, setMarginMode] = useState<'percent' | 'fixed'>('percent');
+    const [faixas, setFaixas] = useState<FaixaDeMargem[]>([]);
     const [userInfo, setUserInfo] = useState<{ name?: string | null; email?: string | null; profile?: string }>({});
     useEffect(() => {
         const fetchMargem = async () => {
@@ -56,6 +58,7 @@ export default function AdminDashboard() {
                     setMargem(data.margem || 0);
                     setFixedMargin(data.fixedMargin || 0);
                     setMarginMode(data.marginMode === 'fixed' ? 'fixed' : 'percent');
+                    setFaixas(faixasSalvas(data.faixas));
                 }
             } catch (error) {
                 console.error('Erro ao carregar margem:', error);
@@ -69,18 +72,19 @@ export default function AdminDashboard() {
         fetchMargem();
     }, []);
 
-    const updateMargem = async (newMargem: number, mode: 'percent' | 'fixed' = marginMode, newFixedMargin: number = fixedMargin) => {
+    const updateMargem = async (newMargem: number, mode: 'percent' | 'fixed' = marginMode, newFixedMargin: number = fixedMargin, novasFaixas?: FaixaDeMargem[]) => {
         try {
             const response = await fetch('/api/config/margem', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ margem: newMargem, marginMode: mode, fixedMargin: newFixedMargin })
+                body: JSON.stringify({ margem: newMargem, marginMode: mode, fixedMargin: newFixedMargin, ...(novasFaixas ? { faixas: novasFaixas } : {}) })
             });
 
             if (response.ok) {
                 setMargem(newMargem);
                 setFixedMargin(newFixedMargin);
                 setMarginMode(mode);
+                if (novasFaixas) setFaixas(faixasSalvas(novasFaixas));
                 // Manter localStorage como backup
                 localStorage.setItem('vehicleMargem', newMargem.toString());
             } else {
@@ -141,7 +145,10 @@ export default function AdminDashboard() {
             case 'visao-geral':
                 return <VisaoGeralTab userInfo={userInfo} />;
             case 'usuarios':
-                return <UsersTable onViewInCRM={(email) => { setActiveTab('crm'); setCrmHighlightEmail(email); }} />;
+                return <UsersTable
+                    onViewInCRM={(email) => { setActiveTab('crm'); setCrmHighlightEmail(email); }}
+                    destinos={{ concessionarias: () => setActiveTab('concessionarias'), crm: () => setActiveTab('crm') }}
+                />;
             case 'veiculos':
                 return <VehicleConsultation role={userInfo.profile as any || 'admin'} />;
             case 'estoque-concessionarias':
@@ -176,7 +183,7 @@ export default function AdminDashboard() {
     };
 
     return (
-        <ConfigContext.Provider value={{ margem, fixedMargin, marginMode, setMargem: (v: number) => updateMargem(v, marginMode, fixedMargin), setMarginConfig: ({ margem: v, marginMode: m, fixedMargin: f }) => updateMargem(v, m, f) }}>
+        <ConfigContext.Provider value={{ margem, fixedMargin, marginMode, faixas, setMargem: (v: number) => updateMargem(v, marginMode, fixedMargin), setMarginConfig: ({ margem: v, marginMode: m, fixedMargin: f, faixas: fx }) => updateMargem(v, m, f, fx) }}>
             <DashboardShell
                 sectionLabel="Administração"
                 tabs={tabs}

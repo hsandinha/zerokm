@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/authOptions';
 import connectDB from '@/lib/mongodb';
 import { createPreference } from '@/lib/mercadopago';
 import Banner from '@/models/Banner';
+import { barrarAtendente } from '@/lib/services/acessoLoja';
 import mongoose from 'mongoose';
 
 export async function POST(req: NextRequest) {
@@ -20,6 +21,10 @@ export async function POST(req: NextRequest) {
     }
 
     await connectDB();
+
+    // Anúncio é pago: na concessionária, só o titular contrata.
+    const recusa = await barrarAtendente(session, 'cobranca');
+    if (recusa) return recusa;
 
     // Buscar configurações de banner
     const db = mongoose.connection.useDb('zerokm');

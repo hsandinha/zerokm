@@ -13,6 +13,7 @@ import Invite from "@/models/Invite";
 import { WaStore, type IWaStore, type StoreRole } from "@wa/models/store";
 import { recursosDaConta } from "@/lib/services/recursosConta";
 import type { Recursos } from "@/lib/recursos";
+import { acessoLiberado, papelDoUsuario } from "@/lib/utils/atendentesLoja";
 
 export const STORE_TRIAL_DAYS = 7;
 
@@ -77,7 +78,8 @@ async function createStore(data: Partial<IWaStore>): Promise<IWaStore> {
 /**
  * Loja que esta pessoa opera, e com que papel. Ordem:
  *   1. está na equipe de uma loja (convidada pelo gestor) → papel de lá;
- *   2. usuário de concessionária → gestor da loja da concessionária;
+ *   2. usuário de concessionária → titular é gestor, atendente é atendente
+ *      (lib/utils/atendentesLoja.ts); atendente desativado não entra;
  *   3. sub-usuário de um lojista (convite aceito) → atendente da loja dele;
  *   4. lojista titular → gestor da própria loja.
  */
@@ -88,19 +90,27 @@ export async function membershipFor(user: {
   await dbConnect();
   const email = user.email.toLowerCase();
 
+  // Atendente desativado na concessionária não entra, nem se o e-mail também
+  // estiver na equipe do atendimento.
+  const cadastro = await User.findOne({ email }).select("dealershipId papelLoja atendenteInativo").lean();
+  if (cadastro?.dealershipId && !acessoLiberado(cadastro)) return null;
+
   const asMember = await WaStore.findOne({ "members.email": email });
   if (asMember) {
     const m = asMember.members.find((x) => x.email === email);
     return { store: asMember, role: m?.role ?? "atendente" };
   }
 
-  const doc = await User.findOne({ email }).select("_id dealershipId allowedProfiles").lean();
+  const doc = await User.findOne({ email })
+    .select("_id dealershipId allowedProfiles papelLoja atendenteInativo")
+    .lean();
   if (!doc) return null;
   const perfis = [...user.profiles, ...(doc.allowedProfiles ?? [])];
 
   if (perfis.some((p) => DEALERSHIP_PROFILES.includes(p)) && doc.dealershipId) {
+    if (!acessoLiberado(doc)) return null;
     const store = await storeOfConcessionaria(String(doc.dealershipId));
-    if (store) return { store, role: "gestor" };
+    if (store) return { store, role: papelDoUsuario(doc) === "atendente" ? "atendente" : "gestor" };
   }
 
   if (perfis.some((p) => LOJISTA_PROFILES.includes(p))) {

@@ -3,6 +3,9 @@
 import { InlineNotice, useFeedback } from '@/components/ui/Feedback';
 import { Button } from '@/components/ui/Page';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
+import { EmitirBoletoConcessionariaModal } from '@/components/admin/EmitirBoletoConcessionariaModal';
+import { BoletoDetalhes, CadastroIncompleto, type CobrancaDaLoja } from './BoletoDetalhes';
 import styles from './RepasseCatalog.module.css';
 
 type PlanoInfo = {
@@ -34,8 +37,9 @@ const METODO_LABEL: Record<string, string> = {
 
 /**
  * Plano de repasse da concessionária.
- * - Concessionária (sem `concessionariaId`): vê a situação e contrata/renova por PIX.
+ * - Concessionária (sem `concessionariaId`): vê a situação e contrata/renova por PIX ou boleto.
  * - Equipe interna (com `concessionariaId`): ativa manualmente ou como cortesia, ou desativa.
+ *   Admin e administrativo também emitem o boleto do plano para a loja.
  */
 export function PlanoRepasseCard({ concessionariaId, onChange }: { concessionariaId?: string; onChange?: (ativo: boolean) => void }) {
     const { confirm, feedback } = useFeedback();
@@ -45,6 +49,8 @@ export function PlanoRepasseCard({ concessionariaId, onChange }: { concessionari
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [expandido, setExpandido] = useState(false);
+    // Atendente da loja: a API só diz se o repasse está liberado (plano e cobrança são do titular).
+    const [somenteSituacao, setSomenteSituacao] = useState(false);
 
     const [planId, setPlanId] = useState('');
     const [billing, setBilling] = useState<'monthly' | 'annual'>('monthly');
@@ -53,6 +59,11 @@ export function PlanoRepasseCard({ concessionariaId, onChange }: { concessionari
     const [pix, setPix] = useState<Pix | null>(null);
     const [copiado, setCopiado] = useState(false);
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    // Boleto: a loja gera o dela; a equipe (admin/administrativo) emite para a loja.
+    const [podeEmitirBoleto, setPodeEmitirBoleto] = useState(false);
+    const [emitindoBoleto, setEmitindoBoleto] = useState(false);
+    const [boleto, setBoleto] = useState<CobrancaDaLoja | null>(null);
+    const [boletoFaltando, setBoletoFaltando] = useState<string[] | null>(null);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -64,6 +75,8 @@ export function PlanoRepasseCard({ concessionariaId, onChange }: { concessionari
             if (!res.ok) throw new Error(body.error || 'Erro ao carregar o plano');
             setPlano(body.plano);
             setPlanos(body.planos || []);
+            setSomenteSituacao(Boolean(body.somenteSituacao));
+            setPodeEmitirBoleto(body.podeEmitirBoleto === true);
             setPlanId(prev => prev || body.plano?.planId || body.planos?.[0]?.id || '');
             onChange?.(Boolean(body.plano?.ativo));
         } catch (err: any) {
@@ -110,6 +123,31 @@ export function PlanoRepasseCard({ concessionariaId, onChange }: { concessionari
         }
     };
 
+    const gerarBoleto = async () => {
+        if (!escolhido) return;
+        setBusy(true);
+        setError(null);
+        try {
+            const res = await fetch('/api/checkout/plano-repasse/boleto', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ planId: escolhido.id, billingType: billing }),
+            });
+            const body = await res.json();
+            // Cadastro incompleto: o modal diz o que falta em vez de um erro solto.
+            if (!res.ok && Array.isArray(body.faltando) && body.faltando.length > 0) {
+                setBoletoFaltando(body.faltando);
+                return;
+            }
+            if (!res.ok) throw new Error(body.error || 'Erro ao gerar boleto');
+            setBoleto(body.cobranca);
+        } catch (err: any) {
+            setError(err?.message || 'Erro ao gerar boleto');
+        } finally {
+            setBusy(false);
+        }
+    };
+
     const ativarManual = async (acao: 'ativar' | 'desativar') => {
         if (acao === 'desativar') {
             const ok = await confirm({ title: 'Desativar plano de repasse', description: 'Os anúncios de repasse da loja saem da vitrine na hora.', confirmLabel: 'Desativar plano', danger: true });
@@ -137,6 +175,19 @@ export function PlanoRepasseCard({ concessionariaId, onChange }: { concessionari
     if (loading && !plano) return <div className={styles.planoCard}>Carregando plano de repasse...</div>;
 
     const ativo = Boolean(plano?.ativo);
+    if (somenteSituacao) {
+        if (ativo) return null;
+        return (
+            <div className={`${styles.planoCard} ${styles.planoInativo}`}>
+                <div className={styles.planoHeader}>
+                    <div>
+                        <strong>Repasse indisponível</strong>
+                        <p className={styles.planoTexto}>Os anúncios de repasse estão fora da vitrine. Fale com o titular da concessionária.</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
     const vencido = !ativo && plano?.status === 'active' && plano?.expiresAt;
 
     return (
@@ -216,14 +267,20 @@ export function PlanoRepasseCard({ concessionariaId, onChange }: { concessionari
                             {isStaff && ativo && (
                                 <Button variant="danger" onClick={() => ativarManual('desativar')} disabled={busy}>Desativar plano</Button>
                             )}
+                            {isStaff && podeEmitirBoleto && (
+                                <Button onClick={() => setEmitindoBoleto(true)} disabled={busy}>Emitir boleto</Button>
+                            )}
                             {isStaff ? (
                                 <Button variant="primary" onClick={() => ativarManual('ativar')} disabled={busy || !planId}>
                                     {busy ? 'Salvando...' : ativo ? 'Renovar' : 'Ativar'}
                                 </Button>
                             ) : (
-                                <Button variant="primary" onClick={gerarPix} disabled={busy || !escolhido}>
-                                    {busy ? 'Gerando PIX...' : `Pagar ${brl(valor)} com PIX`}
-                                </Button>
+                                <>
+                                    <Button onClick={gerarBoleto} disabled={busy || !escolhido}>Pagar com boleto</Button>
+                                    <Button variant="primary" onClick={gerarPix} disabled={busy || !escolhido}>
+                                        {busy ? 'Gerando...' : `Pagar ${brl(valor)} com PIX`}
+                                    </Button>
+                                </>
                             )}
                         </div>
                     )}
@@ -231,6 +288,35 @@ export function PlanoRepasseCard({ concessionariaId, onChange }: { concessionari
             )}
 
             {error && <InlineNotice>{error}</InlineNotice>}
+
+            {boleto && (
+                <AdminModal
+                    title="Boleto do plano de repasse"
+                    subtitle="O plano ativa sozinho quando o boleto compensar, em até 3 dias úteis."
+                    size="sm"
+                    onClose={() => setBoleto(null)}
+                    footer={<button type="button" className={modalStyles.primary} onClick={() => setBoleto(null)}>Fechar</button>}
+                >
+                    <BoletoDetalhes cobranca={boleto} />
+                </AdminModal>
+            )}
+            {boletoFaltando && (
+                <AdminModal
+                    title="Cadastro incompleto"
+                    size="sm"
+                    onClose={() => setBoletoFaltando(null)}
+                    footer={<button type="button" className={modalStyles.primary} onClick={() => setBoletoFaltando(null)}>Entendi</button>}
+                >
+                    <CadastroIncompleto faltando={boletoFaltando} />
+                </AdminModal>
+            )}
+            {emitindoBoleto && concessionariaId && (
+                <EmitirBoletoConcessionariaModal
+                    concessionaria={{ id: concessionariaId }}
+                    tipoInicial="plano"
+                    onClose={() => setEmitindoBoleto(false)}
+                />
+            )}
             {feedback}
         </div>
     );

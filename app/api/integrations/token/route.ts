@@ -5,6 +5,7 @@ import User from '@/models/User';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import crypto from 'crypto';
+import { barrarAtendente } from '@/lib/services/acessoLoja';
 
 export async function GET(request: Request) {
     try {
@@ -12,6 +13,10 @@ export async function GET(request: Request) {
         if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
         await connectDB();
+
+        // Token de integração dá acesso à loja por API: só o titular vê e gera.
+        const recusa = await barrarAtendente(session, 'integracoes');
+        if (recusa) return recusa;
         
         // Admins can manage a global token (we will just attach it to a "Global" placeholder or use a default one)
         // For simplicity, let's say the token belongs to the User if they are Admin, or the Concessionaria.
@@ -45,6 +50,9 @@ export async function POST(request: Request) {
         if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
         await connectDB();
+
+        const recusa = await barrarAtendente(session, 'integracoes');
+        if (recusa) return recusa;
         
         let targetDoc: any = null;
 

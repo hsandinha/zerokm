@@ -10,6 +10,7 @@ import { filtroPlanoRepasseAtivo } from '@/lib/utils/planoRepasse';
 import { filtroLojaNaVitrine } from '@/lib/services/vitrineConcessionaria';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
+import { lojaTemMarca, perfilDaConsulta } from '@/lib/utils/marcasDaLoja';
 
 const normalizeAccessProfile = (profile?: string | null) => profile === 'dealership' ? 'concessionaria' : profile;
 
@@ -53,7 +54,12 @@ export async function GET(request: Request) {
         const lojasComPlano = incluiRepasse
             ? await Concessionaria.find(filtroPlanoRepasseAtivo()).select('_id ocultarVitrine').lean()
             : [];
-        const effectiveProfile = getEffectiveProfile(session, searchParams.get('accessProfile'));
+        let effectiveProfile = getEffectiveProfile(session, searchParams.get('accessProfile'));
+        // Login de concessionária com teste grátis de lojista: vale a loja, não a vitrine inteira.
+        if (effectiveProfile === 'gratis' && session.user?.email) {
+            const vinculo = await User.findOne({ email: session.user.email }).select('dealershipId').lean() as any;
+            effectiveProfile = perfilDaConsulta(effectiveProfile, vinculo);
+        }
 
         const defaultFields = ['modelo', 'cor', 'ano', 'status', 'combustivel', 'transmissao', 'opcionais'];
         const fields = (fieldsParam ? fieldsParam.split(',') : defaultFields).filter(Boolean);
@@ -68,6 +74,11 @@ export async function GET(request: Request) {
 
             // If logged in as concessionaria but no dealership found/linked, return empty
             if (!restrictedDealershipId) {
+                return NextResponse.json({ suggestions: {} });
+            }
+            // Sem marca vinculada pela equipe, a concessionária não vê nada.
+            const loja = await Concessionaria.findById(restrictedDealershipId).select('marcaIds marcas marcaId marca').lean();
+            if (!lojaTemMarca(loja as any)) {
                 return NextResponse.json({ suggestions: {} });
             }
         }

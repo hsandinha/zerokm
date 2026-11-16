@@ -46,7 +46,7 @@ function linha(tipo: TipoConta, doc: any, store: any | undefined) {
 }
 
 /**
- * GET /api/admin/recursos?tipo=concessionaria|lojista&q=&page=
+ * GET /api/admin/recursos?tipo=concessionaria|lojista&q=&page=&id=
  * Contas de cliente com as funcionalidades liberadas (lib/recursos.ts).
  * Lojista = o titular; os sub-usuários dele seguem o que vale para ele.
  */
@@ -60,11 +60,15 @@ export async function GET(request: Request) {
         const q = (searchParams.get('q') || '').trim();
         const page = Math.max(1, parseInt(searchParams.get('page') || '1') || 1);
         const busca = q ? { $regex: escapeRegex(q), $options: 'i' } : null;
+        // Ficha da concessionária: só a conta dela.
+        const soId = (searchParams.get('id') || '').trim();
+        if (soId && !mongoose.isValidObjectId(soId)) return NextResponse.json({ data: [], total: 0, page: 1, totalPages: 1 });
 
         let docs: any[];
         let total: number;
         if (tipo === 'concessionaria') {
-            const filtro = busca ? { $or: [{ nome: busca }, { razaoSocial: busca }, { cnpj: busca }, { cidade: busca }] } : {};
+            const filtro: any = busca ? { $or: [{ nome: busca }, { razaoSocial: busca }, { cnpj: busca }, { cidade: busca }] } : {};
+            if (soId) filtro._id = soId;
             [docs, total] = await Promise.all([
                 Concessionaria.find(filtro).select('nome razaoSocial cidade uf recursos').sort({ nome: 1 })
                     .skip((page - 1) * POR_PAGINA).limit(POR_PAGINA).lean(),
@@ -73,6 +77,7 @@ export async function GET(request: Request) {
         } else {
             const filtro: any = { allowedProfiles: { $in: ['cliente', 'gratis'] }, isInvitee: { $ne: true } };
             if (busca) filtro.$or = [{ displayName: busca }, { email: busca }];
+            if (soId) filtro._id = soId;
             [docs, total] = await Promise.all([
                 User.find(filtro).select('displayName email recursos').sort({ displayName: 1, email: 1 })
                     .skip((page - 1) * POR_PAGINA).limit(POR_PAGINA).lean(),

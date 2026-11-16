@@ -1,5 +1,6 @@
 import Concessionaria from '@/models/Concessionaria';
 import User from '@/models/User';
+import { acessoLiberado } from '@/lib/utils/atendentesLoja';
 
 /**
  * Quem pode mexer no estoque de uma concessionária.
@@ -27,7 +28,9 @@ export async function resolveDealershipScope(session: any, request: Request): Pr
     }
 
     if (profile && DEALERSHIP_PROFILES.has(profile)) {
-        const user = await User.findOne({ email: session.user.email }).select('dealershipId');
+        const user = await User.findOne({ email: session.user.email }).select('dealershipId papelLoja atendenteInativo');
+        // Atendente desativado não opera a loja, mesmo com a sessão ainda aberta.
+        if (user && !acessoLiberado(user)) return { kind: 'none', concessionaria: null };
         const concessionaria = user?.dealershipId ? await Concessionaria.findById(user.dealershipId) : null;
         return { kind: 'dealership', concessionaria };
     }

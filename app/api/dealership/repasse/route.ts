@@ -5,7 +5,8 @@ import connectDB from '@/lib/mongodb';
 import RepasseVehicle from '@/models/RepasseVehicle';
 import VehicleVariation from '@/models/VehicleVariation';
 import { resolveDealershipScope } from '@/lib/services/dealershipScope';
-import { REPASSE_STATUS, parseRepasseFipe, serializeRepasse, validateRepasse } from '@/lib/utils/repasse';
+import { REPASSE_STATUS, parseRepasseFipe, parseRepassePrecoFipe, serializeRepasse, validateRepasse } from '@/lib/utils/repasse';
+import { agendarPreenchimentoFipe } from '@/lib/services/repasseFipe';
 import { MSG_PLANO_REPASSE_INATIVO, isPlanoRepasseAtivo, serializePlanoRepasse } from '@/lib/utils/planoRepasse';
 
 export const dynamic = 'force-dynamic';
@@ -42,6 +43,9 @@ export async function GET(request: Request) {
             RepasseVehicle.countDocuments(query),
             RepasseVehicle.aggregate([{ $match: baseCount }, { $group: { _id: '$status', n: { $sum: 1 } } }]),
         ]);
+
+        // Cadastro antigo sem preço FIPE: busca depois da resposta, poucos por vez.
+        agendarPreenchimentoFipe(data);
 
         const contagem: Record<string, number> = { 'Disponível': 0 };
         for (const row of porStatus) contagem[row._id] = row.n;
@@ -99,10 +103,15 @@ export async function POST(request: Request) {
             }
         }
 
+        // Preço FIPE que a consulta devolveu quando a loja escolheu o carro. Só
+        // vale junto do código: sem vínculo FIPE não há referência a mostrar.
+        const precoFipe = fipe.codigoFipe ? parseRepassePrecoFipe(body) : {};
+
         const created = await RepasseVehicle.create({
             ...data,
             foraDoCatalogo,
             ...(fipe.codigoFipe ? { codigoFipe: fipe.codigoFipe, descricaoFipe: fipe.descricaoFipe || undefined } : {}),
+            ...(precoFipe.precoFipe ? { precoFipe: precoFipe.precoFipe, referenciaFipe: precoFipe.referenciaFipe || undefined } : {}),
             concessionariaId: scope.concessionaria._id,
             createdBy: session.user?.email || undefined,
         });

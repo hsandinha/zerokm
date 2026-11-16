@@ -449,3 +449,10 @@
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 18px; letter-spacing: .12em; color: var(--color-text);
     user-select: all;
 }
+
+/* Selos de pendência na lista: clicáveis, abrem a ficha na aba que resolve. */
+.pendencias { margin-top: 6px; }
+
+.pendencia { padding: 0; border: 0; background: none; cursor: pointer; border-radius: 999px; }
+
+.pendencia:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }

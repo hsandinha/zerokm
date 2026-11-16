@@ -32,6 +32,8 @@ export interface IUser extends Document {
         mode: 'percent' | 'fixed';
         percentValue: number;
         fixedValue: number;
+        /** Margem por faixa de preço; fora das faixas vale a geral. */
+        faixas?: { ate: number; tipo: 'percent' | 'fixed'; valor: number }[];
     };
     currentSessionToken?: string;
     webhookSecret?: string;
@@ -70,6 +72,12 @@ export interface IUser extends Document {
         atualizadoPor?: string;
         atualizadoEm?: Date;
     };
+    /** Equipe da concessionária (lib/utils/atendentesLoja.ts). Sem o campo, é o titular. */
+    papelLoja?: 'titular' | 'atendente';
+    /** Atendente desativado pelo titular ou pelo CNV: não entra nem ocupa vaga. */
+    atendenteInativo?: boolean;
+    /** Quem cadastrou o atendente (e-mail). */
+    atendenteCriadoPor?: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -106,6 +114,15 @@ const UserSchema: Schema = new Schema({
         mode: { type: String, enum: ['percent', 'fixed'], default: 'percent' },
         percentValue: { type: Number, default: 0 },
         fixedValue: { type: Number, default: 0 },
+        faixas: {
+            type: [{
+                _id: false,
+                ate: { type: Number, required: true, min: 0 },
+                tipo: { type: String, enum: ['percent', 'fixed'], required: true },
+                valor: { type: Number, required: true, min: 0 },
+            }],
+            default: undefined,
+        },
     },
     currentSessionToken: { type: String },
     webhookSecret: { type: String },
@@ -140,6 +157,9 @@ const UserSchema: Schema = new Schema({
         atualizadoPor: { type: String },
         atualizadoEm: { type: Date },
     },
+    papelLoja: { type: String, enum: ['titular', 'atendente'] },
+    atendenteInativo: { type: Boolean },
+    atendenteCriadoPor: { type: String },
 }, {
     timestamps: true
 });

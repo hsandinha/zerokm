@@ -1,0 +1,49 @@
+/* Ficha do lojista: só o que o modal do admin e o CRM ainda não tinham. */
+
+.selo {
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    border-radius: 999px;
+}
+
+.selo:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+.apagado { color: var(--color-text-muted); }
+
+.percentual { font-weight: 700; font-size: 13px; }
+
+.linha { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
+
+.perfis { margin-bottom: 12px; }
+
+.explicacao { margin: 0 0 12px; }
+
+.acoes { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+
+.acoes a { text-decoration: none; }
+
+.acoesDoPlano { justify-content: flex-start; margin: 16px 0 10px; }
+
+.linhaDoTempo { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+
+.evento {
+    display: grid;
+    grid-template-columns: 130px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--admin-border, var(--color-highlight));
+    font-size: 13.5px;
+}
+
+.evento:last-child { border-bottom: 0; }
+
+.quando { color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+
+.oQue { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+
+@media (max-width: 640px) {
+    .evento { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}

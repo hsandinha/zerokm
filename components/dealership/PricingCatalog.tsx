@@ -48,6 +48,8 @@ interface PricingRow {
     observacoes?: string;
     updatedAt?: string | null;
     createdAt?: string | null;
+    /** Quem da loja mexeu por último (titular ou atendente). */
+    atualizadoPor?: string | null;
 }
 
 interface PricingResponse {
@@ -289,6 +291,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                     status: data.status,
                     updatedAt: data.updatedAt !== undefined ? data.updatedAt : new Date().toISOString(),
                     createdAt: data.createdAt !== undefined ? data.createdAt : item.createdAt,
+                    atualizadoPor: data.atualizadoPor !== undefined ? data.atualizadoPor : item.atualizadoPor,
                 }
                 : item
             ));
@@ -850,6 +853,7 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                                             <>
                                                 <span>{alteracao.dia}</span>
                                                 <span className={styles.muted}>{alteracao.hora}</span>
+                                                {row.atualizadoPor && <span className={styles.muted} title={`Atualizado por ${row.atualizadoPor}`}>por {row.atualizadoPor}</span>}
                                             </>
                                         ) : <span className={styles.muted}>-</span>}
                                     </td>

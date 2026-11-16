@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Concessionaria from '@/models/Concessionaria';
-import DealerVehiclePrice from '@/models/DealerVehiclePrice';
-import VehicleVariation from '@/models/VehicleVariation';
 import User from '@/models/User';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { serializePlanoRepasse } from '@/lib/utils/planoRepasse';
+import { ehPerfilDaLoja } from '@/lib/utils/atendentesLoja';
+import { numerosDasLojas, numerosSerializados, serializeConcessionaria } from '@/lib/services/fichaConcessionaria';
 
 const formatErrorMessage = (error: unknown) => {
     if (error instanceof Error) return error.message;
@@ -70,47 +69,6 @@ const sanitizeBoolean = (value: unknown, defaultValue = true): boolean => {
         if (['false', '0', 'inativo', 'no', 'nao', 'não'].includes(normalized)) return false;
     }
     return defaultValue;
-};
-
-const serializeConcessionaria = (doc: any) => {
-    return {
-        id: doc._id.toString(),
-        nome: doc.nome,
-        razaoSocial: doc.razaoSocial,
-        marcaId: doc.marcaId?.toString(),
-        marca: doc.marca,
-        marcaIds: Array.isArray(doc.marcaIds) ? doc.marcaIds.map((m: any) => m.toString()) : [],
-        marcas: Array.isArray(doc.marcas) ? doc.marcas : [],
-        operadorId: doc.operadorId?.toString(),
-        telefone: doc.telefone,
-        celular: doc.celular,
-        contato: doc.contato,
-        email: doc.email,
-        endereco: doc.endereco,
-        numero: doc.numero,
-        complemento: doc.complemento,
-        inscricaoEstadual: doc.inscricaoEstadual,
-        bairro: doc.bairro,
-        cidade: doc.cidade,
-        cnpj: doc.cnpj,
-        uf: doc.uf,
-        cep: doc.cep,
-        nomeResponsavel: doc.nomeResponsavel,
-        telefoneResponsavel: doc.telefoneResponsavel,
-        emailResponsavel: doc.emailResponsavel,
-        observacoes: doc.observacoes,
-        ativo: doc.ativo,
-        ocultarVitrine: Boolean(doc.ocultarVitrine),
-        vitrineOcultaEm: doc.vitrineOcultaEm ? new Date(doc.vitrineOcultaEm).toISOString() : null,
-        vitrineOcultaPor: doc.vitrineOcultaPor || null,
-        dataCadastro: doc.dataCadastro ? new Date(doc.dataCadastro).toISOString() : null,
-        criadoEm: doc.createdAt ? new Date(doc.createdAt).toISOString() : null,
-        atualizadoEm: doc.updatedAt ? new Date(doc.updatedAt).toISOString() : null,
-        // Quem assinou o repasse. Sem isto a listagem não tem como mostrar a
-        // situação do plano, e o controle fica só na tela de Estoque, uma loja
-        // por vez.
-        planoRepasse: serializePlanoRepasse(doc.planoRepasse)
-    };
 };
 
 const buildPayload = (data: Partial<ConcessionariaPayload>): ConcessionariaPayload => {
@@ -184,60 +142,16 @@ export async function GET() {
             query.operadorId = dbUser._id;
         }
 
-        // Estoque e atividade saem de DealerVehiclePrice, ligado por
-        // concessionariaId. A fonte anterior era a coleção legada Vehicle,
-        // casada pelo NOME da concessionária — o que errava sempre que o nome
-        // cadastrado divergia do digitado no veículo, e ficou congelada quando
-        // a coleção parou de receber dados.
-        const [concessionarias, priceStats] = await Promise.all([
+        // Estoque, logins e repasses saem agregados (uma consulta por coleção
+        // para todas as lojas): a lista usa para os selos de pendência.
+        const [concessionarias, numeros] = await Promise.all([
             Concessionaria.find(query).sort({ nome: 1 }),
-            DealerVehiclePrice.aggregate([
-                {
-                    $lookup: {
-                        from: VehicleVariation.collection.name,
-                        localField: 'variationId',
-                        foreignField: '_id',
-                        as: 'variation',
-                    }
-                },
-                { $unwind: { path: '$variation', preserveNullAndEmptyArrays: true } },
-                {
-                    $group: {
-                        _id: "$concessionariaId",
-                        // Estoque: só preço ativo cujo modelo continua no catálogo mestre.
-                        unidades: {
-                            $sum: {
-                                $cond: [
-                                    { $and: ['$ativo', { $eq: ['$variation.ativo', true] }] },
-                                    { $ifNull: ["$quantidade", 0] },
-                                    0,
-                                ]
-                            }
-                        },
-                        // Atividade: qualquer mexida conta, inclusive zerar estoque.
-                        ultimaAtualizacao: { $max: "$updatedAt" },
-                    }
-                }
-            ])
+            numerosDasLojas(),
         ]);
-
-        const statsMap = new Map(
-            priceStats.map(stat => [
-                stat._id?.toString(),
-                { unidades: stat.unidades ?? 0, ultimaAtualizacao: stat.ultimaAtualizacao ?? null },
-            ])
-        );
 
         const serialized = concessionarias.map(c => {
             const base = serializeConcessionaria(c);
-            const stats = statsMap.get(base.id) || { unidades: 0, ultimaAtualizacao: null };
-
-            return {
-                ...base,
-                totalVeiculos: stats.unidades,
-                ultimaAtualizacao: stats.ultimaAtualizacao,
-                totalAtivos: stats.unidades
-            };
+            return { ...base, ...numerosSerializados(numeros.de(base.id)) };
         });
 
         return NextResponse.json(serialized);
@@ -255,6 +169,12 @@ export async function POST(request: Request) {
         const session = await getServerSession(authOptions);
         if (!session) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        // Criar concessionária é da equipe do CNV: loja e lojista não criam.
+        const perfilCriador = (session.user as any)?.profile as string | undefined;
+        if (!perfilCriador || ehPerfilDaLoja(perfilCriador) || ['cliente', 'gratis'].includes(perfilCriador)) {
+            return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
         }
 
         await connectDB();

@@ -22,6 +22,8 @@ import { BoasVindas } from './BoasVindas';
 import { AvisosAssinante } from '@/components/cliente/AvisosAssinante';
 import { useRecursos } from '@/lib/hooks/useRecursos';
 import { abasDoCliente } from '@/components/dashboard/abas-dos-paineis';
+import { faixasSalvas, type FaixaDeMargem } from '@/lib/utils/margem';
+import type { MarginConfigInput } from '@/lib/contexts/ConfigContext';
 
 function PaymentBanner() {
     const searchParams = useSearchParams();
@@ -95,6 +97,7 @@ export default function ClientDashboard() {
     const [margem, setMargem] = useState<number>(0);
     const [fixedMargin, setFixedMargin] = useState<number>(0);
     const [marginMode, setMarginMode] = useState<'percent' | 'fixed'>('percent');
+    const [faixas, setFaixas] = useState<FaixaDeMargem[]>([]);
     const [isInvitee, setIsInvitee] = useState<boolean>(false);
     const [showUpgradeModal, setShowUpgradeModal] = useState(false);
     const [renovar, setRenovar] = useState(false);
@@ -138,30 +141,46 @@ export default function ClientDashboard() {
                     setMargem(data.margem || 0);
                     setFixedMargin(data.fixedMargin || 0);
                     setMarginMode(data.marginMode || 'percent');
+                    setFaixas(faixasSalvas(data.faixas));
                     setIsInvitee(data.isInvitee || false);
                 }
             })
             .catch(err => console.error('Erro ao carregar margem:', err));
     }, []);
 
-    const updateClientMargin = async ({ margem: v, marginMode: m, fixedMargin: f }: { margem: number; marginMode: 'percent' | 'fixed'; fixedMargin: number }) => {
+    const updateClientMargin = async ({ margem: v, marginMode: m, fixedMargin: f, faixas: fx }: MarginConfigInput) => {
+        // Mostra na hora e desfaz se o servidor recusar.
+        const antes = { margem, fixedMargin, marginMode, faixas };
         setMargem(v);
         setFixedMargin(f);
         setMarginMode(m);
+        if (fx) setFaixas(faixasSalvas(fx));
+        const desfazer = () => {
+            setMargem(antes.margem);
+            setFixedMargin(antes.fixedMargin);
+            setMarginMode(antes.marginMode);
+            setFaixas(antes.faixas);
+        };
 
         try {
-            await fetch('/api/dashboard/client/margin', {
+            const res = await fetch('/api/dashboard/client/margin', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ margem: v, marginMode: m, fixedMargin: f })
+                body: JSON.stringify({ margem: v, marginMode: m, fixedMargin: f, ...(fx ? { faixas: fx } : {}) })
             });
+            if (!res.ok) {
+                const data = await res.json().catch(() => null);
+                desfazer();
+                window.alert(data?.error || 'Não foi possível salvar a margem. Tente de novo.');
+            }
         } catch (err) {
             console.error('Erro ao salvar margem', err);
+            desfazer();
         }
     };
 
     return (
-        <ConfigContext.Provider value={{ margem, fixedMargin, marginMode, setMargem: (v: number) => updateClientMargin({ margem: v, marginMode, fixedMargin }), setMarginConfig: updateClientMargin }}>
+        <ConfigContext.Provider value={{ margem, fixedMargin, marginMode, faixas, setMargem: (v: number) => updateClientMargin({ margem: v, marginMode, fixedMargin }), setMarginConfig: updateClientMargin }}>
             <Suspense>
                 <PaymentBanner />
             </Suspense>

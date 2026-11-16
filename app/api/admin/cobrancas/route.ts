@@ -6,9 +6,11 @@ import mongoose from 'mongoose';
 import Payment from '@/models/Payment';
 import Plan from '@/models/Plan';
 import User from '@/models/User';
+import Concessionaria from '@/models/Concessionaria';
 import { consultarStatusEmail } from '@/lib/services/boletoEmailService';
 import { acharClientePorNome, buscarBoletosNoMP, nomeNaDescricao, sincronizarStatus } from '@/lib/services/cobrancasService';
 import { valorEditavel } from '@/lib/utils/cobrancaManual';
+import { PERFIS_EMITEM_BOLETO_CONCESSIONARIA } from '@/lib/utils/cobrancaConcessionaria';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,14 +50,22 @@ export async function GET(request: Request) {
             if (!mongoose.Types.ObjectId.isValid(userId)) return NextResponse.json({ data: [], total: 0 });
             query.userId = new mongoose.Types.ObjectId(userId);
         }
+        // Ficha da concessionária: só as cobranças dela.
+        const concessionariaId = searchParams.get('concessionariaId')?.trim() || '';
+        if (concessionariaId) {
+            if (!mongoose.Types.ObjectId.isValid(concessionariaId)) return NextResponse.json({ data: [], total: 0 });
+            query.concessionariaId = new mongoose.Types.ObjectId(concessionariaId);
+        }
         if (status) query.status = status;
         if (semEmail) query.boletoEmailSentAt = { $in: [null, undefined] };
 
         if (search) {
             const regex = { $regex: escapeRegex(search), $options: 'i' };
             const usuarios = await User.find({ $or: [{ email: regex }, { displayName: regex }] }).select('_id').lean();
+            const lojas = await Concessionaria.find({ $or: [{ nome: regex }, { razaoSocial: regex }] }).select('_id').lean();
             query.$or = [
                 { userId: { $in: usuarios.map((u: any) => u._id) } },
+                { concessionariaId: { $in: lojas.map((l: any) => l._id) } },
                 { payerEmail: regex },
                 { boletoEmailTo: regex },
                 { mpPaymentId: search },
@@ -82,10 +92,14 @@ export async function GET(request: Request) {
         const userIds = [...new Set(pagamentos.map((p: any) => p.userId?.toString()).filter(Boolean))];
         const planIds = [...new Set(pagamentos.map((p: any) => p.planId?.toString()).filter(Boolean))];
 
-        const [usuarios, planos] = await Promise.all([
+        const lojaIds = [...new Set(pagamentos.map((p: any) => p.concessionariaId?.toString()).filter(Boolean))];
+
+        const [usuarios, planos, lojas] = await Promise.all([
             User.find({ _id: { $in: userIds } }).select('displayName email phoneNumber subscription.expiresAt').lean(),
             Plan.find({ _id: { $in: planIds } }).select('name').lean(),
+            lojaIds.length ? Concessionaria.find({ _id: { $in: lojaIds } }).select('nome razaoSocial email telefone').lean() : [],
         ]);
+        const mapLoja = new Map((lojas as any[]).map(l => [l._id.toString(), l]));
         const mapUser = new Map(usuarios.map((u: any) => [u._id.toString(), u]));
         const mapPlan = new Map(planos.map((p: any) => [p._id.toString(), p]));
 
@@ -99,6 +113,46 @@ export async function GET(request: Request) {
 
         const nossos = pagamentos.map((p: any) => {
                 const u = p.userId ? mapUser.get(p.userId.toString()) : null;
+                // Cobrança da concessionária: o "cliente" é a loja, não o
+                // usuário que ficou como dono do registro.
+                const loja = p.concessionariaId ? mapLoja.get(p.concessionariaId.toString()) : null;
+                if (loja || p.concessionariaId) {
+                    const nomePlano = p.planId ? (mapPlan.get(p.planId.toString()) as any)?.name : null;
+                    return {
+                        id: p._id.toString(),
+                        mpPaymentId: p.mpPaymentId,
+                        cliente: loja?.nome || loja?.razaoSocial || p.payerName || 'Concessionária removida',
+                        clienteEmail: p.payerEmail || loja?.email || '',
+                        clienteTelefone: loja?.telefone || '',
+                        assinaturaExpiraEm: null,
+                        concessionaria: { id: p.concessionariaId.toString(), nome: loja?.nome || loja?.razaoSocial || '' },
+                        tipoCobranca: p.tipoCobranca || null,
+                        vencimento: p.vencimento || null,
+                        plano: p.descricao || (nomePlano ? `Plano de Repasse ${nomePlano}` : 'Plano de repasse'),
+                        valor: p.amount,
+                        status: p.status,
+                        criadoEm: p.createdAt,
+                        boletoUrl: p.boletoUrl || null,
+                        boletoBarcode: p.boletoBarcode || null,
+                        origem: 'sistema' as const,
+                        podeReenviar: true,
+                        podeEditarValor: valorEditavel(p),
+                        valorEditado: null,
+                        baixaManual: p.baixaManual?.em ? {
+                            por: p.baixaManual.por || null,
+                            em: p.baixaManual.em,
+                            forma: p.baixaManual.forma || null,
+                            dataPagamento: p.baixaManual.dataPagamento || null,
+                        } : null,
+                        email: {
+                            enviadoEm: p.boletoEmailSentAt || null,
+                            para: p.boletoEmailTo || p.payerEmail || loja?.email || '',
+                            id: p.boletoEmailId || null,
+                            erro: p.boletoEmailError || null,
+                            situacao: p.boletoEmailId ? statusEmails.get(p.boletoEmailId) ?? null : null,
+                        },
+                    };
+                }
                 return {
                     id: p._id.toString(),
                     mpPaymentId: p.mpPaymentId,
@@ -184,6 +238,8 @@ export async function GET(request: Request) {
             statusEmailConsultados: comEmailId.length,
             statusCorrigidos: corrigidos,
             avisoMP: erroMP || null,
+            // Emitir boleto para concessionária é só de admin e administrativo.
+            podeEmitirParaConcessionaria: PERFIS_EMITEM_BOLETO_CONCESSIONARIA.has(session.user?.profile as string),
         });
     } catch (error: any) {
         console.error('[cobrancas] GET', error);

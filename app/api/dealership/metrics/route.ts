@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import connectDB from '@/lib/mongodb';
 import DealerVehiclePrice from '@/models/DealerVehiclePrice';
 import User from '@/models/User';
+import RepasseVehicle from '@/models/RepasseVehicle';
+import { acessoLiberado } from '@/lib/utils/atendentesLoja';
 import Concessionaria from '@/models/Concessionaria';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
@@ -19,9 +22,9 @@ export async function GET(request: Request) {
         let dealershipId: string | null = null;
 
         // @ts-ignore
-        if (session.user?.profile === 'concessionaria') {
+        if (session.user?.profile === 'concessionaria' || session.user?.profile === 'dealership') {
             const user = await User.findOne({ email: session.user.email });
-            if (user && user.dealershipId) {
+            if (user && user.dealershipId && acessoLiberado(user)) {
                 dealershipId = user.dealershipId;
             }
         }
@@ -30,23 +33,37 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'Concessionária não encontrada para este usuário' }, { status: 404 });
         }
 
+        // O estoque da loja são os anúncios ativos de 0KM e de repasse: é o
+        // que o lojista vê na consulta, com a data de cada um. Contar só o 0KM
+        // (e a data de registro inativo) dava ao painel uma situação diferente
+        // da que aparece para o cliente.
+        const lojaId = new mongoose.Types.ObjectId(String(dealershipId));
+        const novosAtivos = { concessionariaId: lojaId, ativo: true };
+        const repasseAtivo = { concessionariaId: lojaId, ativo: true };
+
         // 1. Total Vehicles
-        const veiculosCadastrados = await DealerVehiclePrice.countDocuments({ concessionariaId: dealershipId, ativo: true });
+        const [totalNovos, totalRepasse] = await Promise.all([
+            DealerVehiclePrice.countDocuments(novosAtivos),
+            RepasseVehicle.countDocuments(repasseAtivo),
+        ]);
+        const veiculosCadastrados = totalNovos + totalRepasse;
 
         // 2. Sold Vehicles (not fully supported in new model yet, leaving at 0 or query status if added)
-        const veiculosVendidos = 0; // await DealerVehiclePrice.countDocuments({ concessionariaId: dealershipId, status: 'Vendido' });
+        const veiculosVendidos = 0;
 
         // 3. Last Update
-        const lastUpdatedVehicle = await DealerVehiclePrice.findOne({ concessionariaId: dealershipId })
-            .sort({ updatedAt: -1 })
-            .select('updatedAt');
+        const [ultimoNovo, ultimoRepasse] = await Promise.all([
+            DealerVehiclePrice.findOne(novosAtivos).sort({ updatedAt: -1 }).select('updatedAt').lean(),
+            RepasseVehicle.findOne(repasseAtivo).sort({ updatedAt: -1 }).select('updatedAt').lean(),
+        ]);
+        const ultimaAtualizacao = Math.max(
+            ultimoNovo?.updatedAt ? new Date(ultimoNovo.updatedAt).getTime() : 0,
+            ultimoRepasse?.updatedAt ? new Date(ultimoRepasse.updatedAt).getTime() : 0,
+        );
 
         let daysSinceUpdate = 0;
-        if (lastUpdatedVehicle && lastUpdatedVehicle.updatedAt) {
-            const lastUpdateDate = new Date(lastUpdatedVehicle.updatedAt);
-            const today = new Date();
-            const diffTime = Math.abs(today.getTime() - lastUpdateDate.getTime());
-            daysSinceUpdate = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        if (ultimaAtualizacao) {
+            daysSinceUpdate = Math.floor(Math.abs(Date.now() - ultimaAtualizacao) / (1000 * 60 * 60 * 24));
         } else {
             if (veiculosCadastrados === 0) daysSinceUpdate = 0;
             else daysSinceUpdate = 999; // Very old
@@ -56,12 +73,19 @@ export async function GET(request: Request) {
         const now = new Date();
         const verdeCutoff = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
         const vermelhoCutoff = new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000);
+        const faixas = [
+            { updatedAt: { $gte: verdeCutoff } },
+            { updatedAt: { $lt: verdeCutoff, $gte: vermelhoCutoff } },
+            { updatedAt: { $lt: vermelhoCutoff } },
+        ];
 
-        const [verde, amarelo, vermelho] = await Promise.all([
-            DealerVehiclePrice.countDocuments({ concessionariaId: dealershipId, ativo: true, updatedAt: { $gte: verdeCutoff } }),
-            DealerVehiclePrice.countDocuments({ concessionariaId: dealershipId, ativo: true, updatedAt: { $lt: verdeCutoff, $gte: vermelhoCutoff } }),
-            DealerVehiclePrice.countDocuments({ concessionariaId: dealershipId, ativo: true, updatedAt: { $lt: vermelhoCutoff } }),
-        ]);
+        const [verde, amarelo, vermelho] = await Promise.all(faixas.map(async faixa => {
+            const [n, r] = await Promise.all([
+                DealerVehiclePrice.countDocuments({ ...novosAtivos, ...faixa }),
+                RepasseVehicle.countDocuments({ ...repasseAtivo, ...faixa }),
+            ]);
+            return n + r;
+        }));
 
         // 4. Chart Data (Last 6 months evolution)
         const sixMonthsAgo = new Date();

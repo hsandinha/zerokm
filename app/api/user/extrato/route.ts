@@ -23,7 +23,9 @@ export async function GET(request: Request) {
     let total = 0;
 
     // 1. Buscar Transactions reais do mês selecionado
-    const transactions = await Transaction.find({
+    // Cobrança da concessionária é do titular: o atendente não a vê por aqui.
+    const atendente = (user as any).papelLoja === 'atendente';
+    const transactions = atendente ? [] : await Transaction.find({
         userId: user._id,
         month: month,
     }).sort({ createdAt: -1 }).lean();
@@ -48,6 +50,7 @@ export async function GET(request: Request) {
 
     const payments = await Payment.find({
         userId: user._id,
+        ...(atendente ? { concessionariaId: null } : {}),
         createdAt: { $gte: startOfMonth, $lte: endOfMonth },
     }).sort({ createdAt: -1 }).lean();
 

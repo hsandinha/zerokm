@@ -1,6 +1,7 @@
 import Payment from '@/models/Payment';
 import { searchPayments } from '@/lib/mercadopago';
 import { aplicarPagamentoNaAssinatura } from '@/lib/services/assinaturaPagamento';
+import { liberarCobrancaConcessionaria } from '@/lib/services/cobrancaConcessionariaService';
 
 /**
  * A tela de Cobranças precisa mostrar a realidade do Mercado Pago, não a nossa
@@ -67,11 +68,19 @@ export async function sincronizarStatus(nossos: any[], porId: Map<string, Boleto
     const mudancas = nossos
         .filter(p => !p.baixaManual?.em)
         .filter(p => p.mpPaymentId && porId.get(String(p.mpPaymentId))?.status && porId.get(String(p.mpPaymentId))!.status !== p.status)
-        .map(p => ({ id: p._id, de: p.status, para: porId.get(String(p.mpPaymentId))!.status, temPlano: Boolean(p.planId) }));
+        .map(p => ({ id: p._id, de: p.status, para: porId.get(String(p.mpPaymentId))!.status, temPlano: Boolean(p.planId), daConcessionaria: Boolean(p.concessionariaId) }));
 
     for (const m of mudancas) {
         await Payment.findByIdAndUpdate(m.id, { $set: { status: m.para } });
         console.log('[cobrancas] Status corrigido pelo Mercado Pago:', { paymentId: String(m.id), de: m.de, para: m.para });
+        // Cobrança da concessionária libera plano de repasse ou banner. Não pode
+        // cair na assinatura do lojista, que trocaria o perfil do usuário da
+        // loja para "cliente".
+        if (m.para === 'approved' && m.daConcessionaria) {
+            const r = await liberarCobrancaConcessionaria({ paymentDocId: m.id, metodo: 'boleto', por: 'mercadopago' }).catch(error => ({ aplicado: false, motivo: String(error?.message || error) }));
+            console.log('[cobrancas] Cobrança da concessionária paga:', { paymentId: String(m.id), ...r });
+            continue;
+        }
         if (m.para === 'approved' && m.temPlano) {
             const r = await aplicarPagamentoNaAssinatura({ paymentDocId: m.id, metodo: 'boleto' }).catch(error => ({ aplicado: false, motivo: String(error?.message || error) }));
             console.log('[cobrancas] Assinatura pelo boleto pago:', { paymentId: String(m.id), ...r });

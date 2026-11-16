@@ -6,7 +6,7 @@ import connectDB from '@/lib/mongodb';
 import RepasseVehicle from '@/models/RepasseVehicle';
 import VehicleVariation from '@/models/VehicleVariation';
 import { canTouchDealership, resolveDealershipScope } from '@/lib/services/dealershipScope';
-import { parseRepasseFipe, serializeRepasse, validateRepasse } from '@/lib/utils/repasse';
+import { parseRepasseFipe, parseRepassePrecoFipe, serializeRepasse, validateRepasse } from '@/lib/utils/repasse';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -73,6 +73,22 @@ export async function PATCH(request: Request, { params }: Params) {
         } else if (fipe.codigoFipe === null) {
             $unset.codigoFipe = '';
             $unset.descricaoFipe = '';
+        }
+
+        // Preço FIPE acompanha o vínculo: veio um novo, grava; o carro mudou de
+        // código ou de ano sem preço novo, o antigo deixa de valer e é limpo
+        // (lib/services/repasseFipe.ts busca de novo na próxima listagem).
+        const precoFipe = parseRepassePrecoFipe(body);
+        const codigoFinal = fipe.codigoFipe === undefined ? doc.codigoFipe : fipe.codigoFipe;
+        const mudouCarro = (fipe.codigoFipe !== undefined && (fipe.codigoFipe || '') !== (doc.codigoFipe || ''))
+            || (data.anoModelo !== undefined && data.anoModelo !== doc.anoModelo);
+        if (codigoFinal && precoFipe.precoFipe) {
+            $set.precoFipe = precoFipe.precoFipe;
+            if (precoFipe.referenciaFipe) $set.referenciaFipe = precoFipe.referenciaFipe; else $unset.referenciaFipe = '';
+        } else if (!codigoFinal || mudouCarro) {
+            $unset.precoFipe = '';
+            $unset.referenciaFipe = '';
+            $unset.fipeTentativaEm = '';
         }
 
         const update: Record<string, any> = {};

@@ -6,6 +6,7 @@ import { adminAuth } from '@/lib/firebase-admin'
 import { getUserAllowedProfiles, updateUserSession, validateUserSession } from '@/lib/services/userService'
 import { randomUUID } from 'crypto'
 import { ehAdminZerokm, resolvePanelRole } from '@wa/lib/panel-role'
+import { perfilDaSessao, trocaDePerfilValida } from '@/lib/utils/perfilDaSessao'
 
 export const authOptions: AuthOptions = {
     providers: [
@@ -22,6 +23,14 @@ export const authOptions: AuthOptions = {
                     try {
                         const decodedToken = await adminAuth.verifyIdToken(token);
                         const { profiles, canViewLocation, credits, profileCompletion, daysUntilExpiry, subscriptionPlanId, subscriptionExpiresAt, subscriptionBillingType, freeTrialExpiresAt, freeTrialExpired, profileVersion, displayName } = await getUserAllowedProfiles(decodedToken.email || '');
+
+                        // O perfil vem do cadastro: o que o navegador pediu só vale
+                        // se o usuário o tem. Sem perfil nenhum, não entra.
+                        const perfilEscolhido = perfilDaSessao(selectedProfile, profiles);
+                        if (!perfilEscolhido) {
+                            console.warn('Login recusado: usuário sem perfil no cadastro:', decodedToken.email);
+                            return null;
+                        }
 
                         // Papel no módulo WhatsApp. Só o proxy consome daqui;
                         // as rotas do módulo releem do banco a cada chamada.
@@ -46,7 +55,7 @@ export const authOptions: AuthOptions = {
                             // CRM edita. O token do Firebase é só fallback de primeiro login.
                             name: displayName || decodedToken.name || decodedToken.email?.split('@')[0],
                             image: decodedToken.picture,
-                            selectedProfile: selectedProfile, // Pass selected profile to user object
+                            selectedProfile: perfilEscolhido, // já conferido contra o cadastro
                             allowedProfiles: profiles,
                             canViewLocation: canViewLocation,
                             sessionToken: sessionToken,
@@ -71,6 +80,12 @@ export const authOptions: AuthOptions = {
         })
     ],
     callbacks: {
+        // Só entra quem passou pelo login do site (token do Firebase conferido
+        // contra o cadastro). O login direto pelo Google criava sessão de
+        // operador para qualquer conta Google, sem cadastro nenhum.
+        async signIn({ account }: any) {
+            return account?.provider === 'credentials';
+        },
         async jwt({ token, account, user, trigger, session }: any) {
             if (account && user) {
                 token.uid = user.id; // Firebase UID
@@ -92,22 +107,8 @@ export const authOptions: AuthOptions = {
                 token.waRole = user.waRole ?? null;
 
                 // Use the selected profile passed from authorize, or fallback to logic
-                if (user.selectedProfile) {
-                    token.profile = user.selectedProfile;
-                } else {
-                    // Fallback logic
-                    let profile = 'operador';
-                    const email = user.email || '';
-
-                    if (email.includes('admin')) {
-                        profile = 'administrador';
-                    } else if (email.includes('dealership') || email.includes('concessionaria')) {
-                        profile = 'concessionaria';
-                    } else if (email.includes('client') || email.includes('cliente')) {
-                        profile = 'cliente';
-                    }
-                    token.profile = profile;
-                }
+                // Sempre um perfil que o usuário tem (authorize já conferiu).
+                token.profile = perfilDaSessao(user.selectedProfile, user.allowedProfiles) ?? undefined;
             } else if (token.email && token.sessionToken) {
                 // Verify if session is still valid (single session enforcement)
                 const { valid, profileVersion } = await validateUserSession(token.email, token.sessionToken);
@@ -143,12 +144,13 @@ export const authOptions: AuthOptions = {
             }
 
             // Handle profile update (e.g., after payment approval)
-            if (trigger === "update" && session?.profile) {
-                token.profile = session.profile;
-                // Also update allowedProfiles if provided (e.g., gratis → cliente)
-                if (session.allowedProfiles) {
-                    token.allowedProfiles = session.allowedProfiles;
-                }
+            // A troca vem do navegador: só vale para um perfil que o cadastro tem
+            // agora (relido do banco), e a lista de perfis também vem de lá.
+            if (trigger === "update" && session?.profile && token.email) {
+                const fresh = await getUserAllowedProfiles(token.email);
+                const novo = trocaDePerfilValida(session.profile, fresh.profiles);
+                if (novo) token.profile = novo;
+                if (fresh.profiles.length > 0) token.allowedProfiles = fresh.profiles;
             }
             // Handle profileCompletion refresh after profile save
             if (trigger === "update" && session?.profileCompletion !== undefined) {

@@ -5,6 +5,7 @@ import connectDB from '@/lib/mongodb';
 import Concessionaria from '@/models/Concessionaria';
 import DealerVehiclePrice from '@/models/DealerVehiclePrice';
 import User from '@/models/User';
+import { acessoLiberado, ehPerfilDaLoja, nomeDeQuemAtualizou } from '@/lib/utils/atendentesLoja';
 import VehicleVariation from '@/models/VehicleVariation';
 
 const ADMIN_PROFILES = new Set(['admin', 'administrador', 'gerente', 'operador', 'operator', 'administrativo']);
@@ -54,6 +55,8 @@ function serializeCatalogRow(row: any) {
         // a equipe (ou a loja) mexeu naquela linha. Sem preço, não há data.
         updatedAt: price?.updatedAt || null,
         createdAt: price?.createdAt || null,
+        // Quem da loja (titular ou atendente) mexeu por último nesta linha.
+        atualizadoPor: price?.atualizadoPor || null,
     };
 }
 
@@ -67,8 +70,8 @@ async function resolveConcessionaria(session: any, request: Request) {
     }
 
     if (profile && DEALERSHIP_PROFILES.has(profile)) {
-        const user = await User.findOne({ email: session.user.email }).select('dealershipId');
-        if (!user?.dealershipId) return null;
+        const user = await User.findOne({ email: session.user.email }).select('dealershipId papelLoja atendenteInativo');
+        if (!user?.dealershipId || !acessoLiberado(user)) return null;
         return Concessionaria.findById(user.dealershipId);
     }
 
@@ -345,6 +348,7 @@ export async function PATCH(request: Request) {
                     // o Mongoose descarta os campos undefined do $set.
                     observacoes: 'observacoes' in body ? normalizeText(body.observacoes) : undefined,
                     statusVeiculo: normalizeText(body.statusVeiculo) || undefined,
+                    atualizadoPor: ehPerfilDaLoja(session.user?.profile) ? nomeDeQuemAtualizou(session.user) : 'Equipe CNV',
                 },
             },
             { new: true, upsert: true, setDefaultsOnInsert: true }
@@ -364,6 +368,7 @@ export async function PATCH(request: Request) {
             status: price.ativo ? 'ativo' : 'inativo',
             updatedAt: price.updatedAt,
             createdAt: price.createdAt,
+            atualizadoPor: price.atualizadoPor || null,
         });
     } catch (error: any) {
         console.error('Erro ao atualizar preço da concessionária:', error);

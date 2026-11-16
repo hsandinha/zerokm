@@ -13,6 +13,7 @@ import { AdminDealershipVehicles } from '../../../components/admin/AdminDealersh
 import { DashboardShell, shellStyles } from '@/components/dashboard/DashboardShell';
 import { CarFront, Warehouse, BookOpen, Building2, Truck, Users, Images, Megaphone } from 'lucide-react';
 import { AvisosManagement } from '../../../components/admin/AvisosManagement';
+import { faixasSalvas, type FaixaDeMargem } from '@/lib/utils/margem';
 
 type TabType = 'veiculos' | 'estoque-concessionarias' | 'catalogo' | 'concessionarias' | 'transportadoras' | 'usuarios' | 'banners' | 'avisos';
 
@@ -24,6 +25,7 @@ export default function AdministrativoDashboard() {
     const [margem, setMargem] = useState(0);
     const [fixedMargin, setFixedMargin] = useState(0);
     const [marginMode, setMarginMode] = useState<'percent' | 'fixed'>('percent');
+    const [faixas, setFaixas] = useState<FaixaDeMargem[]>([]);
     const [userInfo, setUserInfo] = useState<{ name?: string | null; email?: string | null; profile?: string }>({});
 
     // Carregar margem
@@ -34,6 +36,7 @@ export default function AdministrativoDashboard() {
                 setMargem(data.margem || 0);
                 setFixedMargin(data.fixedMargin || 0);
                 setMarginMode(data.marginMode === 'fixed' ? 'fixed' : 'percent');
+                setFaixas(faixasSalvas(data.faixas));
             })
             .catch(() => { });
     }, []);
@@ -51,13 +54,16 @@ export default function AdministrativoDashboard() {
         });
     }, []);
 
-    const updateMargem = async (v: number, mode = marginMode, fm = fixedMargin) => {
-        await fetch('/api/config/margem', {
+    const updateMargem = async (v: number, mode = marginMode, fm = fixedMargin, fx?: FaixaDeMargem[]) => {
+        const res = await fetch('/api/config/margem', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ margem: v, marginMode: mode, fixedMargin: fm }),
+            body: JSON.stringify({ margem: v, marginMode: mode, fixedMargin: fm, ...(fx ? { faixas: fx } : {}) }),
         });
+        // Só troca o que a tela mostra quando o servidor aceitou.
+        if (!res.ok) return;
         setMargem(v); setFixedMargin(fm); setMarginMode(mode);
+        if (fx) setFaixas(faixasSalvas(fx));
     };
 
     const effectiveRole = (userInfo.profile as any) || 'administrativo';
@@ -83,7 +89,7 @@ export default function AdministrativoDashboard() {
             case 'catalogo': return <CatalogVariationsManagement />;
             case 'concessionarias': return <ConcessionariasManagement />;
             case 'transportadoras': return <TransportadorasManagement />;
-            case 'usuarios': return <UsersTable restrictedProfiles={['administrador']} />;
+            case 'usuarios': return <UsersTable restrictedProfiles={['administrador']} destinos={{ concessionarias: () => setActiveTab('concessionarias') }} />;
             case 'banners': return <BannersManagement />;
             case 'avisos': return <AvisosManagement />;
         }
@@ -94,8 +100,9 @@ export default function AdministrativoDashboard() {
             margem,
             fixedMargin,
             marginMode,
+            faixas,
             setMargem: (v) => updateMargem(v, marginMode, fixedMargin),
-            setMarginConfig: ({ margem: v, marginMode: m, fixedMargin: f }) => updateMargem(v, m, f),
+            setMarginConfig: ({ margem: v, marginMode: m, fixedMargin: f, faixas: fx }) => updateMargem(v, m, f, fx),
         }}>
             <DashboardShell
                 sectionLabel="Administrativo"

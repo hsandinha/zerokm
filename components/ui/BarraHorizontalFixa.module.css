@@ -1,0 +1,26 @@
+/* Espelho da barra de rolagem horizontal, preso na base da janela. */
+.barra {
+    position: fixed;
+    bottom: 0;
+    z-index: 30;
+    height: 16px;
+    overflow-x: scroll;
+    overflow-y: hidden;
+    background: var(--color-panel, #eef1f4);
+    border-top: 1px solid var(--admin-border, var(--color-highlight, #d5dbe1));
+    box-shadow: 0 -4px 12px rgba(15, 23, 42, 0.08);
+    scrollbar-width: auto;
+    scrollbar-color: var(--color-text-muted, #6b7785) var(--color-panel, #eef1f4);
+}
+
+.barra::-webkit-scrollbar { height: 12px; }
+.barra::-webkit-scrollbar-track { background: var(--color-panel, #eef1f4); }
+.barra::-webkit-scrollbar-thumb {
+    background: var(--color-text-muted, #6b7785);
+    border: 2px solid var(--color-panel, #eef1f4);
+    border-radius: 6px;
+}
+
+@media print {
+    .barra { display: none; }
+}

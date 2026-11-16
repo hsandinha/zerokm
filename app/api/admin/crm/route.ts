@@ -1,4 +1,6 @@
+import { gerarSenhaProvisoria } from '@/lib/utils/senhaProvisoria';
 import { NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../lib/authOptions';
 import connectDB from '../../../../lib/mongodb';
@@ -13,11 +15,17 @@ import { isPlanoConcessionaria } from '@/lib/utils/planoRepasse';
 import { LIMITE_VALOR_COMBINADO, lerValorEmReais, precoDoCliente } from '@/lib/utils/valorCombinado';
 import { gravarValorCombinado } from '@/lib/services/valorCombinadoService';
 
-export async function GET() {
+export async function GET(request: Request) {
     const session = await getServerSession(authOptions);
     const profile = (session?.user as any)?.profile;
     if (!profile || !['administrador', 'admin'].includes(profile)) {
         return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
+    }
+
+    // Ficha do cliente: `?id=` traz só aquele cadastro (mesmo formato da lista).
+    const idUnico = new URL(request.url).searchParams.get('id');
+    if (idUnico && !mongoose.isValidObjectId(idUnico)) {
+        return NextResponse.json({ error: 'Cliente não encontrado.' }, { status: 404 });
     }
 
     await connectDB();
@@ -29,6 +37,7 @@ export async function GET() {
     // Fetch all users that are gratis or cliente (ignore ops/admin/etc)
     const users = await User.find({
         allowedProfiles: { $in: ['gratis', 'cliente'] },
+        ...(idUnico ? { _id: idUnico } : {}),
     })
         .select('displayName email phoneNumber allowedProfiles credits subscription createdAt creditCard address cpf isInvitee vendedorId freeTrialStartedAt freeTrialExpiresAt firebaseUid instagram valorCombinado')
         .sort({ createdAt: -1 })
@@ -37,7 +46,10 @@ export async function GET() {
     const now = new Date();
 
     // Build invite count map: userId → number of invites
-    const invites = await Invite.find({ status: { $in: ['accepted', 'pending'] } }).lean();
+    const invites = await Invite.find({
+        status: { $in: ['accepted', 'pending'] },
+        ...(idUnico ? { inviterId: idUnico } : {}),
+    }).lean();
     const inviteCountMap = new Map<string, number>();
     // Tela extra (convidado com convite ativo) → conta principal. Ela recebe o
     // plano da conta principal e aparecia como mais um cliente ativo; agora fica
@@ -131,6 +143,11 @@ export async function GET() {
         no_plan: clients.filter(c => c.status === 'no_plan').length,
         cortesia: clients.filter(c => c.activationMethod === 'cortesia' && c.status === 'active').length,
     };
+
+    if (idUnico) {
+        if (clients.length === 0) return NextResponse.json({ error: 'Cliente não encontrado.' }, { status: 404 });
+        return NextResponse.json({ client: clients[0] });
+    }
 
     return NextResponse.json({ clients, summary });
 }
@@ -362,7 +379,8 @@ export async function POST(request: Request) {
         }
 
         const { adminAuth } = await import('../../../../lib/firebase-admin');
-        const tempPassword = '123456';
+        // Senha aleatória: uma senha fixa deixava todo cadastro novo com o mesmo acesso até a troca.
+        const tempPassword = gerarSenhaProvisoria();
 
         const userRecord = await adminAuth.createUser({
             email: email.toLowerCase().trim(),
@@ -386,7 +404,8 @@ export async function POST(request: Request) {
             isInvitee: false,
         });
 
-        return NextResponse.json({ ok: true, tempPassword });
+        // O id segue junto para o cadastro guiado continuar (acesso, assinatura, convidados).
+        return NextResponse.json({ ok: true, tempPassword, id: String(newUser._id), firebaseUid: userRecord.uid });
     } catch (err: any) {
         console.error('POST /api/admin/crm error:', err);
         return NextResponse.json({ error: err?.message || 'Erro interno.' }, { status: 500 });

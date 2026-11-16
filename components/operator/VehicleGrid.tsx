@@ -4,10 +4,11 @@ import { Vehicle } from '../../lib/services/vehicleService';
 import { calculateDaysSinceUpdate, formatDate, getUpdateStatusColor } from '../../lib/utils/formatters';
 import { FaWhatsapp } from 'react-icons/fa';
 import { EditableCurrencyCell, EditableTextCell, EditableNumberCell } from './EditableCells';
-import { formatKm } from '../../lib/utils/repasse';
+import { formatKm, referenciaFipeTitulo, rotuloFipe } from '../../lib/utils/repasse';
 import { abrirCotacaoDoVeiculo } from '../../lib/utils/cotacaoVeiculo';
 import { TRANSPORTADORA_PARCEIRA, whatsappTransportadora } from '../../lib/utils/transportadora';
 import styles from './VehicleConsultation.module.css';
+import { aplicarMargem, type FaixaDeMargem } from '@/lib/utils/margem';
 
 export function getStatusColor(status: string | undefined) {
     switch (status?.toLowerCase()) {
@@ -93,6 +94,8 @@ interface VehicleCardProps {
     margem: number;
     fixedMargin: number;
     marginMode: 'percent' | 'fixed';
+    /** Margem por faixa de preço (opcional). */
+    faixas?: FaixaDeMargem[];
     onWhatsApp: (vehicle: Vehicle) => void;
     /** Criar banner a partir do cartão. Só chega preenchido para quem administra. */
     onCreateBanner?: (vehicle: Vehicle) => void;
@@ -113,7 +116,7 @@ interface VehicleCardProps {
 
 const brl = (valor: number) => valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsApp, onCreateBanner, onLocationClick, role = 'operator', canViewLocation = false, onUpdatePreco, onUpdateObservacoes, onUpdateQuantidade, isFavorite = false, onToggleFavorite, nomeCliente, getFreteTabela, onFreteTabelaClick }: VehicleCardProps) {
+export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, faixas, onWhatsApp, onCreateBanner, onLocationClick, role = 'operator', canViewLocation = false, onUpdatePreco, onUpdateObservacoes, onUpdateQuantidade, isFavorite = false, onToggleFavorite, nomeCliente, getFreteTabela, onFreteTabelaClick }: VehicleCardProps) {
     const isRepasse = vehicle.origem === 'repasse';
     // Usado se edita no painel Repasse da concessionária, não aqui.
     // A concessionária ajusta preço e observações dos próprios veículos (Meus veículos).
@@ -122,13 +125,8 @@ export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsA
     // teste grátis não veem (o grátis não pode ver o estado do veículo).
     const showUfAndFrete = role !== 'dealership' && role !== 'gratis';
     
-    const calculateClientPrice = () => {
-        const basePrice = vehicle.preco || 0;
-        if (marginMode === 'fixed') {
-            return basePrice + (fixedMargin || 0);
-        }
-        return basePrice * (1 + margem / 100);
-    };
+    const calculateClientPrice = () =>
+        aplicarMargem(vehicle.preco, { margem, marginMode, fixedMargin, faixas });
 
     return (
         <div className={styles.vehicleCard}>
@@ -168,6 +166,12 @@ export function VehicleCard({ vehicle, margem, fixedMargin, marginMode, onWhatsA
                         `R$ ${brl(role === 'client' ? calculateClientPrice() : (vehicle.preco || 0))}`
                     )}
                 </span>
+                {/* Repasse: FIPE de referência logo abaixo do preço. Sem margem. */}
+                {isRepasse && rotuloFipe(vehicle.precoFipe) && (
+                    <span className={styles.cardFrete} title={referenciaFipeTitulo(vehicle.referenciaFipe)}>
+                        {rotuloFipe(vehicle.precoFipe)}
+                    </span>
+                )}
                 {showUfAndFrete && (
                     <span className={styles.cardFrete}>
                         {vehicle.frete ? (
@@ -377,6 +381,8 @@ interface VehicleGridProps {
     margem: number;
     fixedMargin: number;
     marginMode: 'percent' | 'fixed';
+    /** Margem por faixa de preço (opcional). */
+    faixas?: FaixaDeMargem[];
     onWhatsApp: (vehicle: Vehicle) => void;
     /** Criar banner a partir do cartão. Só chega preenchido para quem administra. */
     onCreateBanner?: (vehicle: Vehicle) => void;
@@ -393,7 +399,7 @@ interface VehicleGridProps {
     onFreteTabelaClick?: (estado?: string) => void;
 }
 
-export function VehicleGrid({ vehicles, margem, fixedMargin, marginMode, onWhatsApp, onCreateBanner, onLocationClick, role, canViewLocation, onUpdatePreco, onUpdateObservacoes, onUpdateQuantidade, isFavorite, onToggleFavorite, nomeCliente, getFreteTabela, onFreteTabelaClick }: VehicleGridProps) {
+export function VehicleGrid({ vehicles, margem, fixedMargin, marginMode, faixas, onWhatsApp, onCreateBanner, onLocationClick, role, canViewLocation, onUpdatePreco, onUpdateObservacoes, onUpdateQuantidade, isFavorite, onToggleFavorite, nomeCliente, getFreteTabela, onFreteTabelaClick }: VehicleGridProps) {
     return (
         <div className={styles.gridContainer}>
             {vehicles.length === 0 ? (
@@ -408,6 +414,7 @@ export function VehicleGrid({ vehicles, margem, fixedMargin, marginMode, onWhats
                         margem={margem}
                         fixedMargin={fixedMargin}
                         marginMode={marginMode}
+                        faixas={faixas}
                         onWhatsApp={onWhatsApp}
                         onCreateBanner={onCreateBanner}
                         onLocationClick={onLocationClick}

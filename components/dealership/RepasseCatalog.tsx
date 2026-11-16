@@ -10,7 +10,7 @@ import { AdminModal, modalStyles } from '../admin/AdminModal';
 import { AutocompleteField, matchLocalBrand, useFipeCascade } from '../catalog/FipeLookup';
 import type { FipeDetail } from '../../lib/services/fipeService';
 import { PlanoRepasseCard } from './PlanoRepasseCard';
-import { REPASSE_COMBUSTIVEIS, REPASSE_TRANSMISSOES, formatKm } from '../../lib/utils/repasse';
+import { REPASSE_COMBUSTIVEIS, REPASSE_TRANSMISSOES, formatKm, referenciaFipeTitulo, rotuloFipe } from '../../lib/utils/repasse';
 import base from './PricingCatalog.module.css';
 import styles from './RepasseCatalog.module.css';
 
@@ -32,6 +32,9 @@ interface RepasseRow {
     foraDoCatalogo?: boolean;
     codigoFipe?: string;
     descricaoFipe?: string;
+    /** Referência FIPE gravada no cadastro. Aparece abaixo do preço. */
+    precoFipe?: number | null;
+    referenciaFipe?: string;
 }
 
 type FormState = {
@@ -233,7 +236,12 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
             const res = await fetch(withScope(url), {
                 method: editingId ? 'PATCH' : 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(form.foraDoCatalogo ? { ...form, codigoFipe: '', descricaoFipe: '' } : form),
+                // O preço FIPE só vai quando a loja escolheu o carro na FIPE nesta
+                // abertura do formulário: editar sem mexer no vínculo mantém o gravado.
+                // Ano "Zero KM" da FIPE (32000) é preço de novo, não serve de referência do usado.
+                body: JSON.stringify(form.foraDoCatalogo
+                    ? { ...form, codigoFipe: '', descricaoFipe: '' }
+                    : { ...form, ...(fipeRef && form.codigoFipe && !fipe.year.startsWith('32000') ? { precoFipe: fipeRef.price, referenciaFipe: (fipeRef.month || '').trim() } : {}) }),
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
@@ -447,7 +455,12 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
                                     </td>
                                     <td className={pageStyles.nowrap}>{row.ano || row.anoModelo}</td>
                                     <td className={`${pageStyles.num} ${pageStyles.nowrap}`}>{formatKm(row.km)}</td>
-                                    <td className={`${pageStyles.num} ${pageStyles.nowrap}`}><strong>{formatCurrency(row.preco)}</strong></td>
+                                    <td className={`${pageStyles.num} ${pageStyles.nowrap}`}>
+                                        <strong>{formatCurrency(row.preco)}</strong>
+                                        {rotuloFipe(row.precoFipe) && (
+                                            <span className={pageStyles.subLine} title={referenciaFipeTitulo(row.referenciaFipe)}>{rotuloFipe(row.precoFipe)}</span>
+                                        )}
+                                    </td>
                                     <td>{row.observacoes ? <span className={pageStyles.clamp2} title={row.observacoes}>{row.observacoes}</span> : <span className={pageStyles.muted}>Sem observações</span>}</td>
                                     <td>
                                         <RowActions>

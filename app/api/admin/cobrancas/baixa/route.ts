@@ -7,6 +7,8 @@ import Payment from '@/models/Payment';
 import User from '@/models/User';
 import { getPayment, mpPut } from '@/lib/mercadopago';
 import { aplicarPagamentoNaAssinatura } from '@/lib/services/assinaturaPagamento';
+import { liberarCobrancaConcessionaria } from '@/lib/services/cobrancaConcessionariaService';
+import { PERFIS_EMITEM_BOLETO_CONCESSIONARIA } from '@/lib/utils/cobrancaConcessionaria';
 import { parseSubscriptionStartDate } from '@/lib/utils/subscriptionDates';
 
 export const dynamic = 'force-dynamic';
@@ -91,6 +93,11 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Informe a cobrança.' }, { status: 400 });
         }
 
+        // Dar baixa libera plano ou banner da loja sem pagamento: só quem emite.
+        if (pagamento.concessionariaId && !PERFIS_EMITEM_BOLETO_CONCESSIONARIA.has(session.user?.profile as string)) {
+            return NextResponse.json({ error: 'Só administrador ou administrativo dá baixa em cobrança de concessionária.' }, { status: 403 });
+        }
+
         if (pagamento.status === 'approved' && pagamento.assinaturaAplicadaEm) {
             return NextResponse.json({ error: 'Esta cobrança já está paga e já renovou a assinatura.' }, { status: 409 });
         }
@@ -117,6 +124,29 @@ export async function POST(request: Request) {
             boletoCanceladoNoMP: boletoCancelado,
         };
         await pagamento.save();
+
+        // Cobrança da concessionária: a baixa libera o que foi pago (plano de
+        // repasse ou banner) pelo mesmo caminho do webhook. Nunca pela
+        // assinatura do lojista, que trocaria o perfil do usuário da loja.
+        if (pagamento.concessionariaId) {
+            const liberacao = body.renovarAssinatura !== false
+                ? await liberarCobrancaConcessionaria({
+                    paymentDocId: pagamento._id,
+                    metodo: forma === 'pix' ? 'pix' : forma === 'boleto' ? 'boleto' : forma === 'cartao' ? 'card' : 'manual',
+                    por: session.user?.email || undefined,
+                })
+                : { aplicado: false, motivo: 'Liberação não pedida.' } as Awaited<ReturnType<typeof liberarCobrancaConcessionaria>>;
+            return NextResponse.json({
+                ok: true,
+                boletoCancelado,
+                avisoMP,
+                concessionaria: true,
+                liberado: liberacao.aplicado ? liberacao.liberado || 'nada' : null,
+                assinaturaRenovada: liberacao.aplicado && liberacao.liberado === 'plano',
+                novoVencimento: liberacao.expiresAt || null,
+                motivo: liberacao.aplicado ? null : liberacao.motivo,
+            });
+        }
 
         let assinatura: { aplicado: boolean; motivo?: string; expiresAt?: Date } = { aplicado: false, motivo: 'Renovação não pedida.' };
         if (body.renovarAssinatura !== false) {

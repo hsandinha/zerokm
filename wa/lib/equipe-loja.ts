@@ -14,6 +14,7 @@ import { WaAdmin } from "@wa/models/panel";
 import type { IWaStore } from "@wa/models/store";
 import { getStore } from "@wa/lib/store";
 import { ADMIN_PROFILES } from "@wa/lib/panel-role";
+import { acessoLiberado, papelDoUsuario } from "@/lib/utils/atendentesLoja";
 
 export type MembroDaLoja = { email: string; name: string | null; role: "gestor" | "atendente" };
 
@@ -35,10 +36,14 @@ export async function membrosDaLoja(store: IWaStore): Promise<MembroDaLoja[]> {
       dealershipId: String(store.concessionariaId),
       allowedProfiles: { $in: ["concessionaria", "dealership"] },
     })
-      .select("email displayName")
+      .select("email displayName papelLoja atendenteInativo")
       .limit(TETO)
       .lean();
-    for (const u of users) add(u.email, u.displayName, "gestor");
+    // Titular é gestor; atendente da concessionária atende. Desativado não é da equipe.
+    for (const u of users) {
+      if (!acessoLiberado(u)) continue;
+      add(u.email, u.displayName, papelDoUsuario(u) === "atendente" ? "atendente" : "gestor");
+    }
   }
   if (store.kind === "lojista" && store.ownerUserId) {
     const dono = await User.findById(store.ownerUserId).select("email displayName").lean();
