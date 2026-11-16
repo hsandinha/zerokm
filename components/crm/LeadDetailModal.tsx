@@ -1,5 +1,6 @@
 "use client";
 
+import { CampoValor } from '@/components/ui/CampoValor';
 import React, { useEffect, useState } from 'react';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
 import { useFeedback } from '@/components/ui/Feedback';
@@ -282,12 +283,11 @@ export default function LeadDetailModal({ leadId, onClose, onSaved }: Props) {
 
               <div className={modalStyles.field}>
                 <label htmlFor="lead-proposal">Valor da proposta (R$)</label>
-                <input
+                <CampoValor
                   id="lead-proposal"
-                  value={proposalValue}
-                  onChange={(e) => setProposalValue(e.target.value)}
+                  valor={proposalValue}
+                  aoMudar={setProposalValue}
                   placeholder="0,00"
-                  inputMode="decimal"
                 />
               </div>
 

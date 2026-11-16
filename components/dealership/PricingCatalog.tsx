@@ -1,5 +1,6 @@
 'use client';
 
+import { CampoValor } from '@/components/ui/CampoValor';
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { FaFileExport, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
 import { BookOpen, CarFront, Download, Trash2, TriangleAlert, Upload } from 'lucide-react';
@@ -713,17 +714,16 @@ export function PricingCatalog({ concessionariaId }: PricingCatalogProps = {}) {
                                     <td>
                                         <div className={styles.priceCell}>
                                             <span>R$</span>
-                                            <input
+                                            <CampoValor
                                                 data-row-index={index}
                                                 data-col="preco"
-                                                value={inputValue}
-                                                inputMode="decimal"
+                                                valor={inputValue}
                                                 disabled={isSaving}
                                                 className={styles.priceInput}
                                                 placeholder="0,00"
-                                                onChange={event => setDraftPrices(prev => ({
+                                                aoMudar={texto => setDraftPrices(prev => ({
                                                     ...prev,
-                                                    [row.variationId]: event.target.value,
+                                                    [row.variationId]: texto,
                                                 }))}
                                                 onBlur={event => updateRowFields(row, event.target.value)}
                                                 onKeyDown={event => {

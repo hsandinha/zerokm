@@ -1,5 +1,7 @@
 'use client';
 
+import { CampoValor } from '@/components/ui/CampoValor';
+import { lerValor } from '@/lib/utils/campoValor';
 import React, { useEffect, useState } from 'react';
 import { Save } from 'lucide-react';
 import { modalStyles } from '@/components/admin/AdminModal';
@@ -22,10 +24,8 @@ const CONTATO_VAZIO: ContatoConfig = {
 
 /** Aceita "50", "50,00" e "1.250,90". */
 function paraCentavos(texto: string): number | null {
-    const s = texto.trim();
-    if (!s) return null;
-    const n = Number(s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s);
-    return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : null;
+    const n = lerValor(texto);
+    return n !== null && n >= 0 ? Math.round(n * 100) : null;
 }
 
 export function ConfiguracoesManagement() {
@@ -205,7 +205,7 @@ export function ConfiguracoesManagement() {
                     <div className={modalStyles.row}>
                         <label className={modalStyles.field}>
                             Preço por anúncio (R$)
-                            <input type="text" inputMode="decimal" value={precoBanner} onChange={e => setPrecoBanner(e.target.value)} disabled={isLoading} />
+                            <CampoValor valor={precoBanner} aoMudar={setPrecoBanner} disabled={isLoading} />
                         </label>
                         <label className={modalStyles.field}>
                             Duração (dias)

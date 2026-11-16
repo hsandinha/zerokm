@@ -348,6 +348,7 @@ exports[`ConfiguracoesManagement > should match snapshot after loading 1`] = `
             >
               Preço por anúncio (R$)
               <input
+                autocomplete="off"
                 inputmode="decimal"
                 type="text"
                 value="50,00"

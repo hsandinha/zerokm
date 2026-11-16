@@ -1,5 +1,7 @@
 'use client';
 
+import { CampoValor } from '@/components/ui/CampoValor';
+import { lerValor, valorParaCampo } from '@/lib/utils/campoValor';
 import { useState, useEffect } from 'react';
 import { Building2, CalendarRange, CreditCard, Eye, EyeOff, Pencil, Plus, Search, Store, Trash2 } from 'lucide-react';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
@@ -68,24 +70,18 @@ const planToForm = (p: Plan): PlanForm => ({
     description: p.description ?? '',
     publico: p.publico === 'concessionaria' || p.publico === 'atendimento' ? p.publico : 'cliente',
     type: p.type,
-    credits: p.credits != null ? String(p.credits) : '',
-    price: p.price != null ? String(p.price) : '',
-    annualPrice: p.annualPrice != null ? String(p.annualPrice) : '',
-    invitePrice: p.invitePrice != null ? String(p.invitePrice) : '',
+    credits: p.credits != null ? valorParaCampo(p.credits, 0) : '',
+    price: p.price != null ? valorParaCampo(p.price) : '',
+    annualPrice: p.annualPrice != null ? valorParaCampo(p.annualPrice) : '',
+    invitePrice: p.invitePrice != null ? valorParaCampo(p.invitePrice) : '',
     featuresText: (p.features ?? []).join('\n'),
     popular: !!p.popular,
     especial: p.especial === true,
     active: p.active !== false,
 });
 
-/** Aceita "699.90" e "699,90" — e "1.234,56", como o admin costuma digitar. */
-function parseAmount(raw: string): number | null {
-    const s = raw.trim();
-    if (!s) return null;
-    const normalized = s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s;
-    const n = Number(normalized);
-    return Number.isFinite(n) ? n : null;
-}
+/** Lê o valor digitado ("1.234,56", "10.000"); o campo já formata enquanto se digita. */
+const parseAmount = (raw: string): number | null => lerValor(raw);
 
 /** Segunda linha da coluna Cobrança: anual, convidado ou uso do plano. */
 function cobrancaDetalhe(plan: Plan) {
@@ -442,36 +438,31 @@ export function PlansManagement() {
                         {form.publico === 'cliente' && form.type === 'credits' && (
                             <label className={modalStyles.field}>
                                 Quantidade de créditos *
-                                <input
+                                <CampoValor
                                     required
-                                    type="text"
-                                    inputMode="numeric"
-                                    value={form.credits}
-                                    onChange={e => setForm(f => ({ ...f, credits: e.target.value.replace(/\D/g, '') }))}
+                                    decimais={0}
+                                    valor={form.credits}
+                                    aoMudar={texto => setForm(f => ({ ...f, credits: texto }))}
                                     placeholder="Ex: 10"
                                 />
                             </label>
                         )}
                         <label className={modalStyles.field}>
                             {form.type === 'credits' ? 'Preço do pacote (R$) *' : 'Preço mensal (R$) *'}
-                            <input
+                            <CampoValor
                                 required
-                                type="text"
-                                inputMode="decimal"
-                                value={form.price}
-                                onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
+                                valor={form.price}
+                                aoMudar={texto => setForm(f => ({ ...f, price: texto }))}
                                 placeholder="Ex: 699,90"
                             />
                         </label>
                         {form.type === 'monthly' && (
                             <label className={modalStyles.field}>
                                 Preço anual total (R$)
-                                <input
-                                    type="text"
-                                    inputMode="decimal"
-                                    value={form.annualPrice}
-                                    onChange={e => setForm(f => ({ ...f, annualPrice: e.target.value }))}
-                                    placeholder="Ex: 7198,80"
+                                <CampoValor
+                                    valor={form.annualPrice}
+                                    aoMudar={texto => setForm(f => ({ ...f, annualPrice: texto }))}
+                                    placeholder="Ex: 7.198,80"
                                 />
                                 {(() => {
                                     const anual = parseAmount(form.annualPrice);
@@ -508,11 +499,9 @@ export function PlansManagement() {
                         {form.publico === 'cliente' && (
                             <label className={modalStyles.field}>
                                 Preço por convidado (R$/mês)
-                                <input
-                                    type="text"
-                                    inputMode="decimal"
-                                    value={form.invitePrice}
-                                    onChange={e => setForm(f => ({ ...f, invitePrice: e.target.value }))}
+                                <CampoValor
+                                    valor={form.invitePrice}
+                                    aoMudar={texto => setForm(f => ({ ...f, invitePrice: texto }))}
                                     placeholder="Ex: 9,90"
                                 />
                                 <span className={modalStyles.hint}>

@@ -1,5 +1,7 @@
 'use client';
 
+import { CampoValor } from '@/components/ui/CampoValor';
+import { valorParaCampo } from '@/lib/utils/campoValor';
 import { CarFront, Pencil, Plus, Trash2 } from 'lucide-react';
 import {
     Button, EmptyState, IconAction, Pagination, Panel, PanelFooter, PanelToolbar, PrimaryCell, RowActions, SearchField, SkeletonRows, pageStyles,
@@ -184,12 +186,12 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
             marca: row.marca || '',
             modelo: row.modelo || '',
             ano: row.ano || String(row.anoModelo || ''),
-            km: row.km != null ? String(row.km) : '',
+            km: row.km != null ? valorParaCampo(row.km, 0) : '',
             cor: row.cor || '',
             combustivel: row.combustivel || '',
             transmissao: row.transmissao || '',
             opcionais: row.opcionais || '',
-            preco: row.preco ? row.preco.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '',
+            preco: row.preco ? valorParaCampo(row.preco) : '',
             observacoes: row.observacoes || '',
             foraDoCatalogo: Boolean(row.foraDoCatalogo),
             codigoFipe: row.codigoFipe || '',
@@ -375,11 +377,11 @@ export function RepasseCatalog({ concessionariaId }: RepasseCatalogProps) {
                         </label>
                         <label>
                             <span className={styles.required}>Quilometragem</span>
-                            <input value={form.km} onChange={set('km')} inputMode="numeric" placeholder="Ex.: 48.500" required />
+                            <CampoValor decimais={0} valor={form.km} aoMudar={texto => setForm(prev => ({ ...prev, km: texto }))} placeholder="Ex.: 48.500" required />
                         </label>
                         <label>
                             <span className={styles.required}>Preço</span>
-                            <input value={form.preco} onChange={set('preco')} inputMode="decimal" placeholder="Ex.: 72.900,00" required />
+                            <CampoValor valor={form.preco} aoMudar={texto => setForm(prev => ({ ...prev, preco: texto }))} placeholder="Ex.: 72.900,00" required />
                             {fipeRef && <span className={styles.hint}>FIPE: {fipeRef.price}{fipeRef.month ? ` (${fipeRef.month.trim()})` : ''}</span>}
                         </label>
                         <label>

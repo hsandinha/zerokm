@@ -1,5 +1,6 @@
 'use client';
 
+import { CampoValor } from '@/components/ui/CampoValor';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
 import { InlineNotice } from '@/components/ui/Feedback';
@@ -261,7 +262,7 @@ export function EmitirBoletoConcessionariaModal({ concessionaria, tipoInicial = 
                         <div className={modalStyles.grid2}>
                             <label className={modalStyles.field}>
                                 Valor (R$)
-                                <input type="text" inputMode="decimal" required value={valor} onChange={e => setValor(e.target.value)} placeholder="0,00" />
+                                <CampoValor required valor={valor} aoMudar={setValor} placeholder="0,00" />
                             </label>
                             <label className={modalStyles.field}>
                                 Vencimento

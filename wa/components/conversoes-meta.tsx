@@ -10,6 +10,8 @@
 // modal, no padrão dos outros do atendimento. O token nunca volta do
 // servidor: a tela só sabe que há um salvo.
 
+import { CampoValor } from "@/components/ui/CampoValor";
+import { valorParaCampo } from "@/lib/utils/campoValor";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import clsx from "clsx";
@@ -316,7 +318,7 @@ function ConfigModal({
   const [datasetId, setDatasetId] = useState(config.datasetId);
   const [token, setToken] = useState("");
   const [codigo, setCodigo] = useState(config.testEventCode);
-  const [valor, setValor] = useState(config.valorPadrao != null ? String(config.valorPadrao) : "");
+  const [valor, setValor] = useState(config.valorPadrao != null ? valorParaCampo(config.valorPadrao) : "");
   const [salvando, setSalvando] = useState(false);
   const [testando, setTestando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -422,12 +424,11 @@ function ConfigModal({
           </label>
           <label className="block text-xs font-semibold text-ink-800">
             Valor padrão da venda (R$)
-            <input
+            <CampoValor
               className="input mt-1 w-full"
-              inputMode="decimal"
               placeholder="Opcional"
-              value={valor}
-              onChange={(e) => setValor(e.target.value)}
+              valor={valor}
+              aoMudar={setValor}
             />
           </label>
         </div>

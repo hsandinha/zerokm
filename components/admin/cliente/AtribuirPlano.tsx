@@ -1,5 +1,6 @@
 'use client';
 
+import { CampoValor } from '@/components/ui/CampoValor';
 import { useState } from 'react';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
 import { InlineNotice } from '@/components/ui/Feedback';
@@ -215,10 +216,9 @@ export function AtribuirPlanoCampos({ client, plans, valor, onChange, modo = 'li
             {comData && !cortesia && padrao && (
                 <label className={modalStyles.field}>
                     {modo === 'combinado' ? 'Valor combinado' : 'Valor do plano'} {anual ? '(ano)' : '(mês)'}
-                    <input
-                        inputMode="decimal"
-                        value={valor.valorPlano}
-                        onChange={e => onChange({ ...valor, valorPlano: e.target.value })}
+                    <CampoValor
+                        valor={valor.valorPlano}
+                        aoMudar={texto => onChange({ ...valor, valorPlano: texto })}
                         placeholder={padrao.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     />
                     <span className={modalStyles.hint}>

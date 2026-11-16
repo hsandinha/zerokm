@@ -1,5 +1,7 @@
 'use client';
 
+import { CampoValor } from '@/components/ui/CampoValor';
+import { lerValor, valorParaCampo } from '@/lib/utils/campoValor';
 import React, { useState, useEffect } from 'react';
 import { Check, Eye, EyeOff, Images, Pencil, Plus, Trash2 } from 'lucide-react';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
@@ -8,6 +10,12 @@ import {
     Segmented, SkeletonRows, StatusBadge, TwoLine, pageStyles, type BadgeTone,
 } from '@/components/ui/Page';
 import { InlineNotice, useFeedback } from '@/components/ui/Feedback';
+
+/** Texto do campo para o banner: "142.000" vira "R$ 142.000,00"; vazio continua vazio. */
+const emReais = (texto: string) => {
+    const n = lerValor(texto);
+    return n === null ? '' : n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
 
 type FiltroBanner = 'all' | 'active' | 'inactive' | 'pending' | 'awaiting_payment' | 'expired';
 
@@ -199,8 +207,8 @@ export function BannersManagement() {
                     imageUrl: newBanner.imageBase64,
                     linkUrl: newBanner.linkUrl,
                     badge: newBanner.badge,
-                    price: newBanner.price,
-                    priceSubtitle: newBanner.priceSubtitle,
+                    price: emReais(newBanner.price),
+                    priceSubtitle: emReais(newBanner.priceSubtitle),
                     vehicleModel: newBanner.vehicleModel,
                     storeName: newBanner.storeName,
                     year: newBanner.year,
@@ -234,7 +242,7 @@ export function BannersManagement() {
 
         let formattedPrice = '';
         if (veiculo.preco) {
-            formattedPrice = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(veiculo.preco);
+            formattedPrice = valorParaCampo(veiculo.preco);
         }
 
         let newImageBase64 = newBanner.imageBase64;
@@ -345,8 +353,8 @@ export function BannersManagement() {
             linkUrl: banner.linkUrl || '',
             imageBase64: banner.imageUrl || '',
             badge: banner.badge || '',
-            price: banner.price || '',
-            priceSubtitle: banner.priceSubtitle || '',
+            price: valorParaCampo(lerValor(banner.price || '')),
+            priceSubtitle: valorParaCampo(lerValor(banner.priceSubtitle || '')),
             vehicleModel: banner.vehicleModel || '',
             storeName: banner.storeName || '',
             year: banner.year || '',
@@ -376,20 +384,14 @@ export function BannersManagement() {
         </label>
     );
 
+    // O campo mostra só o número (142.000,00) e formata enquanto digita; o banner guarda "R$ 142.000,00".
     const campoMoeda = (label: string, chave: 'price' | 'priceSubtitle', placeholder: string) => (
         <label className={modalStyles.field}>
             {label}
-            <input
-                type="text"
-                inputMode="numeric"
+            <CampoValor
                 placeholder={placeholder}
-                value={newBanner[chave]}
-                onChange={(e) => {
-                    const digitos = e.target.value.replace(/\D/g, '');
-                    if (!digitos) { setNewBanner({ ...newBanner, [chave]: '' }); return; }
-                    const valor = (parseInt(digitos, 10) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    setNewBanner({ ...newBanner, [chave]: valor });
-                }}
+                valor={newBanner[chave]}
+                aoMudar={texto => setNewBanner({ ...newBanner, [chave]: texto })}
             />
         </label>
     );
@@ -592,8 +594,8 @@ export function BannersManagement() {
 
                         <div className={modalStyles.row}>
                             {campoTexto('Modelo', 'vehicleModel', 'Ex.: TIGGO 5X PRO MAX')}
-                            {campoMoeda('Preço', 'price', 'R$ 142.000,00')}
-                            {campoMoeda('Preço riscado', 'priceSubtitle', 'R$ 150.000,00')}
+                            {campoMoeda('Preço (R$)', 'price', '142.000,00')}
+                            {campoMoeda('Preço riscado (R$)', 'priceSubtitle', '150.000,00')}
                         </div>
 
                         <div className={modalStyles.row}>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
 import { InlineNotice } from '@/components/ui/Feedback';
 import { lerValorEmReais } from '@/lib/utils/valorCombinado';
+import { CampoValor } from '@/components/ui/CampoValor';
 import styles from './ClienteFinanceiro.module.css';
 
 type Cobranca = {
@@ -232,7 +233,7 @@ export function ClienteFinanceiro({ userId }: { userId: string }) {
                         {erroCorrecao && <InlineNotice>{erroCorrecao}</InlineNotice>}
                         <label className={modalStyles.field}>
                             Valor recebido
-                            <input value={corrigindo.valor} onChange={e => setCorrigindo({ ...corrigindo, valor: e.target.value })} inputMode="decimal" autoFocus />
+                            <CampoValor valor={corrigindo.valor} aoMudar={texto => setCorrigindo({ ...corrigindo, valor: texto })} autoFocus />
                             <span className={modalStyles.hint}>Para as próximas cobranças usarem outro valor, use Valor combinado, acima.</span>
                         </label>
                     </div>

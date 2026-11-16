@@ -8,6 +8,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import adminModal from '@/components/admin/AdminModal.module.css';
 import { MAX_FAIXAS, aplicarMargem, type FaixaDeMargem, type TipoDeMargem } from '@/lib/utils/margem';
 import styles from './MargemFaixas.module.css';
+import { CampoValor } from '@/components/ui/CampoValor';
 
 /** Linha como está sendo digitada (texto), antes de virar número. */
 export type FaixaEmEdicao = { id: string; ate: string; tipo: TipoDeMargem; valor: string };
@@ -77,8 +78,6 @@ function exemplo(linhas: FaixaEmEdicao[], linha: FaixaEmEdicao): string | null {
     return `Exemplo: ${reais(ate)} vira ${reais(final)}`;
 }
 
-const SO_NUMERO = /^[\d.,]*$/;
-
 export function MargemFaixas({
     linhas,
     onChange,
@@ -107,14 +106,12 @@ export function MargemFaixas({
                         <span className={styles.rotulo}>{rotulo(linhas, l)}</span>
                         <label className={styles.campo}>
                             Veículos até (R$)
-                            <input
-                                type="text"
-                                inputMode="decimal"
+                            <CampoValor
                                 placeholder="100.000"
-                                value={l.ate}
+                                valor={l.ate}
                                 disabled={disabled}
                                 aria-label={`Faixa ${i + 1}: preço até`}
-                                onChange={(e) => SO_NUMERO.test(e.target.value) && trocar(l.id, { ate: e.target.value })}
+                                aoMudar={(texto) => trocar(l.id, { ate: texto })}
                             />
                         </label>
                         <div className={styles.tipo} role="group" aria-label={`Faixa ${i + 1}: tipo de margem`}>
@@ -123,14 +120,12 @@ export function MargemFaixas({
                         </div>
                         <label className={styles.campo}>
                             {l.tipo === 'percent' ? 'Sobe (%)' : 'Sobe (R$)'}
-                            <input
-                                type="text"
-                                inputMode="decimal"
+                            <CampoValor
                                 placeholder={l.tipo === 'percent' ? '5' : '1.000'}
-                                value={l.valor}
+                                valor={l.valor}
                                 disabled={disabled}
                                 aria-label={`Faixa ${i + 1}: margem`}
-                                onChange={(e) => SO_NUMERO.test(e.target.value) && trocar(l.id, { valor: e.target.value })}
+                                aoMudar={(texto) => trocar(l.id, { valor: texto })}
                             />
                         </label>
                         <button

@@ -10,6 +10,7 @@
 // abrem em modal, com até 15 fotos (a primeira é a capa), reduzidas no
 // navegador antes de subir.
 
+import { CampoValor } from "@/components/ui/CampoValor";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import {
@@ -713,6 +714,21 @@ function CarroModal({ carro, onClose, onSaved }: { carro: CarroLocal | null; onC
     </label>
   );
 
+  // Preço, km e FIPE formatam enquanto se digita (79900 vira 79.900).
+  const campoValor = (k: "km" | "preco" | "precoFipe", label: string, placeholder?: string) => (
+    <label className="block text-xs font-semibold text-ink-800">
+      {label}
+      <CampoValor
+        className="input mt-1 w-full"
+        decimais={k === "km" ? 0 : 2}
+        valor={form[k]}
+        aoMudar={(texto) => set(k, texto as never)}
+        disabled={salvando}
+        placeholder={placeholder}
+      />
+    </label>
+  );
+
   const escolha = (k: "combustivel" | "transmissao" | "portas", label: string, opcoes: string[]) => (
     <label className="block text-xs font-semibold text-ink-800">
       {label}
@@ -890,12 +906,12 @@ function CarroModal({ carro, onClose, onSaved }: { carro: CarroLocal | null; onC
             {campo("versao", "Versão", { placeholder: "LTZ 1.0 TURBO" })}
             {campo("anoFabricacao", "Ano de fabricação", { inputMode: "numeric", placeholder: "2021", maxLength: 4 })}
             {campo("anoModelo", "Ano do modelo", { inputMode: "numeric", placeholder: "2022", maxLength: 4, required: true })}
-            {campo("km", "Quilometragem", { inputMode: "numeric", placeholder: "35.000" })}
+            {campoValor("km", "Quilometragem", "35.000")}
             {escolha("transmissao", "Câmbio", REPASSE_TRANSMISSOES)}
             {escolha("combustivel", "Combustível", REPASSE_COMBUSTIVEIS)}
             {escolha("portas", "Portas", ["2", "3", "4", "5"])}
             {campo("cor", "Cor", { placeholder: "Prata" })}
-            {campo("preco", "Preço de venda (R$)", { inputMode: "numeric", placeholder: "79.900" })}
+            {campoValor("preco", "Preço de venda (R$)", "79.900")}
             <label className="block text-xs font-semibold text-ink-800">
               Situação
               <select
@@ -937,7 +953,7 @@ function CarroModal({ carro, onClose, onSaved }: { carro: CarroLocal | null; onC
           <section className="grid gap-3 rounded-2xl bg-canvas p-3 sm:grid-cols-3">
             <p className="text-xs text-muted sm:col-span-3">Só a equipe vê: não vai para a IA nem para o cliente.</p>
             {campo("placaInterna", "Placa", { placeholder: "ABC1D23", maxLength: 8 })}
-            {campo("precoFipe", "Preço FIPE (R$)", { inputMode: "numeric" })}
+            {campoValor("precoFipe", "Preço FIPE (R$)")}
             {campo("referenciaFipe", "Referência FIPE", { placeholder: "novembro de 2026" })}
           </section>
         </div>

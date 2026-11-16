@@ -1,5 +1,7 @@
 'use client';
 
+import { CampoValor } from '@/components/ui/CampoValor';
+import { lerValor, valorParaCampo } from '@/lib/utils/campoValor';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useFeedback } from '@/components/ui/Feedback';
 import { useSession } from 'next-auth/react';
@@ -181,15 +183,15 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
     const [veiculoParaBanner, setVeiculoParaBanner] = useState<Vehicle | null>(null);
     const { margem, fixedMargin, marginMode, faixas, setMargem, setMarginConfig } = useConfig();
     const [showMargemModal, setShowMargemModal] = useState(false);
-    const [inputMargem, setInputMargem] = useState<string>(margem.toString());
-    const [inputFixedMargin, setInputFixedMargin] = useState<string>(fixedMargin.toString());
+    const [inputMargem, setInputMargem] = useState<string>(valorParaCampo(margem));
+    const [inputFixedMargin, setInputFixedMargin] = useState<string>(valorParaCampo(fixedMargin));
     const [inputMarginMode, setInputMarginMode] = useState<'percent' | 'fixed'>(marginMode);
     const [inputFaixas, setInputFaixas] = useState<FaixaEmEdicao[]>(() => faixasParaEdicao(faixas));
     const [erroMargem, setErroMargem] = useState<string | null>(null);
 
     useEffect(() => {
-        setInputMargem(margem.toString());
-        setInputFixedMargin(fixedMargin.toString());
+        setInputMargem(valorParaCampo(margem));
+        setInputFixedMargin(valorParaCampo(fixedMargin));
         setInputMarginMode(marginMode);
     }, [margem, fixedMargin, marginMode]);
 
@@ -201,8 +203,8 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
     }, [faixas, showMargemModal]);
 
     const handleSaveMargem = async () => {
-        const newMargem = parseFloat(inputMargem) || 0;
-        const newFixedMargin = parseFloat(inputFixedMargin) || 0;
+        const newMargem = lerValor(inputMargem) ?? 0;
+        const newFixedMargin = lerValor(inputFixedMargin) ?? 0;
         // O teto de 100% é da margem da equipe (/api/config/margem); a do lojista não tem.
         if (role !== 'client' && inputMarginMode === 'percent' && newMargem > 100) {
             setErroMargem('A margem percentual vai de 0 a 100.');
@@ -1666,17 +1668,10 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                         {inputMarginMode === 'percent' ? (
                             <label className={adminModal.field} htmlFor="margemInput">
                                 Margem (%)
-                                <input
+                                <CampoValor
                                     id="margemInput"
-                                    type="text"
-                                    inputMode="decimal"
-                                    value={inputMargem}
-                                    onChange={(e) => {
-                                        const value = e.target.value;
-                                        if (/^\d*\.?\d*$/.test(value)) {
-                                            setInputMargem(value);
-                                        }
-                                    }}
+                                    valor={inputMargem}
+                                    aoMudar={setInputMargem}
                                     style={{ maxWidth: '160px' }}
                                     disabled={isInvitee}
                                 />
@@ -1684,17 +1679,10 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                         ) : (
                             <label className={adminModal.field} htmlFor="fixedMarginInput">
                                 Valor fixo (R$)
-                                <input
+                                <CampoValor
                                     id="fixedMarginInput"
-                                    type="text"
-                                    inputMode="decimal"
-                                    value={inputFixedMargin}
-                                    onChange={(e) => {
-                                        const value = e.target.value;
-                                        if (/^\d*\.?\d*$/.test(value)) {
-                                            setInputFixedMargin(value);
-                                        }
-                                    }}
+                                    valor={inputFixedMargin}
+                                    aoMudar={setInputFixedMargin}
                                     style={{ maxWidth: '160px' }}
                                     disabled={isInvitee}
                                 />
@@ -1720,9 +1708,9 @@ export function VehicleConsultation({ onClose, role = 'operator', isInvitee = fa
                             <div className={adminModal.fact}>
                                 <span className={adminModal.factLabel}>Exemplo</span>
                                 {inputMarginMode === 'percent' ? (
-                                    <span className={adminModal.factValue}>R$ 100.000 + {inputMargem || 0}% = R$ {(100000 * (1 + (parseFloat(inputMargem) || 0) / 100)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                    <span className={adminModal.factValue}>R$ 100.000 + {inputMargem || 0}% = R$ {(100000 * (1 + (lerValor(inputMargem) ?? 0) / 100)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                                 ) : (
-                                    <span className={adminModal.factValue}>R$ 100.000 + R$ {(parseFloat(inputFixedMargin) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} = R$ {(100000 + (parseFloat(inputFixedMargin) || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                    <span className={adminModal.factValue}>R$ 100.000 + R$ {(lerValor(inputFixedMargin) ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} = R$ {(100000 + (lerValor(inputFixedMargin) ?? 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                                 )}
                             </div>
                         </div>

@@ -106,18 +106,29 @@ describe('PlansManagement — formulário de plano', () => {
         });
     });
 
-    // Vazio é barrado pelo `required` do próprio navegador, antes do handler.
-    // O que chega ao handleSave é texto que não vira número — o campo passou a
-    // ser type="text" para aceitar vírgula.
-    it('bloqueia o envio quando o preço não é um número', async () => {
+    // O campo de preço formata enquanto digita e recusa letras: vazio é barrado
+    // pelo `required` do próprio navegador, antes do handler.
+    it('o campo de preço não aceita letras e formata o milhar enquanto digita', async () => {
         await abrirNovoPlano();
         digitar(campo('Ex: Plano Profissional'), 'Preço inválido');
         digitar(campo('Ex: 10'), '5');
         digitar(campo('Ex: 699,90'), 'abc');
+        expect(campo('Ex: 699,90')).toHaveValue('');
         fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
-
-        expect(await screen.findByRole('alert')).toHaveTextContent(/preço válido/i);
         expect(enviado()).toBeUndefined();
+
+        digitar(campo('Ex: 699,90'), '1500');
+        expect(campo('Ex: 699,90')).toHaveValue('1.500');
+    });
+
+    it('preço com milhar vai como número certo (1.500 é mil e quinhentos, não 1,5)', async () => {
+        await abrirNovoPlano();
+        digitar(campo('Ex: Plano Profissional'), 'Plano Mil');
+        digitar(campo('Ex: 10'), '5');
+        digitar(campo('Ex: 699,90'), '1500');
+        fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+        await waitFor(() => expect(enviado()).toBeDefined());
+        expect(enviado()!.body).toMatchObject({ price: 1500 });
     });
 
     it('mostra o erro da API e mantém o modal aberto', async () => {

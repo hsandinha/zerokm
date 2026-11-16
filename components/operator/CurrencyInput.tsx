@@ -1,6 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { CampoValor } from '@/components/ui/CampoValor';
+import { lerValor, valorParaCampo } from '@/lib/utils/campoValor';
 import styles from './AutocompleteInput.module.css'; // Reutilizando estilos
 
 interface CurrencyInputProps {
@@ -12,15 +14,10 @@ interface CurrencyInputProps {
     required?: boolean;
 }
 
-const formatCurrency = (value: number): string => {
-    return value.toLocaleString('pt-BR', {
-        style: 'currency',
-        currency: 'BRL',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    });
-};
-
+/**
+ * Campo de reais com número de entrada e saída. Formata enquanto digita, como
+ * os outros campos de valor da plataforma: 10000 vira 10.000 (antes virava 100,00).
+ */
 export function CurrencyInput({
     value,
     onValueChange,
@@ -29,48 +26,17 @@ export function CurrencyInput({
     name,
     required = false
 }: CurrencyInputProps) {
-    const [displayValue, setDisplayValue] = useState('');
-
-    const updateDisplayFromNumber = useCallback((numericValue?: number) => {
-        if (numericValue === undefined) {
-            setDisplayValue('');
-            return;
-        }
-        setDisplayValue(formatCurrency(numericValue));
-    }, []);
+    const [texto, setTexto] = useState(() => valorParaCampo(value));
+    // Número que este campo acabou de mandar: quando ele volta pelo `value`, o texto
+    // digitado fica como está (senão "10.000," perderia a vírgula no meio da digitação).
+    const enviado = useRef<number | undefined>(value);
 
     useEffect(() => {
-        updateDisplayFromNumber(value);
-    }, [value, updateDisplayFromNumber]);
-
-    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const digits = event.target.value.replace(/\D/g, '');
-        if (!digits) {
-            setDisplayValue('');
-            onValueChange(undefined);
-            return;
-        }
-
-        const numericValue = Number(digits) / 100;
-        updateDisplayFromNumber(numericValue);
-        onValueChange(numericValue);
-    };
-
-    const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-        const allowedKeys = [
-            'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
-            'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
-            'Home', 'End'
-        ];
-
-        if (allowedKeys.includes(event.key)) {
-            return;
-        }
-
-        if (!/^[0-9]$/.test(event.key)) {
-            event.preventDefault();
-        }
-    };
+        // Campo apagado que o formulário guarda como 0 continua vazio na tela.
+        if (value === enviado.current || (enviado.current === undefined && value === 0)) return;
+        enviado.current = value;
+        setTexto(valorParaCampo(value));
+    }, [value]);
 
     return (
         <div className={styles.container}>
@@ -80,16 +46,19 @@ export function CurrencyInput({
                 </label>
             )}
             <div className={styles.inputWrapper}>
-                <input
+                <CampoValor
                     id={name}
                     name={name}
                     className={styles.input}
-                    value={displayValue}
-                    onChange={handleChange}
-                    onKeyDown={handleKeyDown}
+                    valor={texto}
+                    aoMudar={novo => {
+                        setTexto(novo);
+                        const numero = lerValor(novo) ?? undefined;
+                        enviado.current = numero;
+                        onValueChange(numero);
+                    }}
                     placeholder={placeholder}
                     required={required}
-                    autoComplete="off"
                 />
             </div>
         </div>

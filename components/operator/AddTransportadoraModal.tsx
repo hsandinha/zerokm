@@ -104,12 +104,12 @@ export function AddTransportadoraModal({
                 </div>
 
                 <div className={modalStyles.field}>
-                    <label htmlFor="transportadora-valor">Valor do frete</label>
+                    <label htmlFor="transportadora-valor">Valor do frete (R$)</label>
                     <CurrencyInput
                         name="transportadora-valor"
                         value={formData.valor}
                         onValueChange={(value) => setFormData({ ...formData, valor: value || 0 })}
-                        placeholder="R$ 0,00"
+                        placeholder="0,00"
                         required
                     />
                 </div>

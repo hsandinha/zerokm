@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { AdminModal, modalStyles } from '@/components/admin/AdminModal';
 import { InlineNotice } from '@/components/ui/Feedback';
 import { lerValorEmReais } from '@/lib/utils/valorCombinado';
+import { CampoValor } from '@/components/ui/CampoValor';
 import styles from './ClienteFinanceiro.module.css';
 
 type Resumo = {
@@ -201,10 +202,9 @@ export function ValorCombinadoCliente({ userId, onChange }: { userId: string; on
                         {erro && <InlineNotice>{erro}</InlineNotice>}
                         <label className={modalStyles.field}>
                             Valor do plano ({resumo.plano.periodicidade === 'annual' ? 'por ano' : 'por mês'})
-                            <input
-                                value={form.valor}
-                                onChange={e => setForm({ ...form, valor: e.target.value })}
-                                inputMode="decimal"
+                            <CampoValor
+                                valor={form.valor}
+                                aoMudar={texto => setForm({ ...form, valor: texto })}
                                 placeholder="Ex.: 500,00"
                                 autoFocus
                             />

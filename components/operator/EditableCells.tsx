@@ -1,3 +1,5 @@
+import { CampoValor } from '@/components/ui/CampoValor';
+import { lerValor, valorParaCampo } from '@/lib/utils/campoValor';
 import React, { useState, useEffect, useRef } from 'react';
 import { formatPrazo, parsePrazo, prazoParaInput } from '@/lib/utils/prazo';
 
@@ -70,14 +72,11 @@ export function EditableTextCell({ value, onSave, placeholder = '' }: EditableTe
 
 export function EditableCurrencyCell({ value, onSave }: EditableCurrencyCellProps) {
     const [isEditing, setIsEditing] = useState(false);
+    // Texto formatado enquanto se digita (10000 vira 10.000), como os outros campos de valor.
     const [localValue, setLocalValue] = useState<string>('');
 
     useEffect(() => {
-        if (value !== undefined) {
-            setLocalValue((value * 100).toFixed(0));
-        } else {
-            setLocalValue('');
-        }
+        setLocalValue(valorParaCampo(value));
     }, [value]);
 
     const formatDisplay = (val?: number) => {
@@ -85,18 +84,13 @@ export function EditableCurrencyCell({ value, onSave }: EditableCurrencyCellProp
         return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     };
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const digits = e.target.value.replace(/\D/g, '');
-        setLocalValue(digits);
-    };
-
     const handleBlur = () => {
         setIsEditing(false);
-        if (!localValue) {
+        const num = lerValor(localValue);
+        if (num === null) {
             onSave(undefined);
             return;
         }
-        const num = parseInt(localValue, 10) / 100;
         if (num !== value) {
             onSave(num);
         }
@@ -109,16 +103,12 @@ export function EditableCurrencyCell({ value, onSave }: EditableCurrencyCellProp
     };
 
     if (isEditing) {
-        const display = localValue
-            ? (parseInt(localValue, 10) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })
-            : '0,00';
-
         return (
-            <input
+            <CampoValor
                 autoFocus
-                type="text"
-                value={display}
-                onChange={handleChange}
+                valor={localValue}
+                aoMudar={setLocalValue}
+                placeholder="0,00"
                 onBlur={handleBlur}
                 onKeyDown={handleKeyDown}
                 onClick={(e) => e.stopPropagation()}
@@ -131,7 +121,7 @@ export function EditableCurrencyCell({ value, onSave }: EditableCurrencyCellProp
         <div
             onClick={(e) => {
                 e.stopPropagation();
-                setLocalValue(value ? (value * 100).toFixed(0) : '');
+                setLocalValue(valorParaCampo(value));
                 setIsEditing(true);
             }}
             style={{ cursor: 'pointer', minHeight: '20px', minWidth: '50px', borderBottom: '1px dashed #ccc' }}

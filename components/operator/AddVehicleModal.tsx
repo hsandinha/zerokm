@@ -481,10 +481,10 @@ export function AddVehicleModal({ isOpen, onClose, onVehicleAdded, editingVehicl
                     <div className={styles.formGroup}>
                         <CurrencyInput
                             name="preco"
-                            label="Valor"
+                            label="Valor (R$)"
                             value={formData.preco}
                             onValueChange={handlePrecoChange}
-                            placeholder="R$ 154.920,00"
+                            placeholder="154.920,00"
                             required
                         />
                     </div>
