@@ -1,5 +1,6 @@
 'use client';
 
+import { GRUPOS_DO_MENU } from '@/components/dashboard/abas-dos-paineis';
 import { useState, useEffect } from 'react';
 import { getSession } from 'next-auth/react';
 import { VehicleConsultation } from '../../../components/operator/VehicleConsultation';
@@ -68,15 +69,16 @@ export default function AdministrativoDashboard() {
 
     const effectiveRole = (userInfo.profile as any) || 'administrativo';
 
+    // Mesmos grupos e nomes do menu da Administração (components/dashboard/abas-dos-paineis.tsx).
     const tabs = [
-        { id: 'veiculos', label: 'Veículos', icon: <CarFront size={20} aria-hidden="true" /> },
-        { id: 'estoque-concessionarias', label: 'Estoque', icon: <Warehouse size={20} aria-hidden="true" /> },
-        { id: 'catalogo', label: 'Catálogo', icon: <BookOpen size={20} aria-hidden="true" /> },
-        { id: 'concessionarias', label: 'Concessionárias', icon: <Building2 size={20} aria-hidden="true" /> },
-        { id: 'transportadoras', label: 'Frete', icon: <Truck size={20} aria-hidden="true" /> },
-        { id: 'usuarios', label: 'Equipe', icon: <Users size={20} aria-hidden="true" /> },
-        { id: 'banners', label: 'Banners', icon: <Images size={20} aria-hidden="true" /> },
-        { id: 'avisos', label: 'Avisos', icon: <Megaphone size={20} aria-hidden="true" /> },
+        { id: 'concessionarias', label: 'Concessionárias', icon: <Building2 size={20} aria-hidden="true" />, grupo: GRUPOS_DO_MENU.cadastros },
+        { id: 'usuarios', label: 'Equipe', icon: <Users size={20} aria-hidden="true" />, grupo: GRUPOS_DO_MENU.cadastros },
+        { id: 'veiculos', label: 'Consulta', icon: <CarFront size={20} aria-hidden="true" />, grupo: GRUPOS_DO_MENU.veiculos },
+        { id: 'estoque-concessionarias', label: 'Estoque', icon: <Warehouse size={20} aria-hidden="true" />, grupo: GRUPOS_DO_MENU.veiculos },
+        { id: 'catalogo', label: 'Catálogo', icon: <BookOpen size={20} aria-hidden="true" />, grupo: GRUPOS_DO_MENU.veiculos },
+        { id: 'transportadoras', label: 'Frete', icon: <Truck size={20} aria-hidden="true" />, grupo: GRUPOS_DO_MENU.veiculos },
+        { id: 'banners', label: 'Banners', icon: <Images size={20} aria-hidden="true" />, grupo: GRUPOS_DO_MENU.divulgacao },
+        { id: 'avisos', label: 'Avisos', icon: <Megaphone size={20} aria-hidden="true" />, grupo: GRUPOS_DO_MENU.divulgacao },
     ];
 
     // Telas que já montam a própria página (components/ui/Page) ou ocupam a tela toda.

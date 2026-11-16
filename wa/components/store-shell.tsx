@@ -151,11 +151,12 @@ export function StoreShell({
     const comAtendimento: AbaDoPainel[] = doPainel.some((t) => t.id === "atendimento")
       ? doPainel
       : [...doPainel, { id: "atendimento", label: "Atendimento", icon: icone(MessagesSquare, 20) }];
-    return comAtendimento.map(({ id, label, icon, badge }) => ({
+    return comAtendimento.map(({ id, label, icon, badge, grupo }) => ({
       id,
       label,
       icon,
       ...(badge ? { badge } : {}),
+      ...(grupo ? { grupo } : {}),
       ...(id === "atendimento" ? { children: telas } : {}),
     }));
   }, [painel.tipo, pode, ehTitular, podeFavoritar, totalNovos, telas]);

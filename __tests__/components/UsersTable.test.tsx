@@ -56,16 +56,16 @@ describe('Equipe: só a equipe interna', () => {
         const concessionarias = vi.fn();
         const crm = vi.fn();
         await montar({ destinos: { concessionarias, crm } });
-        expect(screen.getByText('Logins de concessionária ficam na ficha de cada loja, em Concessionárias. Clientes ficam no CRM.')).toBeInTheDocument();
+        expect(screen.getByText('Logins de concessionária ficam na ficha de cada loja, em Concessionárias. Lojistas ficam em Clientes.')).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Ir para Concessionárias' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Ir para o CRM' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Ir para Clientes' }));
         expect(concessionarias).toHaveBeenCalled();
         expect(crm).toHaveBeenCalled();
     });
 
     it('sem destino (administrativo não tem CRM), o atalho não aparece', async () => {
         await montar({ destinos: { concessionarias: vi.fn() } });
-        expect(screen.queryByRole('button', { name: 'Ir para o CRM' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Ir para Clientes' })).not.toBeInTheDocument();
     });
 
     it('o botão de criar abre o Novo cadastro em Equipe interna, sem o perfil concessionária', async () => {

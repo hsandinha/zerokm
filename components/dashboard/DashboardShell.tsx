@@ -19,6 +19,11 @@ export interface ShellTab {
     /** Contador sobre o ícone (ex.: ofertas novas em Favoritos). 0 ou ausente = sem bolinha. */
     badge?: number;
     /**
+     * Assunto da aba (ex.: Cadastros, Financeiro). Abas seguidas do mesmo grupo
+     * ficam juntas no menu, sob o título do grupo; a ordem é a da lista.
+     */
+    grupo?: string;
+    /**
      * Itens da área que esta aba abre (ex.: Atendimento › Central, Funil...).
      * Aparecem logo abaixo dela, no mesmo menu lateral, quando ela ou um deles
      * está ativo: o menu nunca some ao entrar numa área com várias telas.
@@ -89,6 +94,14 @@ export function DashboardShell({ sectionLabel, tabs, activeId, onSelect, user, p
     const caminho = perfilAberto
         ? [sectionLabel, 'Meu perfil']
         : trail ?? [sectionLabel, ...(paiAtivo && subAtiva ? [paiAtivo.label, subAtiva] : abaAtiva ? [abaAtiva] : [])];
+    // Blocos do menu: abas seguidas do mesmo grupo ficam juntas, sob o título dele.
+    const blocos = tabs.reduce<Array<{ grupo?: string; abas: ShellTab[] }>>((acc, tab) => {
+        const ultimo = acc[acc.length - 1];
+        if (ultimo && ultimo.grupo === tab.grupo) ultimo.abas.push(tab);
+        else acc.push({ grupo: tab.grupo, abas: [tab] });
+        return acc;
+    }, []);
+    const temGrupos = blocos.some(b => b.grupo);
     // No celular a barra de baixo mostra os subitens da área aberta no lugar da aba-mãe.
     const itensDoCelular = tabs.flatMap(tab => (aberta(tab) ? tab.children ?? [] : [tab]));
 
@@ -100,6 +113,47 @@ export function DashboardShell({ sectionLabel, tabs, activeId, onSelect, user, p
             )}
         </span>
     );
+
+    const renderAba = (tab: ShellTab) => {
+        const ativa = !perfilAberto && (activeId === tab.id || paiAtivo?.id === tab.id);
+        return (
+            <div key={tab.id} className={styles.sidebarGroup}>
+                <button
+                    type="button"
+                    className={`${styles.sidebarItem} ${ativa ? styles.sidebarItemActive : ''}`}
+                    onClick={() => selecionar(tab.id)}
+                    title={tab.badge ? `${tab.label} (${tab.badge} ${tab.badge === 1 ? 'novidade' : 'novidades'})` : tab.label}
+                    aria-label={tab.badge ? `${tab.label}, ${tab.badge} ${tab.badge === 1 ? 'novidade' : 'novidades'}` : tab.label}
+                    aria-current={!perfilAberto && activeId === tab.id ? 'page' : undefined}
+                    aria-expanded={tab.children?.length ? aberta(tab) : undefined}
+                >
+                    <span className={styles.sidebarItemIcon}>{iconComBolinha(tab)}</span>
+                    <span className={styles.sidebarItemLabel}>{tab.label}</span>
+                </button>
+                {aberta(tab) && (
+                    <div className={styles.sidebarSubNav} role="group" aria-label={tab.label}>
+                        {tab.children!.map(sub => {
+                            const subAtivo = !perfilAberto && activeId === sub.id;
+                            return (
+                                <button
+                                    key={sub.id}
+                                    type="button"
+                                    className={`${styles.sidebarSubItem} ${subAtivo ? styles.sidebarSubItemActive : ''}`}
+                                    onClick={() => selecionar(sub.id)}
+                                    title={sub.badge ? `${sub.label} (${sub.badge})` : sub.label}
+                                    aria-label={sub.badge ? `${sub.label}, ${sub.badge}` : sub.label}
+                                    aria-current={subAtivo ? 'page' : undefined}
+                                >
+                                    <span className={styles.sidebarItemIcon}>{iconComBolinha(sub)}</span>
+                                    <span className={styles.sidebarItemLabel}>{sub.label}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     return (
         <div className={styles.layoutWrapper}>
@@ -127,48 +181,20 @@ export function DashboardShell({ sectionLabel, tabs, activeId, onSelect, user, p
                 </div>
 
                 <div className={styles.sidebarMenuSection}>
-                    {!collapsed && <p className={styles.sidebarMenuLabel}>{sectionLabel}</p>}
+                    {/* Com grupos, o título de cada grupo já diz onde se está; o rótulo do painel some para poupar altura. */}
+                    {!collapsed && !temGrupos && <p className={styles.sidebarMenuLabel}>{sectionLabel}</p>}
                     <nav className={styles.sidebarNav} aria-label={sectionLabel}>
-                        {tabs.map(tab => {
-                            const ativa = !perfilAberto && (activeId === tab.id || paiAtivo?.id === tab.id);
-                            return (
-                                <div key={tab.id} className={styles.sidebarGroup}>
-                                    <button
-                                        type="button"
-                                        className={`${styles.sidebarItem} ${ativa ? styles.sidebarItemActive : ''}`}
-                                        onClick={() => selecionar(tab.id)}
-                                        title={tab.badge ? `${tab.label} (${tab.badge} ${tab.badge === 1 ? 'novidade' : 'novidades'})` : tab.label}
-                                        aria-label={tab.badge ? `${tab.label}, ${tab.badge} ${tab.badge === 1 ? 'novidade' : 'novidades'}` : tab.label}
-                                        aria-current={!perfilAberto && activeId === tab.id ? 'page' : undefined}
-                                        aria-expanded={tab.children?.length ? aberta(tab) : undefined}
-                                    >
-                                        <span className={styles.sidebarItemIcon}>{iconComBolinha(tab)}</span>
-                                        <span className={styles.sidebarItemLabel}>{tab.label}</span>
-                                    </button>
-                                    {aberta(tab) && (
-                                        <div className={styles.sidebarSubNav} role="group" aria-label={tab.label}>
-                                            {tab.children!.map(sub => {
-                                                const subAtivo = !perfilAberto && activeId === sub.id;
-                                                return (
-                                                    <button
-                                                        key={sub.id}
-                                                        type="button"
-                                                        className={`${styles.sidebarSubItem} ${subAtivo ? styles.sidebarSubItemActive : ''}`}
-                                                        onClick={() => selecionar(sub.id)}
-                                                        title={sub.badge ? `${sub.label} (${sub.badge})` : sub.label}
-                                                        aria-label={sub.badge ? `${sub.label}, ${sub.badge}` : sub.label}
-                                                        aria-current={subAtivo ? 'page' : undefined}
-                                                    >
-                                                        <span className={styles.sidebarItemIcon}>{iconComBolinha(sub)}</span>
-                                                        <span className={styles.sidebarItemLabel}>{sub.label}</span>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
+                        {blocos.map((bloco, i) => bloco.grupo ? (
+                            <div key={`${bloco.grupo}:${i}`} className={styles.sidebarSection} role="group" aria-label={bloco.grupo}>
+                                {/* Mesma altura aberto ou recolhido (vira um fio): as abas não mudam de lugar no hover. */}
+                                <p className={styles.sidebarSectionLabel} aria-hidden="true">
+                                    <span className={styles.sidebarSectionText}>{bloco.grupo}</span>
+                                </p>
+                                {bloco.abas.map(renderAba)}
+                            </div>
+                        ) : (
+                            <div key={`sem-grupo:${i}`} className={styles.sidebarSection}>{bloco.abas.map(renderAba)}</div>
+                        ))}
                     </nav>
                 </div>
 

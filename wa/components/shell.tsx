@@ -255,6 +255,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     id: t.id,
     label: t.label,
     icon: t.icon,
+    ...("grupo" in t && t.grupo ? { grupo: t.grupo } : {}),
     ...(t.id === "whatsapp" ? { children: telas } : {}),
   }));
   const activeId = current ? `${WA}${current.href}` : "whatsapp";

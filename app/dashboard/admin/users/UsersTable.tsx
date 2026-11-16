@@ -267,10 +267,10 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [], destinos }: U
                 title="Aqui fica só a equipe interna"
                 action={(destinos?.concessionarias || destinos?.crm) ? <>
                     {destinos.concessionarias && <Button onClick={destinos.concessionarias}>Ir para Concessionárias</Button>}
-                    {destinos.crm && <Button onClick={destinos.crm}>Ir para o CRM</Button>}
+                    {destinos.crm && <Button onClick={destinos.crm}>Ir para Clientes</Button>}
                 </> : undefined}
             >
-                Logins de concessionária ficam na ficha de cada loja, em Concessionárias. Clientes ficam no CRM.
+                Logins de concessionária ficam na ficha de cada loja, em Concessionárias. Lojistas ficam em Clientes.
             </Callout>
 
             <StatGrid>
@@ -340,7 +340,7 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [], destinos }: U
                                         <td>
                                             <RowActions>
                                                 {onViewInCRM && ehCliente(user) && (
-                                                    <IconAction label="Ver no CRM" onClick={() => onViewInCRM(user.email || '')}>
+                                                    <IconAction label="Ver em Clientes" onClick={() => onViewInCRM(user.email || '')}>
                                                         <ContactRound size={17} aria-hidden="true" />
                                                     </IconAction>
                                                 )}
@@ -390,7 +390,7 @@ export function UsersTable({ onViewInCRM, restrictedProfiles = [], destinos }: U
                         <PerfisDaEquipe name="edit" selected={selectedProfiles} restricted={restrictedProfiles} onToggle={toggleProfile} />
                         {(selectedProfiles.includes('cliente') || selectedProfiles.includes('gratis')) && (
                             <p className={`${modalStyles.hint} ${modalStyles.flush}`}>
-                                Este usuário também tem perfil de {selectedProfiles.includes('cliente') ? 'cliente' : 'teste grátis'}. Esse acesso é controlado pela assinatura, no CRM.
+                                Este usuário também tem perfil de {selectedProfiles.includes('cliente') ? 'cliente' : 'teste grátis'}. Esse acesso é controlado pela assinatura, em Clientes.
                             </p>
                         )}
                         {selectedProfiles.includes('concessionaria') && (

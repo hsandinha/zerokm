@@ -65,3 +65,29 @@ describe('menu lateral com subitens', () => {
         expect(barra).not.toHaveTextContent('Atendimento');
     });
 });
+
+describe('menu lateral em grupos', () => {
+    const agrupadas = [
+        { id: 'visao-geral', label: 'Visão geral', icon: <i /> },
+        { id: 'concessionarias', label: 'Concessionárias', icon: <i />, grupo: 'Cadastros' },
+        { id: 'crm', label: 'Clientes', icon: <i />, grupo: 'Cadastros' },
+        { id: 'planos', label: 'Planos', icon: <i />, grupo: 'Financeiro' },
+        { id: 'cobrancas', label: 'Cobranças', icon: <i />, grupo: 'Financeiro' },
+    ];
+
+    it('junta as abas seguidas do mesmo grupo sob o título dele, na ordem da lista', () => {
+        render(
+            <DashboardShell sectionLabel="Administração" tabs={agrupadas} activeId="planos" onSelect={vi.fn()} user={{ name: 'Ana', role: 'Administrador' }}>
+                <p>conteúdo</p>
+            </DashboardShell>,
+        );
+        const menu = screen.getByRole('navigation', { name: 'Administração' });
+        const cadastros = within(menu).getByRole('group', { name: 'Cadastros' });
+        expect(within(cadastros).getAllByRole('button').map(b => b.getAttribute('aria-label'))).toEqual(['Concessionárias', 'Clientes']);
+        const financeiro = within(menu).getByRole('group', { name: 'Financeiro' });
+        expect(within(financeiro).getByRole('button', { name: 'Planos' })).toHaveAttribute('aria-current', 'page');
+        // Visão geral fica fora dos grupos, no topo.
+        expect(within(cadastros).queryByRole('button', { name: 'Visão geral' })).not.toBeInTheDocument();
+        expect(within(menu).getByRole('button', { name: 'Visão geral' })).toBeInTheDocument();
+    });
+});
