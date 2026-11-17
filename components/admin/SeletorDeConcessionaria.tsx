@@ -5,12 +5,33 @@
 // linhas. Teclado: setas, Enter e Esc. Cada linha mostra marca, cidade e
 // quantos veículos ativos a loja tem, para a pessoa confirmar que é a certa.
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, X } from 'lucide-react';
 import type { Concessionaria } from '@/lib/services/concessionariaService';
 import styles from './SeletorDeConcessionaria.module.css';
 
 const MAX_NA_LISTA = 40;
+const ALTURA_MAXIMA = 420;
+const FOLGA = 12;
+
+/**
+ * Onde a lista aparece, presa ao campo. Ela é desenhada fora do cartão (portal no
+ * invólucro do tema do admin), porque o cartão em volta corta o que passa da borda dele. Abre para baixo; se embaixo
+ * couber pouco e em cima couber mais, abre para cima.
+ */
+export function posicaoDaLista(campo: { top: number; bottom: number; left: number; width: number }, alturaDaJanela: number): CSSProperties {
+    const embaixo = alturaDaJanela - campo.bottom - FOLGA;
+    const emCima = campo.top - FOLGA;
+    const paraCima = embaixo < 260 && emCima > embaixo;
+    const espaco = Math.max(160, paraCima ? emCima : embaixo);
+    return {
+        left: campo.left,
+        width: campo.width,
+        maxHeight: Math.min(ALTURA_MAXIMA, espaco),
+        ...(paraCima ? { bottom: alturaDaJanela - campo.top + 6 } : { top: campo.bottom + 6 }),
+    };
+}
 
 const semAcento = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const soDigitos = (s: string) => s.replace(/\D/g, '');
@@ -67,20 +88,39 @@ export function SeletorDeConcessionaria({
     const [destaque, setDestaque] = useState(0);
     const caixa = useRef<HTMLDivElement>(null);
     const campo = useRef<HTMLInputElement>(null);
+    const lista = useRef<HTMLDivElement>(null);
+    const [posicao, setPosicao] = useState<CSSProperties | null>(null);
     const idLista = useId();
 
     const selecionada = lojas.find((c) => c.id === value) || null;
     const achadas = useMemo(() => filtrarLojas(lojas, busca), [lojas, busca]);
     const visiveis = achadas.slice(0, MAX_NA_LISTA);
 
-    // Fecha ao clicar fora.
+    // Fecha ao clicar fora (do campo e da lista, que fica fora da caixa no DOM).
     useEffect(() => {
         if (!aberto) return;
         const fora = (e: MouseEvent) => {
-            if (caixa.current && !caixa.current.contains(e.target as Node)) setAberto(false);
+            const alvo = e.target as Node;
+            if (caixa.current?.contains(alvo) || lista.current?.contains(alvo)) return;
+            setAberto(false);
         };
         document.addEventListener('mousedown', fora);
         return () => document.removeEventListener('mousedown', fora);
+    }, [aberto]);
+
+    // Mantém a lista grudada no campo ao rolar a página ou mudar o tamanho da janela.
+    useLayoutEffect(() => {
+        if (!aberto) return;
+        const medir = () => {
+            if (caixa.current) setPosicao(posicaoDaLista(caixa.current.getBoundingClientRect(), window.innerHeight));
+        };
+        medir();
+        window.addEventListener('scroll', medir, true);
+        window.addEventListener('resize', medir);
+        return () => {
+            window.removeEventListener('scroll', medir, true);
+            window.removeEventListener('resize', medir);
+        };
     }, [aberto]);
 
     useEffect(() => setDestaque(0), [busca]);
@@ -142,8 +182,8 @@ export function SeletorDeConcessionaria({
                 )}
             </div>
 
-            {aberto && !loading && (
-                <div className={styles.lista} id={idLista} role="listbox">
+            {aberto && !loading && posicao && createPortal(
+                <div className={styles.lista} id={idLista} role="listbox" ref={lista} style={posicao}>
                     {visiveis.length === 0 && <div className={styles.vazio}>Nenhuma concessionária com “{busca}”.</div>}
                     {visiveis.map((c, i) => {
                         const ativos = c.totalAtivos || 0;
@@ -172,7 +212,9 @@ export function SeletorDeConcessionaria({
                             Mostrando {visiveis.length} de {achadas.length.toLocaleString('pt-BR')}. Digite mais para afinar.
                         </div>
                     )}
-                </div>
+                </div>,
+                // Dentro do invólucro do tema do admin (cores e fonte valem só ali), fora do cartão que corta.
+                caixa.current?.closest('[data-admin-design]') ?? document.body,
             )}
         </div>
     );
